@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Money coach{% endblock %}
+{% block head %}
+<style>
+  body{display:flex;flex-direction:column;height:100dvh}
+  footer{display:none}
+  #log{flex:1;overflow-y:auto;padding:16px;max-width:560px;width:100%;margin:0 auto}
+  .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
+  .me{margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px}
+  .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .bot a.btn{margin-top:10px;padding:11px;min-height:0;font-size:15px}
+  .typing{color:var(--muted);font-size:14px;padding:6px 2px}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px;max-width:560px;width:100%;margin:0 auto}
+  .chips button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 12px;font:14px system-ui;cursor:pointer}
+  form{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
+  form input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px system-ui;background:var(--bg);color:var(--ink)}
+  form button{border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 15px system-ui;padding:0 18px;cursor:pointer}
+</style>
+{% endblock %}
+{% block body %}
+<div id="log" aria-live="polite">
+  <div class="msg bot">Hi {{ name }} 👋 I'm your S-Pankki money coach. Ask me anything about your spending.</div>
+</div>
+<div class="chips" id="chips">
+  <button data-q="__remind__">⏰ Bill reminder</button>
+  <button>How much did I spend on restaurants last month?</button>
+  <button>What is safe for me to spend this week?</button>
+  <button>What kind of spender am I?</button>
+  <button>How much could I save if I cut dining out by 20%?</button>
+</div>
+<form id="f" autocomplete="off">
+  <input id="q" placeholder="Ask about your money…" aria-label="Message">
+  <button>Send</button>
+</form>
+<script>
+const log = document.getElementById("log"), q = document.getElementById("q");
+let sid = "s" + Math.random().toString(36).slice(2, 10);
+try { sid = sessionStorage.getItem("sid") || sid; sessionStorage.setItem("sid", sid); } catch (e) {}
+
+function esc(s) { return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function fmt(s) { return esc(s).replace(/\*([^*\n]+)\*/g, "<b>$1</b>").replace(/_([^_\n]+)_/g, "<i>$1</i>"); }
+
+function add(cls, html) {
+  const d = document.createElement("div");
+  d.className = "msg " + cls; d.innerHTML = html;
+  log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
+}
+
+async function send(text, shown) {
+  if (!text) return;
+  if (shown !== null) add("me", esc(shown || text));
+  const t = add("typing", "Coach is typing…"); t.className = "typing";
+  try {
+    const r = await fetch("/api/chat", {method: "POST", headers: {"content-type": "application/json"},
+                                         body: JSON.stringify({session: sid, text})});
+    const j = await r.json();
+    t.remove();
+    let html = fmt(j.text || "…");
+    for (const b of j.buttons || []) html += `<a class="btn" href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.label)}</a>`;
+    add("bot", html);
+    for (const b of j.quick || []) {
+      const btn = document.createElement("button");
+      btn.textContent = b.label; btn.className = "btn ghost"; btn.style.marginTop = "8px";
+      btn.onclick = () => send(b.send, b.label);
+      log.lastChild.appendChild(btn);
+    }
+  } catch (e) { t.remove(); add("bot", "Connection problem, try again."); }
+}
+
+document.getElementById("f").onsubmit = e => { e.preventDefault(); const v = q.value.trim(); q.value = ""; send(v); };
+document.querySelectorAll("#chips button").forEach(b => b.onclick = () =>
+  b.dataset.q ? send(b.dataset.q, null) : send(b.textContent));
+</script>
+{% endblock %}

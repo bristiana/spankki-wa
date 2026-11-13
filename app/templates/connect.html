@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Connect your coach{% endblock %}
+{% block body %}
+<main>
+  <form class="card" method="post" action="/connect">
+    <h1>Chat with your money on WhatsApp</h1>
+    <p class="muted">Your S-Pankki coach answers questions about your own spending, reminds you before bills and helps you save. You decide what it can see.</p>
+    <label class="opt"><input type="checkbox" name="scope" value="transactions" checked><span><b>Transactions and balance</b><br><span class="muted">So the coach can answer "how much did I spend on…"</span></span></label>
+    <label class="opt"><input type="checkbox" name="scope" value="reminders" checked><span><b>Bill reminders</b><br><span class="muted">A message before rent and other regular payments</span></span></label>
+    <label class="opt"><input type="checkbox" name="scope" value="payments" checked><span><b>Payment and saving buttons</b><br><span class="muted">You always confirm with your PIN. The coach can't move money by itself.</span></span></label>
+    <div class="note">Messages on WhatsApp pass through Meta's servers. By connecting you agree that your coach's replies, which can include amounts from your account, are sent there. Turn it off any time by writing STOP or in S-mobiili.</div>
+    <input type="hidden" name="u" value="{{ u }}">
+    <button class="btn" type="submit">Connect S-Pankki</button>
+  </form>
+</main>
+{% endblock %}

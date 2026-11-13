@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}S-Pankki{% endblock %}</title>
+<style>
+  :root{--bg:#f4f6f5;--card:#fff;--ink:#14201b;--muted:#5d6b65;--line:#e2e8e5;--brand:#00663d;--brand-ink:#fff;--soft:#e7f3ec;--warn:#8a5a00;--warn-bg:#fff6e0;--err:#b3261e}
+  @media (prefers-color-scheme:dark){:root{--bg:#0f1513;--card:#18201d;--ink:#e8efeb;--muted:#9aa8a1;--line:#2a3430;--brand:#2fae6f;--brand-ink:#06140d;--soft:#1d2b24;--warn:#f3c66b;--warn-bg:#2b2416}}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .bar{background:var(--brand);color:var(--brand-ink);padding:14px 16px;display:flex;align-items:center;gap:10px}
+  .logo{width:32px;height:32px;border-radius:8px;background:var(--brand-ink);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:18px}
+  .bar b{font-size:17px}.bar small{margin-left:auto;opacity:.8;font-size:12px;border:1px solid currentColor;border-radius:99px;padding:1px 8px}
+  main{max-width:440px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+  h1{font-size:20px;margin:4px 0 12px}
+  .amount{font-size:34px;font-weight:700;letter-spacing:-.5px;margin:2px 0 6px}
+  .muted{color:var(--muted);font-size:14px}
+  .row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid var(--line);font-size:15px}
+  .row span:first-child{color:var(--muted)}.row span:last-child{text-align:right}
+  .btn{display:block;width:100%;border:0;border-radius:12px;padding:15px;font:600 16px system-ui;background:var(--brand);color:var(--brand-ink);cursor:pointer;text-align:center;text-decoration:none;min-height:48px}
+  .btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--line)}
+  .note{background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:10px 12px;font-size:13px;margin:12px 0}
+  .pin{display:flex;gap:10px;justify-content:center;margin:14px 0}
+  .pin input{width:100%;max-width:200px;text-align:center;letter-spacing:12px;font-size:26px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)}
+  .err{color:var(--err);text-align:center;font-size:14px}
+  label.opt{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+  label.opt input{width:20px;height:20px;margin-top:2px;accent-color:var(--brand)}
+  .ok{width:64px;height:64px;border-radius:50%;background:var(--soft);color:var(--brand);display:grid;place-items:center;font-size:32px;margin:8px auto 12px}
+  footer{max-width:440px;margin:0 auto;padding:4px 16px 24px;color:var(--muted);font-size:12px;text-align:center}
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<div class="bar"><div class="logo">S</div><b>S-Pankki</b><small>hackathon demo</small></div>
+{% block body %}{% endblock %}
+<footer>Junction 2026 prototype on synthetic data. No real money moves.</footer>
+</body>
+</html>

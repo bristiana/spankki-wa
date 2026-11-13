@@ -1,0 +1,135 @@
+"""Claude tool definitions, each one a thin wrapper over the deterministic engine."""
+from __future__ import annotations
+
+import json
+import os
+
+from .engine import FUNDS, PERIODS, SPEND_CATEGORIES, Engine
+
+PERIOD_PROP = {"type": "string", "enum": PERIODS,
+               "description": "Time window. last_month = previous calendar month. last_3_months = the 3 full months before this one."}
+DATE_PROP = {"type": ["string", "null"], "description": "Optional ISO date (YYYY-MM-DD) that overrides period."}
+
+TOOLS = [
+    {
+        "name": "get_spending",
+        "description": "Total spent in a category (or all spending) over a period, with number of payments, top places, "
+                       "and the previous period for comparison. Use for any 'how much did I spend on X' question.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": ["string", "null"], "enum": SPEND_CATEGORIES + [None],
+                             "description": "Category, or null for all spending. Taxis, buses and fuel are Transportation; "
+                                            "coffee and dining out are Restaurants; shopping is Lifestyle."},
+                "period": PERIOD_PROP,
+                "start": DATE_PROP,
+                "end": DATE_PROP,
+            },
+            "required": ["category", "period"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_baskets",
+        "description": "Splits spending into the three baskets (mandatory & regular, mandatory & irregular, slips through "
+                       "your fingers), with income, money invested and what was left over.",
+        "input_schema": {"type": "object", "properties": {"period": PERIOD_PROP}, "required": ["period"],
+                         "additionalProperties": False},
+    },
+    {
+        "name": "get_upcoming_bills",
+        "description": "Recurring payments coming up (rent, monthly investment) with bill_id, amount and due date, plus the "
+                       "average utilities per month.",
+        "input_schema": {"type": "object", "properties": {"days": {"type": "integer", "description": "Look-ahead window in days, e.g. 14."}},
+                         "required": ["days"], "additionalProperties": False},
+    },
+    {
+        "name": "get_safe_to_spend",
+        "description": "How much is safe to spend until next payday, per day and this week, after bills, usual needs and a "
+                       "buffer for surprises. Also returns the current balance.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "simulate_cut",
+        "description": "What-if: how much the user saves per month and year by cutting a category by a percentage, and what "
+                       "that saving could grow to in each demo fund (a scenario, not a promise).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "enum": SPEND_CATEGORIES},
+                "cut_pct": {"type": "number", "description": "Percent to cut, 1-100."},
+                "years": {"type": "integer", "description": "Years for the investment scenario, default 5."},
+            },
+            "required": ["category", "cut_pct", "years"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_spender_profile",
+        "description": "What kind of spender the user is: traits, savings rate, and how they compare with other S-Pankki "
+                       "customers of the same age group.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "list_funds",
+        "description": "The demo investment funds with risk level and what they hold. Use before talking about investing.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "create_payment_link",
+        "description": "Prepare paying an upcoming bill. Does NOT pay: the user gets a button and confirms in the bank. "
+                       "Only call when the user asked to pay.",
+        "input_schema": {"type": "object", "properties": {"bill_id": {"type": "string"}}, "required": ["bill_id"],
+                         "additionalProperties": False},
+    },
+    {
+        "name": "create_investment_link",
+        "description": "Prepare an investment into a fund the USER chose. Does NOT invest: the user gets a button and "
+                       "confirms in the bank. Only call after the user picked the fund and the amount.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "fund_id": {"type": "string", "enum": [f["id"] for f in FUNDS]},
+                "amount_eur": {"type": "number"},
+                "monthly": {"type": "boolean", "description": "true = repeat every payday, false = one-off."},
+            },
+            "required": ["fund_id", "amount_eur", "monthly"],
+            "additionalProperties": False,
+        },
+    },
+]
+
+
+def public_url() -> str:
+    return os.environ.get("PUBLIC_URL", "http://localhost:8000").rstrip("/")
+
+
+def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
+    """Run one tool. Returns JSON text; appends a URL button when a money move was prepared."""
+    if name == "get_spending":
+        out = engine.spending(args.get("category"), args.get("period") or "last_month", args.get("start"), args.get("end"))
+    elif name == "get_baskets":
+        out = engine.baskets(args.get("period") or "last_3_months")
+    elif name == "get_upcoming_bills":
+        out = engine.upcoming_bills(int(args.get("days") or 14))
+    elif name == "get_safe_to_spend":
+        out = engine.safe_to_spend()
+    elif name == "simulate_cut":
+        out = engine.simulate_cut(args["category"], float(args["cut_pct"]), years=int(args.get("years") or 5))
+    elif name == "get_spender_profile":
+        out = engine.spender_profile()
+    elif name == "list_funds":
+        out = [{k: f[k] for k in ("id", "name", "risk", "risk_level", "what")} | {"scenario_return_pct": f["scenario_return"] * 100}
+               for f in FUNDS]
+    elif name == "create_payment_link":
+        p = engine.create_payment(args["bill_id"])
+        buttons.append({"label": f"Pay {p['amount']:.2f} €", "url": f"{public_url()}/pay/{p['pending_id']}"})
+        out = {**p, "note": "A 'Pay' button is attached to your message. Do not paste a link."}
+    elif name == "create_investment_link":
+        p = engine.create_investment(float(args["amount_eur"]), args["fund_id"], bool(args["monthly"]))
+        label = f"Invest {p['amount']:.0f} €" + ("/month" if p["monthly"] else "")
+        buttons.append({"label": label, "url": f"{public_url()}/invest/{p['pending_id']}"})
+        out = {**p, "note": "An 'Invest' button is attached to your message. Do not paste a link."}
+    else:
+        raise ValueError(f"unknown tool {name}")
+    return json.dumps(out, default=str)

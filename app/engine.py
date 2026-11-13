@@ -106,13 +106,13 @@ class Engine:
     def _load_state(self) -> dict:
         if self.state_path.exists():
             return json.loads(self.state_path.read_text())
-        return {"actions": [], "pending": {}}
+        return {"actions": [], "pending": {}, "plans": [], "connected": {}}
 
     def _save(self):
         self.state_path.write_text(json.dumps(self.state, indent=2, default=str))
 
     def reset(self):
-        self.state = {"actions": [], "pending": {}}
+        self.state = {"actions": [], "pending": {}, "plans": [], "connected": {}}
         self._save()
 
     @property
@@ -417,6 +417,13 @@ class Engine:
         if not p:
             raise KeyError(pid)
         if p["status"] == "done":
+            return {"pending_id": pid, **p, "balance_eur": self.balance()}
+        if p.get("monthly"):
+            # A monthly plan moves money on payday, not now.
+            p["status"] = "done"
+            p["starts"] = self.next_payday()["date"]
+            self.state.setdefault("plans", []).append({"pending_id": pid, **p})
+            self._save()
             return {"pending_id": pid, **p, "balance_eur": self.balance()}
         self.state["actions"].append({"date": self.today.isoformat(), "category": p["category"],
                                       "amount": -p["amount"], "transaction_type": p["transaction_type"],
