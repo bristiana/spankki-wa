@@ -253,7 +253,7 @@ these examples are made up; only the field names and shapes are the contract.** 
  "bills": [{"name": "Rent", "date": "2026-09-05", "amount_eur": 950.00}]}
 ```
 
-`GET /api/budget` and `POST /api/budget {"category": "Restaurants" | "all", "mode": "own" | "peers" | "helsinki" | "finland", "amount_eur": 250}`
+`GET /api/budget` and `POST /api/budget {"category": "Restaurants" | "all", "mode": "own" | "peers" | "helsinki" | "finland" | "restore", "amount_eur": 250}`
 ```json
 {"month": "2026-10",
  "items": [{"category": "Restaurants", "limit_eur": 296.00, "source": "peers", "spent_eur": 61.40,
@@ -264,6 +264,10 @@ these examples are made up; only the field names and shapes are the contract.** 
              "finland": {"year": 2022, "per_person": true, "per_category": {"Restaurants": 64.00}}},
  "undo": {"category": "Restaurants", "previous": null}}
 ```
+**Undo uses `"mode": "restore"`:** `POST /api/budget {"category": "Restaurants", "mode": "restore", "amount_eur": null,
+"source": null}` puts back the earlier value exactly. `amount_eur: null` means no budget (the row shows "No budget
+yet"); a number restores that limit, and `source` (`own`, `peers`, `helsinki`, `finland`) restores where it came
+from. The screen sends one restore per category it changed, so "all" is undone category by category.
 
 `GET /api/compare`
 ```json
