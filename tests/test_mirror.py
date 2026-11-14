@@ -23,9 +23,12 @@ def owner(monkeypatch):
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.delenv("WA_TOKEN", raising=False)
+    monkeypatch.setenv("EB_LINK_SECRET", "test-secret")
     main.engine = Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json")
     main._coach = None
-    return TestClient(main.app)
+    c = TestClient(main.app)
+    c.cookies.set(main.enable_banking.COOKIE, main.enable_banking.sign(OWNER))  # the owner, logged in
+    return c
 
 
 def test_only_the_owner_is_mirrored_both_ways():
@@ -73,3 +76,17 @@ def test_chat_page_polls_when_mirroring(client, monkeypatch):
     monkeypatch.delenv("MIRROR_PHONE")
     monkeypatch.delenv("DEMO_PHONE", raising=False)
     assert "const MIRROR = false" in client.get("/chat").text
+
+
+def test_nobody_else_sees_the_owners_conversation(client):
+    """The owner's WhatsApp can hold real bank numbers: the demo account and strangers get their own chat."""
+    mirror.add("oiva", "Across both banks you have 7 000 €")
+    client.cookies.clear()
+    assert client.get("/api/mirror").json() == {"on": False, "messages": []}
+    assert "const MIRROR = false" in client.get("/chat").text
+    client.cookies.set("oiva_demo", "1")
+    assert client.get("/api/mirror").json()["messages"] == []
+    client.cookies.set(main.enable_banking.COOKIE, main.enable_banking.sign("358409999999"))
+    assert client.get("/api/mirror").json()["messages"] == []
+    j = client.post("/api/chat", json={"session": "x", "text": "__remind__", "mirror": True}).json()
+    assert j["text"] and mirror.APP_KEY not in main.coach(None).alias
