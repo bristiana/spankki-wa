@@ -2,11 +2,13 @@
 {% block title %}{{ title }}{% endblock %}
 {% block body %}
 <main>
-  <div class="card" style="text-align:center">
-    <div class="ok">{{ "!" if failed else "✓" }}</div>
+  <div class="card" style="text-align:center" role="status">
+    <div class="ok" aria-hidden="true">{{ "!" if failed else "✓" }}</div>
     <h1>{{ title }}</h1>
-    {% for l in lines %}<p class="muted">{{ l }}</p>{% endfor %}
-    {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}">Back to WhatsApp</a>{% else %}<p class="muted">You can go back to the chat.</p>{% endif %}
+    {% for l in lines %}<p class="muted">{{ l|nb }}</p>{% endfor %}
+    {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}">Back to WhatsApp</a>
+    {% else %}<a class="btn" href="/chat" data-back>Back to the chat</a>{% endif %}
+    {% if not request.query_params.get('web') %}<a class="btn ghost" href="/app" style="margin-top:8px">Open My money</a>{% endif %}
   </div>
 </main>
 <script>if (window.parent !== window) window.parent.postMessage("done", "*");</script>

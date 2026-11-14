@@ -2,18 +2,26 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#00663d">
+<link rel="icon" href="/static/kurre.svg" type="image/svg+xml">
 <title>{% block title %}S-Pankki{% endblock %}</title>
 <style>
-  :root{--bg:#f4f6f5;--card:#fff;--ink:#14201b;--muted:#5d6b65;--line:#e2e8e5;--brand:#00663d;--brand-ink:#fff;--soft:#e7f3ec;--warn:#8a5a00;--warn-bg:#fff6e0;--err:#b3261e}
-  @media (prefers-color-scheme:dark){:root{--bg:#0f1513;--card:#18201d;--ink:#e8efeb;--muted:#9aa8a1;--line:#2a3430;--brand:#2fae6f;--brand-ink:#06140d;--soft:#1d2b24;--warn:#f3c66b;--warn-bg:#2b2416}}
+  :root{--bg:#f4f6f5;--card:#fff;--ink:#14201b;--muted:#5d6b65;--line:#e2e8e5;--brand:#00663d;--brand-ink:#fff;--soft:#e7f3ec;--warn:#8a5a00;--warn-bg:#fff6e0;--err:#b3261e;--neg:#b3261e}
+  @media (prefers-color-scheme:dark){:root{--bg:#0f1513;--card:#18201d;--ink:#e8efeb;--muted:#9aa8a1;--line:#2a3430;--brand:#2fae6f;--brand-ink:#06140d;--soft:#1d2b24;--warn:#f3c66b;--warn-bg:#2b2416;--err:#ff8a80;--neg:#ff8a80}}
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  .bar{background:var(--brand);color:var(--brand-ink);padding:14px 16px;display:flex;align-items:center;gap:10px}
+  a{color:var(--brand)}
+  :focus-visible{outline:3px solid var(--brand);outline-offset:2px;border-radius:6px}
+  .bar :focus-visible{outline-color:var(--brand-ink)}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+  .nowrap{white-space:nowrap}
+  .bar{background:var(--brand);color:var(--brand-ink);padding:8px 16px;display:flex;align-items:center;gap:10px}
   .logo{width:32px;height:32px;border-radius:8px;background:var(--brand-ink);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:18px}
   .bar b{font-size:17px}.bar small{opacity:.8;font-size:12px;border:1px solid currentColor;border-radius:99px;padding:1px 8px}
-  .bar a{color:inherit;text-decoration:none}.bar .home{display:flex;align-items:center;gap:10px}
-  .bar nav{margin-left:auto;display:flex;gap:4px}.bar nav a{padding:6px 10px;border-radius:8px;font-size:14px;font-weight:600}
+  .bar a{color:inherit;text-decoration:none}.bar .home{display:flex;align-items:center;gap:10px;min-height:44px}
+  .bar nav{margin-left:auto;display:flex;gap:4px}.bar nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 10px;border-radius:8px;font-size:14px;font-weight:600}
+  .bar nav a[aria-current]{background:rgba(255,255,255,.16)}
   .bar nav a:hover{background:rgba(255,255,255,.12)}
   main{max-width:440px;margin:0 auto;padding:16px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
@@ -32,7 +40,7 @@
   label.opt input{width:20px;height:20px;margin-top:2px;accent-color:var(--brand)}
   .ok{width:64px;height:64px;border-radius:50%;background:var(--soft);color:var(--brand);display:grid;place-items:center;font-size:32px;margin:8px auto 12px}
   footer{max-width:440px;margin:0 auto;padding:4px 16px 24px;color:var(--muted);font-size:12px;text-align:center}
-  @media (max-width:420px){.bar{gap:8px;padding:14px 12px}.bar nav{gap:0}.bar nav a{padding:6px 7px}}
+  @media (max-width:420px){.bar{gap:8px;padding:8px 12px}.bar nav{gap:0}.bar nav a{padding:0 7px}}
   /* charts drawn by /static/kchart.js */
   .kc{display:block;width:100%;height:auto;overflow:visible;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   .kc text{font-size:11px;fill:var(--muted)}
@@ -49,23 +57,29 @@
   .kc-empty{color:var(--muted);font-size:14px;margin:8px 0}
   /* "Viewing as": judges switch the demo to another real customer */
   .who{position:relative;max-width:440px;margin:10px auto 0;padding:0 16px;font-size:13px;z-index:5}
-  .who summary{display:inline-flex;align-items:center;gap:4px;list-style:none;cursor:pointer;background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:5px 12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .who summary{display:inline-flex;align-items:center;gap:4px;list-style:none;cursor:pointer;background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:0 14px;min-height:44px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .who summary::-webkit-details-marker{display:none}
   .who summary::after{content:"▾";color:var(--muted);margin-left:2px}
   .who-menu{position:absolute;left:16px;right:16px;margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.14);overflow:hidden}
-  .who-menu a{display:block;padding:10px 14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
+  .who-menu a{display:block;padding:12px 14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
   .who-menu a:first-child{border-top:0}.who-menu a[aria-current]{background:var(--soft)}
   .who-menu small{display:block;color:var(--muted);font-size:12px}
   .who-menu p{margin:0;padding:8px 14px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
 </style>
 {% block head %}{% endblock %}
 </head>
-<body{% if embed %} class="embed"{% endif %}>
-{% if not embed %}<div class="bar"><a class="home" href="/"><div class="logo">S</div><b>S-Pankki</b></a><nav><a href="/chat">Chat</a><a href="/app">My money</a><a href="/app/explore">Explore</a></nav><small>demo</small></div>
+<body{% if embed or request.query_params.get('web') %} class="embed"{% endif %}>
+{% if not embed and not request.query_params.get('web') %}{% set here = request.url.path %}<div class="bar"><a class="home" href="/" aria-label="S-Pankki home"><div class="logo" aria-hidden="true">S</div><b>S-Pankki</b></a><nav><a href="/chat"{% if here == "/chat" %} aria-current="page"{% endif %}>Chat</a><a href="/app"{% if here == "/app" %} aria-current="page"{% endif %}>My money</a><a href="/app/explore"{% if here == "/app/explore" %} aria-current="page"{% endif %}>Explore</a></nav><small>demo</small></div>
 {% if persona %}<details class="who"><summary>Viewing as <b>{{ persona.name }}</b> · {{ persona.label }}</summary>
 <div class="who-menu">{% for p in personas %}<a href="?as={{ p.id }}"{% if p.id == persona.id %} aria-current="true"{% endif %}><b>{{ p.name }}</b> · {{ p.label }}<small>{{ p.description }}</small></a>{% endfor %}
 <p>Real customers from the challenge data, names made up. Each has its own payments and goals.</p></div></details>{% endif %}{% endif %}
 {% block body %}{% endblock %}
-{% if not embed %}<footer>Junction 2026 prototype on synthetic data. No real money moves.</footer>{% endif %}
+{% if not embed and not request.query_params.get('web') %}<footer>Junction 2026 prototype on synthetic data. No real money moves.</footer>{% endif %}
+<script>
+// Inside the chat's confirm sheet (an iframe), "back" links close the sheet instead of loading the chat in it.
+if (window.parent !== window) document.querySelectorAll("[data-back]").forEach(a => a.addEventListener("click", e => {
+  e.preventDefault(); window.parent.postMessage("close", "*");
+}));
+</script>
 </body>
 </html>

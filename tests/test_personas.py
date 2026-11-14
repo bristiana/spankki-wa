@@ -44,7 +44,7 @@ def test_each_persona_has_its_own_numbers(client):
         assert e.customer_id == pid and e is not main.engine
         assert safe(client, **{"as": pid}) == e.safe_to_spend()["safe_to_spend_until_payday_eur"]
         page = client.get("/app", params={"as": pid}).text
-        assert page != base and f"Hi {main.name_for(pid)}" in page and main.money(e.balance()) in page
+        assert page != base and f"Hi {main.name_for(pid)}" in page and main.money_nb(e.balance()) in page
         seen.add(safe(client, **{"as": pid}))
     assert len(seen) == 5
 

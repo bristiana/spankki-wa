@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block body %}
+<main>
+  <div class="card" style="text-align:center" role="alert">
+    <img src="/static/kurre.svg" alt="" width="96" height="96" style="display:block;margin:0 auto 4px">
+    <h1>{{ title }}</h1>
+    <p class="muted">{{ text }}</p>
+    {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}">Back to WhatsApp</a>
+    {% else %}<a class="btn" href="/chat" data-back>Back to the chat</a>{% endif %}
+    {% if not request.query_params.get('web') %}<a class="btn ghost" href="/app" style="margin-top:8px">Open My money</a>{% endif %}
+  </div>
+</main>
+{% endblock %}
