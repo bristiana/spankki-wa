@@ -1,0 +1,87 @@
+{
+ "fixture": true,
+ "as_of": "2026-10-06",
+ "source": "Sample data for the S-mobiili screens until the live API is connected. Not real figures.",
+ "cohort": {
+  "age_band": "35-44",
+  "city": "Helsinki",
+  "n": 761,
+  "from": "2026-04-01",
+  "to": "2026-09-30",
+  "widened": false
+ },
+ "figures": [
+  {
+   "id": "income",
+   "label": "Income",
+   "unit": "eur",
+   "you": 3215.97,
+   "median": 3350.0,
+   "p25": 2700.0,
+   "p75": 4300.0,
+   "percentile": 44,
+   "better": "none",
+   "sentence": "Your income is 3 215,97 € a month. For people aged 35–44 in Helsinki it's typically 3 350,00 €."
+  },
+  {
+   "id": "rent_share",
+   "label": "Rent as share of income",
+   "unit": "pct",
+   "you": 0.33,
+   "median": 0.31,
+   "p25": 0.25,
+   "p75": 0.38,
+   "percentile": 58,
+   "better": "lower",
+   "sentence": "Your rent takes 33 % of your income. For people your age in Helsinki it's typically 31 %."
+  },
+  {
+   "id": "savings_rate",
+   "label": "Savings rate",
+   "unit": "pct",
+   "you": -0.04,
+   "median": 0.07,
+   "p25": -0.02,
+   "p75": 0.18,
+   "percentile": 21,
+   "better": "higher",
+   "sentence": "Over the last 6 months you spent 4 % more than came in. People your age in Helsinki typically keep 7 %."
+  },
+  {
+   "id": "restaurants",
+   "label": "Restaurants",
+   "unit": "eur",
+   "you": 410.0,
+   "median": 300.0,
+   "p25": 160.0,
+   "p75": 520.0,
+   "percentile": 63,
+   "better": "none",
+   "sentence": "You spend 410,00 € a month on restaurants. People your age in Helsinki typically spend 300,00 €."
+  },
+  {
+   "id": "shopping",
+   "label": "Shopping",
+   "unit": "eur",
+   "you": 290.0,
+   "median": 270.0,
+   "p25": 140.0,
+   "p75": 450.0,
+   "percentile": 54,
+   "better": "none",
+   "sentence": "You spend 290,00 € a month on shopping. Typical for your age in Helsinki: 270,00 €."
+  },
+  {
+   "id": "buffer_months",
+   "label": "Buffer",
+   "unit": "months",
+   "you": 4.1,
+   "median": 3.2,
+   "p25": 1.4,
+   "p75": 7.0,
+   "percentile": 57,
+   "better": "higher",
+   "sentence": "Your money would cover 4,1 months of essentials. People your age in Helsinki typically have 3,2 months."
+  }
+ ]
+}

@@ -1,0 +1,179 @@
+{
+ "fixture": true,
+ "as_of": "2026-10-06",
+ "source": "Your S-Pankki transactions",
+ "regular_payments": [
+  {
+   "id": "rent",
+   "name": "Rent",
+   "what": "Housing payment",
+   "direction": "out",
+   "status": "active",
+   "basket": "Mandatory & regular",
+   "per_month_eur": 1065.17,
+   "per_year_eur": 12782.04,
+   "usual_day": 3,
+   "next_expected": "2026-11-03",
+   "days_to_next": 28,
+   "last_payment": {
+    "date": "2026-09-06",
+    "amount_eur": 1095.6
+   },
+   "range_last_6_eur": {
+    "low": 1048.91,
+    "high": 1122.06
+   },
+   "payments": 23,
+   "since": "2024-11-06",
+   "usual_gap_days": 31,
+   "trend": {
+    "previous_months": "Apr-Jun 2026",
+    "previous_per_month_eur": 1087.02,
+    "last_months": "Jul-Sep 2026",
+    "last_per_month_eur": 1065.17,
+    "change_per_month_eur": -21.84,
+    "change_pct": -2,
+    "direction": "about the same",
+    "usual_swing_per_month_eur": 26.84,
+    "rule": "up or down = at least 5%, 10 EUR a month and more than the usual month-to-month swing explains"
+   },
+   "actions": [
+    "remind",
+    "pay"
+   ]
+  },
+  {
+   "id": "utilities",
+   "name": "Utility bills",
+   "what": "Utility bills (the data names no company)",
+   "direction": "out",
+   "status": "active",
+   "basket": "Mandatory & regular",
+   "per_month_eur": 206.37,
+   "per_year_eur": 2476.44,
+   "bills_per_month": 3.0,
+   "one_bill_usual_range_eur": {
+    "low": 31.3,
+    "high": 76.55
+   },
+   "fixed_days": null,
+   "usual_day": null,
+   "day_range": {
+    "first": 5,
+    "last": 29
+   },
+   "next_expected": null,
+   "days_to_next": null,
+   "last_payment": {
+    "date": "2026-09-16",
+    "amount_eur": 89.52
+   },
+   "payments": 70,
+   "since": "2024-10-24",
+   "trend": {
+    "previous_months": "Apr-Jun 2026",
+    "previous_per_month_eur": 154.11,
+    "last_months": "Jul-Sep 2026",
+    "last_per_month_eur": 206.37,
+    "change_per_month_eur": 52.25,
+    "change_pct": 34,
+    "direction": "about the same",
+    "usual_swing_per_month_eur": 37.19,
+    "rule": "up or down = at least 15%, 10 EUR a month and more than the usual month-to-month swing explains"
+   },
+   "unusual_bill": null,
+   "actions": [
+    "watch"
+   ],
+   "note": "About 3 bills a month on different days (day 5 to 29), so there is no fixed date to expect; this is the monthly total."
+  },
+  {
+   "id": "investing",
+   "name": "Monthly investing",
+   "what": "Your monthly deposit to investments",
+   "direction": "out",
+   "status": "active",
+   "basket": "Saving (your choice, not spending)",
+   "per_month_eur": 203.25,
+   "per_year_eur": 2439.0,
+   "usual_day": 17,
+   "next_expected": "2026-10-17",
+   "days_to_next": 11,
+   "last_payment": {
+    "date": "2026-09-17",
+    "amount_eur": 214.95
+   },
+   "range_last_6_eur": {
+    "low": 193.82,
+    "high": 214.95
+   },
+   "payments": 24,
+   "since": "2024-10-17",
+   "usual_gap_days": 31,
+   "trend": {
+    "previous_months": "Apr-Jun 2026",
+    "previous_per_month_eur": 205.4,
+    "last_months": "Jul-Sep 2026",
+    "last_per_month_eur": 203.25,
+    "change_per_month_eur": -2.15,
+    "change_pct": -1,
+    "direction": "about the same",
+    "usual_swing_per_month_eur": 11.97,
+    "rule": "up or down = at least 5%, 10 EUR a month and more than the usual month-to-month swing explains"
+   },
+   "actions": [
+    "pause"
+   ]
+  },
+  {
+   "id": "salary",
+   "name": "Salary",
+   "what": "Income",
+   "direction": "in",
+   "status": "active",
+   "basket": null,
+   "per_month_eur": 3215.97,
+   "per_year_eur": 38591.64,
+   "usual_day": 15,
+   "next_expected": "2026-10-15",
+   "days_to_next": 9,
+   "last_payment": {
+    "date": "2026-09-15",
+    "amount_eur": 3401.05
+   },
+   "range_last_6_eur": {
+    "low": 3066.79,
+    "high": 3401.05
+   },
+   "payments": 24,
+   "since": "2024-10-15",
+   "usual_gap_days": 31,
+   "trend": {
+    "previous_months": "Apr-Jun 2026",
+    "previous_per_month_eur": 3250.04,
+    "last_months": "Jul-Sep 2026",
+    "last_per_month_eur": 3215.97,
+    "change_per_month_eur": -34.07,
+    "change_pct": -1,
+    "direction": "about the same",
+    "usual_swing_per_month_eur": 189.35,
+    "rule": "up or down = at least 5%, 10 EUR a month and more than the usual month-to-month swing explains"
+   },
+   "actions": []
+  }
+ ],
+ "outgoing_per_month_eur": 1474.79,
+ "outgoing_per_year_eur": 17697.48,
+ "bills_per_month_eur": 1271.54,
+ "bills_per_year_eur": 15258.48,
+ "income_per_month_eur": 3215.97,
+ "subscriptions_found": 0,
+ "card_subscriptions": [],
+ "subscriptions_note": "No subscriptions on this account: no card payment repeats from the same merchant every month for the same amount (no streaming, gym or app charges). Say so plainly; never invent one.",
+ "what_can_be_done": [
+  "Monthly investing (203.25 EUR a month) is the regular payment the person chose: it can be paused with their PIN (create_pause_investing_link). What is already invested stays invested.",
+  "Rent can't be stopped here. Oiva reminds the day before it is due, and it can be paid with the PIN (create_payment_link with its bill_id from get_upcoming_bills).",
+  "Utility bills can't be stopped here. Oiva flags a bill well above the usual range."
+ ],
+ "method": "From your S-Pankki transactions: a payment type that comes about once a month (median gap 20-40 days); per month = the average of the last 3 payments (utilities: of the last 3 full months); usual day = median day of the last 6; stopped = no payment for longer than the usual gap + 10 days; trend = last 3 full months vs the 3 before."
+}
