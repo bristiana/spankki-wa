@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kurre · S-Pankki Chat</title>
+<style>
+  @page { size: 1920px 1080px; margin: 0; }
+  :root {
+    --green: #00663d; --green-2: #1f9a63; --soft: #e7f3ec; --orange: #e07a2e; --gold: #f2b630;
+    --ink: #16201b; --muted: #55625b; --line: #dfe6e2; --bg: #f4f6f5; --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #888; }
+  body { font-family: "Segoe UI", system-ui, Arial, sans-serif; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .slide {
+    width: 1920px; height: 1080px; position: relative; overflow: hidden;
+    background: var(--bg); padding: 96px 120px; page-break-after: always; break-after: page;
+    display: flex; flex-direction: column;
+  }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  .mono { font-family: Consolas, "Cascadia Mono", monospace; letter-spacing: 1px; text-transform: uppercase; }
+  .kicker { font-size: 28px; color: var(--green); margin-bottom: 18px; }
+  h1 { font-size: 92px; line-height: 1.02; letter-spacing: -2px; margin: 0; font-weight: 800; }
+  h2 { font-size: 72px; line-height: 1.05; letter-spacing: -1.5px; margin: 0 0 40px; font-weight: 800; }
+  p, li { font-size: 32px; line-height: 1.35; }
+  .muted { color: var(--muted); }
+  .pn { position: absolute; right: 56px; bottom: 40px; font-size: 22px; color: #9aa69f; }
+  .brand { position: absolute; left: 120px; bottom: 40px; font-size: 22px; color: #9aa69f; display: flex; align-items: center; gap: 12px; }
+  .brand .s { width: 34px; height: 34px; border-radius: 8px; background: var(--green); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 22px; font-family: "Segoe UI"; letter-spacing: 0; }
+
+  /* phone frame */
+  .phone { background: #121614; border-radius: 64px; padding: 16px; box-shadow: 0 30px 60px rgba(0, 40, 20, .22); flex: none; }
+  .phone img { display: block; width: 380px; height: 822px; object-fit: cover; object-position: top; border-radius: 50px; }
+  .phone.sm img { width: 340px; height: 736px; border-radius: 44px; }
+  .cap { font-size: 28px; text-align: center; margin-top: 22px; color: var(--muted); }
+  .cap b { color: var(--ink); }
+
+  .row { display: flex; gap: 72px; align-items: center; flex: 1; }
+  .grow { flex: 1; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 28px; padding: 36px 40px; }
+  svg.kurre { display: block; }
+
+  /* 1 title */
+  .s1 { background: radial-gradient(1200px 900px at 78% 55%, #1f9a63 0%, #00663d 55%, #004d2e 100%); color: #fff; }
+  .s1 h1 { font-size: 132px; letter-spacing: -3px; }
+  .s1 .line { font-size: 54px; margin-top: 30px; font-weight: 600; color: #e7f3ec; line-height: 1.15; }
+  .s1 .meta { margin-top: 64px; font-size: 32px; color: #bfe3cf; }
+  .s1 .pill { display: inline-block; border: 2px solid #7cd7a6; border-radius: 99px; padding: 12px 26px; font-size: 28px; color: #e7f3ec; margin-right: 14px; }
+  .s1 .halo { width: 760px; height: 760px; border-radius: 50%; background: rgba(255, 255, 255, .09); display: grid; place-items: center; flex: none; }
+
+  /* 2 problem */
+  .big-stat { font-size: 220px; font-weight: 800; line-height: .9; color: var(--green); letter-spacing: -6px; }
+  .stmt { font-family: Consolas, monospace; font-size: 30px; background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 30px 36px; color: #6b7570; line-height: 1.6; }
+  .stmt .r { display: flex; justify-content: space-between; gap: 40px; }
+  .q { font-size: 34px; font-weight: 700; color: var(--ink); margin-top: 18px; }
+  .q span { color: var(--orange); }
+
+  /* 3 meet */
+  .feats { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .feat { background: #fff; border: 1px solid var(--line); border-radius: 28px; padding: 32px 34px; }
+  .feat .ic { font-size: 50px; line-height: 1; }
+  .feat b { display: block; font-size: 36px; margin: 16px 0 8px; }
+  .feat span { font-size: 28px; color: var(--muted); line-height: 1.3; display: block; }
+
+  /* 4 baskets */
+  .bk { margin-bottom: 40px; }
+  .bk .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .bk .name { font-size: 40px; font-weight: 800; }
+  .bk .val { font-size: 44px; font-weight: 800; }
+  .bk .val small { font-size: 30px; color: var(--muted); font-weight: 600; }
+  .bar { height: 40px; background: #e1e7e4; border-radius: 99px; margin: 14px 0 10px; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; }
+  .bk .sub { font-size: 28px; color: var(--muted); }
+  .take { display: flex; gap: 28px; margin-top: 8px; }
+  .take .card { flex: 1; padding: 28px 34px; }
+  .take .n { font-size: 52px; font-weight: 800; color: var(--orange); }
+  .take .n.g { color: var(--green); }
+  .take .l { font-size: 28px; color: var(--muted); }
+
+  /* 5 proactive */
+  .moments { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; flex: 1; align-items: start; }
+  .mom .tag { font-size: 28px; color: var(--green); margin-bottom: 16px; }
+  .wa { background: #e5ddd5; border-radius: 34px; padding: 28px; }
+  .bub { background: #fff; border-radius: 8px 26px 26px 26px; padding: 26px 28px; font-size: 29px; line-height: 1.38; box-shadow: 0 2px 2px rgba(0,0,0,.06); }
+  .bub b { font-weight: 700; }
+  .btns { margin-top: 12px; display: grid; gap: 10px; }
+  .btns div { background: #fff; border-radius: 18px; text-align: center; padding: 14px; font-size: 28px; color: #027eb5; font-weight: 600; box-shadow: 0 2px 2px rgba(0,0,0,.06); }
+  .mom .why { font-size: 28px; margin-top: 22px; color: var(--muted); line-height: 1.3; }
+  .mom .why b { color: var(--ink); }
+
+  /* 6 data */
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; }
+  .tile { background: #fff; border: 1px solid var(--line); border-radius: 30px; padding: 40px; display: flex; flex-direction: column; }
+  .tile .src { font-size: 24px; color: var(--green); }
+  .tile .hero { font-size: 104px; font-weight: 800; letter-spacing: -3px; line-height: 1; margin: 26px 0 14px; }
+  .tile .what { font-size: 30px; line-height: 1.3; }
+  .tile .vs { margin-top: 28px; display: grid; gap: 14px; }
+  .vs .r { display: grid; grid-template-columns: 110px 1fr 140px; align-items: center; gap: 20px; font-size: 28px; color: var(--muted); }
+  .vs .r i { display: block; height: 26px; border-radius: 99px; }
+  .vs .r b { color: var(--ink); text-align: right; }
+  .foot { margin-top: auto; font-size: 28px; color: var(--muted); padding-top: 32px; }
+
+  /* 7 trust */
+  .quote { font-size: 84px; font-weight: 800; letter-spacing: -2px; line-height: 1.05; margin: 0 0 48px; }
+  .quote em { font-style: normal; color: var(--green); }
+  .pillars { display: grid; gap: 26px; }
+  .pillar { display: flex; gap: 28px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 28px; padding: 30px 36px; }
+  .pillar .ic { width: 76px; height: 76px; border-radius: 22px; background: var(--soft); display: grid; place-items: center; font-size: 40px; flex: none; }
+  .pillar b { font-size: 36px; display: block; margin-bottom: 4px; }
+  .pillar span { font-size: 28px; color: var(--muted); line-height: 1.3; }
+
+  /* 8 tour */
+  .tour { display: flex; justify-content: center; gap: 90px; align-items: flex-start; flex: 1; margin-top: -10px; }
+  .tour > div { display: flex; flex-direction: column; align-items: center; }
+
+  /* 9 arch */
+  .arch { display: grid; grid-template-columns: 360px 70px 1fr; align-items: center; gap: 0; }
+  .node { background: #fff; border: 2px solid var(--line); border-radius: 26px; padding: 26px 30px; font-size: 30px; font-weight: 700; }
+  .node small { display: block; font-size: 28px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+  .node.g { background: var(--green); border-color: var(--green); color: #fff; }
+  .node.g small { color: #cfe9db; }
+  .node.s { background: var(--soft); border-color: #bfe0cc; }
+  .arrow { font-size: 54px; color: var(--green); text-align: center; font-weight: 800; }
+  .chan { display: grid; gap: 22px; }
+  .core { display: grid; gap: 18px; }
+  .core .line { display: flex; gap: 18px; align-items: stretch; }
+  .core .line .node { flex: 1; }
+  .next { display: flex; gap: 22px; margin-top: 40px; }
+  .next .chip { flex: 1; border: 2px dashed var(--orange); border-radius: 24px; padding: 22px 26px; font-size: 28px; background: #fff7ef; }
+  .next .chip b { display: block; font-size: 32px; }
+
+  /* 10 close */
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .col h3 { font-size: 40px; margin: 0 0 20px; display: flex; align-items: center; gap: 14px; }
+  .col h3 .dot { width: 22px; height: 22px; border-radius: 50%; }
+  .col ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+  .col li { font-size: 29px; line-height: 1.3; padding-left: 30px; position: relative; }
+  .col li::before { content: ""; position: absolute; left: 0; top: 15px; width: 12px; height: 12px; border-radius: 50%; background: currentColor; opacity: .35; }
+  .links { display: flex; gap: 32px; margin-top: 48px; align-items: center; }
+  .link { flex: 1; background: var(--green); color: #fff; border-radius: 28px; padding: 30px 38px; }
+  .link .mono { font-size: 24px; color: #bfe3cf; }
+  .link .u { font-size: 38px; font-weight: 700; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<!-- Kurre mascot (app/static/kurre.svg), defined once and reused -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="fur" cx="45%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#F6A55B"/><stop offset="0.6" stop-color="#E07A2E"/><stop offset="1" stop-color="#B85A1C"/>
+    </radialGradient>
+    <radialGradient id="tail" cx="40%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#F7B06A"/><stop offset="0.55" stop-color="#E27F33"/><stop offset="1" stop-color="#A84F17"/>
+    </radialGradient>
+    <radialGradient id="belly" cx="50%" cy="35%" r="65%">
+      <stop offset="0" stop-color="#FFF6E8"/><stop offset="1" stop-color="#F3D9B8"/>
+    </radialGradient>
+    <radialGradient id="coin" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#FFE38A"/><stop offset="0.7" stop-color="#F2B630"/><stop offset="1" stop-color="#C98A12"/>
+    </radialGradient>
+    <linearGradient id="scarf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1F9A63"/><stop offset="1" stop-color="#00663D"/>
+    </linearGradient>
+  </defs>
+  <symbol id="kurre" viewBox="0 0 240 240">
+    <ellipse cx="118" cy="226" rx="62" ry="8" fill="#000" opacity=".12"/>
+    <path d="M150 196c38-6 70-40 64-86-5-38-36-60-60-50-20 8-20 34-6 44 12 9 26 2 30-8 5 22-6 44-30 54z" fill="url(#tail)"/>
+    <path d="M168 76c14 2 26 14 28 30" fill="none" stroke="#FFD6A6" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+    <ellipse cx="112" cy="168" rx="50" ry="54" fill="url(#fur)"/>
+    <ellipse cx="110" cy="176" rx="31" ry="38" fill="url(#belly)"/>
+    <ellipse cx="88" cy="218" rx="17" ry="8" fill="#C9662A"/>
+    <ellipse cx="134" cy="218" rx="17" ry="8" fill="#C9662A"/>
+    <g>
+      <path d="M70 56 64 22c0-4 5-6 8-3l20 24z" fill="#D46C25"/>
+      <path d="M71 50 68 30l14 16z" fill="#F7C9A0"/>
+      <path d="M150 56 156 22c0-4-5-6-8-3l-20 24z" fill="#D46C25"/>
+      <path d="M149 50 152 30l-14 16z" fill="#F7C9A0"/>
+      <path d="M64 22l-6-10M66 20l-1-11M156 22l6-10M154 20l1-11" stroke="#B85A1C" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="110" cy="88" rx="52" ry="46" fill="url(#fur)"/>
+      <ellipse cx="110" cy="104" rx="30" ry="22" fill="url(#belly)"/>
+      <ellipse cx="78" cy="104" rx="9" ry="6" fill="#F28C8C" opacity=".55"/>
+      <ellipse cx="142" cy="104" rx="9" ry="6" fill="#F28C8C" opacity=".55"/>
+      <ellipse cx="90" cy="84" rx="10" ry="12" fill="#1B1B1F"/>
+      <ellipse cx="130" cy="84" rx="10" ry="12" fill="#1B1B1F"/>
+      <circle cx="94" cy="79" r="4" fill="#fff"/>
+      <circle cx="134" cy="79" r="4" fill="#fff"/>
+      <circle cx="87" cy="89" r="1.8" fill="#fff" opacity=".8"/>
+      <circle cx="127" cy="89" r="1.8" fill="#fff" opacity=".8"/>
+      <path d="M80 68q10-6 19-1M121 67q9-5 19 1" stroke="#8E4513" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M104 98q6-5 12 0l-6 6z" fill="#5A2C12"/>
+      <path d="M110 104v5M99 110q11 9 22 0" stroke="#5A2C12" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <rect x="105.5" y="110" width="9" height="7" rx="2" fill="#fff" stroke="#E2D2C0" stroke-width="1"/>
+    </g>
+    <path d="M66 126q44 22 90 0l4 12q-48 26-98 0z" fill="url(#scarf)"/>
+    <path d="M132 136l12 32-14 2-6-30z" fill="url(#scarf)"/>
+    <path d="M136 150l9 2M138 158l8 2" stroke="#7CD7A6" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+    <ellipse cx="80" cy="160" rx="12" ry="18" transform="rotate(30 80 160)" fill="#D97330"/>
+    <ellipse cx="142" cy="160" rx="12" ry="18" transform="rotate(-30 142 160)" fill="#D97330"/>
+    <circle cx="111" cy="164" r="25" fill="url(#coin)" stroke="#B57A0E" stroke-width="2.5"/>
+    <circle cx="111" cy="164" r="18" fill="none" stroke="#FFF1B8" stroke-width="2" opacity=".7"/>
+    <text x="111" y="173" text-anchor="middle" font-family="system-ui,Segoe UI,Arial" font-weight="800" font-size="25" fill="#8A5A06">€</text>
+    <ellipse cx="88" cy="168" rx="9" ry="7" fill="#E88A45"/>
+    <ellipse cx="134" cy="168" rx="9" ry="7" fill="#E88A45"/>
+  </symbol>
+</svg>
+
+<!-- 1 · Title -->
+<section class="slide s1">
+  <div class="row">
+    <div class="grow">
+      <div class="mono kicker" style="color:#7cd7a6">Junction 2026 · S-Pankki challenge</div>
+      <h1>Kurre<br>S-Pankki Chat</h1>
+      <div class="line">Your money coach,<br>where you already chat.</div>
+      <div class="meta">
+        <span class="pill">WhatsApp</span><span class="pill">S-mobiili chat</span><span class="pill">One backend</span>
+      </div>
+      <div class="meta" style="margin-top:36px">Personal Economic Trainer</div>
+    </div>
+    <div class="halo"><svg class="kurre" width="660" height="660"><use href="#kurre"/></svg></div>
+  </div>
+</section>
+
+<!-- 2 · Problem -->
+<section class="slide">
+  <div class="mono kicker">The problem</div>
+  <h2>Banking stops at statements.</h2>
+  <div class="row" style="align-items:flex-start; gap:96px">
+    <div class="grow">
+      <div class="stmt">
+        <div class="r"><span>16.09 SHOP #33</span><span>-289.10</span></div>
+        <div class="r"><span>18.09 RESTAURANT #6</span><span>-91.74</span></div>
+        <div class="r"><span>26.09 RESTAURANT #1</span><span>-117.32</span></div>
+        <div class="r"><span>27.09 RESTAURANT #82</span><span>-47.01</span></div>
+      </div>
+      <div class="q" style="margin-top:40px">A statement shows what you <i>spent</i>.</div>
+      <div class="q">It never says what is <span>safe to spend</span> before rent,</div>
+      <div class="q">which <span>subscription</span> renews tomorrow,</div>
+      <div class="q">or what to do on <span>payday</span>.</div>
+    </div>
+    <div style="width:700px">
+      <div class="big-stat">1 in 3</div>
+      <p style="font-size:36px; margin:20px 0 0">Finnish adults open S-mobiili every week.</p>
+      <p class="muted" style="margin-top:28px">Almost everyone opens a chat app every day.</p>
+      <p style="margin-top:28px; font-weight:700">So why make them open another app?<br><span style="color:var(--green)">Bring the coach to the chat.</span></p>
+    </div>
+  </div>
+  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">2</div>
+</section>
+
+<!-- 3 · Meet Kurre -->
+<section class="slide">
+  <div class="row" style="gap:96px">
+    <div class="grow">
+      <div style="display:flex; align-items:center; gap:28px; margin-bottom:40px">
+        <svg class="kurre" width="150" height="150"><use href="#kurre"/></svg>
+        <div>
+          <div class="mono kicker" style="margin:0 0 6px">Meet Kurre</div>
+          <h2 style="margin:0">The S-Pankki savings squirrel</h2>
+        </div>
+      </div>
+      <div class="feats">
+        <div class="feat"><div class="ic">💬</div><b>Answers with your numbers</b><span>"What kind of spender am I?" in plain words, every figure computed by code.</span></div>
+        <div class="feat"><div class="ic">⏰</div><b>Warns before bills</b><span>Rent tomorrow? Here is what is safe to spend until payday.</span></div>
+        <div class="feat"><div class="ic">🔁</div><b>Sorts subscriptions</b><span>Active, forgotten and price rises. Stop future payments with a PIN.</span></div>
+        <div class="feat"><div class="ic">🎯</div><b>Saves &amp; invests</b><span>Goals, "pay yourself first" on payday, one tap and your PIN.</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="phone"><img src="img/chat_spender.png" alt="Kurre answering: What kind of spender am I?"></div>
+    </div>
+  </div>
+  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">3</div>
+</section>
+
+<!-- 4 · Three baskets -->
+<section class="slide">
+  <div class="mono kicker">Financial literacy · the three baskets</div>
+  <h2 style="margin-bottom:12px">Where Aino's money goes</h2>
+  <p class="muted" style="margin:0 0 44px">Demo customer CUST04831, 24 years old · monthly average, Jul to Sep 2026</p>
+  <div class="row" style="align-items:flex-start; gap:96px">
+    <div class="grow">
+      <div class="bk">
+        <div class="top"><span class="name">Mandatory &amp; regular</span><span class="val">1,178.18 € <small>· 55%</small></span></div>
+        <div class="bar"><i style="width:55%; background:var(--green)"></i></div>
+        <div class="sub">Rent 771.82 · groceries 178.26 · utilities · transport</div>
+      </div>
+      <div class="bk">
+        <div class="top"><span class="name">Mandatory &amp; irregular</span><span class="val">151.07 € <small>· 7%</small></span></div>
+        <div class="bar"><i style="width:7%; background:var(--gold)"></i></div>
+        <div class="sub">Home &amp; tech, health · Kurre keeps a buffer for these</div>
+      </div>
+      <div class="bk">
+        <div class="top"><span class="name" style="color:var(--orange)">Slips through your fingers</span><span class="val">809.91 € <small>· 38%</small></span></div>
+        <div class="bar"><i style="width:38%; background:var(--orange)"></i></div>
+        <div class="sub">Restaurants 485.90 · lifestyle 324.01</div>
+      </div>
+    </div>
+    <div style="width:560px" class="take" >
+      <div style="display:grid; gap:28px; width:100%">
+        <div class="card"><div class="n g">68.60 €</div><div class="l">safe to spend until payday, 7.62&nbsp;€ a&nbsp;day</div></div>
+        <div class="card"><div class="n">97.18 €</div><div class="l">a month back by cutting dining out 20%</div></div>
+        <div class="card"><div class="n" style="color:#b3261e">−970.85 €</div><div class="l">left over in 3 months, after investing 1,493.53&nbsp;€</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">4</div>
+</section>
+
+<!-- 5 · Proactive moments -->
+<section class="slide">
+  <div class="mono kicker">Proactive, not just reactive</div>
+  <h2>Kurre speaks first, at the right moment</h2>
+  <div class="moments">
+    <div class="mom">
+      <div class="mono tag">⏰ The day before rent</div>
+      <div class="wa">
+        <div class="bub">Hi Aino 👋 Your <b>rent of 771.82 €</b> is due <b>tomorrow</b> (Wed 07 Oct).<br><br>After rent and your usual bills you have <b>68.60 €</b> safe to spend until payday on Thu 15 Oct. That's about <b>7.62 € a day</b>.</div>
+        <div class="btns"><div>Pay rent now</div><div>How do I stretch it?</div></div>
+      </div>
+    </div>
+    <div class="mom">
+      <div class="mono tag">🔁 Before a renewal</div>
+      <div class="wa">
+        <div class="bub">🔁 <b>StreamPlus</b> renews tomorrow: 13.99 €.<br>The price went up from 11.99 € to 13.99 € on Fri 07 Aug.<br>That's 167.88 € a year. Keep it?</div>
+        <div class="btns"><div>Keep it</div><div>Stop payments</div></div>
+      </div>
+      <div class="why"><b>4 active</b> subscriptions: 71.55 € a month, 858.55 € a year.</div>
+    </div>
+    <div class="mom">
+      <div class="mono tag">💰 Salary day</div>
+      <div class="wa">
+        <div class="bub">💰 Aino, your salary of <b>2 313.39 €</b> just landed.<br><br>Pay yourself first: put <b>97.00 €</b> aside now, before it slips through your fingers?</div>
+        <div class="btns"><div>Set a savings goal</div><div>Invest instead</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="brand"><span class="s">S</span>Real message text from the app, demo date Tue 6 Oct 2026</div><div class="pn">5</div>
+</section>
+
+<!-- 6 · Real data -->
+<section class="slide">
+  <div class="mono kicker">Real data, not made up</div>
+  <h2>Every number has a source</h2>
+  <div class="tiles">
+    <div class="tile">
+      <div class="mono src">S-Pankki challenge dataset</div>
+      <div class="hero">535</div>
+      <div class="what">peers aged 20 to 29 to compare Aino with</div>
+      <div class="vs">
+        <div class="r"><span>Aino</span><i style="width:100%; background:var(--orange)"></i><b>485.90 €</b></div>
+        <div class="r"><span>Peers</span><i style="width:37%; background:var(--green)"></i><b>179.70 €</b></div>
+      </div>
+      <div class="foot">Restaurants per month, peer median</div>
+    </div>
+    <div class="tile">
+      <div class="mono src">Statistics Finland 2022</div>
+      <div class="hero" style="color:var(--orange)">6.0×</div>
+      <div class="what">restaurants vs Finnish households aged 17 to 24</div>
+      <div class="vs">
+        <div class="r"><span>Aino</span><i style="width:100%; background:var(--orange)"></i><b>485.90 €</b></div>
+        <div class="r"><span>Finland</span><i style="width:17%; background:var(--green)"></i><b>81 €</b></div>
+      </div>
+      <div class="foot">Household Budget Survey, 14q4</div>
+    </div>
+    <div class="tile">
+      <div class="mono src">Real ETF prices</div>
+      <div class="hero" style="color:var(--green)">+10.1%</div>
+      <div class="what">Aino's real deposits, bought at real monthly prices</div>
+      <div class="vs">
+        <div class="r"><span>Paid in</span><i style="width:91%; background:#c9d3ce"></i><b>11,627 €</b></div>
+        <div class="r"><span>Today</span><i style="width:100%; background:var(--green)"></i><b>12,799 €</b></div>
+      </div>
+      <div class="foot">Balanced fund · all: +2.1% to +18.1%</div>
+    </div>
+  </div>
+  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">6</div>
+</section>
+
+<!-- 7 · Trust -->
+<section class="slide">
+  <div class="row" style="gap:96px">
+    <div class="grow">
+      <div class="mono kicker">Trust by design</div>
+      <div class="quote">Kurre <em>informs</em>.<br>It never advises.</div>
+      <div class="pillars">
+        <div class="pillar"><div class="ic">🧮</div><div><b>Numbers come from code</b><span>Claude calls 15 tools over a tested engine. No figure that is not in a tool result.</span></div></div>
+        <div class="pillar"><div class="ic">🔐</div><div><b>Your PIN for every money move</b><span>The AI only prepares. Double confirms and overdrafts are refused.</span></div></div>
+        <div class="pillar"><div class="ic">✅</div><div><b>Opt-in channel</b><span>You choose what Kurre sees, with a clear note that WhatsApp passes through Meta.</span></div></div>
+      </div>
+    </div>
+    <div><div class="phone"><img src="img/connect_consent.png" alt="Connect S-Pankki consent page"></div></div>
+  </div>
+  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">7</div>
+</section>
+
+<!-- 8 · Product tour -->
+<section class="slide" style="padding-top:72px">
+  <div class="mono kicker" style="text-align:center">Product tour · live at phone size</div>
+  <div class="tour">
+    <div><div class="phone sm"><img src="img/landing.png" alt="Landing page"></div><div class="cap"><b>Start</b> · WhatsApp or S-mobiili</div></div>
+    <div><div class="phone sm"><img src="img/dashboard.png" alt="My money dashboard"></div><div class="cap"><b>My money</b> · safe to spend, baskets</div></div>
+    <div><div class="phone sm"><img src="img/chat_subs_top.png" alt="Chat answering about subscriptions"></div><div class="cap"><b>Chat</b> · "What subscriptions?"</div></div>
+  </div>
+  <div class="pn">8</div>
+</section>
+
+<!-- 9 · Architecture + S-mobiili fit -->
+<section class="slide">
+  <div class="mono kicker">Feasibility · S-mobiili fit</div>
+  <h2>One API, two front doors</h2>
+  <div class="arch">
+    <div class="chan">
+      <div class="node">WhatsApp<small>Meta Cloud API webhook</small></div>
+      <div class="node s">S-mobiili chat<small>same API, in-app</small></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="core">
+      <div class="line">
+        <div class="node g">FastAPI<small>Cloudflare Containers</small></div>
+        <div class="arrow" style="align-self:center">→</div>
+        <div class="node g">Claude tool use<small>Kurre persona, 15 tools</small></div>
+        <div class="arrow" style="align-self:center">→</div>
+        <div class="node g">Engine<small>deterministic, 44 tests</small></div>
+      </div>
+      <div class="line">
+        <div class="node">PIN confirm pages<small>pay · save · invest · stop</small></div>
+        <div class="node">My money dashboard<small>/app</small></div>
+        <div class="node">Proactive triggers<small>rent · salary · renewals</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="mono kicker" style="margin-top:56px; color:var(--orange)">Next</div>
+  <div class="next" style="margin-top:0">
+    <div class="chip"><b>PSD2 payment initiation</b>in place of the demo PIN pages</div>
+    <div class="chip"><b>Multi-bank view</b>Nordea, OP, Danske via PSD2</div>
+    <div class="chip"><b>Real card subscriptions</b>from S-Pankki card data</div>
+  </div>
+  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">9</div>
+</section>
+
+<!-- 10 · Simulated vs real -->
+<section class="slide" style="justify-content:center">
+  <div style="display:flex; align-items:center; gap:28px; margin-bottom:40px">
+    <svg class="kurre" width="130" height="130"><use href="#kurre"/></svg>
+    <div>
+      <div class="mono kicker" style="margin:0 0 6px">Honest about the demo</div>
+      <h2 style="margin:0">What is real, what is simulated</h2>
+    </div>
+  </div>
+  <div class="two">
+    <div class="card col" style="color:var(--green)">
+      <h3 style="color:var(--ink)"><span class="dot" style="background:var(--green)"></span>Real</h3>
+      <ul style="color:var(--ink)">
+        <li>S-Pankki transactions and 535 peers</li>
+        <li>Statistics Finland 2022 benchmarks</li>
+        <li>ETF prices (VWCE, XEON) for backtests</li>
+        <li>WhatsApp Cloud API, Claude, Cloudflare</li>
+      </ul>
+    </div>
+    <div class="card col" style="color:var(--orange)">
+      <h3 style="color:var(--ink)"><span class="dot" style="background:var(--orange)"></span>Simulated, and labelled</h3>
+      <ul style="color:var(--ink)">
+        <li>PIN pages, a stand-in for PSD2</li>
+        <li>Subscriptions (the dataset has none)</li>
+        <li>"Demo Fund" names</li>
+        <li>Trading 212 on a Practice account</li>
+      </ul>
+    </div>
+  </div>
+  <div class="links">
+    <div class="link"><div class="mono">Try it live</div><div class="u">spankki-wa.bogdan-c-2206.workers.dev</div></div>
+    <div class="link" style="background:#16201b; flex:.7"><div class="mono">Code</div><div class="u">github.com/bristiana/spankki-wa</div></div>
+  </div>
+  <div class="pn">10</div>
+</section>
+
+</body>
+</html>
