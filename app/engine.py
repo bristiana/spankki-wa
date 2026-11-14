@@ -1414,3 +1414,12 @@ class Engine:
                 "income_short_by_eur": eur(max(0.0, income_needed - income)),
                 "max_price_at_your_income_eur": prices["typical"]}
         return out
+
+    # ---------- people like you (data/peer_benchmark.json, app/peers.py) ----------
+    def new_life_budget(self, area: str | None = None, age: int | None = None, starting_out: bool = False) -> dict:
+        """'How much does someone like me need a month here?': the typical month of S-Pankki customers of the same
+        area and age (groups of at least 30 only), and where this person's own month sits in it."""
+        from .peers import new_life_budget
+        return new_life_budget(self, area, age, starting_out)
+
+    peers = new_life_budget

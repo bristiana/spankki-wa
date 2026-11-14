@@ -1132,7 +1132,16 @@ def dashboard(request: Request):
     o = engine_for(persona).overview()
     return templates.TemplateResponse(request, "dashboard.html", _ctx(
         o=o, name=name_for(persona), today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o),
-        **persona_ctx(persona)))
+        peers=_peers_card(engine_for(persona)), **persona_ctx(persona)))
+
+
+def _peers_card(eng: Engine) -> dict | None:
+    """'People like you' on /app: None (no card) when the benchmark file is missing."""
+    from . import peers
+    try:
+        return peers.card(eng.new_life_budget())
+    except ValueError:
+        return None
 
 
 @app.get("/chat", response_class=HTMLResponse)
