@@ -167,6 +167,19 @@ EXPLAIN = {"get_safe_to_spend": safe_to_spend, "get_spending": spending, "get_ba
            "get_subscriptions": subscriptions, "get_full_picture": full_picture, "get_money_guide": money_guide,
            "get_portfolio": portfolio, "get_upcoming_bills": upcoming_bills}
 
+def people_like_me(a, o):
+    g = o.get("group") or {}
+    figs = _figs(o, [("Typical month", "typical_month.total.median_eur", eur)])
+    you = next((r for r in (_get(o, "you.comparison") or []) if r.get("key") == "total"), None)
+    if you:
+        figs.append({"label": "Your month", "value": eur(you["you_per_month_eur"])})
+    figs += _figs(o, [("Customers in the group", "group.customers", str)])
+    src = ([TX] if you else []) + ["averages of at least 30 S-Pankki customers (challenge data)"]
+    return f"Looked up how {g.get('who', 'people like you')} live", figs, src
+
+
+EXPLAIN["get_people_like_me"] = people_like_me
+
 STEPS = {"list_funds": "Looked up the demo funds", "get_goals": "Looked up your savings goals",
          "create_goal": "Made a savings plan", "create_payment_link": "Prepared a payment for your PIN",
          "create_investment_link": "Prepared an investment for your PIN",

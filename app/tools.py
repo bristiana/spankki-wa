@@ -269,6 +269,24 @@ TOOLS = [
             "price_eur": {"type": ["number", "null"], "description": "A specific home price to check, or null."}},
             "required": ["price_eur"], "additionalProperties": False},
     },
+    {
+        "name": "get_people_like_me",
+        "description": "'Budget for a new life' / 'how do people like me live here': what a typical month costs "
+                       "(p25, median, p75 per basket and main category, plus income) for S-Pankki customers of the "
+                       "user's own area and age, and where the user's own month sits (in line / a bit above / below). "
+                       "Use for 'how much do I need a month in Helsinki', 'is 400 € on food normal for my area', 'what "
+                       "does a first flat in Espoo cost a month', 'how do people my age live', 'what if I moved to "
+                       "Vantaa'. Only groups of at least 30 customers; fallback_reason says when a broader group was "
+                       "used. A what-if (another area or age) has no personal comparison.",
+        "input_schema": {"type": "object", "properties": {
+            "area": {"type": ["string", "null"], "description": "City or postal code for a what-if: Helsinki, Espoo, "
+                                                                "Vantaa (the data covers only the capital region). "
+                                                                "Null = the user's own area."},
+            "age": {"type": ["integer", "null"], "description": "An age for a what-if; null = the user's own age."},
+            "starting_out": {"type": "boolean", "description": "True for 'first job / first flat': people aged 18-29 "
+                                                               "with a regular salary."}},
+            "required": ["area", "age", "starting_out"], "additionalProperties": False},
+    },
 ]
 
 
@@ -358,6 +376,17 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         price = args.get("price_eur")
         out = engine.home_readiness(float(price) if price else None)
         out["asp"]["sources"] = GUIDE.get("asp", {}).get("sources", [])
+    elif name == "get_people_like_me":
+        age = args.get("age")
+        try:
+            out = engine.new_life_budget(args.get("area"), int(age) if age else None, bool(args.get("starting_out")))
+        except ValueError as e:  # a city outside the dataset: say so, and give the whole region instead
+            if not args.get("area"):
+                raise
+            out = engine.new_life_budget(None, int(age) if age else None, bool(args.get("starting_out")))
+            out["area_not_covered"] = str(e)
+        out["say"] = ("Compare only to reassure or help a choice, never to judge. Say it is averages of at least 30 "
+                      "S-Pankki customers, never one person.")
     else:
         raise ValueError(f"unknown tool {name}")
     lesson = lesson_for(name, out)
