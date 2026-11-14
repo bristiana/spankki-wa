@@ -4,8 +4,10 @@ Run: uvicorn app.main:app --port 8000
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
+import threading
 import time
 from datetime import date
 from pathlib import Path
@@ -64,11 +66,81 @@ def name_of(phone: str | None) -> str:
     return names.get(phone or "", DEMO_NAME)
 
 
-def coach() -> Coach:
+def coach(persona: str | None = None) -> Coach:
+    """The default persona's coach (WhatsApp, Aino) or, for a judge's pick, one coach per persona: its own
+    engine and its own conversation histories. All share one API client."""
     global _coach
     if _coach is None:
         _coach = Coach(engine)
-    return _coach
+    if persona in (None, DEFAULT_PERSONA) or persona not in PERSONAS:
+        return _coach
+    with _persona_lock:
+        if persona not in _coaches:
+            _coaches[persona] = Coach(engine_for(persona), client=_coach.client)
+        return _coaches[persona]
+
+
+# ---------------- Personas: judges switch the web app to other real customers ----------------
+ROOT = Path(__file__).resolve().parents[1]
+PERSONA_DIR = ROOT / "data" / "personas"
+STATE_DIR = ROOT / "data" / "state"  # one state file per extra persona: payments and goals never leak across
+DEFAULT_PERSONA = "CUST04831"
+PERSONA_COOKIE = "kurre_as"
+
+
+def load_personas(path: Path = PERSONA_DIR / "index.json") -> dict[str, dict]:
+    rows = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+    out = {r["id"]: r for r in rows}
+    out.setdefault(DEFAULT_PERSONA, {"id": DEFAULT_PERSONA, "name": DEMO_NAME, "file": None, "age": 24,
+                                     "label": "Demo persona, 24", "description": ""})
+    out[DEFAULT_PERSONA]["name"] = DEMO_NAME
+    return out
+
+
+PERSONAS = load_personas()
+_engines: dict[str, Engine] = {}
+_coaches: dict[str, Coach] = {}
+_persona_lock = threading.RLock()  # coach() builds the engine under the same lock
+session_persona: dict[str, str] = {}  # web chat session -> the persona it last chatted as (for proactive messages)
+
+
+def valid_persona(pid: str | None) -> str:
+    return pid if pid in PERSONAS else DEFAULT_PERSONA
+
+
+def persona_of(request: Request) -> str:
+    """?as=<CUSTID> (links) wins over the cookie; anything not in index.json is the default persona."""
+    return valid_persona(request.query_params.get("as") or request.cookies.get(PERSONA_COOKIE))
+
+
+def engine_for(persona: str | None) -> Engine:
+    """The persona's engine, created on first use. The default persona is the global `engine`."""
+    if persona in (None, DEFAULT_PERSONA) or persona not in PERSONAS:
+        return engine
+    with _persona_lock:
+        if persona not in _engines:
+            p = PERSONAS[persona]
+            STATE_DIR.mkdir(parents=True, exist_ok=True)
+            _engines[persona] = Engine(csv_path=PERSONA_DIR / p["file"], today=engine.today,
+                                       state_path=STATE_DIR / f"{persona}.json", age=p.get("age"))
+        return _engines[persona]
+
+
+def name_for(persona: str | None) -> str:
+    return PERSONAS[valid_persona(persona)]["name"]
+
+
+def persona_ctx(persona: str) -> dict:
+    return {"persona": PERSONAS[persona], "personas": list(PERSONAS.values())}
+
+
+@app.middleware("http")
+async def remember_persona(request: Request, call_next):
+    """A link with ?as= also switches the session: the choice is kept in a cookie."""
+    response = await call_next(request)
+    if "as" in request.query_params:
+        response.set_cookie(PERSONA_COOKIE, persona_of(request), max_age=30 * 24 * 3600, samesite="lax", httponly=True)
+    return response
 
 
 def nice_date(iso: str) -> str:
@@ -141,11 +213,12 @@ def switch_off(to: str):
                      "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
 
 
-def button_reply(user: str, bid: str, web: bool = False) -> dict | None:
+def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None) -> dict | None:
     """Direct answers to quick-reply buttons (no AI needed). None = not a direct action."""
     q = "?web=1" if web else ""
+    e = e or engine
     if bid.startswith("pay:"):
-        p = engine.create_payment(bid[4:])
+        p = e.create_payment(bid[4:])
         owner[p["pending_id"]] = user
         return {"text": f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*. "
                         "Confirm it with your PIN in S-Pankki.",
@@ -157,7 +230,7 @@ def button_reply(user: str, bid: str, web: bool = False) -> dict | None:
             return {"text": "Okay 👍 I'll look at your pace again next week."}
         return {"text": "Sure ⏰ I'll remind you again tomorrow at 9:00."}
     if bid.startswith("stop:"):
-        p = engine.create_stop_subscription(bid[5:])
+        p = e.create_stop_subscription(bid[5:])
         owner[p["pending_id"]] = user
         per = "month" if p["cadence"] == "monthly" else "year"
         return {"text": f"Stop future card payments to *{p['name']}* ({money(p['amount'])}/{per})? Confirm with your PIN.",
@@ -166,7 +239,7 @@ def button_reply(user: str, bid: str, web: bool = False) -> dict | None:
         return {"text": f"Okay, {bid[5:]} stays on 👍 I'll tell you if the price changes again."}
     if bid.startswith("save:"):
         _, goal_id, amount = bid.split(":")
-        p = engine.create_saving(goal_id, float(amount))
+        p = e.create_saving(goal_id, float(amount))
         owner[p["pending_id"]] = user
         goal = p["name"].split(": ", 1)[1]
         return {"text": f"Move *{money(p['amount'])}* to your savings pocket for *{goal}*? Confirm with your PIN.",
@@ -309,11 +382,14 @@ def welcome(to: str):
 
 
 # ---------------- Confirm pages ----------------
-def _pending_or_404(pid: str, kind: str) -> dict:
-    p = engine.pending(pid)
-    if not p or p["kind"] != kind:
-        raise HTTPException(404, "This link has expired.")
-    return p
+def _pending_or_404(pid: str, kind: str) -> tuple[Engine, dict]:
+    """The pending action and the engine of the persona that created it (not the viewer's current pick)."""
+    for persona in PERSONAS:
+        e = engine_for(persona)
+        p = e.pending(pid)
+        if p and p["kind"] == kind:
+            return e, p
+    raise HTTPException(404, "This link has expired.")
 
 
 def bad_pin(request: Request, path: str):
@@ -330,7 +406,7 @@ def not_done(request: Request, err: Exception):
 
 @app.get("/pay/{pid}", response_class=HTMLResponse)
 def pay_page(request: Request, pid: str):
-    p = _pending_or_404(pid, "payment")
+    e, p = _pending_or_404(pid, "payment")
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "action": f"/pay/{pid}", "title": "Confirm payment", "amount": money(p["amount"]),
         "rows": [("To", "Landlord · Asunto Oy Demo" if p["category"] == "Housing" else p["name"]),
@@ -341,14 +417,14 @@ def pay_page(request: Request, pid: str):
 
 @app.post("/pay/{pid}", response_class=HTMLResponse)
 def pay_confirm(request: Request, pid: str, pin: str = Form("")):
-    p = _pending_or_404(pid, "payment")
+    e, p = _pending_or_404(pid, "payment")
     if len(pin) != 4 or not pin.isdigit():
         return bad_pin(request, f"/pay/{pid}")
     try:
-        done = engine.confirm(pid)
+        done = e.confirm(pid)
     except ValueError as e:
         return not_done(request, e)
-    s = engine.safe_to_spend()
+    s = e.safe_to_spend()
     if done["first_time"]:
         notify(pid, f"✅ *{done['name']} paid*: {money(done['amount'])}\n"
                          f"Balance now {money(done['balance_eur'])}.\n"
@@ -361,9 +437,9 @@ def pay_confirm(request: Request, pid: str, pin: str = Form("")):
 
 @app.get("/invest/{pid}", response_class=HTMLResponse)
 def invest_page(request: Request, pid: str):
-    p = _pending_or_404(pid, "investment")
+    e, p = _pending_or_404(pid, "investment")
     f = FUNDS_BY_ID[p["fund_id"]]
-    when = f"Every payday, from {nice_date(engine.next_payday()['date'])}" if p["monthly"] else "Today, one-off"
+    when = f"Every payday, from {nice_date(e.next_payday()['date'])}" if p["monthly"] else "Today, one-off"
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "action": f"/invest/{pid}", "title": "Confirm investment",
         "amount": money(p["amount"]) + (" / month" if p["monthly"] else ""),
@@ -375,11 +451,11 @@ def invest_page(request: Request, pid: str):
 
 @app.post("/invest/{pid}", response_class=HTMLResponse)
 def invest_confirm(request: Request, pid: str, pin: str = Form("")):
-    p = _pending_or_404(pid, "investment")
+    e, p = _pending_or_404(pid, "investment")
     if len(pin) != 4 or not pin.isdigit():
         return bad_pin(request, f"/invest/{pid}")
     try:
-        done = engine.confirm(pid)
+        done = e.confirm(pid)
     except ValueError as e:
         return not_done(request, e)
     first_time = done["first_time"]
@@ -390,9 +466,9 @@ def invest_confirm(request: Request, pid: str, pin: str = Form("")):
         msg = f"✅ *Invested* {money(done['amount'])} in {done['name']}. Balance now {money(done['balance_eur'])}."
         if first_time and broker.configured():
             order = broker.place(done["fund_id"], done["amount"])
-            engine.state.setdefault("orders", []).append({"pending_id": pid, "fund": done["name"],
+            e.state.setdefault("orders", []).append({"pending_id": pid, "fund": done["name"],
                                                           "amount": done["amount"], **order})
-            engine._save()
+            e._save()
             msg += "\n\n" + order_text(order)
     if first_time:
         notify(pid, msg)
@@ -411,7 +487,7 @@ def order_text(order: dict) -> str:
 
 @app.get("/stop/{pid}", response_class=HTMLResponse)
 def stop_page(request: Request, pid: str):
-    p = _pending_or_404(pid, "stop_subscription")
+    e, p = _pending_or_404(pid, "stop_subscription")
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "action": f"/stop/{pid}", "title": "Stop recurring card payment",
         "amount": money(p["amount"]) + (" / month" if p["cadence"] == "monthly" else " / year"),
@@ -423,11 +499,11 @@ def stop_page(request: Request, pid: str):
 
 @app.post("/stop/{pid}", response_class=HTMLResponse)
 def stop_confirm(request: Request, pid: str, pin: str = Form("")):
-    p = _pending_or_404(pid, "stop_subscription")
+    e, p = _pending_or_404(pid, "stop_subscription")
     if len(pin) != 4 or not pin.isdigit():
         return bad_pin(request, f"/stop/{pid}")
-    done = engine.confirm(pid)
-    subs = engine.subscriptions()
+    done = e.confirm(pid)
+    subs = e.subscriptions()
     msg = (f"✅ *{done['name']} stopped.* No more charges of {money(done['amount'])}. "
            f"That's {money(done['per_year_eur'])} a year back in your pocket.\n"
            f"Active subscriptions now: {subs['active_count']}, {money(subs['active_per_month_eur'])} a month.")
@@ -440,8 +516,8 @@ def stop_confirm(request: Request, pid: str, pin: str = Form("")):
 
 @app.get("/save/{pid}", response_class=HTMLResponse)
 def save_page(request: Request, pid: str):
-    p = _pending_or_404(pid, "saving")
-    g = engine.state["goals"][p["goal_id"]]
+    e, p = _pending_or_404(pid, "saving")
+    g = e.state["goals"][p["goal_id"]]
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "action": f"/save/{pid}", "title": "Move to savings", "amount": money(p["amount"]),
         "rows": [("Goal", g["name"]), ("Saved so far", f"{money(g['saved'])} of {money(g['target'])}"),
@@ -451,14 +527,14 @@ def save_page(request: Request, pid: str):
 
 @app.post("/save/{pid}", response_class=HTMLResponse)
 def save_confirm(request: Request, pid: str, pin: str = Form("")):
-    p = _pending_or_404(pid, "saving")
+    e, p = _pending_or_404(pid, "saving")
     if len(pin) != 4 or not pin.isdigit():
         return bad_pin(request, f"/save/{pid}")
     try:
-        done = engine.confirm(pid)
+        done = e.confirm(pid)
     except ValueError as e:
         return not_done(request, e)
-    g = engine.state["goals"][p["goal_id"]]
+    g = e.state["goals"][p["goal_id"]]
     pct = round(g["saved"] / g["target"] * 100)
     msg = (f"✅ *Saved {money(done['amount'])}* for {g['name']}.\n"
            f"{money(g['saved'])} of {money(g['target'])} ({pct}%). Balance now {money(done['balance_eur'])}.")
@@ -469,10 +545,10 @@ def save_confirm(request: Request, pid: str, pin: str = Form("")):
 
 
 # ---------------- Demo triggers (used while filming) ----------------
-def alert_message(kind: str, name: str) -> tuple[str, list] | None:
+def alert_message(kind: str, name: str, e: Engine | None = None) -> tuple[str, list] | None:
     if kind not in ("salary", "unusual", "renewal"):
         raise HTTPException(400, "kind must be salary, unusual or renewal")
-    a = engine.alert(kind)
+    a = (e or engine).alert(kind)
     if kind != "salary" and not a["found"]:
         return None
     return alert_text(kind, a, name)
@@ -512,9 +588,10 @@ def demo_alert(kind: str, to: str | None = None):
     wa.send_reply_buttons(to, m[0], m[1])
     return {"sent": True, "text": m[0]}
 
-def reminder_text(name: str = DEMO_NAME) -> tuple[str, dict]:
-    rent = next(b for b in engine.upcoming_bills(45) if b["category"] == "Housing")  # next month's once paid
-    return bill_text(rent, engine.safe_to_spend(), name), rent
+def reminder_text(name: str = DEMO_NAME, e: Engine | None = None) -> tuple[str, dict] | tuple[None, None]:
+    e = e or engine
+    rent = next((b for b in e.upcoming_bills(45) if b["category"] == "Housing"), None)  # next month's once paid
+    return (bill_text(rent, e.safe_to_spend(), name), rent) if rent else (None, None)
 
 
 def bill_text(bill: dict, s: dict, name: str) -> str:
@@ -595,12 +672,14 @@ def mask(to: str) -> str:
 
 def wake_one(to: str, dry: bool, force: bool = False) -> dict:
     """Pick this person's top signal and deliver it (or, when dry, only say how it would go)."""
-    sig = rules.pick(engine, to, force)
+    web = to.startswith("web:")
+    persona = session_persona.get(to) if web else None
+    e = engine_for(persona)
+    sig = rules.pick(e, to, force)
     out = {"to": mask(to), "signal": sig and sig["type"], "via": None}
     if not sig:
         return out
-    web = to.startswith("web:")
-    text, buttons = signal_message(sig, DEMO_NAME if web else name_of(to))
+    text, buttons = signal_message(sig, name_for(persona) if web else name_of(to))
     out.update(dedup_key=sig["dedup_key"], text=text)
     tpl = None
     if web:
@@ -608,7 +687,7 @@ def wake_one(to: str, dry: bool, force: bool = False) -> dict:
     elif window_open(to):
         out["via"] = "text"
     else:
-        tpl = templates_wa.template_for(sig, engine.today)
+        tpl = templates_wa.template_for(sig, e.today)
         held = held_signal(to)
         if not tpl:
             return {**out, "reason": "no safe template for this signal"}
@@ -624,8 +703,8 @@ def wake_one(to: str, dry: bool, force: bool = False) -> dict:
         engine.state.setdefault("held", {})[to] = {"signal": sig, "at": time.time()}  # one at a time
     else:
         wa.send_reply_buttons(to, text, buttons)
-    engine.state.setdefault("sent", {}).setdefault(to, {})[sig["dedup_key"]] = engine.today.isoformat()
-    engine._save()
+    e.state.setdefault("sent", {}).setdefault(to, {})[sig["dedup_key"]] = e.today.isoformat()
+    e._save()
     return out
 
 
@@ -656,6 +735,14 @@ def demo_panel(request: Request, key: str = ""):
 def demo_reset():
     engine.reset()
     coach().reset()
+    with _persona_lock:  # every persona: loaded ones in place, the rest by dropping their state file
+        for e in _engines.values():
+            e.reset()
+        for c in _coaches.values():
+            c.reset()
+        for pid in set(PERSONAS) - set(_engines) - {DEFAULT_PERSONA}:
+            (STATE_DIR / f"{pid}.json").unlink(missing_ok=True)
+    session_persona.clear()
     seen.clear()
     owner.clear()
     inbox.clear()
@@ -700,18 +787,18 @@ def _chart(o: dict) -> dict:
 
 
 @app.get("/app/export.json")
-def export_json():
-    return JSONResponse(engine.export(), headers={"content-disposition": 'attachment; filename="my-s-pankki-data.json"'})
+def export_json(request: Request):
+    return JSONResponse(engine_for(persona_of(request)).export(), headers={"content-disposition": 'attachment; filename="my-s-pankki-data.json"'})
 
 
 @app.get("/app/export.csv")
-def export_csv():
+def export_csv(request: Request):
     import csv
     import io
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["date", "category", "basket", "amount_eur", "type", "merchant"])
-    for t in engine.export()["transactions"]:
+    for t in engine_for(persona_of(request)).export()["transactions"]:
         w.writerow([t["date"], t["category"], t["basket"] or "", t["amount_eur"], t["type"], t["merchant"] or ""])
     return PlainTextResponse(buf.getvalue(), media_type="text/csv",
                              headers={"content-disposition": 'attachment; filename="my-s-pankki-transactions.csv"'})
@@ -754,13 +841,16 @@ def explore_filters(merchant_type: str | None = None) -> list[tuple[str, list[tu
 
 @app.get("/app/explore", response_class=HTMLResponse)
 def explore_page(request: Request):
+    persona = persona_of(request)
+    eng = engine_for(persona)
     try:
-        view, error = engine.explore(**explore_args(request)), None
+        view, error = eng.explore(**explore_args(request)), None
     except ValueError as e:  # a hand-edited link: show the default view and say why
-        view, error = engine.explore(), str(e)
+        view, error = eng.explore(), str(e)
     q = view["query"]
     current = next((f"{k}:{q[k]}" for k in ("category", "basket", "merchant_type") if q[k]), "")
     return templates.TemplateResponse(request, "explore.html", _ctx(
+        **persona_ctx(persona),
         v=view, error=error, current=current, filters=explore_filters(q["merchant_type"]), labels=EXPLORE_LABELS,
         options={"what": EXPLORE_WHAT, "metric": EXPLORE_METRICS, "group_by": EXPLORE_GROUP_BY, "period": PERIODS},
         csv_url="/app/explore.csv?" + explore_query(q)))
@@ -772,7 +862,7 @@ def explore_csv(request: Request):
     import csv
     import io
     try:
-        v = engine.explore(**explore_args(request))
+        v = engine_for(persona_of(request)).explore(**explore_args(request))
     except ValueError as e:
         raise HTTPException(400, str(e))
     q = v["query"]
@@ -791,15 +881,19 @@ def explore_csv(request: Request):
 
 @app.get("/app", response_class=HTMLResponse)
 def dashboard(request: Request):
-    o = engine.overview()
+    persona = persona_of(request)
+    o = engine_for(persona).overview()
     return templates.TemplateResponse(request, "dashboard.html", _ctx(
-        o=o, name=DEMO_NAME, today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o)))
+        o=o, name=name_for(persona), today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o),
+        **persona_ctx(persona)))
 
 
 @app.get("/chat", response_class=HTMLResponse)
 def chat_page(request: Request, q: str = "", embed: str = ""):
     """?q= asks a question once on load (deep link); ?embed=1 drops the site chrome for a WebView."""
-    return templates.TemplateResponse(request, "chat.html", {"name": DEMO_NAME, "q": q[:500], "embed": embed == "1"})
+    persona = persona_of(request)
+    return templates.TemplateResponse(request, "chat.html", {"name": name_for(persona), "q": q[:500],
+                                                             "embed": embed == "1", **persona_ctx(persona)})
 
 
 # ---------------- S-mobiili integration: native home-screen cards, no AI ----------------
@@ -810,17 +904,18 @@ def ask_link(question: str) -> str:
     return "/chat?" + urlencode({"q": question})
 
 
-def widgets() -> dict:
+def widgets(e: Engine | None = None) -> dict:
     """Small cards a banking app home screen can draw natively. Every number comes from the engine;
     each card deep-links into the chat with a question (or a direct action that needs no AI)."""
-    s = engine.safe_to_spend()
+    e = e or engine
+    s = e.safe_to_spend()
     pay = s["next_payday"]
     cards = [{"id": "safe_to_spend", "title": "Safe to spend", "value": money(s["safe_to_spend_until_payday_eur"]),
               "subtitle": f"until payday {nice_date(pay['date'])} · {money(s['safe_per_day_eur'])} a day",
               "amount_eur": s["safe_to_spend_until_payday_eur"], "per_day_eur": s["safe_per_day_eur"],
               "payday": pay["date"], "days_to_payday": pay["days_away"],
               "deep_link": ask_link("What is safe for me to spend until payday?")}]
-    bill = next((b for b in engine.upcoming_bills(45) if b["bill_id"] and b["category"] != "Invest Deposit"), None)
+    bill = next((b for b in e.upcoming_bills(45) if b["bill_id"] and b["category"] != "Invest Deposit"), None)
     if bill:
         when = "tomorrow" if bill["days_away"] == 1 else f"in {bill['days_away']} days"
         cards.append({"id": "next_bill", "title": "Next bill", "value": money(bill["amount_eur"]),
@@ -829,17 +924,17 @@ def widgets() -> dict:
                       "days_away": bill["days_away"],
                       "deep_link": ask_link(f"How does my {bill['name'].lower()} fit before payday?"),
                       "actions": [{"label": "Pay", "deep_link": ask_link(f"__btn__:pay:{bill['bill_id']}")}]})
-    b = engine.baskets("this_month")
+    b = e.baskets("this_month")
     if not b["total_spent_eur"]:  # early in the month: show the last full month instead of three zeros
-        b = engine.baskets("last_month")
-    month = "this month" if b["from"][:7] == engine.today.isoformat()[:7] else "last month"
+        b = e.baskets("last_month")
+    month = "this month" if b["from"][:7] == e.today.isoformat()[:7] else "last month"
     cards.append({"id": "baskets", "title": "Your three baskets", "value": money(b["total_spent_eur"]),
                   "subtitle": f"spent {month}", "period": month.replace(" ", "_"), "from": b["from"], "to": b["to"],
                   "total_eur": b["total_spent_eur"],
                   "baskets": [{"key": x["basket"], "label": x["label"], "share_pct": x["share_pct"],
                                "total_eur": x["total_eur"]} for x in b["baskets"]],
                   "deep_link": ask_link(f"Where did my money go {month}, basket by basket?")})
-    subs = engine.subscriptions()["subscriptions"]
+    subs = e.subscriptions()["subscriptions"]
     up = next((x for x in subs if x["status"] == "active" and x["price_increase"]), None)
     off = next((x for x in subs if x["status"] == "inactive"), None)
     if up:
@@ -854,7 +949,7 @@ def widgets() -> dict:
                       "value": money(off["price_eur"]), "subtitle": f"last charged {nice_date(off['last_charge'])}",
                       "name": off["name"], "price_eur": off["price_eur"], "last_charge": off["last_charge"],
                       "deep_link": ask_link("What subscriptions am I paying for?")})
-    goals = engine.goals()
+    goals = e.goals()
     if goals:
         g = goals[0]
         cards.append({"id": "goal", "title": g["goal"]["name"], "value": f"{g['progress_pct']}%",
@@ -863,19 +958,22 @@ def widgets() -> dict:
                       "saved_eur": g["goal"]["saved"], "target_eur": g["goal"]["target"],
                       "deadline": g["goal"].get("deadline"),
                       "deep_link": ask_link(f"How is my {g['goal']['name']} goal going?")})
-    return {"version": 1, "as_of": engine.today.isoformat(), "max_age_s": WIDGETS_MAX_AGE, "widgets": cards}
+    return {"version": 1, "as_of": e.today.isoformat(), "max_age_s": WIDGETS_MAX_AGE, "widgets": cards}
 
 
 @app.get("/api/widgets")
-def widgets_api():
-    return JSONResponse(widgets(), headers={"cache-control": f"private, max-age={WIDGETS_MAX_AGE}"})
+def widgets_api(request: Request):
+    return JSONResponse(widgets(engine_for(persona_of(request))),
+                        headers={"cache-control": f"private, max-age={WIDGETS_MAX_AGE}", "vary": "cookie"})
 
 
 @app.get("/mobile-demo", response_class=HTMLResponse)
 def mobile_demo(request: Request):
     """Concept mock: Kurre's cards and chat inside a generic banking app home screen."""
+    persona = persona_of(request)
+    e = engine_for(persona)
     return templates.TemplateResponse(request, "mobile_demo.html", _ctx(
-        name=DEMO_NAME, balance=engine.balance(), recent=engine.recent(6)))
+        name=name_for(persona), balance=e.balance(), recent=e.recent(6)))
 
 
 @app.post("/api/chat")
@@ -891,41 +989,47 @@ async def chat_api(request: Request):
     if not text:
         raise HTTPException(400)
     web_sessions.add(sid)
+    # The page sends the persona it was drawn for; the cookie covers other callers.
+    persona = valid_persona(body.get("as")) if body.get("as") else persona_of(request)
+    session_persona[sid] = persona
+    e, name = engine_for(persona), name_for(persona)
 
     def quick(buttons):
         return [{"label": t, "send": f"__btn__:{i}"} for i, t in buttons]
 
     if text == "__remind__":
-        t, rent = reminder_text(DEMO_NAME)
+        t, rent = reminder_text(name, e)
+        if not rent:
+            return {"text": "No rent or housing payment is due in the next 45 days.", "buttons": []}
         return {"text": t, "buttons": [], "quick": quick([(f"pay:{rent['bill_id']}", "Pay rent now"),
                                                           (f"later:{rent['bill_id']}", "Remind me later"),
                                                           ("ask:tight", "How do I stretch it?")])}
     if text.startswith("__alert__:"):
-        m = alert_message(text.split(":", 1)[1], DEMO_NAME)
+        m = alert_message(text.split(":", 1)[1], name, e)
         return {"text": m[0], "buttons": [], "quick": quick(m[1])} if m else {"text": "Nothing to flag right now.", "buttons": []}
     def interview(t: onboarding.Turn, buttons=()):
         return {"text": "\n\n".join(t.lead + [t.text]), "buttons": list(buttons), "quick": quick(t.buttons)}
 
     if text == "__start__":  # the web chat's stand-in for Connect S-Pankki
-        return interview(onboarding.start(engine, sid), [{"label": "Open My money", "url": "/app"}])
+        return interview(onboarding.start(e, sid), [{"label": "Open My money", "url": "/app"}])
     bid = ""
     if text.startswith("__btn__:"):
         bid = text.split(":", 1)[1]
         try:
-            direct = button_reply(sid, bid, web=True)
-        except ValueError as e:
-            return {"text": f"I can't do that: {e}", "buttons": []}
+            direct = button_reply(sid, bid, web=True, e=e)
+        except ValueError as err:
+            return {"text": f"I can't do that: {err}", "buttons": []}
         if direct:
             url = direct.get("url")
             return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else []}
         text = ASK.get(bid, bid)
     if bid not in ASK:
-        t = onboarding.turn(engine, sid, "" if bid else text, bid)
+        t = onboarding.turn(e, sid, "" if bid else text, bid)
         if t:
             return interview(t)
     import anyio
     try:
-        reply = await anyio.to_thread.run_sync(lambda: coach().ask(sid, text, name=DEMO_NAME))
+        reply = await anyio.to_thread.run_sync(lambda: coach(persona).ask(sid, text, name=name))
     except Exception:
         log.exception("coach failed")
         return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
@@ -937,7 +1041,7 @@ async def chat_api(request: Request):
             continue
         owner[b["url"].rsplit("/", 1)[-1]] = sid
         out.append({"label": b["label"], "url": b["url"].replace(public_url(), "") + "?web=1"})
-    again = onboarding.reask(engine, sid)  # a side question mid-interview: the waiting question comes back
+    again = onboarding.reask(e, sid)  # a side question mid-interview: the waiting question comes back
     return JSONResponse({"text": reply.text + (f"\n\n{again.text}" if again else ""), "tools": reply.tools_used,
                          "buttons": out, "charts": charts, "quick": quick(again.buttons) if again else []})
 

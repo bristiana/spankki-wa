@@ -129,7 +129,7 @@
       <div class="k">Investing</div>
       <div class="big" style="font-size:24px">{{ money(o.invest.put_in) }} <span class="muted" style="font-size:15px">put in{% if o.invest.plan %} · {{ money(o.invest.plan.amount_eur) }} every {{ o.invest.plan.day }}th{% endif %}</span></div>
       {% if o.invest.real %}
-      {% for r in o.invest.real.results %}
+      {% for r in o.invest.real.results if r %}{# a fund with no price data for these deposits has no result #}
       <div class="row"><span class="l">{{ r.fund }}<small>if your deposits had gone here</small></span><span class="{{ 'pos' if r.gain_eur >= 0 else 'x' }}">{{ money(r.value_today_eur) }} ({{ '+' if r.gain_pct >= 0 else '' }}{{ r.gain_pct }}%)</span></div>
       {% endfor %}
       <div class="src">Real monthly ETF prices (VWCE, XEON) up to {{ nice(o.invest.real.as_of) }}. Past results are not a promise.</div>
