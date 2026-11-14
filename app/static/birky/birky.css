@@ -1,0 +1,15 @@
+/* Birky sprite: <span class="birky talk" role="img" aria-label="Birky"></span>
+   Moods (rows of sprite.svg, regenerate with scripts/make_birky_sprites.py): idle talk happy think worried wave.
+   Size with --s (default 64px). Six frames per row, stepped. */
+.birky{--s:64px;--row:0;--fps:1s;display:inline-block;flex:none;width:var(--s);height:var(--s);vertical-align:middle;
+  background:url(/static/birky/sprite.svg) 0 calc(var(--row) * 20%)/600% 600% no-repeat;
+  animation:birky-play var(--fps) steps(6) infinite}
+.birky.idle{--row:0;--fps:1s}
+.birky.talk{--row:1;--fps:.6s}
+.birky.happy{--row:2;--fps:.6s}
+.birky.think{--row:3;--fps:1s}
+.birky.worried{--row:4;--fps:.75s}
+.birky.wave{--row:5;--fps:.75s}
+.birky.once{animation-iteration-count:1;animation-fill-mode:forwards}
+@keyframes birky-play{from{background-position-x:0}to{background-position-x:120%}}
+@media (prefers-reduced-motion:reduce){.birky{animation:none!important;background-position-x:0}}
