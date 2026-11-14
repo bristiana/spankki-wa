@@ -1,0 +1,103 @@
+"""The three baskets up front: S-mobiili home, the landing page, the chat chip and the WhatsApp welcome."""
+import json
+import re
+from datetime import date
+from html import unescape
+from urllib.parse import parse_qs, urlsplit
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app import main, onboarding
+from app.engine import Engine
+
+EXAMPLES = {"regular": "rent", "irregular": "a broken washing machine", "everyday": "coffees"}
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    for k in ("WA_TOKEN", "DEMO_PHONE", "WA_DISPLAY_NUMBER", "T212_API_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("PUBLIC_URL", "http://127.0.0.1:8806")
+    main.engine = Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json")
+    main._coach = None
+    monkeypatch.setattr(main.wa, "_post", lambda body: None)
+    return TestClient(main.app)
+
+
+def baskets():
+    return main.engine.baskets("last_3_months")["baskets"]
+
+
+def test_engine_baskets_carry_the_challenge_examples(client):
+    assert {b["basket"]: b["example"] for b in baskets()} == EXAMPLES
+
+
+def test_smobiili_home_shows_the_baskets_card_with_engine_numbers(client):
+    page = client.get("/s-mobiili/").text
+    card = page[page.index('id="baskets"'):page.index('id="acct-pocket"')]
+    assert "Where your money goes" in card and "3 baskets" in card
+    assert card.count('class="k1"') + card.count('class="k2"') + card.count('class="k3"') >= 6  # bar + dots
+    for b in baskets():
+        row = card[card.index(f'id="basket-{b["basket"]}"'):]
+        row = row[:re.search(r'class="bk-(row|ask)', row).start()]  # up to the next row
+        assert b["label"].replace("&", "&amp;") in row and f"e.g. {b['example']}" in row
+        assert main.money_nb(b["per_month_eur"]) in row and f"{b['share_pct']}%" in row
+        assert ("the only basket you can change today" in row) == (b["basket"] == "everyday")
+    assert page.index('id="acct-current"') < page.index('id="baskets"') < page.index('id="recent"')
+    assert "Concept prototype · not the real S-mobiili" in page
+
+
+def test_baskets_card_opens_the_chat_with_the_question(client):
+    page = client.get("/s-mobiili/?web=1&persona=" + main.DEFAULT_PERSONA).text
+    href = unescape(re.search(r'id="baskets" href="([^"]+)"', page).group(1))
+    u = urlsplit(href)
+    assert u.path == "/chat" and parse_qs(u.query) == {"q": ["Where does my money go?"], "embed": ["1"],
+                                                       "as": [main.DEFAULT_PERSONA]}
+    assert urlsplit(re.search(r'id="baskets" href="([^"]+)"', client.get("/s-mobiili/").text).group(1)).query \
+        == "q=Where+does+my+money+go%3F"
+
+
+def test_guide_points_at_the_baskets_card(client):
+    page = client.get("/s-mobiili/").text
+    steps = json.loads(re.search(r'id="guide-steps">(.*?)</script>', page, re.S).group(1))
+    step = next(s for s in steps if s["target"] == "baskets")
+    assert "3 baskets" in step["say"]
+
+
+def test_landing_shows_the_three_baskets_with_real_numbers(client):
+    page = client.get("/").text
+    sec = page[page.index('id="three-baskets"'):]
+    sec = sec[:sec.index("</section>")]
+    for b in baskets():
+        assert b["label"].replace("&", "&amp;") in sec and b["example"] in sec
+        assert main.money_nb(b["per_month_eur"]) in sec and f"{b['share_pct']}%" in sec
+    assert "The only basket you can change today" in sec
+
+
+def test_chat_has_the_baskets_chip_after_the_mentor_questions(client):
+    page = client.get("/chat").text
+    top = page[page.index('id="top"'):]
+    top = top[:top.index("</div>")]
+    assert re.findall(r"<button>([^<]+)</button>", top) == [
+        "What kind of spender am I?", "What can I safely spend this week?", "How could I save more?",
+        "Where does my money go?"]
+    assert "Play the basket game" in page
+
+
+def test_chat_deep_link_asks_q_once_on_load(client):
+    page = client.get("/chat", params={"q": "Where does my money go?"}).text
+    assert 'const deepQ = "Where does my money go?";' in page
+    assert "const deepQ = \"\";" in client.get("/chat").text
+
+
+def test_whatsapp_welcome_lists_the_three_baskets_per_month(client, monkeypatch):
+    sent = []
+    monkeypatch.setattr(main.wa, "_post", sent.append)
+    main.welcome("358400000001")
+    first = next(b["text"]["body"] for b in sent if b.get("type") == "text")
+    lines = [ln for ln in first.splitlines() if ln.startswith("• ")]
+    assert len(lines) == 3
+    for ln, b in zip(lines, baskets()):
+        assert ln.startswith(f"• {b['label']} (e.g. {b['example']}): ") and ln.endswith(" a month")
+        assert onboarding._money(b["per_month_eur"]) in ln

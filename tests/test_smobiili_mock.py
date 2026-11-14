@@ -57,7 +57,7 @@ def test_home_shows_accounts_and_recent_from_the_engine(client):
     assert LABEL in page and "Savings pocket" in page and "Funds" in page and "Not opened yet" in page
     assert main.money_nb(main.engine.balance()) in page
     assert main.engine.recent(8)[0]["what"] in page
-    assert [s["target"] for s in steps(page)] == ["acct-current", "acct-pocket", "acct-funds", "recent", "ask"]
+    assert [s["target"] for s in steps(page)] == ["acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
     for s in steps(page):
         assert f'id="{s["target"]}"' in page
     assert client.get("/s-mobiili", follow_redirects=False).headers["location"] == "/s-mobiili/"

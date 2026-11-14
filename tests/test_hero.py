@@ -81,7 +81,7 @@ def test_the_three_questions_are_the_first_chips():
     start = page.index('id="top"')
     assert start < page.index('id="chips"')  # above the scrolling ideas
     top = page[start:page.index("</div>", start)]
-    assert [c.split(">", 1)[1].split("</button>")[0] for c in top.split("<button")[1:]] == THREE  # visible, not "More"
+    assert [c.split(">", 1)[1].split("</button>")[0] for c in top.split("<button")[1:]] == THREE + ["Where does my money go?"]  # visible, not "More"
 
 
 class Script:
