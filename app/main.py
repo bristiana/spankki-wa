@@ -259,7 +259,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         owner[p["pending_id"]] = user
         per = "month" if p["cadence"] == "monthly" else "year"
         return {"text": f"Stop future card payments to *{p['name']}* ({money(p['amount'])}/{per})? Confirm with your PIN.",
-                "url": (f"Stop {p['name']}"[:20], f"{public_url()}/stop/{p['pending_id']}{q}")}
+                "url": (wa.short(f"Stop {p['name']}"), f"{public_url()}/stop/{p['pending_id']}{q}")}
     if bid.startswith("keep:"):
         return {"text": f"Okay, {bid[5:]} stays on 👍 I'll tell you if the price changes again."}
     if bid.startswith("save:"):
@@ -319,6 +319,9 @@ def handle_message(m: dict):
                 "before bills and help you save.\n\nTo start, connect your S-Pankki account. You choose what I can see, "
                 "and you can switch me off any time.",
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
+            return
+        if onboarding.RESTART.match(m["text"] or ""):  # the way back to the welcome, e.g. for the demo phone
+            welcome(to)
             return
         bid = m.get("button_id") or ""
         held = take_held(to)
@@ -670,6 +673,12 @@ def reminder_text(name: str = DEMO_NAME, e: Engine | None = None) -> tuple[str, 
     return (bill_text(rent, e.safe_to_spend(), name), rent) if rent else (None, None)
 
 
+def pay_label(name: str) -> str:
+    """"Pay rent now", or "Pay now" when the bill's name would not fit a 20-character button."""
+    label = f"Pay {name.lower()} now"
+    return label if len(label) <= wa.TITLE_MAX else "Pay now"
+
+
 def bill_text(bill: dict, s: dict, name: str) -> str:
     what = bill["name"].lower()
     when = "tomorrow" if bill["days_away"] == 1 else f"in {bill['days_away']} days"
@@ -710,7 +719,7 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
         if d["source"] == "subscription":
             return alert_text("renewal", d, name)
         b = d["bill"]
-        return bill_text(b, d["safe"], name), [(f"pay:{b['bill_id']}", f"Pay {b['name'].lower()} now"),
+        return bill_text(b, d["safe"], name), [(f"pay:{b['bill_id']}", pay_label(b["name"])),
                                                (f"later:{b['bill_id']}", "Remind me later"),
                                                ("ask:tight", "How do I stretch it?")]
     if kind == "SUBSCRIPTION_PRICE_INCREASE":
