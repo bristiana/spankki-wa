@@ -181,6 +181,14 @@
       {% endfor %}
     </div>
   </div>
+  <div class="card" style="margin-top:14px"><div class="k">Other banks</div>
+    {% if real_banks %}{% for b in real_banks %}
+      {% for a in b.accounts %}<div class="row"><span class="l">{{ b.bank.split(' (')[0] }}<small>{{ a.type }}{% if a.ending %} ···{{ a.ending }}{% endif %}</small></span><span>{{ money(a.balance_eur) if a.balance_eur is not none else "–" }}</span></div>{% endfor %}
+      <div class="row"><span class="l">Spending a month<small>last 90 days, real data</small></span><span>{{ money(b.spending_per_month_eur) }}</span></div>
+    {% endfor %}<div class="cta"><a class="btn ghost" href="/bank">Manage banks</a></div>
+    {% elif me %}<p class="muted" style="margin:0">Bring your Revolut or another bank here, read only.</p><div class="cta"><a class="btn" href="/bank">🏦 Add a bank</a></div>
+    {% else %}<p class="muted" style="margin:0">Log in with WhatsApp to bring your other banks here (Revolut, OP, Nordea...), read only.</p><div class="cta"><a class="btn" href="/login?next=/bank">Log in with WhatsApp</a></div>{% endif %}
+  </div>
   <div class="card" style="margin-top:14px"><div class="k">Your data (MyData)</div><p class="muted" style="margin:0">Explore it your way, or take everything with you: every transaction, its basket and what Birky calculated.</p>
     <div class="cta"><a class="btn" href="/app/explore">🔎 Explore my data</a></div>
     <div class="cta"><a class="btn ghost" href="/app/export.csv" download>Download CSV</a><a class="btn ghost" href="/app/export.json" download>Download JSON</a></div></div>

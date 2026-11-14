@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Add a bank{% endblock %}
+{% block body %}
+<main>
+  <form class="card" method="post" action="/bank/start">
+    <h1>Add a bank</h1>
+    <p class="muted">S-Pankki stays your main bank. Bring your other accounts here too, so Birky sees your whole money picture. Read only: Birky sees balances and the last 90 days, it can't move money there.</p>
+    {% if err %}<p class="err">The bank didn't answer. Try again in a minute.</p>{% endif %}
+    <div class="row"><span>Bank</span><span>
+      <select name="bank" required aria-label="Bank">
+        {% for b in banks %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+      </select></span></div>
+    <div class="row"><span>Access</span><span>Read only</span></div>
+    <div class="row"><span>Valid for</span><span>90 days, then you confirm again</span></div>
+    <div class="note">Your bank opens next and you approve with its own login. Connected through Enable Banking, a licensed PSD2 provider. Messages with Birky pass through WhatsApp (Meta).</div>
+    <button class="btn" type="submit">Continue to my bank</button>
+  </form>
+  {% if linked %}
+  <form class="card" method="post" action="/bank/unlink" style="margin-top:12px">
+    <h2>Linked</h2>
+    {% for name, l in linked.items() %}
+    <div class="row"><span>{{ name }}</span><span class="muted">{{ l.accounts|length }} account(s) · since {{ l.linked }}</span></div>
+    {% endfor %}
+    <button class="btn ghost" type="submit">Remove all</button>
+  </form>
+  {% endif %}
+</main>
+{% endblock %}

@@ -10,7 +10,7 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 KEYS = ["ANTHROPIC_API_KEY", "WA_TOKEN", "WA_PHONE_NUMBER_ID", "WA_APP_SECRET", "WA_VERIFY_TOKEN",
-        "DEMO_PHONE", "WA_DISPLAY_NUMBER"]
+        "DEMO_PHONE", "WA_DISPLAY_NUMBER", "EB_APP_ID", "EB_PRIVATE_KEY"]
 
 env = dotenv_values(Path(__file__).resolve().parents[1] / ".env")
 secrets = {k: env[k] for k in KEYS if env.get(k)}
