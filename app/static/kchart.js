@@ -96,7 +96,7 @@
     });
   }
 
-  window.birkyChart = function (host, spec) {
+  window.oivaChart = function (host, spec) {
     host.innerHTML = "";
     const W = Math.max(220, Math.floor(host.clientWidth || 300));
     const svg = el("svg", {class: "kc", role: "img", "aria-label": spec.title + ", " + spec.subtitle, width: W});

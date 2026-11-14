@@ -34,7 +34,7 @@
 {%- elif name == "barcode" %}<path d="M6 9v14M9 9v14M12.5 9v14M15 9v14M18.5 9v14M21 9v14M24.5 9v14M27 9v14" stroke-width="1.6"/><path d="M3.5 7V4.5H7M25 4.5h3.5V7M28.5 25v2.5H25M7 27.5H3.5V25" />
 {%- elif name == "bag" %}<path d="M7 11h18l-1.5 16.5h-15z"/><path d="M12 11V8.5a4 4 0 0 1 8 0V11"/><path d="M16 23.5l-3.4-3.3a2.1 2.1 0 0 1 3-3l.4.4.4-.4a2.1 2.1 0 0 1 3 3z"/>
 {%- elif name == "receipt" %}<path d="M8 4.5l2 1.5 2-1.5 2 1.5 2-1.5 2 1.5 2-1.5 2 1.5 2-1.5v23l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5z"/><path d="M18.4 12.3a3.4 3.4 0 1 0 0 5.4M12.6 14.2h4.6M12.6 16h4.6"/>
-{%- elif name == "chat-birky" %}<path d="M4.5 6.5h23v15h-15l-5.5 4.5v-4.5h-2.5z"/><path d="M10.5 12.5h11M10.5 16h7"/>
+{%- elif name == "chat-oiva" %}<path d="M4.5 6.5h23v15h-15l-5.5 4.5v-4.5h-2.5z"/><path d="M10.5 12.5h11M10.5 16h7"/>
 {%- endif %}</svg>
 {%- endmacro %}
 {%- set fi_label = {"recipient": "Saaja", "iban": "Saajan tilinumero", "reference": "Viitenumero", "due": "Eräpäivä",
@@ -51,11 +51,11 @@
 <meta name="theme-color" content="#ffffff">
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex">
-<link rel="icon" href="/static/birky/penny.png" type="image/png">
+<link rel="icon" href="/static/oiva/oiva.png" type="image/png">
 <title>{% if screen == "home" %}S-mobiili concept{% elif screen == "tab" %}{{ top_title[tab] }} · S-mobiili concept{% elif screen == "extra" %}{{ page_title }} · S-mobiili concept{% else %}{{ f.title }} · S-mobiili concept{% endif %}</title>
 <link rel="stylesheet" href="/static/fonts/fonts.css">
-<link rel="stylesheet" href="/static/birky/birky.css">
-<link rel="stylesheet" href="/static/birky/guide.css">
+<link rel="stylesheet" href="/static/oiva/oiva.css">
+<link rel="stylesheet" href="/static/oiva/guide.css">
 <style>
   /* Colours sampled from the store screenshots: brand green #007841, bright tab green #00aa46, mint page #ebf7ec. */
   :root{--page:#ebf7ec;--bar:#fff;--card:#fff;--ink:#363636;--muted:#666;--faint:#949494;--line:#e6e6e6;--brand:#007841;
@@ -153,7 +153,7 @@
   .bk-hint{display:inline-block;margin-top:4px;padding:1px 8px;border-radius:99px;background:var(--mint);color:var(--brand);font-size:11.5px;font-weight:600}
   .bk-ask{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 0;border-top:1px solid var(--line);
           color:var(--brand);font-weight:600;font-size:15px}.bk-ask .i{width:20px;height:20px}
-  .birky-row img{width:34px;height:34px;flex:none}
+  .oiva-row img{width:34px;height:34px;flex:none}
   .tx{padding:2px 16px}
   .tx .row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:15px;color:#222}
   .tx .row:first-child{border-top:0}.tx small{display:block;color:var(--muted);font-size:12.5px}
@@ -307,7 +307,7 @@
     <div class="pad">
     {% if ready and not ready.done %}
     <a class="card ready" id="ready" href="{{ ready.url }}">
-      <span class="kick"><img src="/static/birky/penny.png" alt="">Valmiina sinulle · Ready for you, from Oiva</span>
+      <span class="kick"><img src="/static/oiva/oiva.png" alt="">Valmiina sinulle · Ready for you, from Oiva</span>
       <span class="what">{{ ready.what|nb }}</span>
       <span class="sub">{{ ready.sub|nb }}</span>
       <span class="go">Check and confirm{{ icon("chevron") }}</span>
@@ -341,7 +341,7 @@
         {% for pl in a.plans %}<small>Monthly plan: {{ pl.amount|fimoney }} into {{ pl.name }}</small>{% endfor %}</span>
         <span class="amt">{{ a.funds|fimoney }}</span></div>
     </section>
-    <a class="card row-card birky-row" id="ask-card" href="{{ '/chat' ~ ('?embed=1' if web else '') }}"><img src="/static/birky/penny.png" alt=""><span class="txt"><b>Kysy Oivalta</b>
+    <a class="card row-card oiva-row" id="ask-card" href="{{ '/chat' ~ ('?embed=1' if web else '') }}"><img src="/static/oiva/oiva.png" alt=""><span class="txt"><b>Kysy Oivalta</b>
       <small>Your money coach, here and in WhatsApp</small></span>{{ icon("chevron", "i chev") }}</a>
     <h2 class="sec">Tapahtumat <small>Recent</small></h2>
     <section class="card tx" id="recent">
@@ -473,20 +473,20 @@
 <script type="application/json" id="guide-steps">{{ steps|tojson }}</script>
 {% if screen == "flow" %}<script type="application/json" id="pocket-steps">{{ pocket_steps|tojson }}</script>
 <script type="application/json" id="flow">{{ {"route": route, "pid": pid, "cheer": f.cheer, "back": "WhatsApp" if wa else "the chat", "done": done}|tojson }}</script>{% endif %}
-<script src="/static/birky/guide.js"></script>
+<script src="/static/oiva/guide.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id), json = id => $(id) ? JSON.parse($(id).textContent) : null;
   const params = new URLSearchParams(location.search), autoplay = params.get("autoplay") === "1";
   const wait = ms => new Promise(r => setTimeout(r, ms));
   let off = false;
-  try { off = !autoplay && sessionStorage.getItem("birky-guide") === "off"; } catch (e) {}
+  try { off = !autoplay && sessionStorage.getItem("oiva-guide") === "off"; } catch (e) {}
   const flow = json("flow"), ready = $("ready");
   let phase = flow && $("step-pocket") ? "pocket" : "review";
   const press = async btn => { btn.classList.add("pressed"); await wait(260); btn.classList.remove("pressed"); btn.click(); };
   const guide = OivaGuide.create($("phone"), {
     autoplay, dwell: 2600,
-    onSkip() { off = true; try { sessionStorage.setItem("birky-guide", "off"); } catch (e) {} },
+    onSkip() { off = true; try { sessionStorage.setItem("oiva-guide", "off"); } catch (e) {} },
     onEnd() {
       if (autoplay && flow) press($(phase === "pocket" ? "open-pocket" : "faceid"));
       else if (autoplay && ready) press(ready);  // home: tap the "Ready for you" card, the flow plays on from there

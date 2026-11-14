@@ -209,7 +209,7 @@ def fi_money(x: float) -> str:
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
 templates.env.filters["fimoney"] = fi_money
-DEMO_COOKIE = "birky_demo"
+DEMO_COOKIE = "oiva_demo"
 templates.env.globals["wa_login"] = lambda request: (enable_banking.mask(wa_phone(request))
                                                      or ("Demo" if request.cookies.get(DEMO_COOKIE) else ""))
 

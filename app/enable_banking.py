@@ -32,7 +32,7 @@ log = logging.getLogger("enable_banking")
 API = "https://api.enablebanking.com"
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data" / "eb"
-COOKIE = "birky_wa"
+COOKIE = "oiva_wa"
 LINK_DAYS = 30          # how long a WhatsApp login link / cookie is valid
 CONSENT_DAYS = 90       # how long the bank consent is asked for
 HISTORY_DAYS = 90
@@ -179,7 +179,7 @@ MCC_CATEGORY = {"4111": "Transportation", "4121": "Transportation", "5541": "Tra
                 "7999": "Entertainment", "5815": "Entertainment", "5816": "Entertainment", "4899": "Entertainment"}
 NAME_CATEGORY = [
     (r"prisma|s-market|sale\b|alepa|k-market|k-supermarket|k-citymarket|lidl|kaufland|carrefour|mega image|"
-     r"profi|penny|auchan|tesco|rewe|aldi", "Groceries"),
+     r"profi|oiva|auchan|tesco|rewe|aldi", "Groceries"),
     (r"bolt|uber|hsl|vr\b|taxi|neste|st1|abc\b|teboil|parking|parkki", "Transportation"),
     (r"wolt|foodora|mcdonald|burger|hesburger|subway|starbucks|caf[eé]|ravintola|restaurant|pizza|kebab|bar\b|pub\b",
      "Restaurants"),

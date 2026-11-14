@@ -1,0 +1,22 @@
+/* Oiva sprite: <span class="oiva talk" role="img" aria-label="Oiva"></span>
+   Oiva: an 8 x 11 grid in oiva.webp (scripts/make_oiva_sprite.py, atlas in oiva.json).
+   Moods: idle talk happy think worried wave busy walk-r walk-l. "look" shows one still from the 16 look
+   directions: class "oiva look" plus --row (9 or 10) and --col (0..7); direction N = 0..15 (22.5 deg each,
+   clockwise from up) is row 9 + floor(N / 8), column N % 8.
+   Size with --s (the width, default 64px). */
+.oiva{--s:64px;--row:0;--n:6;--t:1.2s;display:inline-block;flex:none;width:var(--s);height:calc(var(--s) * 13 / 12);
+  vertical-align:middle;background:url(/static/oiva/oiva.webp) 0 calc(var(--row) * 10%)/800% 1100% no-repeat;
+  animation:oiva-play var(--t) steps(var(--n)) infinite}
+.oiva.idle{--row:0;--n:6;--t:1.2s}
+.oiva.walk-r{--row:1;--n:8;--t:.64s}
+.oiva.walk-l{--row:2;--n:8;--t:.64s}
+.oiva.wave{--row:3;--n:4;--t:.6s}
+.oiva.happy{--row:4;--n:5;--t:.7s}
+.oiva.worried{--row:5;--n:8;--t:1.2s}
+.oiva.talk{--row:6;--n:6;--t:.9s}
+.oiva.busy{--row:7;--n:6;--t:.6s}
+.oiva.think{--row:8;--n:6;--t:1.2s}
+.oiva.look{--row:9;--col:0;animation:none;background-position:calc(var(--col) * 100% / 7) calc(var(--row) * 10%)}
+.oiva.once{animation-iteration-count:1;animation-fill-mode:forwards}
+@keyframes oiva-play{from{background-position-x:0}to{background-position-x:calc(var(--n) * 100% / 7)}}
+@media (prefers-reduced-motion:reduce){.oiva{animation:none!important;background-position-x:0}}

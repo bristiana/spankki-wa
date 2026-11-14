@@ -10,9 +10,9 @@
      g.hide()
 
    Oiva never covers what it points at: it stands below the target, or above it when there is no room below.
-   It runs there (left or right, the Penny run cycles), glances at the target (one of the 16 look directions),
+   It runs there (left or right, its run cycles), glances at the target (one of the 16 look directions),
    then plays the step's mood. With prefers-reduced-motion it does not walk: it just appears next to each target.
-   Moods are the rows of /static/birky/penny.webp (birky.css): idle talk happy think worried wave busy. */
+   Moods are the rows of /static/oiva/oiva.webp (oiva.css): idle talk happy think worried wave busy. */
 (function () {
   const MOODS = ["idle", "talk", "happy", "think", "worried", "wave", "busy", "walk-r", "walk-l", "look"];
   const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -32,9 +32,9 @@
     el.innerHTML = '<div class="g-bubble" role="status" aria-live="polite"><p class="g-say"></p>' +
       '<div class="g-btns"><button type="button" class="g-skip">Skip guide</button>' +
       '<button type="button" class="g-next">Next</button></div></div>' +
-      '<span class="g-hop"><span class="birky idle" role="img" aria-label="Oiva the squirrel"></span></span>';
+      '<span class="g-hop"><span class="oiva idle" role="img" aria-label="Oiva the squirrel"></span></span>';
     root.appendChild(el);
-    const sprite = el.querySelector(".birky"), say = el.querySelector(".g-say"), btns = el.querySelector(".g-btns");
+    const sprite = el.querySelector(".oiva"), say = el.querySelector(".g-say"), btns = el.querySelector(".g-btns");
     const nextBtn = el.querySelector(".g-next");
     let steps = [], i = -1, active = false, timer = 0, moveId = 0, current = null, lastMood = "idle";
 

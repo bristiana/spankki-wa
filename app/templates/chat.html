@@ -37,7 +37,7 @@
   .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
   .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px;position:relative}
   .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;margin-left:40px;position:relative}
-  .bot::before{content:"";position:absolute;left:-40px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:#fff6e8 url(/static/birky/penny.png) center/92% no-repeat;border:1px solid var(--line)}
+  .bot::before{content:"";position:absolute;left:-40px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:#fff6e8 url(/static/oiva/oiva.png) center/92% no-repeat;border:1px solid var(--line)}
   .bot .btn{margin-top:10px;padding:11px;min-height:44px;font-size:15px}
   .bot .btn:disabled{opacity:.45;cursor:default}.bot .btn.picked{opacity:1;background:var(--soft);border-color:var(--brand)}
   .typing{color:var(--muted);font-size:14px;padding:6px 2px 6px 40px;display:flex;align-items:center;gap:8px}
@@ -103,7 +103,7 @@
 <div class="status" aria-hidden="true"><span>9:41</span><i></i><svg viewBox="0 0 52 14"><path d="M2 12a12 12 0 0 1 16 0l-8 0z" fill="#ddd"/><path d="M22 13L33 2v11z" fill="#222"/><rect x="38" y="2" width="7" height="11" rx="1" fill="#222"/></svg></div>
 <header class="sm-top">
   <a href="/s-mobiili/" aria-label="Takaisin · back" data-back>{{ icon("back") }}</a>
-  <div class="who-is"><img src="/static/birky/penny.png" alt=""><h1>Oiva<small>Viestit · your money coach</small></h1></div>
+  <div class="who-is"><img src="/static/oiva/oiva.png" alt=""><h1>Oiva<small>Viestit · your money coach</small></h1></div>
 </header>
 <div id="log" aria-live="polite" aria-label="Conversation with Oiva">
   <div class="msg bot" id="hello">Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.</div>
@@ -265,7 +265,7 @@ async function send(text, shown, image) {
       box.className = "chart"; plot.className = "plot";
       box.innerHTML = "<b>" + esc(c.title) + "</b><small>" + esc(c.subtitle) + "</small>";
       box.appendChild(plot); d.appendChild(box);
-      window.birkyChart(plot, c);
+      window.oivaChart(plot, c);
       const a = document.createElement("button");
       a.className = "btn ghost"; a.textContent = "Open in Explore";
       a.onclick = () => openSheet(c.url + (c.url.includes("?") ? "&" : "?") + "web=1");
@@ -288,7 +288,7 @@ async function send(text, shown, image) {
       btn.dataset.quick = "1";
       d.appendChild(btn);
     }
-    const how = window.birkyTrace(j.trace);  // collapsed under the bubble: what Oiva looked up and checked
+    const how = window.oivaTrace(j.trace);  // collapsed under the bubble: what Oiva looked up and checked
     if (how) d.insertAdjacentHTML("afterend", how);
     reveal(d);
   } catch (e) { t.remove(); add("bot", "Connection problem, try again."); }

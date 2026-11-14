@@ -17,7 +17,7 @@ from app.engine import Engine
 from app.tools import ready_of, run_tool
 
 SECRET = "test-app-secret"
-BASE = "https://birky.example"
+BASE = "https://oiva.example"
 PHONES = [("358401234567", "Aino Test"),
           ("358409876543", "Kristiina-Maria🌸🐿️ Väisänen-Hämäläinen-Korhonen ✨ (S-Pankki asiakas)")]
 

@@ -55,7 +55,7 @@ RESTART = re.compile(r"^\W*(start over|get started|restart|start again|aloita al
 # "hello" at the goal question is a hello, not a goal ("Saving for hello"): small talk gets a warm re-ask
 GREETING = re.compile(r"^\W*(hi+|hey+|hello+|helo|hiya|yo|heya|howdy|moi+|moikka|hei+|terve|hej|hejsan|tjena|"
                       r"good (?:morning|afternoon|evening|day)|huomenta|morjens?|sup|wassup|what'?s up)"
-                      r"(?:\s+(?:there|birky|again|you))?\W*$", re.I)
+                      r"(?:\s+(?:there|oiva|again|you))?\W*$", re.I)
 HOW_ARE_YOU = re.compile(r"^\W*(?:(?:hi|hey|hello|moi|hei)\W+)?(?:how are (?:you|u)|how'?s it going|how r u|"
                          r"how are things|mitä kuuluu|hur mår du)\W*$", re.I)
 CHATTER = re.compile(r"^[^\w?]*(?:(?:lol|haha+|hehe+|xd|cool|nice|wow|test(?:ing)?)[^\w?]*)?$",

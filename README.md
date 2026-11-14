@@ -4,7 +4,7 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 
 **Live:** https://spankki-wa.bogdan-c-2206.workers.dev · web chat [/chat](https://spankki-wa.bogdan-c-2206.workers.dev/chat) · dashboard [/app](https://spankki-wa.bogdan-c-2206.workers.dev/app) · WhatsApp (test number, on request)
 
-<img src="app/static/birky.svg" width="120" align="right" alt="Oiva the squirrel">
+<img src="app/static/oiva/oiva.png" width="120" align="right" alt="Oiva the squirrel">
 
 > **S-Pankki doesn't need another app. It needs a friend in WhatsApp.**
 > In a banking app you are a "customer": menus, forms, the feeling of being judged. WhatsApp is where you talk to your friends, so that's where you ask, without embarrassment, "I'm out of money, what do I do?"
