@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 
 from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_MERCHANT_TYPES, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS, PERIODS,
                      SPEND_CATEGORIES, Engine)
+from . import bills
 from .lessons import lesson_for
 from .whatsapp import short
 
@@ -292,6 +293,7 @@ TOOLS = [
             "required": ["area", "age", "starting_out"], "additionalProperties": False},
     },
 ]
+TOOLS.append(bills.TOOL)  # bill photos (app/bills.py)
 
 
 def explore_query(q: dict) -> str:
@@ -410,6 +412,8 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
             out["area_not_covered"] = str(e)
         out["say"] = ("Compare only to reassure or help a choice, never to judge. Say it is averages of at least 30 "
                       "S-Pankki customers, never one person.")
+    elif name == "create_bill_payment_link":
+        out = bills.run_tool(engine, buttons, f"{public_url()}/pay")
     else:
         raise ValueError(f"unknown tool {name}")
     lesson = lesson_for(name, out)

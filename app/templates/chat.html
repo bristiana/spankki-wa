@@ -32,6 +32,8 @@
   form#f{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
   form#f input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px system-ui;background:var(--bg);color:var(--ink)}
   form#f button{border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 15px system-ui;padding:0 18px;min-height:44px;cursor:pointer}
+  #attach{flex:none;display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;border:1px solid var(--line);border-radius:50%;background:var(--bg);font-size:20px;cursor:pointer}
+  .me img{display:block;max-width:180px;max-height:220px;border-radius:10px;margin-bottom:4px}
   #sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
   #sheet.open{display:flex}
   #sheet .panel{background:var(--bg);width:100%;max-width:480px;height:88dvh;border-radius:18px 18px 0 0;overflow:hidden;display:flex;flex-direction:column}
@@ -89,6 +91,7 @@
   <button data-more aria-expanded="false" aria-controls="chips">More ideas ›</button>
 </div>
 <form id="f" autocomplete="off">
+  <label id="attach" title="Send a photo of a bill" aria-label="Send a photo of a bill">📷<input id="photo" type="file" accept="image/*" hidden></label>
   <input id="q" placeholder="Ask about your money…" aria-label="Message" enterkeyhint="send">
   <button id="send">Send</button>
 </form>
@@ -151,15 +154,17 @@ function react(mine, emoji) {
 }
 const pause = ms => new Promise(r => setTimeout(r, ms));
 
-async function send(text, shown) {
-  if (!text) return;
-  const mine = shown !== null ? add("me", esc(shown || text)) : null;
+async function send(text, shown, image) {
+  if (!text && !image) return;
+  const mine = image ? add("me", '<img alt="Your photo" src="' + image + '">' + esc(text || ""))
+                     : shown !== null ? add("me", esc(shown || text)) : null;
   const t = add("typing", 'Birky is thinking <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
   t.setAttribute("role", "status");
   try {
     const r = await fetch("/api/chat", {method: "POST", headers: {"content-type": "application/json"},
-                                         body: JSON.stringify({session: sid, text, as: {{ persona.id|tojson }}})});
-    const j = r.ok ? await r.json() : {text: "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
+                                         body: JSON.stringify({session: sid, text, image, as: {{ persona.id|tojson }}})});
+    const j = r.ok ? await r.json() : {text: r.status === 413 ? "That photo is too big for me. Could you try a smaller one?"
+                                             : "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
     t.remove();
     react(mine, j.reaction);
     // One bubble per part, a beat apart, like a person typing; buttons and charts ride on the last one.
@@ -207,6 +212,21 @@ async function send(text, shown) {
 }
 
 document.getElementById("f").onsubmit = e => { e.preventDefault(); const v = q.value.trim(); q.value = ""; send(v); };
+// A bill photo: shrunk to 1600 px on the phone (a camera photo is 3-12 MB; the server takes up to 5 MB) and sent
+// with whatever is typed as its caption ("explain it", "pay it").
+const photo = document.getElementById("photo");
+photo.onchange = async () => {
+  const f = photo.files[0]; photo.value = "";
+  if (!f || !f.type.startsWith("image/")) return;
+  try {
+    const bmp = await createImageBitmap(f), k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const v = q.value.trim(); q.value = "";
+    send(v, null, c.toDataURL("image/jpeg", 0.85));
+  } catch (e) { add("bot", "I couldn't open that photo. Could you try another one?"); }
+};
 const chips = document.getElementById("chips");
 chips.querySelectorAll("button").forEach(b => b.onclick = () => {
   if (b.hasAttribute("data-more")) {  // 8 ideas at first; the rest one tap away

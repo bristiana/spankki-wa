@@ -54,6 +54,11 @@ def parse(payload: dict) -> list[dict]:
                     text, button_id = m["button"].get("text"), m["button"].get("payload")
                 elif kind == "audio":  # voice note (or audio file): app.voice turns it into text
                     media_id = m["audio"].get("id")
+                elif kind in ("image", "document"):  # a bill photo or PDF (app.bills); the caption is their text
+                    media = m[kind]
+                    mime = (media.get("mime_type") or "").split(";")[0].strip().lower()
+                    if kind == "image" or mime == "application/pdf" or mime.startswith("image/"):
+                        media_id, text = media.get("id"), media.get("caption")
                 out.append({"id": m["id"], "from": m["from"], "name": names.get(m["from"], ""), "kind": kind,
                             "text": text, "button_id": button_id, "media_id": media_id, "ts": int(m.get("timestamp", 0))})
     return sorted(out, key=lambda x: x["ts"])
