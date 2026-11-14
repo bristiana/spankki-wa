@@ -16,7 +16,7 @@
   .sm-top{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;min-height:60px;padding:0 8px;background:#fff;border-bottom:1px solid var(--line);flex:none}
   .sm-top a{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:#333}
   .sm-top .who-is{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
-  .sm-top .who-is img{width:36px;height:36px;border-radius:50%;background:#fff6e8;border:1px solid var(--line)}
+  .sm-top .who-is .oiva{--s:46px;margin:-6px 0 -4px}  /* the animated Oiva: thinks, talks, waves with the chat */
   .sm-top h1{margin:0;font-size:17px;font-weight:600;color:#222;line-height:1.15}
   .sm-top h1 small{display:block;font-size:12.5px;font-weight:400;color:var(--muted)}
   .i{width:28px;height:28px;flex:none}
@@ -85,6 +85,7 @@
   .how-src b{color:var(--ink);font-weight:600}
   .how-check{margin:8px 0 0;color:var(--brand);font-weight:600}.how-check.warn{color:var(--warn)}
 </style>
+<link rel="stylesheet" href="/static/oiva/oiva.css">
 <script src="/static/kchart.js"></script>
 <script src="/static/trace.js"></script>
 {% endblock %}
@@ -103,7 +104,7 @@
 <div class="status" aria-hidden="true"><span>9:41</span><i></i><svg viewBox="0 0 52 14"><path d="M2 12a12 12 0 0 1 16 0l-8 0z" fill="#ddd"/><path d="M22 13L33 2v11z" fill="#222"/><rect x="38" y="2" width="7" height="11" rx="1" fill="#222"/></svg></div>
 <header class="sm-top">
   <a href="/s-mobiili/" aria-label="Takaisin · back" data-back>{{ icon("back") }}</a>
-  <div class="who-is"><img src="/static/oiva/oiva.png" alt=""><h1>Oiva<small>Viestit · your money coach</small></h1></div>
+  <div class="who-is"><span class="oiva idle" id="oiva" role="img" aria-label="Oiva"></span><h1>Oiva<small>Viestit · your money coach</small></h1></div>
 </header>
 <div id="log" aria-live="polite" aria-label="Conversation with Oiva">
   <div class="msg bot" id="hello">Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.</div>
@@ -207,6 +208,15 @@ function linkOf(url) {
   let u = url; try { const x = new URL(url, location.href); u = x.pathname + x.search; } catch (e) {}
   return /[?&]web=1/.test(u) ? u : u + (u.includes("?") ? "&" : "?") + "web=1";
 }
+// Oiva in the header acts out the chat: thinking while it works, talking when it answers, waving at WhatsApp news.
+const oiva = document.getElementById("oiva");
+let moodTimer = 0;
+function act(mood, ms) {
+  clearTimeout(moodTimer);
+  oiva.className = "oiva " + mood;
+  if (ms) moodTimer = setTimeout(() => { oiva.className = "oiva idle"; }, ms);
+}
+act("wave", 1800);  // hello
 function drawMirrored(m) {
   if (m.role === "me") return add("me", esc(m.text));
   const d = add("bot", fmt(m.text || ""));
@@ -228,6 +238,7 @@ async function pollMirror() {
       seen = Math.max(seen, m.id);
       if (loaded && m.source === "app") continue;
       last = drawMirrored(m);
+      if (loaded) act(m.role === "me" ? "wave" : "talk", m.role === "me" ? 1800 : 2600);
     }
     if (last) reveal(last);
   } catch (e) {}
@@ -241,6 +252,7 @@ async function send(text, shown, image) {
   if (!text && !image) return;
   const mine = image ? add("me", '<img alt="Your photo" src="' + image + '">' + esc(text || ""))
                      : shown !== null ? add("me", esc(shown || text)) : null;
+  act("think");
   const t = add("typing", 'Oiva is thinking <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
   t.setAttribute("role", "status");
   try {
@@ -250,6 +262,7 @@ async function send(text, shown, image) {
     const j = r.ok ? await r.json() : {text: r.status === 413 ? "That photo is too big for me. Could you try a smaller one?"
                                              : "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
     t.remove();
+    act(r.ok ? "talk" : "worried", 2600);
     // One bubble per part, a beat apart, like a person typing; buttons and charts ride on the last one.
     const parts = (j.bubbles && j.bubbles.length) ? j.bubbles : (j.text ? [j.text] : []);
     const extras = (j.charts || []).length || (j.buttons || []).length || (j.quick || []).length;
@@ -291,7 +304,7 @@ async function send(text, shown, image) {
     const how = window.oivaTrace(j.trace);  // collapsed under the bubble: what Oiva looked up and checked
     if (how) d.insertAdjacentHTML("afterend", how);
     reveal(d);
-  } catch (e) { t.remove(); add("bot", "Connection problem, try again."); }
+  } catch (e) { t.remove(); act("worried", 2600); add("bot", "Connection problem, try again."); }
 }
 
 document.getElementById("f").onsubmit = e => { e.preventDefault(); const v = q.value.trim(); q.value = ""; send(v); };
