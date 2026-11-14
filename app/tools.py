@@ -50,6 +50,20 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
+        "name": "can_i_afford",
+        "description": "Whether a purchase fits this month's flexible budget and what is safe to spend until payday: "
+                       "what is left after it, per day until payday, and how many days it pushes back each savings goal.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "amount_eur": {"type": "number", "description": "Price of the purchase in euros."},
+                "what": {"type": "string", "description": "What they want to buy, e.g. 'jacket'. Empty if not said."},
+            },
+            "required": ["amount_eur", "what"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "simulate_cut",
         "description": "What-if: how much the user saves per month and year by cutting a category by a percentage, and what "
                        "that saving could grow to in each demo fund (a scenario, not a promise).",
@@ -164,6 +178,8 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out = engine.upcoming_bills(int(args.get("days") or 14))
     elif name == "get_safe_to_spend":
         out = engine.safe_to_spend()
+    elif name == "can_i_afford":
+        out = engine.afford(float(args["amount_eur"]), args.get("what") or "")
     elif name == "simulate_cut":
         out = engine.simulate_cut(args["category"], float(args["cut_pct"]), years=int(args.get("years") or 5))
     elif name == "get_spender_profile":

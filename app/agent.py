@@ -11,6 +11,7 @@ import anthropic
 from dotenv import load_dotenv
 
 from .engine import Engine
+from .guard import ungrounded_numbers
 from .tools import TOOLS, run_tool
 
 load_dotenv()
@@ -36,6 +37,8 @@ understand where their money goes.
 promise returns. Growth figures are scenarios. The person decides.
 - You never move money. To pay a bill, invest, save into a goal or stop a subscription, call the matching link \
 tool; the person confirms with their bank PIN. Only prepare one when they asked for it.
+- "Can I afford / should I buy X for Y€?": call can_i_afford and say what fits and what it leaves. Inform only: \
+never forbid, shame or tell them what to do; the choice is theirs.
 - Subscriptions: show active ones with their monthly and yearly cost, point out price increases and inactive \
 ones. Never push the person to cancel; say what they would save and let them decide.
 - Savings goals: create the goal when they name a target, then show the realistic options from the tool. If their \
@@ -48,6 +51,26 @@ use them ("real prices", "Statistics Finland 2022"). Past results are not a prom
 "•". No markdown headers, no tables, no links (buttons are attached for you). One emoji at most.
 - End with at most one useful next step or question, not a menu of options.
 - English only."""
+
+FIX = ("Check your numbers: {numbers} did not come from a tool result. Rewrite your reply using only numbers from "
+       "the tool results (call a tool if you need one), or leave the figure out. Reply with the message only.")
+
+
+def _text(response) -> str:
+    return "\n".join(b.text for b in (response.content if response else []) if b.type == "text").strip()
+
+
+def _sources(msgs: list) -> list[str]:
+    """What a number in the reply may come from: tool results and the user's own messages."""
+    out = []
+    for m in msgs:
+        if m["role"] != "user":
+            continue
+        if isinstance(m["content"], str):
+            out.append(m["content"])
+        else:
+            out += [str(r.get("content", "")) for r in m["content"] if isinstance(r, dict) and r.get("type") == "tool_result"]
+    return out
 
 
 @dataclass
@@ -85,6 +108,28 @@ class Coach:
                        else "one-off investments go into the S-Pankki demo funds after the PIN.")
         system = SYSTEM.format(today=self.engine.today.strftime("%A %d %B %Y"), name=name, invest_line=invest_line)
         buttons, used = [], []
+        response = self._loop(msgs, system, buttons, used)
+        text_out = _text(response)
+        if text_out and response.stop_reason != "refusal" and msgs[-1]["role"] == "assistant":
+            bad = ungrounded_numbers(text_out, _sources(msgs))
+            if bad:  # one rewrite; the first draft and the correction then leave the history
+                log.info("ungrounded numbers %s, asking for a rewrite", bad)
+                draft = len(msgs) - 1
+                msgs.append({"role": "user", "content": FIX.format(numbers=", ".join(bad))})
+                retry = self._loop(msgs, system, buttons, used)
+                if _text(retry):
+                    del msgs[draft:draft + 2]
+                    response, text_out = retry, _text(retry)
+                    bad = ungrounded_numbers(text_out, _sources(msgs))
+                if bad:
+                    log.warning("reply still has ungrounded numbers %s: %r", bad, text_out[:300])
+        self.histories[user] = msgs
+        if not text_out:
+            text_out = "Sorry, I couldn't put that together just now. Could you ask again in a moment?"
+        return Reply(text=text_out, buttons=buttons, tools_used=used)
+
+    def _loop(self, msgs: list, system: str, buttons: list, used: list):
+        """Call Claude and run the tools it asks for until it answers. Appends to msgs; returns the last response."""
         response = None
         for _ in range(MAX_TOOL_ROUNDS):
             response = self.client.beta.messages.create(
@@ -117,11 +162,7 @@ class Coach:
                     results.append({"type": "tool_result", "tool_use_id": c.id, "content": f"Error: {e}", "is_error": True})
                     log.warning("tool %s failed: %s", c.name, e)
             msgs.append({"role": "user", "content": results})
-        self.histories[user] = msgs
-        text_out = "\n".join(b.text for b in (response.content if response else []) if b.type == "text").strip()
-        if not text_out:
-            text_out = "Sorry, I couldn't put that together just now. Could you ask again in a moment?"
-        return Reply(text=text_out, buttons=buttons, tools_used=used)
+        return response
 
 
 if __name__ == "__main__":
