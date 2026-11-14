@@ -15,6 +15,7 @@
       "images": { "base": { "dockerfile": "./Dockerfile" } }
     }
   ],
+  "ai": { "binding": "AI" },
   "durable_objects": {
     "bindings": [{ "name": "COACH", "class_name": "Coach" }]
   },

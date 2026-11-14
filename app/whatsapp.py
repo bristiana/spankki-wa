@@ -31,7 +31,7 @@ def verify_signature(raw: bytes, header: str | None) -> bool:
 
 
 def parse(payload: dict) -> list[dict]:
-    """Incoming user messages, oldest first: {id, from, name, kind, text, button_id}."""
+    """Incoming user messages, oldest first: {id, from, name, kind, text, button_id, media_id}."""
     out = []
     for entry in payload.get("entry", []):
         for ch in entry.get("changes", []):
@@ -41,7 +41,7 @@ def parse(payload: dict) -> list[dict]:
             names = {c.get("wa_id"): c.get("profile", {}).get("name", "") for c in v.get("contacts", [])}
             for m in v.get("messages", []):
                 kind = m.get("type")
-                text, button_id = None, None
+                text, button_id, media_id = None, None, None
                 if kind == "text":
                     text = m["text"]["body"]
                 elif kind == "interactive":
@@ -49,8 +49,10 @@ def parse(payload: dict) -> list[dict]:
                     text, button_id = r.get("title"), r.get("id")
                 elif kind == "button":
                     text, button_id = m["button"].get("text"), m["button"].get("payload")
+                elif kind == "audio":  # voice note (or audio file): app.voice turns it into text
+                    media_id = m["audio"].get("id")
                 out.append({"id": m["id"], "from": m["from"], "name": names.get(m["from"], ""), "kind": kind,
-                            "text": text, "button_id": button_id, "ts": int(m.get("timestamp", 0))})
+                            "text": text, "button_id": button_id, "media_id": media_id, "ts": int(m.get("timestamp", 0))})
     return sorted(out, key=lambda x: x["ts"])
 
 

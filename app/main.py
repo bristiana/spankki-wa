@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import broker, learn, onboarding, quiz, rules
+from . import broker, learn, onboarding, quiz, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -353,6 +353,13 @@ def handle_message(m: dict):
     names[to] = name
     try:
         wa.mark_read_typing(m["id"])
+        if m.get("media_id") and not m["text"]:  # a voice note: from here on it is handled like typed text
+            try:
+                m["text"] = voice.to_text(m["media_id"])
+            except voice.VoiceError as e:
+                wa.send_text(to, str(e))
+                return
+            wa.send_text(to, f"🎙️ _{wa.short(m['text'].replace('_', ' '), 300)}_")  # what Birky heard, so a mishearing is visible
         emoji = wa.quick_reaction(m["text"])
         if emoji:
             wa.send_reaction(to, m["id"], emoji)
@@ -386,7 +393,7 @@ def handle_message(m: dict):
                 wa.send_text(to, direct["text"])
             return
         if m["text"] is None:
-            wa.send_text(to, "For now I can read text messages only. What would you like to know?")
+            wa.send_text(to, "I can read text and listen to voice notes, but not photos or files yet. What would you like to know?")
             return
         text = ASK.get(bid) or wa.redact(m["text"])
         if text.strip().lower() in ("my data", "download my data", "export"):
