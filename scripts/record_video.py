@@ -1,7 +1,7 @@
 """Record the 1080p demo video: the stage page (app/static/video/stage.html) with the real web chat in the phone.
 
 Steps: narration WAVs (Windows SAPI) -> drive the stage with Playwright and capture it over CDP -> speed up the waits for
-AI replies 4x -> mix the narration in -> docs/demo/Kurre-demo.mp4.
+AI replies 4x -> mix the narration in -> docs/demo/Birky-demo.mp4.
 
 Usage (server with WhatsApp disabled, fresh state):
   rm -f data/state.json
@@ -28,22 +28,22 @@ VOICE = "Microsoft Hazel Desktop"
 # title/sub change the left headline; quote/small show the subtitle bar; say is the narration line.
 STEPS = [
     dict(kind="card", arg="title", hold=5,
-         say="Kurre. A money coach, where you already chat."),
+         say="S-Pankki doesn't need another app. It needs a friend in WhatsApp."),
     dict(kind="card", arg="meet", hold=4.5,
-         say="Meet Kurre, the S-Pankki savings squirrel."),
+         say="Meet Birky, the S-Pankki savings squirrel."),
     dict(kind="card", arg="why", hold=5.5,
-         say="One in three Finns opens S-mobiili every week. Almost everyone chats every day. Kurre lives in both."),
+         say="One in three Finns opens S-mobiili every week. Almost everyone chats every day. Birky lives in both."),
     dict(kind="landing", hold=7,
-         title="Kurre lives where<br>you already chat.",
+         title="Birky lives where<br>you already chat.",
          sub="Web chat in S-mobiili and WhatsApp, one backend.\nDemo customer CUST04831, 24, synthetic S-Pankki data.",
          say="This is the real app, on synthetic S-Pankki data."),
     dict(kind="chip", arg="⏰ Rent reminder",
          title="A heads-up<br><span class='accent'>before</span> rent.",
          sub="Safe to spend = balance - bills - a buffer\nfor irregular costs, until payday (day 15).",
          quote="Rent 771.82 € due tomorrow · 68.60 € safe to spend until payday", small="about 7.62 € a day",
-         say="Before rent, Kurre says what is safe to spend until payday."),
+         say="Before rent, Birky says what is safe to spend until payday."),
     dict(kind="quick", arg="Pay rent now", title="One tap to pay.",
-         sub="Kurre prepares the payment.\nIt cannot send it.",
+         sub="Birky prepares the payment.\nIt cannot send it.",
          say="One tap prepares the payment."),
     dict(kind="button", title="Your PIN moves<br>the money. <span class='accent'>Not the AI.</span>",
          sub="Confirm page with a 4-digit PIN\n(simulated PSD2 payment initiation).",
@@ -54,7 +54,7 @@ STEPS = [
     dict(kind="type", arg="What kind of spender am I, compared with Finland?", title="You vs Finland.",
          sub="535 S-Pankki peers aged 20-29\n+ Statistics Finland Household Budget Survey 2022.",
          quote="Restaurants: 6.0× Finnish households aged 17-24", small="Statistics Finland 2022, table 14q4",
-         say="Kurre compares you with Finnish households your age, from Statistics Finland."),
+         say="Birky compares you with Finnish households your age, from Statistics Finland."),
     dict(kind="chip", arg="What subscriptions am I paying for?", title="Forgotten subscriptions,<br>found.",
          sub="Active, inactive and price rises.",
          quote="StreamPlus went up from 11.99 € to 13.99 €",
@@ -71,7 +71,7 @@ STEPS = [
     dict(kind="chip", arg="How much could I save if I cut dining out by 20%?", title="What if I cut<br>dining out?",
          sub="Checked against real monthly ETF prices\n(VWCE, XEON) over the last 2 years.",
          quote="Cut dining out by 20% = 97.18 € a month", small="past check on real ETF prices",
-         say="Cut dining out by twenty percent? Kurre checks it on real fund prices."),
+         say="Cut dining out by twenty percent? Birky checks it on real fund prices."),
     dict(kind="chip", arg="I want to save 1500 euros for a trip to Lapland by next summer", title="Save for<br>something real.",
          sub="Goals with deadlines and honest monthly options.",
          say="Set a goal: Lapland, by next summer."),
@@ -82,16 +82,16 @@ STEPS = [
          say="Save with one tap, and a PIN."),
     dict(kind="button", title="Into the<br>savings pocket.", sub="Confirmed with PIN, back in the chat."),
     dict(kind="type", arg="Invest 50 euros once in the balanced fund", title="Investing, explained.<br>Never pushed.",
-         sub="Kurre explains risk. The customer picks the fund.\nFund names are labelled \"Demo Fund\".",
+         sub="Birky explains risk. The customer picks the fund.\nFund names are labelled \"Demo Fund\".",
          say="Investing is explained, never pushed. You pick the fund, and confirm."),
     dict(kind="button", title="Investing, explained.<br>Never pushed.", sub="One-off investment, confirmed with PIN."),
     dict(kind="dashboard", hold=13, title="My money.",
          sub="Balance, safe to spend, three baskets, bills,\nsubscriptions, you vs Finland, goals, investing.",
          say="And everything in one place: My money."),
-    dict(kind="card", arg="manifesto", hold=5.5, say="Kurre informs. It never advises."),
+    dict(kind="card", arg="manifesto", hold=5.5, say="Birky informs. It never advises."),
     dict(kind="card", arg="honest", hold=8,
          say="Payments are simulated. The data, Statistics Finland and the fund prices are real."),
-    dict(kind="card", arg="end", hold=5, say="Kurre. Small savings, put away."),
+    dict(kind="card", arg="end", hold=5, say="Birky. Small savings, put away."),
 ]
 
 
@@ -393,7 +393,7 @@ def build(rec, durs, work: Path, out: Path, voice=True):
 
 
 def write_voiceover(path: Path, marks):
-    lines = ["Kurre · S-Pankki Chat demo: narration (Windows SAPI voice \"Microsoft Hazel Desktop\")", ""]
+    lines = ["Birky · S-Pankki Chat demo: narration (Windows SAPI voice \"Microsoft Hazel Desktop\")", ""]
     for (t, kind, arg), s in zip(marks, STEPS):
         if s.get("say"):
             lines.append(f"[{int(t // 60)}:{t % 60:04.1f}] {s['say']}")
@@ -404,7 +404,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", default="http://127.0.0.1:8103")
     ap.add_argument("--work", default=str(ROOT / "out" / "video"))
-    ap.add_argument("--out", default=str(ROOT / "docs" / "demo" / "Kurre-demo.mp4"))
+    ap.add_argument("--out", default=str(ROOT / "docs" / "demo" / "Birky-demo.mp4"))
     ap.add_argument("--no-voice", action="store_true")
     ap.add_argument("--edit-only", action="store_true", help="re-edit the last recording without recording again")
     a = ap.parse_args()

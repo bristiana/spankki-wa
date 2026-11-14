@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Kurre · S-Pankki Chat</title>
+<title>Birky · S-Pankki Chat</title>
 <style>
   @page { size: 1920px 1080px; margin: 0; }
   :root {
@@ -32,13 +32,14 @@
   .phone { background: #121614; border-radius: 64px; padding: 16px; box-shadow: 0 30px 60px rgba(0, 40, 20, .22); flex: none; }
   .phone img { display: block; width: 380px; height: 822px; object-fit: cover; object-position: top; border-radius: 50px; }
   .phone.sm img { width: 340px; height: 736px; border-radius: 44px; }
+  .phone.xs img { width: 300px; height: 650px; border-radius: 40px; }
   .cap { font-size: 28px; text-align: center; margin-top: 22px; color: var(--muted); }
   .cap b { color: var(--ink); }
 
   .row { display: flex; gap: 72px; align-items: center; flex: 1; }
   .grow { flex: 1; min-width: 0; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 28px; padding: 36px 40px; }
-  svg.kurre { display: block; }
+  img.birky { display: block; }
 
   /* 1 title */
   .s1 { background: radial-gradient(1200px 900px at 78% 55%, #1f9a63 0%, #00663d 55%, #004d2e 100%); color: #fff; }
@@ -144,80 +145,21 @@
 </head>
 <body>
 
-<!-- Kurre mascot (app/static/kurre.svg), defined once and reused -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <radialGradient id="fur" cx="45%" cy="35%" r="70%">
-      <stop offset="0" stop-color="#F6A55B"/><stop offset="0.6" stop-color="#E07A2E"/><stop offset="1" stop-color="#B85A1C"/>
-    </radialGradient>
-    <radialGradient id="tail" cx="40%" cy="30%" r="75%">
-      <stop offset="0" stop-color="#F7B06A"/><stop offset="0.55" stop-color="#E27F33"/><stop offset="1" stop-color="#A84F17"/>
-    </radialGradient>
-    <radialGradient id="belly" cx="50%" cy="35%" r="65%">
-      <stop offset="0" stop-color="#FFF6E8"/><stop offset="1" stop-color="#F3D9B8"/>
-    </radialGradient>
-    <radialGradient id="coin" cx="40%" cy="35%" r="70%">
-      <stop offset="0" stop-color="#FFE38A"/><stop offset="0.7" stop-color="#F2B630"/><stop offset="1" stop-color="#C98A12"/>
-    </radialGradient>
-    <linearGradient id="scarf" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1F9A63"/><stop offset="1" stop-color="#00663D"/>
-    </linearGradient>
-  </defs>
-  <symbol id="kurre" viewBox="0 0 240 240">
-    <ellipse cx="118" cy="226" rx="62" ry="8" fill="#000" opacity=".12"/>
-    <path d="M150 196c38-6 70-40 64-86-5-38-36-60-60-50-20 8-20 34-6 44 12 9 26 2 30-8 5 22-6 44-30 54z" fill="url(#tail)"/>
-    <path d="M168 76c14 2 26 14 28 30" fill="none" stroke="#FFD6A6" stroke-width="5" stroke-linecap="round" opacity=".55"/>
-    <ellipse cx="112" cy="168" rx="50" ry="54" fill="url(#fur)"/>
-    <ellipse cx="110" cy="176" rx="31" ry="38" fill="url(#belly)"/>
-    <ellipse cx="88" cy="218" rx="17" ry="8" fill="#C9662A"/>
-    <ellipse cx="134" cy="218" rx="17" ry="8" fill="#C9662A"/>
-    <g>
-      <path d="M70 56 64 22c0-4 5-6 8-3l20 24z" fill="#D46C25"/>
-      <path d="M71 50 68 30l14 16z" fill="#F7C9A0"/>
-      <path d="M150 56 156 22c0-4-5-6-8-3l-20 24z" fill="#D46C25"/>
-      <path d="M149 50 152 30l-14 16z" fill="#F7C9A0"/>
-      <path d="M64 22l-6-10M66 20l-1-11M156 22l6-10M154 20l1-11" stroke="#B85A1C" stroke-width="3" stroke-linecap="round"/>
-      <ellipse cx="110" cy="88" rx="52" ry="46" fill="url(#fur)"/>
-      <ellipse cx="110" cy="104" rx="30" ry="22" fill="url(#belly)"/>
-      <ellipse cx="78" cy="104" rx="9" ry="6" fill="#F28C8C" opacity=".55"/>
-      <ellipse cx="142" cy="104" rx="9" ry="6" fill="#F28C8C" opacity=".55"/>
-      <ellipse cx="90" cy="84" rx="10" ry="12" fill="#1B1B1F"/>
-      <ellipse cx="130" cy="84" rx="10" ry="12" fill="#1B1B1F"/>
-      <circle cx="94" cy="79" r="4" fill="#fff"/>
-      <circle cx="134" cy="79" r="4" fill="#fff"/>
-      <circle cx="87" cy="89" r="1.8" fill="#fff" opacity=".8"/>
-      <circle cx="127" cy="89" r="1.8" fill="#fff" opacity=".8"/>
-      <path d="M80 68q10-6 19-1M121 67q9-5 19 1" stroke="#8E4513" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M104 98q6-5 12 0l-6 6z" fill="#5A2C12"/>
-      <path d="M110 104v5M99 110q11 9 22 0" stroke="#5A2C12" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <rect x="105.5" y="110" width="9" height="7" rx="2" fill="#fff" stroke="#E2D2C0" stroke-width="1"/>
-    </g>
-    <path d="M66 126q44 22 90 0l4 12q-48 26-98 0z" fill="url(#scarf)"/>
-    <path d="M132 136l12 32-14 2-6-30z" fill="url(#scarf)"/>
-    <path d="M136 150l9 2M138 158l8 2" stroke="#7CD7A6" stroke-width="2" stroke-linecap="round" opacity=".7"/>
-    <ellipse cx="80" cy="160" rx="12" ry="18" transform="rotate(30 80 160)" fill="#D97330"/>
-    <ellipse cx="142" cy="160" rx="12" ry="18" transform="rotate(-30 142 160)" fill="#D97330"/>
-    <circle cx="111" cy="164" r="25" fill="url(#coin)" stroke="#B57A0E" stroke-width="2.5"/>
-    <circle cx="111" cy="164" r="18" fill="none" stroke="#FFF1B8" stroke-width="2" opacity=".7"/>
-    <text x="111" y="173" text-anchor="middle" font-family="system-ui,Segoe UI,Arial" font-weight="800" font-size="25" fill="#8A5A06">€</text>
-    <ellipse cx="88" cy="168" rx="9" ry="7" fill="#E88A45"/>
-    <ellipse cx="134" cy="168" rx="9" ry="7" fill="#E88A45"/>
-  </symbol>
-</svg>
+<!-- Birky mascot: the app's own app/static/birky.svg -->
 
 <!-- 1 · Title -->
 <section class="slide s1">
   <div class="row">
     <div class="grow">
       <div class="mono kicker" style="color:#7cd7a6">Junction 2026 · S-Pankki challenge</div>
-      <h1>Kurre<br>S-Pankki Chat</h1>
-      <div class="line">Your money coach,<br>where you already chat.</div>
+      <h1>Birky<br>S-Pankki Chat</h1>
+      <div class="line" style="font-size:46px; white-space:nowrap">S-Pankki doesn't need another app.<br>It needs a friend in WhatsApp.</div>
       <div class="meta">
         <span class="pill">WhatsApp</span><span class="pill">S-mobiili chat</span><span class="pill">One backend</span>
       </div>
       <div class="meta" style="margin-top:36px">Personal Economic Trainer</div>
     </div>
-    <div class="halo"><svg class="kurre" width="660" height="660"><use href="#kurre"/></svg></div>
+    <div class="halo"><img class="birky" src="../../app/static/birky.svg" width="660" height="660" alt=""></div>
   </div>
 </section>
 
@@ -242,20 +184,20 @@
       <div class="big-stat">1 in 3</div>
       <p style="font-size:36px; margin:20px 0 0">Finnish adults open S-mobiili every week.</p>
       <p class="muted" style="margin-top:28px">Almost everyone opens a chat app every day.</p>
-      <p style="margin-top:28px; font-weight:700">So why make them open another app?<br><span style="color:var(--green)">Bring the coach to the chat.</span></p>
+      <p style="margin-top:28px; font-weight:700">In a banking app you are a customer. In WhatsApp you ask a friend: "I'm out of money, what do I do?"<br><span style="color:var(--green)">So Birky is that friend.</span></p>
     </div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">2</div>
+  <div class="brand"><span class="s">S</span>Birky · S-Pankki Chat</div><div class="pn">2</div>
 </section>
 
-<!-- 3 · Meet Kurre -->
+<!-- 3 · Meet Birky -->
 <section class="slide">
   <div class="row" style="gap:96px">
     <div class="grow">
       <div style="display:flex; align-items:center; gap:28px; margin-bottom:40px">
-        <svg class="kurre" width="150" height="150"><use href="#kurre"/></svg>
+        <img class="birky" src="../../app/static/birky.svg" width="150" height="150" alt="">
         <div>
-          <div class="mono kicker" style="margin:0 0 6px">Meet Kurre</div>
+          <div class="mono kicker" style="margin:0 0 6px">Meet Birky</div>
           <h2 style="margin:0">The S-Pankki savings squirrel</h2>
         </div>
       </div>
@@ -267,10 +209,10 @@
       </div>
     </div>
     <div>
-      <div class="phone"><img src="img/chat_spender.png" alt="Kurre answering: What kind of spender am I?"></div>
+      <div class="phone"><img src="img/chat_spender.png" alt="Birky answering: What kind of spender am I?"></div>
     </div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">3</div>
+  <div class="brand"><span class="s">S</span>Birky · S-Pankki Chat</div><div class="pn">3</div>
 </section>
 
 <!-- 4 · Three baskets -->
@@ -281,14 +223,14 @@
   <div class="row" style="align-items:flex-start; gap:96px">
     <div class="grow">
       <div class="bk">
-        <div class="top"><span class="name">Mandatory &amp; regular</span><span class="val">1,178.18 € <small>· 55%</small></span></div>
+        <div class="top"><span class="name">Mandatory &amp; regular</span><span class="val">1&nbsp;178.18 € <small>· 55%</small></span></div>
         <div class="bar"><i style="width:55%; background:var(--green)"></i></div>
         <div class="sub">Rent 771.82 · groceries 178.26 · utilities · transport</div>
       </div>
       <div class="bk">
         <div class="top"><span class="name">Mandatory &amp; irregular</span><span class="val">151.07 € <small>· 7%</small></span></div>
         <div class="bar"><i style="width:7%; background:var(--gold)"></i></div>
-        <div class="sub">Home &amp; tech, health · Kurre keeps a buffer for these</div>
+        <div class="sub">Home &amp; tech, health · Birky keeps a buffer for these</div>
       </div>
       <div class="bk">
         <div class="top"><span class="name" style="color:var(--orange)">Slips through your fingers</span><span class="val">809.91 € <small>· 38%</small></span></div>
@@ -300,17 +242,37 @@
       <div style="display:grid; gap:28px; width:100%">
         <div class="card"><div class="n g">68.60 €</div><div class="l">safe to spend until payday, 7.62&nbsp;€ a&nbsp;day</div></div>
         <div class="card"><div class="n">97.18 €</div><div class="l">a month back by cutting dining out 20%</div></div>
-        <div class="card"><div class="n" style="color:#b3261e">−970.85 €</div><div class="l">left over in 3 months, after investing 1,493.53&nbsp;€</div></div>
+        <div class="card"><div class="n" style="color:#b3261e">−970.85 €</div><div class="l">left over in 3 months, after investing 1&nbsp;493.53&nbsp;€</div></div>
       </div>
     </div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">4</div>
+  <div class="brand"><span class="s">S</span>Birky · S-Pankki Chat</div><div class="pn">4</div>
 </section>
 
-<!-- 5 · Proactive moments -->
+<!-- 5 · Learn + Explore -->
 <section class="slide">
-  <div class="mono kicker">Proactive, not just reactive</div>
-  <h2>Kurre speaks first, at the right moment</h2>
+  <div class="mono kicker">Financial literacy · MyData</div>
+  <h2>It teaches, and you explore</h2>
+  <div class="row" style="gap:72px; align-items:flex-start">
+    <div class="grow">
+      <div class="pillars" style="gap:22px">
+        <div class="pillar"><div class="ic">📚</div><div><b>Learn in 2 minutes</b><span>Five 30-second lessons on your own numbers: the three baskets, safe to spend vs. your balance, the buffer, small things add up, pay yourself first. Each ends with one action.</span></div></div>
+        <div class="pillar"><div class="ic">💡</div><div><b>Why it matters, under the numbers</b><span>"10 payments came to 644.63&nbsp;€ in a month, about 7&nbsp;735.56&nbsp;€ a year if every month looked like this."</span></div></div>
+        <div class="pillar"><div class="ic">🔎</div><div><b>Explore your own data</b><span>Pick what to see: category, basket, kind of place, dates; group by month, week or weekday. No bank-picked charts. Export as CSV or JSON.</span></div></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:36px; margin-top:-20px">
+      <div><div class="phone xs"><img src="img/chat_learn.png" alt="Learn in 2 minutes, lesson 1: the three baskets"></div><div class="cap"><b>Learn</b> · lesson 1 of 5</div></div>
+      <div><div class="phone xs"><img src="img/explore.png" alt="Explore your data page"></div><div class="cap"><b>Explore</b> · your data, your view</div></div>
+    </div>
+  </div>
+  <div class="brand"><span class="s">S</span>Birky · S-Pankki Chat</div><div class="pn">5</div>
+</section>
+
+<!-- 6 · Proactive moments -->
+<section class="slide">
+  <div class="mono kicker">Originality of the AI · proactive, not just reactive</div>
+  <h2>Birky speaks first, at the right moment</h2>
   <div class="moments">
     <div class="mom">
       <div class="mono tag">⏰ The day before rent</div>
@@ -330,17 +292,17 @@
     <div class="mom">
       <div class="mono tag">💰 Salary day</div>
       <div class="wa">
-        <div class="bub">💰 Aino, your salary of <b>2 313.39 €</b> just landed.<br><br>Pay yourself first: put <b>97.00 €</b> aside now, before it slips through your fingers?</div>
+        <div class="bub">💰 Aino, your salary of <b>2&nbsp;313.39 €</b> just landed.<br><br>Pay yourself first: put <b>97.00 €</b> aside now, before it slips through your fingers?</div>
         <div class="btns"><div>Set a savings goal</div><div>Invest instead</div></div>
       </div>
     </div>
   </div>
-  <div class="brand"><span class="s">S</span>Real message text from the app, demo date Tue 6 Oct 2026</div><div class="pn">5</div>
+  <div class="brand"><span class="s">S</span>Real message text from the app, demo date Tue 6 Oct 2026</div><div class="pn">6</div>
 </section>
 
-<!-- 6 · Real data -->
+<!-- 7 · Real data -->
 <section class="slide">
-  <div class="mono kicker">Real data, not made up</div>
+  <div class="mono kicker">Financial literacy · benchmarks from real data</div>
   <h2>Every number has a source</h2>
   <div class="tiles">
     <div class="tile">
@@ -368,60 +330,60 @@
       <div class="hero" style="color:var(--green)">+10.1%</div>
       <div class="what">Aino's real deposits, bought at real monthly prices</div>
       <div class="vs">
-        <div class="r"><span>Paid in</span><i style="width:91%; background:#c9d3ce"></i><b>11,627 €</b></div>
-        <div class="r"><span>Today</span><i style="width:100%; background:var(--green)"></i><b>12,799 €</b></div>
+        <div class="r"><span>Paid in</span><i style="width:91%; background:#c9d3ce"></i><b>11&nbsp;627 €</b></div>
+        <div class="r"><span>Today</span><i style="width:100%; background:var(--green)"></i><b>12&nbsp;799 €</b></div>
       </div>
       <div class="foot">Balanced fund · all: +2.1% to +18.1%</div>
     </div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">6</div>
+  <div class="brand"><span class="s">S</span>Birky · S-Pankki Chat</div><div class="pn">7</div>
 </section>
 
-<!-- 7 · Trust -->
+<!-- 8 · Trust -->
 <section class="slide">
   <div class="row" style="gap:96px">
     <div class="grow">
-      <div class="mono kicker">Trust by design</div>
-      <div class="quote">Kurre <em>informs</em>.<br>It never advises.</div>
+      <div class="mono kicker">Originality of the AI · trust by design</div>
+      <div class="quote">Birky <em>informs</em>.<br>It never advises.</div>
       <div class="pillars">
-        <div class="pillar"><div class="ic">🧮</div><div><b>Numbers come from code</b><span>Claude calls 15 tools over a tested engine. No figure that is not in a tool result.</span></div></div>
+        <div class="pillar"><div class="ic">🧮</div><div><b>Numbers come from code</b><span>Claude calls 21 tools over a tested engine. A number guard checks every figure in a reply against the tool results.</span></div></div>
         <div class="pillar"><div class="ic">🔐</div><div><b>Your PIN for every money move</b><span>The AI only prepares. Double confirms and overdrafts are refused.</span></div></div>
-        <div class="pillar"><div class="ic">✅</div><div><b>Opt-in channel</b><span>You choose what Kurre sees, with a clear note that WhatsApp passes through Meta.</span></div></div>
+        <div class="pillar"><div class="ic">✅</div><div><b>Opt-in channel</b><span>You choose what Birky sees, with a clear note that WhatsApp passes through Meta.</span></div></div>
       </div>
     </div>
     <div><div class="phone"><img src="img/connect_consent.png" alt="Connect S-Pankki consent page"></div></div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">7</div>
+  <div class="brand"><span class="s">S</span>Birky · S-Pankki Chat</div><div class="pn">8</div>
 </section>
 
-<!-- 8 · Product tour -->
+<!-- 9 · Product tour -->
 <section class="slide" style="padding-top:72px">
-  <div class="mono kicker" style="text-align:center">Product tour · live at phone size</div>
+  <div class="mono kicker" style="text-align:center">Mobile experience · live at phone size</div>
   <div class="tour">
     <div><div class="phone sm"><img src="img/landing.png" alt="Landing page"></div><div class="cap"><b>Start</b> · WhatsApp or S-mobiili</div></div>
     <div><div class="phone sm"><img src="img/dashboard.png" alt="My money dashboard"></div><div class="cap"><b>My money</b> · safe to spend, baskets</div></div>
     <div><div class="phone sm"><img src="img/chat_subs_top.png" alt="Chat answering about subscriptions"></div><div class="cap"><b>Chat</b> · "What subscriptions?"</div></div>
   </div>
-  <div class="pn">8</div>
+  <div class="pn">9</div>
 </section>
 
-<!-- 9 · Architecture + S-mobiili fit -->
+<!-- 10 · Architecture + S-mobiili fit -->
 <section class="slide">
-  <div class="mono kicker">Feasibility · S-mobiili fit</div>
+  <div class="mono kicker">Feasibility · S-mobiili integration</div>
   <h2>One API, two front doors</h2>
   <div class="arch">
     <div class="chan">
       <div class="node">WhatsApp<small>Meta Cloud API webhook</small></div>
-      <div class="node s">S-mobiili chat<small>same API, in-app</small></div>
+      <div class="node s">S-mobiili chat<small>same API, embedded<br>in the app</small></div>
     </div>
     <div class="arrow">→</div>
     <div class="core">
       <div class="line">
         <div class="node g">FastAPI<small>Cloudflare Containers</small></div>
         <div class="arrow" style="align-self:center">→</div>
-        <div class="node g">Claude tool use<small>Kurre persona, 15 tools</small></div>
+        <div class="node g">Claude tool use<small>Birky persona, 21 tools</small></div>
         <div class="arrow" style="align-self:center">→</div>
-        <div class="node g">Engine<small>deterministic, 44 tests</small></div>
+        <div class="node g">Engine<small>deterministic, 360 tests</small></div>
       </div>
       <div class="line">
         <div class="node">PIN confirm pages<small>pay · save · invest · stop</small></div>
@@ -433,16 +395,16 @@
   <div class="mono kicker" style="margin-top:56px; color:var(--orange)">Next</div>
   <div class="next" style="margin-top:0">
     <div class="chip"><b>PSD2 payment initiation</b>in place of the demo PIN pages</div>
-    <div class="chip"><b>Multi-bank view</b>Nordea, OP, Danske via PSD2</div>
+    <div class="chip"><b>Real multi-bank data</b>PSD2 account access, in place of the demo bank</div>
     <div class="chip"><b>Real card subscriptions</b>from S-Pankki card data</div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">9</div>
+  <div class="brand"><span class="s">S</span>Birky · S-Pankki Chat</div><div class="pn">10</div>
 </section>
 
-<!-- 10 · Simulated vs real -->
+<!-- 11 · Simulated vs real -->
 <section class="slide" style="justify-content:center">
   <div style="display:flex; align-items:center; gap:28px; margin-bottom:40px">
-    <svg class="kurre" width="130" height="130"><use href="#kurre"/></svg>
+    <img class="birky" src="../../app/static/birky.svg" width="130" height="130" alt="">
     <div>
       <div class="mono kicker" style="margin:0 0 6px">Honest about the demo</div>
       <h2 style="margin:0">What is real, what is simulated</h2>
@@ -452,7 +414,7 @@
     <div class="card col" style="color:var(--green)">
       <h3 style="color:var(--ink)"><span class="dot" style="background:var(--green)"></span>Real</h3>
       <ul style="color:var(--ink)">
-        <li>S-Pankki transactions and 535 peers</li>
+        <li>S-Pankki transactions, 535 peers, mortgage data</li>
         <li>Statistics Finland 2022 benchmarks</li>
         <li>ETF prices (VWCE, XEON) for backtests</li>
         <li>WhatsApp Cloud API, Claude, Cloudflare</li>
@@ -462,17 +424,19 @@
       <h3 style="color:var(--ink)"><span class="dot" style="background:var(--orange)"></span>Simulated, and labelled</h3>
       <ul style="color:var(--ink)">
         <li>PIN pages, a stand-in for PSD2</li>
+        <li>The other bank in the multi-bank view</li>
         <li>Subscriptions (the dataset has none)</li>
         <li>"Demo Fund" names</li>
         <li>Trading 212 on a Practice account</li>
       </ul>
     </div>
   </div>
+  <div class="quote" style="font-size:60px; margin:48px 0 0">S-Pankki doesn't need another app.<br><em>It needs a friend in WhatsApp.</em></div>
   <div class="links">
     <div class="link"><div class="mono">Try it live</div><div class="u">spankki-wa.bogdan-c-2206.workers.dev</div></div>
     <div class="link" style="background:#16201b; flex:.7"><div class="mono">Code</div><div class="u">github.com/bristiana/spankki-wa</div></div>
   </div>
-  <div class="pn">10</div>
+  <div class="pn">11</div>
 </section>
 
 </body>
