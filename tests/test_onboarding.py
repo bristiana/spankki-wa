@@ -1,12 +1,12 @@
 """The first-chat interview (no AI) and the Finland money guide tool."""
 import json
 from datetime import date
-from types import SimpleNamespace as NS
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app import main, onboarding as ob
+from app.agent import Reply
 from app.engine import Engine
 from app.tools import GUIDE, money_guide, run_tool
 
@@ -119,7 +119,7 @@ class FakeCoach:
 
     def ask(self, user, text, name="there"):
         self.asked.append(text)
-        return NS(text="You can spend 50 € this week.", buttons=[], tools_used=["get_safe_to_spend"])
+        return Reply(text="You can spend 50 € this week.", tools_used=["get_safe_to_spend"])
 
     def reset(self, user=None):
         pass

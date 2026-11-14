@@ -1,12 +1,12 @@
 """The basket game: five of your own payments, which basket? No AI, numbers from the engine."""
 import json
 from datetime import date
-from types import SimpleNamespace as NS
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app import main, quiz
+from app.agent import Reply
 from app.engine import BASKETS, Engine
 
 INDEX = json.loads((main.PERSONA_DIR / "index.json").read_text(encoding="utf-8"))
@@ -178,7 +178,7 @@ class FakeCoach:
 
     def ask(self, user, text, name="there"):
         self.asked.append(text)
-        return NS(text="You can spend 50 € this week.", buttons=[], tools_used=["get_safe_to_spend"])
+        return Reply(text="You can spend 50 € this week.", tools_used=["get_safe_to_spend"])
 
     def reset(self, user=None):
         pass

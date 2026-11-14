@@ -12,7 +12,8 @@ import anthropic
 from dotenv import load_dotenv
 
 from .engine import Engine
-from .guard import ungrounded_numbers
+from .explain import check_line, explain
+from .guard import check
 from .tools import TOOLS, run_tool
 
 load_dotenv()
@@ -114,6 +115,7 @@ class Reply:
     text: str
     buttons: list = field(default_factory=list)  # [{"label", "url"}]
     tools_used: list = field(default_factory=list)
+    trace: list = field(default_factory=list)  # "How I worked this out": tool steps, then the number guard's check
 
 
 class Coach:
@@ -148,28 +150,33 @@ class Coach:
         if risk:
             system += (f"\n- The customer called their comfort with ups and downs *{risk}*. Use it only to label "
                        "investment info (e.g. 'riskier than your prudent comfort'), never to choose or recommend.")
-        buttons, used = [], []
-        response = self._loop(msgs, system, buttons, used)
+        buttons, used, trace = [], [], []
+        response = self._loop(msgs, system, buttons, used, trace)
         text_out = _text(response)
         if text_out and response.stop_reason != "refusal" and msgs[-1]["role"] == "assistant":
-            bad = ungrounded_numbers(text_out, _sources(msgs))
+            checked, bad = check(text_out, _sources(msgs))
+            rewritten = False
             if bad:  # one rewrite; the first draft and the correction then leave the history
                 log.info("ungrounded numbers %s, asking for a rewrite", bad)
                 draft = len(msgs) - 1
                 msgs.append({"role": "user", "content": FIX.format(numbers=", ".join(bad))})
-                retry = self._loop(msgs, system, buttons, used)
+                retry = self._loop(msgs, system, buttons, used, trace)
                 if _text(retry):
                     del msgs[draft:draft + 2]
-                    response, text_out = retry, _text(retry)
-                    bad = ungrounded_numbers(text_out, _sources(msgs))
+                    response, text_out, rewritten = retry, _text(retry), True
+                    checked, bad = check(text_out, _sources(msgs))
                 if bad:
                     log.warning("reply still has ungrounded numbers %s: %r", bad, text_out[:300])
+            if trace:
+                trace.append({"check": check_line(len(checked), len(bad), rewritten), "checked": len(checked),
+                              "matched": len(checked) - len(bad), "rewritten": rewritten})
         self.histories[user] = msgs
         if not text_out:
+            trace = []
             text_out = "Sorry, I couldn't put that together just now. Could you ask again in a moment?"
-        return Reply(text=euro_style(text_out), buttons=buttons, tools_used=used)
+        return Reply(text=euro_style(text_out), buttons=buttons, tools_used=used, trace=trace)
 
-    def _loop(self, msgs: list, system: str, buttons: list, used: list):
+    def _loop(self, msgs: list, system: str, buttons: list, used: list, trace: list):
         """Call Claude and run the tools it asks for until it answers. Appends to msgs; returns the last response."""
         response = None
         for _ in range(MAX_TOOL_ROUNDS):
@@ -198,6 +205,9 @@ class Coach:
                 try:
                     out = run_tool(self.engine, c.name, c.input or {}, buttons)
                     results.append({"type": "tool_result", "tool_use_id": c.id, "content": out})
+                    step = explain(c.name, c.input or {}, json.loads(out))
+                    if not any(t["tool"] == step["tool"] and t["args"] == step["args"] for t in trace):
+                        trace.append(step)
                     log.info("tool %s %s -> %s", c.name, json.dumps(c.input), out[:300])
                 except Exception as e:  # tool errors go back to the model, not to the user
                     results.append({"type": "tool_result", "tool_use_id": c.id, "content": f"Error: {e}", "is_error": True})

@@ -27,17 +27,26 @@ def numbers(text: str) -> list[tuple[str, float, int]]:
     return [(m.group(1), *parse(m.group(1))) for m in NUMBER.finditer(text or "")]
 
 
-def ungrounded_numbers(reply: str, sources: list[str]) -> list[str]:
-    """Numbers in `reply` that no source backs. A reply number may round a source number to its own decimals.
-    Days and dates (up to 31), small counts and years need no source, unless written as money or a percentage."""
+def check(reply: str, sources: list[str]) -> tuple[list[str], list[str]]:
+    """(distinct numbers in `reply` that needed a source, those no source backs). A reply number may round a source
+    number to its own decimals. Days and dates (up to 31), small counts and years need no source, unless written as
+    money or a percentage."""
     known = {v for src in sources for _, v, _ in numbers(src)}
-    out = []
+    checked, bad = [], []
     for m in NUMBER.finditer(reply or ""):
         token = m.group(1)
         value, decimals = parse(token)
         money = bool(MONEY.match(reply[m.end():])) or reply[:m.start()].rstrip().endswith("€")
         if decimals == 0 and (value <= 12 or (not money and (value <= 31 or 1990 <= value <= 2100))):
             continue
-        if not any(abs(k - value) <= 0.5 * 10 ** -decimals + 1e-9 for k in known) and token not in out:
-            out.append(token)
-    return out
+        if token in checked:
+            continue
+        checked.append(token)
+        if not any(abs(k - value) <= 0.5 * 10 ** -decimals + 1e-9 for k in known):
+            bad.append(token)
+    return checked, bad
+
+
+def ungrounded_numbers(reply: str, sources: list[str]) -> list[str]:
+    """Numbers in `reply` that no source backs."""
+    return check(reply, sources)[1]

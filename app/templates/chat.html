@@ -36,8 +36,23 @@
   .chart{white-space:normal;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
   .chart b{display:block;font-size:14px}.chart small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
   .chart .plot{width:100%}  .embed #sheet .panel{max-width:none;height:92%}
+  /* "How I worked this out": the steps, figures and sources behind a reply, folded under its bubble */
+  .how{max-width:85%;margin:-2px 0 8px 40px;font-size:13px}
+  .how summary{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 4px;cursor:pointer;list-style:none;color:var(--brand);font-weight:600}
+  .how summary::-webkit-details-marker{display:none}
+  .how summary::after{content:"›";display:inline-block;font-size:16px;transition:transform .15s}
+  .how[open] summary::after{transform:rotate(90deg)}
+  .how-body{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;color:var(--ink)}
+  .how-steps{margin:0;padding-left:20px}.how-steps li{margin:0 0 10px}.how-steps li:last-child{margin-bottom:0}
+  .how-steps li::marker{color:var(--muted)}.how-steps li:only-child{list-style:none;margin-left:-20px}.how-steps p{margin:0 0 6px;font-size:14px}
+  .how dl{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:0;padding:8px 10px;background:var(--soft);border-radius:8px}
+  .how dt{color:var(--muted)}.how dd{margin:0;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+  .how-src{margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+  .how-src b{color:var(--ink);font-weight:600}
+  .how-check{margin:8px 0 0;color:var(--brand);font-weight:600}.how-check.warn{color:var(--warn)}
 </style>
 <script src="/static/kchart.js"></script>
+<script src="/static/trace.js"></script>
 {% endblock %}
 {% block body %}
 <div id="log" aria-live="polite" aria-label="Conversation with Kurre">
@@ -159,6 +174,8 @@ async function send(text, shown) {
       btn.dataset.quick = "1";
       d.appendChild(btn);
     }
+    const how = window.kurreTrace(j.trace);  // collapsed under the bubble: what Kurre looked up and checked
+    if (how) d.insertAdjacentHTML("afterend", how);
     reveal(d);
   } catch (e) { t.remove(); add("bot", "Connection problem, try again."); }
 }
