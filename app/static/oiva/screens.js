@@ -30,7 +30,8 @@
   function daysIn(ym) { const [y, m] = ym.split("-").map(Number); return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
   function niceDate(iso) {
     const d = new Date(iso + "T00:00:00Z");
-    return isNaN(d) ? "" : d.toLocaleString("en-GB", {weekday: "short", day: "numeric", month: "short", timeZone: "UTC"});
+    if (isNaN(d)) return "";
+    return "Sun Mon Tue Wed Thu Fri Sat".split(" ")[d.getUTCDay()] + " " + d.getUTCDate() + NB + "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[d.getUTCMonth()];
   }
   function chatLink(q) {
     const web = new URLSearchParams(location.search).get("web");
@@ -275,6 +276,54 @@
         + '<a class="more" href="' + chatLink("Explain my " + (f.label || f.id).toLowerCase() + " compared with people like me") + '">Ask Oiva about this</a></section>';
     }
     h += '<p class="fi cp-src">' + esc("S-Pankki customers aged " + age + " in " + co.city + (when ? ", " + when : "") + (isNum(co.n) ? ", n = " + co.n : "")) + '. No one in the group can be identified.</p>';
+    el.innerHTML = h;
+  };
+
+  // ---------- Bills (Engine.commitments(), unchanged) ----------
+  renderers.bills = async function (el) {
+    const res = await OivaData.get("recurring");
+    const d = res.data;
+    if (!d || !Array.isArray(d.regular_payments)) return errorCard("regular payments", () => renderers.bills(el));
+    const rows = d.regular_payments.filter(r => r && r.id && r.name);
+    const outs = rows.filter(r => r.direction !== "in"), ins = rows.filter(r => r.direction === "in");
+    const inc = d.income_per_month_eur, out = d.outgoing_per_month_eur;
+    let h = sampleNote(res) + '<section class="card bl-head"><p class="kicker">Bills a month</p>'
+      + '<div class="amount">' + money(d.bills_per_month_eur) + '</div>'
+      + '<p class="muted">Rent and utilities: the mandatory, regular basket.</p>';
+    if (isNum(inc) && inc > 0 && isNum(out)) {
+      const share = Math.min(100, Math.round(out / inc * 100));
+      h += '<div class="bl-split"><span class="sp-row"><span>All regular payments out</span><b>' + money(out) + '</b></span>'
+        + '<span class="bar"><i style="width:' + share + '%"></i></span>'
+        + '<small>' + share + NB + '% of your ' + money(inc) + ' monthly income goes out on fixed days.</small></div>';
+    }
+    h += '</section>';
+    const row = r => {
+      const chips = [];
+      if (r.status === "stopped") chips.push('<span class="bl-chip">Stopped</span>');
+      else if (r.status === "paused") chips.push('<span class="bl-chip">Paused</span>');
+      const t = r.trend || {};
+      if (t.direction && t.direction !== "about the same") chips.push('<span class="bl-chip">' + esc(t.direction === "up" ? "Going up" : t.direction === "down" ? "Going down" : t.direction)
+        + (isNum(t.change_pct) ? " " + (t.change_pct > 0 ? "+" : MINUS) + Math.abs(t.change_pct) + NB + "%" : "") + '</span>');
+      const ub = r.unusual_bill;
+      if (ub) chips.push('<span class="bl-chip bl-warn">Unusual bill</span>');
+      const when = r.note ? esc(r.note)
+        : r.next_expected ? "Next " + esc(niceDate(r.next_expected)) + (isNum(r.days_to_next) ? " · in " + r.days_to_next + NB + (r.days_to_next === 1 ? "day" : "days") : "")
+        : r.last_payment && r.last_payment.date ? "Last " + esc(niceDate(r.last_payment.date)) : "";
+      return '<div class="bl-row" data-id="' + esc(r.id) + '"><span class="sp-row"><span>' + esc(r.name) + '</span><b>' + money(r.per_month_eur) + '<small> /' + NB + 'month</small></b></span>'
+        + (r.what && r.what !== r.name ? '<small class="bl-what">' + esc(r.what.replace(/\s*\(.*\)\s*$/, "")) + (r.basket ? " · " + esc(r.basket) : "") + '</small>' : "")
+        + (when ? '<small>' + when + '</small>' : "")
+        + (ub ? '<small class="bl-ub">' + esc(niceDate(ub.date)) + ": " + money(ub.amount_eur) + ", one bill is usually " + money(ub.usual_low_eur) + " to " + money(ub.usual_high_eur) + '.</small>' : "")
+        + (chips.length ? '<span class="bl-chips">' + chips.join("") + '</span>' : "")
+        + '<a class="more" href="' + chatLink("Tell me about my " + r.name.toLowerCase()) + '">Ask Oiva</a></div>';
+    };
+    h += '<section class="card"><h3 class="sc-h">Going out</h3>' + outs.map(row).join("") + '</section>';
+    if (ins.length) h += '<section class="card"><h3 class="sc-h">Coming in</h3>' + ins.map(row).join("") + '</section>';
+    const subs = Array.isArray(d.card_subscriptions) ? d.card_subscriptions.filter(s => s && s.name) : [];
+    h += '<section class="card"><h3 class="sc-h">Subscriptions</h3>'
+      + (subs.length ? subs.map(s => '<div class="r"><span>' + esc(s.name) + '</span><b>' + money(s.per_month_eur) + '</b></div>').join("")
+        : '<p class="muted">We checked your card payments: no subscriptions found.</p>')
+      + '</section>'
+      + (d.method ? '<details class="fi bl-method"><summary>How Oiva finds these</summary><p>' + esc(d.method) + '</p></details>' : "");
     el.innerHTML = h;
   };
 
