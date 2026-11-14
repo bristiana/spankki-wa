@@ -1,0 +1,23 @@
+Kurre · S-Pankki Chat demo: narration (Windows SAPI voice "Microsoft Hazel Desktop")
+
+[0:00.3] Kurre. A money coach, where you already chat.
+[0:05.5] Meet Kurre, the S-Pankki savings squirrel.
+[0:10.0] One in three Finns opens S-mobiili every week. Almost everyone chats every day. Kurre lives in both.
+[0:19.3] This is the real app, on synthetic S-Pankki data.
+[0:28.1] Before rent, Kurre says what is safe to spend until payday.
+[0:33.2] One tap prepares the payment.
+[0:37.5] The PIN confirms it. The AI never moves money.
+[0:45.1] Plain questions. Every number comes from a tested engine, not the model.
+[0:53.1] Kurre compares you with Finnish households your age, from Statistics Finland.
+[1:03.3] It finds forgotten subscriptions, and price rises.
+[1:11.3] A renewal alert, the day before.
+[1:15.4] Stop it with one tap, and a PIN.
+[1:27.4] Cut dining out by twenty percent? Kurre checks it on real fund prices.
+[1:35.5] Set a goal: Lapland, by next summer.
+[1:43.9] Salary day. Pay yourself first.
+[1:48.2] Save with one tap, and a PIN.
+[1:59.8] Investing is explained, never pushed. You pick the fund, and confirm.
+[2:16.9] And everything in one place: My money.
+[2:30.4] Kurre informs. It never advises.
+[2:35.9] Payments are simulated. The data, Statistics Finland and the fund prices are real.
+[2:43.9] Kurre. Small savings, put away.
