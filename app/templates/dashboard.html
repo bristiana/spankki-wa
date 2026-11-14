@@ -185,7 +185,8 @@
   <div class="card" style="margin-top:14px"><div class="k">Other banks</div>
     {% if real_banks %}{% for b in real_banks %}
       {% for a in b.accounts if a.balance_eur %}<div class="row"><span class="l">{{ b.bank.split(' (')[0] }}<small>{{ a.type }}{% if a.ending %} ···{{ a.ending }}{% endif %}</small></span><span>{{ money(a.balance_eur) if a.balance_eur is not none else "–" }}</span></div>{% endfor %}
-      <div class="row"><span class="l">Spending a month<small>last 90 days, real data</small></span><span>{{ money(b.spending_per_month_eur) }}</span></div>
+      <div class="row"><span class="l">Spending a month<small>cards and shops, last 90 days</small></span><span>{{ money(b.spending_per_month_eur) }}</span></div>
+      {% if b.transfers_out_per_month_eur %}<div class="row"><span class="l">Transfers a month<small>to people and other accounts</small></span><span>{{ money(b.transfers_out_per_month_eur) }}</span></div>{% endif %}
     {% endfor %}<div class="cta"><a class="btn ghost" href="/bank">Manage banks</a></div>
     {% elif me %}<p class="muted" style="margin:0">Bring your Revolut or another bank here, read only.</p><div class="cta"><a class="btn" href="/bank">Add a bank</a></div>
     {% else %}<p class="muted" style="margin:0">Log in with WhatsApp to bring your other banks here (Revolut, OP, Nordea...), read only.</p><div class="cta"><a class="btn" href="/login?next=/bank">Log in with WhatsApp</a></div>{% endif %}
