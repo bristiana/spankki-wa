@@ -294,6 +294,11 @@ def _post(body: dict) -> dict | None:
 
 
 def _send(body: dict) -> dict | None:
+    try:  # the owner's chat is mirrored into the app (mirror.py); never in the way of sending
+        from . import mirror
+        mirror.outgoing(body)
+    except Exception:
+        log.exception("mirror failed")
     if not configured():
         log.info("WA not configured, would send: %s", body)
         return None

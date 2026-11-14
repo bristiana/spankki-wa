@@ -1,10 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Money coach{% endblock %}
+{% block title %}Viestit · Oiva{% endblock %}
 {% block head %}
 <style>
-  body{display:flex;flex-direction:column;height:100dvh}
+  /* The app's chat as an S-mobiili screen ("Viestit"): the same phone, top bar, colours and bottom bar as /s-mobiili. */
+  :root{--bg:#ebf7ec;--card:#fff;--ink:#363636;--muted:#666;--faint:#949494;--line:#e6e6e6;--brand:#007841;--bright:#00aa46;
+        --brand-ink:#fff;--soft:#ebf7ec;--frame:#1f2b25;color-scheme:light}
+  html,body{background:#dfe7e2}
+  body{height:100dvh;display:flex;align-items:center;justify-content:center;padding:16px;margin:0}
   footer{display:none}
-  #log{flex:1;overflow-y:auto;padding:16px;max-width:560px;width:100%;margin:0 auto}
+  .phone{position:relative;width:390px;height:844px;max-height:calc(100dvh - 32px);flex:none;border:10px solid var(--frame);border-radius:48px;
+         overflow:hidden;background:var(--bg);display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+  .status{display:flex;justify-content:space-between;align-items:center;padding:14px 28px 4px;font-size:15px;font-weight:600;background:#fff;color:#222;flex:none}
+  .status i{width:90px;height:24px;border-radius:99px;background:var(--frame)}
+  .status svg{width:52px;height:14px}
+  .sm-top{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;min-height:60px;padding:0 8px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+  .sm-top a{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:#333}
+  .sm-top .who-is{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
+  .sm-top .who-is img{width:36px;height:36px;border-radius:50%;background:#fff6e8;border:1px solid var(--line)}
+  .sm-top h1{margin:0;font-size:17px;font-weight:600;color:#222;line-height:1.15}
+  .sm-top h1 small{display:block;font-size:12.5px;font-weight:400;color:var(--muted)}
+  .i{width:28px;height:28px;flex:none}
+  .tabs{display:grid;grid-template-columns:repeat(5,1fr);align-items:end;background:#fff;border-top:1px solid var(--line);
+        padding:6px 2px calc(8px + env(safe-area-inset-bottom));flex:none}
+  .tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:#666;min-height:46px;justify-content:flex-end;text-decoration:none}
+  .tabs .i{width:27px;height:27px;color:#8a8a8a}
+  .tabs .plus{display:grid;place-items:center;width:54px;height:54px;border-radius:50%;background:var(--brand);color:#fff;margin-top:-34px;margin-bottom:2px}
+  .tabs .plus .i{width:30px;height:30px;color:#fff}
+  @media (max-width:520px){body{padding:0;background:var(--bg)}.status{display:none}
+    .phone{width:100%;height:100dvh;max-height:none;border:0;border-radius:0;box-shadow:none}.sm-top{padding-top:env(safe-area-inset-top)}}
+  .bare .status,.bare .tabs{display:none}
+  .phone.bare{width:100%;height:100dvh;max-height:none;border:0;border-radius:0;box-shadow:none}
+  body:has(.phone.bare){padding:0}
+  #log{flex:1;overflow-y:auto;padding:16px;width:100%;scrollbar-width:none}
+  .phone:not(.bare) form#f{padding-bottom:26px}  /* clear of the raised Maksu button below */
+  .msg.wa-tag{}
   .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
   .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px;position:relative}
   .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;margin-left:40px;position:relative}
@@ -15,7 +44,7 @@
   .typing i{display:inline-flex;gap:3px}.typing i b{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite both}
   .typing i b:nth-child(2){animation-delay:.2s}.typing i b:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
-  .chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px;max-width:560px;width:100%;margin:0 auto;scrollbar-width:none;
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px;width:100%;scrollbar-width:none;
     -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
   /* "More ideas": every idea at once, wrapped and scrollable, instead of more chips hidden off to the right */
   .chips.all{flex-wrap:wrap;overflow-x:hidden;overflow-y:auto;max-height:40dvh;-webkit-mask-image:none;mask-image:none;padding-top:4px}
@@ -31,7 +60,7 @@
   form#f button{border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 15px var(--font);padding:0 18px;min-height:44px;cursor:pointer}
   #attach{flex:none;display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;border:1px solid var(--line);border-radius:50%;background:var(--bg);color:var(--brand);cursor:pointer}
   .me img{display:block;max-width:180px;max-height:220px;border-radius:10px;margin-bottom:4px}
-  #sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  #sheet{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
   #sheet.open{display:flex}
   #sheet .panel{background:var(--bg);width:100%;max-width:480px;height:88dvh;border-radius:18px 18px 0 0;overflow:hidden;display:flex;flex-direction:column}
   #sheet .top{display:flex;justify-content:space-between;align-items:center;padding:4px 6px 4px 16px;background:var(--card);border-bottom:1px solid var(--line);font-weight:600;font-size:15px}
@@ -60,8 +89,24 @@
 <script src="/static/trace.js"></script>
 {% endblock %}
 {% block body %}
+{%- macro icon(name) -%}
+<svg class="i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == "back" %}<path d="M19.5 7.5L11 16l8.5 8.5"/>
+{%- elif name == "home" %}<path d="M4.5 15.5L16 5.5l11.5 10M7.5 13v14h6.5v-7.5h4V27h6.5V13"/>
+{%- elif name == "s" %}<path d="M24.6 3.6h-4.4c-3 0-4.7 1.6-5.3 4.6l-2.7 14.1c-.4 2-1.5 3.1-3.3 3.1H6.6"/><path d="M24.6 3.6v4.6h-1.4c-1.6 0-2.5.8-2.8 2.4l-2.8 14.2c-.6 3-2.4 4.6-5.2 4.6H6.6v-4.4"/>
+{%- elif name == "plus" %}<path d="M16 6v20M6 16h20"/>
+{%- elif name == "wallet" %}<path d="M4.5 9.5h21a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5h-21z"/><path d="M4.5 9.5l15.5-4v4"/><path d="M27 15.5h-6a2.5 2.5 0 0 0 0 5h6z"/>
+{%- elif name == "me" %}<circle cx="16" cy="10.5" r="5"/><path d="M6 27.5c0-5.5 4.5-9 10-9s10 3.5 10 9z"/>
+{%- endif %}</svg>
+{%- endmacro %}
+<div class="phone{{ '' if framed else ' bare' }}" id="phone">
+<div class="status" aria-hidden="true"><span>9:41</span><i></i><svg viewBox="0 0 52 14"><path d="M2 12a12 12 0 0 1 16 0l-8 0z" fill="#ddd"/><path d="M22 13L33 2v11z" fill="#222"/><rect x="38" y="2" width="7" height="11" rx="1" fill="#222"/></svg></div>
+<header class="sm-top">
+  <a href="/s-mobiili/" aria-label="Takaisin · back" data-back>{{ icon("back") }}</a>
+  <div class="who-is"><img src="/static/birky/penny.png" alt=""><h1>Oiva<small>Viestit · your money coach</small></h1></div>
+</header>
 <div id="log" aria-live="polite" aria-label="Conversation with Oiva">
-  <div class="msg bot">Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.</div>
+  <div class="msg bot" id="hello">Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.</div>
 </div>
 <!-- The three questions S-Pankki's mentors say matter most: always in view, above the scrolling ideas -->
 <div class="chips top" id="top">
@@ -97,10 +142,19 @@
   <input id="q" placeholder="Ask about your money…" aria-label="Message" enterkeyhint="send">
   <button id="send">Send</button>
 </form>
+<nav class="tabs" aria-label="S-mobiili">
+  <a href="/s-mobiili/">{{ icon("home") }}Koti</a>
+  <a href="/s-mobiili/?tab=etukortti">{{ icon("s") }}S-Etukortti</a>
+  <a href="/s-mobiili/?tab=pankki"><span class="plus">{{ icon("plus") }}</span>Maksu</a>
+  <a href="/s-mobiili/?tab=pankki">{{ icon("wallet") }}Pankki</a>
+  <a href="/s-mobiili/?tab=mina">{{ icon("me") }}Minä</a>
+</nav>
 <div id="sheet" role="dialog" aria-modal="true" aria-label="Confirm in S-Pankki">
   <div class="panel"><div class="top"><span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>S-Pankki</span><button id="close" aria-label="Close and go back to the chat">×</button></div><iframe id="frame" title="Confirm"></iframe></div>
 </div>
+</div>
 <script>
+const MIRROR = {{ mirror|tojson }};  // the app's chat: the owner's WhatsApp conversation, live (app/mirror.py)
 const log = document.getElementById("log"), q = document.getElementById("q");
 const sheet = document.getElementById("sheet"), frame = document.getElementById("frame");
 let sid = "s" + Math.random().toString(36).slice(2, 10);
@@ -147,6 +201,40 @@ async function checkInbox() {
 }
 setInterval(checkInbox, 2500);
 
+// What was said on WhatsApp shows up here within ~2 s; what was typed here was already drawn by send().
+let seen = 0, loaded = false;
+function linkOf(url) {
+  let u = url; try { const x = new URL(url, location.href); u = x.pathname + x.search; } catch (e) {}
+  return /[?&]web=1/.test(u) ? u : u + (u.includes("?") ? "&" : "?") + "web=1";
+}
+function drawMirrored(m) {
+  if (m.role === "me") return add("me", esc(m.text));
+  const d = add("bot", fmt(m.text || ""));
+  for (const b of m.buttons || []) {
+    const a = document.createElement("button");
+    a.textContent = b.label;
+    if (b.url) { a.className = "btn"; a.onclick = () => openSheet(linkOf(b.url)); }
+    else { a.className = "btn ghost"; a.onclick = () => send(b.label); }
+    d.appendChild(a);
+  }
+  return d;
+}
+async function pollMirror() {
+  if (!MIRROR) return;
+  try {
+    const j = await (await fetch("/api/mirror?after=" + seen)).json();
+    let last = null;
+    for (const m of j.messages || []) {
+      seen = Math.max(seen, m.id);
+      if (loaded && m.source === "app") continue;
+      last = drawMirrored(m);
+    }
+    if (last) reveal(last);
+  } catch (e) {}
+  loaded = true;
+}
+if (MIRROR) { pollMirror(); setInterval(pollMirror, 2000); }
+
 const pause = ms => new Promise(r => setTimeout(r, ms));
 
 async function send(text, shown, image) {
@@ -157,7 +245,8 @@ async function send(text, shown, image) {
   t.setAttribute("role", "status");
   try {
     const r = await fetch("/api/chat", {method: "POST", headers: {"content-type": "application/json"},
-                                         body: JSON.stringify({session: sid, text, image, as: {{ persona.id|tojson }}})});
+                                         body: JSON.stringify({session: sid, text, image, as: {{ persona.id|tojson }}, mirror: MIRROR,
+                                                                shown: shown === null ? "" : (shown || text || "")})});
     const j = r.ok ? await r.json() : {text: r.status === 413 ? "That photo is too big for me. Could you try a smaller one?"
                                              : "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
     t.remove();
@@ -235,7 +324,7 @@ document.querySelectorAll("#top button, #chips button").forEach(b => b.onclick =
 // Deep link /chat?q=...: ask once, then drop q from the address so a reload doesn't ask again.
 const deepQ = {{ q|tojson }};
 if (deepQ) {
-  history.replaceState(null, "", location.pathname + ({{ embed|tojson }} ? "?embed=1" : ""));
+  history.replaceState(null, "", location.pathname + ({{ (not framed)|tojson }} ? "?embed=1" : ""));
   deepQ.startsWith("__") ? send(deepQ, null) : send(deepQ);
 }
 </script>
