@@ -229,3 +229,53 @@ def test_small_talk_words():
 def test_real_goals_still_parse(e):
     ob.start(e, "u")
     assert ob.turn(e, "u", "Hello Kitty plush collection").text.startswith("Saving for Hello Kitty plush")
+
+
+# ---------------- side questions: the waiting question comes back at most once ----------------
+def _at_risk(e, user="u"):
+    ob.start(e, user)
+    ob.turn(e, user, "college fund")
+    ob.turn(e, user, "", "ob:skip")
+    assert e.state["onboarding"][user]["step"] == "risk"
+
+
+def test_two_side_questions_reask_once_then_pause_quietly(e):
+    _at_risk(e)
+    assert ob.turn(e, "u", "How can I spend less?") is None
+    again = ob.side_question(e, "u", "How can I spend less?")
+    assert again.text == ob.ASK["risk"][1] and again.buttons == ob.BUTTONS["risk"]
+    assert ob.turn(e, "u", "Do people my age save more than me?") is None
+    assert ob.reask(e, "u", "Do people my age save more than me?") is None  # the coach is told nothing comes back
+    assert ob.side_question(e, "u", "Do people my age save more than me?") is None
+    assert not ob.active(e, "u") and e.state["onboarding"]["u"]["step"] == "risk"
+    # paused: further questions go straight to the coach, nothing is re-sent
+    assert ob.turn(e, "u", "Can you explain how savings works?") is None
+    assert ob.side_question(e, "u", "Can you explain how savings works?") is None
+    # and it picks up where it was
+    t = ob.turn(e, "u", "continue")
+    assert t.text == ob.ASK["risk"][1] and ob.active(e, "u")
+    assert ob.turn(e, "u", "", "ob:risk:balanced").text.startswith(ob.RISK_LINE["balanced"])
+
+
+def test_answering_resets_the_side_question_count(e):
+    ob.start(e, "u")
+    assert ob.side_question(e, "u", "how much did I spend?").text == ob.ASK["goal"][1]
+    ob.turn(e, "u", "", "ob:goal:trip")  # back in the interview
+    assert ob.side_question(e, "u", "what's my balance?").text == ob.ASK["amount"][1]
+    assert ob.side_question(e, "u", "and my rent?") is None and not ob.active(e, "u")
+
+
+def test_question_about_the_waiting_question_never_pauses(e):
+    _at_risk(e)
+    for q in ("what does prudent mean?", "and growth?", "what's the risk with balanced?"):
+        assert ob.turn(e, "u", q) is None
+        assert ob.side_question(e, "u", q).text == ob.ASK["risk"][1]
+    assert ob.active(e, "u")
+
+
+def test_paused_interview_resumes_from_a_button(e):
+    _at_risk(e)
+    ob.side_question(e, "u", "a")
+    ob.side_question(e, "u", "b")
+    assert not ob.active(e, "u")
+    assert ob.turn(e, "u", "", "ob:risk:growth").text.startswith(ob.RISK_LINE["growth"])

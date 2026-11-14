@@ -234,3 +234,57 @@ def test_whatsapp_numbers_extra_buttons(client, monkeypatch):
     reply = Reply(text="Three stop links are ready.", buttons=[{"label": f"Stop S{i}", "url": f"u{i}"} for i in range(3)])
     main.send_reply("358400000000", reply)
     assert texts == [("Three stop links are ready.", "Stop S0"), ("2/3", "Stop S1"), ("3/3", "Stop S2")]
+
+
+def _risk_question_count(client, since=0):
+    """WhatsApp messages carrying the Prudent/Balanced/Growth question (text or with its buttons)."""
+    keys = (ob.ASK["risk"][0][:40], ob.ASK["risk"][1][:40])
+    return sum(any(k in json.dumps(b, ensure_ascii=False) for k in keys) for b in client.sent[since:])
+
+
+def test_whatsapp_two_side_questions_send_the_interview_question_at_most_once(client, monkeypatch):
+    """The demo bug: after 'start over', every unrelated question got the risk question (and its buttons) again."""
+    import hashlib
+    import hmac
+    monkeypatch.setenv("WA_APP_SECRET", "secret")
+    to = "40733333333"
+    main.engine.state.setdefault("connected", {})[to] = {}
+
+    def msg(text, mid, button=None):
+        m = ({"from": to, "id": mid, "timestamp": "1", "type": "interactive",
+              "interactive": {"type": "button_reply", "button_reply": {"id": button, "title": "x"}}} if button else
+             {"from": to, "id": mid, "timestamp": "1", "type": "text", "text": {"body": text}})
+        raw = json.dumps({"entry": [{"changes": [{"field": "messages", "value": {
+            "contacts": [{"wa_id": to, "profile": {"name": "Antti"}}], "messages": [m]}}]}]}).encode()
+        sig = "sha256=" + hmac.new(b"secret", raw, hashlib.sha256).hexdigest()
+        r = client.post("/webhook", content=raw, headers={"x-hub-signature-256": sig, "content-type": "application/json"})
+        assert r.status_code == 200
+
+    ob.start(main.engine, to)
+    msg("college fund", "a1")
+    msg("", "a2", "ob:skip")
+    assert main.engine.state["onboarding"][to]["step"] == "risk"
+    since, calls = len(client.sent), len(main._coach.calls)
+    msg("How can I spend less?", "a3")
+    msg("Do people my age save more?", "a4")
+    msg("Can you explain how savings works?", "a5")
+    assert _risk_question_count(client, since) <= 1
+    assert sum("ob:risk:prudent" in json.dumps(b) for b in client.sent[since:]) <= 1  # buttons not re-sent
+    assert len(main._coach.calls) - calls == 3  # every side question still got its answer
+    assert not ob.active(main.engine, to)
+    # the later side questions are not told the risk question comes back
+    assert all(ob.ASK["risk"][1] not in (ctx or "") for _, ctx in main._coach.calls[calls + 1:])
+    msg("continue", "a6")
+    assert ob.active(main.engine, to) and _risk_question_count(client, since) == 2
+
+
+def test_web_chat_two_side_questions_send_the_interview_question_at_most_once(client):
+    say = lambda text: client.post("/api/chat", json={"session": "cy", "text": text}).json()
+    say("__start__")
+    say("college fund")
+    say("__btn__:ob:skip")
+    replies = [say(q) for q in ("How can I spend less?", "Do people my age save more?",
+                                "Can you explain how savings works?")]
+    assert sum(ob.ASK["risk"][1] in r["text"] for r in replies) == 1
+    assert sum(bool(r.get("quick")) for r in replies) <= 1
+    assert say("continue")["text"] == ob.ASK["risk"][1]

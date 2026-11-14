@@ -3,8 +3,10 @@
 Voice rules: one question per message, opened by one short line that reflects the previous answer in the person's
 words (never grades it), one "?" per message, under 240 characters. A skip gets no comment. "ok", "thanks" or
 "later" pauses the interview. A money question mid-interview goes to the coach and the waiting question comes back
-after. The risk answer only labels later investment info, it never picks a fund.
-State: engine.state["onboarding"][user] = {"step", "paused", "skipped", "answers"} in data/state.json.
+once after it; a second side question in a row quietly pauses the interview (write "continue" or tap one of its buttons
+to pick it up), so the same question is never re-sent after every reply. A question about the waiting question itself
+("what does prudent mean?") does not count. The risk answer only labels later investment info, it never picks a fund.
+State: engine.state["onboarding"][user] = {"step", "paused", "skipped", "answers", "sides"} in data/state.json.
 """
 from __future__ import annotations
 
@@ -196,14 +198,58 @@ def start(engine: Engine, user: str) -> Turn:
     return t
 
 
-def reask(engine: Engine, user: str) -> Turn | None:
-    """After the coach answered a side question: the waiting question again, in new words."""
+MAX_REASKS = 1  # side questions in a row that still get the waiting question back; the next one pauses the interview
+ABOUT_STEP = {"risk": re.compile(r"\b(prudent|balanced|growth|risk\w*|swings?)\b", re.I),
+              "amount": re.compile(r"\b(amount|how much (?:should|do) i (?:need|save))\b", re.I),
+              "checkin": re.compile(r"\bcheck.?ins?\b", re.I)}
+
+
+def _about_step(step: str, text: str) -> bool:
+    """A question about the waiting question itself ('what does prudent mean?'), not a different topic."""
+    rx = ABOUT_STEP.get(step)
+    return bool(rx and text and rx.search(text))
+
+
+def reask(engine: Engine, user: str, text: str = "") -> Turn | None:
+    """The waiting question that would come back after the coach answers this side question, or None (no interview,
+    or this side question will pause it). Read-only: side_question() is what records the side question."""
     r = _rec(engine, user)
-    return _ask(r["step"], again=True) if active(engine, user) else None
+    if not active(engine, user):
+        return None
+    if r.get("sides", 0) >= MAX_REASKS and not _about_step(r["step"], text):
+        return None
+    return _ask(r["step"], again=True)
+
+
+def side_question(engine: Engine, user: str, text: str = "") -> Turn | None:
+    """After the coach answered a side question mid-interview. The first time: the waiting question again, in new
+    words. Another unrelated side question right after: the interview quietly pauses instead of re-asking after every
+    reply (RESUME or one of its buttons picks it up). A question about the waiting question never counts."""
+    r = _rec(engine, user)
+    if not active(engine, user):
+        return None
+    if _about_step(r["step"], text):
+        return _ask(r["step"], again=True)
+    r["sides"] = r.get("sides", 0) + 1
+    if r["sides"] > MAX_REASKS:
+        r["paused"], r["sides"] = True, 0
+        engine._save()
+        return None
+    engine._save()
+    return _ask(r["step"], again=True)
 
 
 def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | None:
     """One interview step. None = not an interview turn (send the message to the coach)."""
+    t = _turn(engine, user, text, button_id)
+    r = _rec(engine, user)
+    if t is not None and r and r.get("sides"):
+        r["sides"] = 0  # they are back in the interview: the next side question gets the question back again
+        engine._save()
+    return t
+
+
+def _turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | None:
     r = _rec(engine, user)
     text = (text or "").strip()
     ob = button_id.startswith("ob:")

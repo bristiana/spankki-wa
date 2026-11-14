@@ -422,10 +422,10 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
     return None
 
 
-def flow_context(e: Engine, user: str) -> str | None:
+def flow_context(e: Engine, user: str, text: str = "") -> str | None:
     """What the coach should know when a question comes in the middle of the interview or the basket game: the
     waiting question is sent again right after the reply, so the reply must not end with a question of its own."""
-    waiting = onboarding.reask(e, user)
+    waiting = onboarding.reask(e, user, text)
     if waiting:
         return ("The person is in the short first-chat interview (no AI). Right after your reply, the app asks them "
                 f"again: \"{waiting.text}\" Answer only their side question, in a few lines, and end without a "
@@ -479,7 +479,7 @@ def touch(e: Engine, user: str):
 def coach_context(e: Engine, user: str, text: str, extra: str | None = None) -> str | None:
     """What the coach should know right now: a waiting flow question, a hand-off to a person at S-Pankki."""
     kind = guardrails.escalation(text)
-    parts = [flow_context(e, user), guardrails.escalation_context(kind) if kind else None, extra]
+    parts = [flow_context(e, user, text), guardrails.escalation_context(kind) if kind else None, extra]
     return " ".join(p for p in parts if p) or None
 
 
@@ -702,7 +702,7 @@ def handle_message(m: dict):
         for note in (quiz.paused_note(engine, to), learn.paused_note(engine, to)):  # how to get back to it
             if note:
                 wa.send_text(to, note)
-        again = onboarding.reask(engine, to)  # a side question mid-interview: the waiting question comes back
+        again = onboarding.side_question(engine, to, text)  # mid-interview: the waiting question comes back once
         if again:
             send_turn(to, again)
     except Exception:
@@ -2166,7 +2166,7 @@ async def chat_turn(request: Request):
         note_chat_later(e, sid, text, c.last_said(sid))
     context = coach_context(e, sid, text, extra)
     me = wa_phone(request)
-    return await web_answer(e, sid, lambda: ask(persona, sid, text, name, context, viewer=me), quick, secret)
+    return await web_answer(e, sid, lambda: ask(persona, sid, text, name, context, viewer=me), quick, secret, text)
 
 
 async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption: str, quick):
@@ -2193,7 +2193,7 @@ async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption:
     return await web_answer(e, sid, lambda: ask_about_bill(persona, sid, bill, caption, name), quick)
 
 
-async def web_answer(e: Engine, sid: str, run, quick, secret=()):
+async def web_answer(e: Engine, sid: str, run, quick, secret=(), asked: str = ""):
     """The coach's reply for the web chat: bubbles, buttons, charts, and any paused flow's note."""
     import anyio
     try:
@@ -2211,7 +2211,7 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=()):
         out.append({"label": b["label"], "url": with_web(b["url"].replace(public_url(), ""))})
     paused = quiz.paused_note(e, sid)
     waiting = learn.paused_note(e, sid)
-    again = onboarding.reask(e, sid)  # a side question mid-interview: the waiting question comes back
+    again = onboarding.side_question(e, sid, asked)  # mid-interview: the waiting question comes back once
     parts = wa.bubbles(reply.text) if reply.text.strip() else []
     if secret:
         parts = wa.bubbles(guardrails.secret_reply(secret)) + parts
