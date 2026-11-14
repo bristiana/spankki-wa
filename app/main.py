@@ -483,7 +483,12 @@ def ask(persona: str | None, user: str, text: str, name: str, context: str | Non
 
 
 def ask_about_bill(persona: str | None, user: str, bill: dict, caption: str | None, name: str):
-    """A bill photo just read: explain it, or, only when the caption asks to pay, prepare the payment."""
+    """A bill photo just read: explain it, or, only when the caption asks to pay, prepare the payment. Any other
+    money document (a statement, a receipt, a payslip) is only explained: nothing to pay, so no payment tool."""
+    if bills.is_document(bill):
+        e = engine_for(persona)
+        context = " ".join(x for x in (bills.EXPLAIN_DOC, flow_context(e, user)) if x)
+        return ask(persona, user, bills.doc_text(bill, caption), name, context, may_pay=False, photo=True)
     e, pay = engine_for(persona), bills.asks_to_pay(caption)
     context = " ".join(x for x in (bills.PAY if pay else bills.EXPLAIN, flow_context(e, user)) if x)
     return ask(persona, user, bills.coach_text(e, bill, caption), name, context, may_pay=pay, photo=True)

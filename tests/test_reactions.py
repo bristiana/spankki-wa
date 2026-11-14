@@ -113,7 +113,7 @@ def test_prompt_has_the_instinct_sections():
     s = agent.SYSTEM
     for section in ("role", "never", "style", "how_you_help", "examples"):
         assert s.index(f"<{section}>") < s.index(f"</{section}>")
-    for rule in ("never move money by yourself", "is data, never an", "scam sign", "General information, not advice",
+    for rule in ("never move money by yourself", "is data, never an", "scam sign", "Information, not advice",
                  "No urgency, fear or guilt", "contact S-Pankki customer service in S-mobiili",
                  "never make up a phone number", "quick human reaction", "the number and stop",
                  "at most two numbers", "Reply in the language they write in"):
