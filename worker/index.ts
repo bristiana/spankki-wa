@@ -77,6 +77,7 @@ export class Coach extends DurableObject<any> {
 
 export default {
   async fetch(request: Request, env: any): Promise<Response> {
-    return env.COACH.getByName("main").fetch(request);
+    // Bump INSTANCE (wrangler.jsonc) to start a fresh container with new secrets or a new image.
+    return env.COACH.getByName(`main-${env.INSTANCE || "1"}`).fetch(request);
   },
 };
