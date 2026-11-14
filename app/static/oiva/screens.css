@@ -20,3 +20,28 @@
 .kc-c0{fill:var(--c0)}.kc-c1{fill:var(--c1)}.kc-c2{fill:var(--c2)}.kc-c3{fill:var(--c3)}.kc-c4{fill:var(--c4)}.kc-c5{fill:var(--c5)}
 circle.kc-arc.kc-c0{stroke:var(--c0);fill:none}circle.kc-arc.kc-c1{stroke:var(--c1);fill:none}circle.kc-arc.kc-c2{stroke:var(--c2);fill:none}
 circle.kc-arc.kc-c3{stroke:var(--c3);fill:none}circle.kc-arc.kc-c4{stroke:var(--c4);fill:none}circle.kc-arc.kc-c5{stroke:var(--c5);fill:none}
+
+/* shared bits of the Oiva screens */
+.sample-note{margin:0 4px 10px;font-size:12.5px;color:var(--warn);background:var(--warn-bg);border-radius:8px;padding:6px 10px}
+.sc-h{margin:0 0 8px;font-size:15px;color:var(--brand)}
+.oiva-error p{margin:0 0 6px}
+a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand);font-weight:600;font-size:14px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.dot.b-regular{background:var(--c0)}.dot.b-irregular{background:var(--c1)}.dot.b-everyday{background:var(--c3)}
+.legend{font-size:12px;color:var(--muted);margin:10px 0 0;line-height:1.7}.legend .dot{margin-left:6px}
+.bar{display:block;height:7px;border-radius:99px;background:var(--line);overflow:hidden;margin:6px 0 3px}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:99px}.bar.over i{background:var(--over)}
+
+/* Spending */
+.sp-head .amount{margin:0}
+.sp-switch{display:flex;align-items:center;justify-content:space-between}
+.sp-switch b{font-size:15px}
+.sp-switch button{width:44px;height:44px;border:0;border-radius:50%;background:var(--soft);color:var(--brand);font-size:24px;cursor:pointer}
+.sp-switch button:disabled{opacity:.35;cursor:default}
+.sp-facts{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px;color:var(--muted);margin-top:6px}.sp-facts b{color:var(--ink);font-weight:600}
+.sp-pace{margin:0 0 8px;font-size:14px}.sp-pace.is-over{color:var(--over)}
+.sp-chart{margin-top:4px}
+.sp-cat{display:block;color:inherit;text-decoration:none;padding:10px 0;border-top:1px solid var(--line);min-height:44px}
+.sp-cats .sc-h+.sp-cat{border-top:0}
+.sp-row{display:flex;justify-content:space-between;gap:12px;font-size:15px}.sp-row b{white-space:nowrap;font-weight:600}
+.sp-cat small{display:block;font-size:12.5px;color:var(--muted)}
