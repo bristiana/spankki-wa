@@ -27,7 +27,7 @@ circle.kc-arc.kc-c3{stroke:var(--c3);fill:none}circle.kc-arc.kc-c4{stroke:var(--
 .oiva-error p{margin:0 0 6px}
 a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand);font-weight:600;font-size:14px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px}
-.dot.b-regular{background:var(--c0)}.dot.b-irregular{background:var(--c1)}.dot.b-everyday{background:var(--c3)}
+.dot.b-regular{background:var(--c0)}.dot.b-irregular{background:var(--c2)}.dot.b-everyday{background:var(--c4)}
 .legend{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:12.5px;color:var(--muted);margin:10px 0 0;line-height:1.7}.legend span{white-space:nowrap}
 .bar{display:block;height:7px;border-radius:99px;background:var(--line);overflow:hidden;margin:6px 0 3px}
 .bar i{display:block;height:100%;background:var(--brand);border-radius:99px}.bar.over i{background:var(--over)}
@@ -85,9 +85,9 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .bl-row .sp-row b small{display:inline;font-weight:400}
 .bl-ub{color:var(--over) !important}
 .bl-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.bl-chip{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--soft);color:var(--ink)}
+.bl-chip{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--line);color:var(--ink)}
 .bl-chip.bl-warn{background:var(--warn-bg);color:var(--warn)}
-.bl-method{margin:4px 4px 0}.bl-method summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+.bl-method{margin:4px 4px 0}.bl-method summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--brand);font-weight:600;font-size:14px;text-decoration:underline}
 
 /* Talk to Oiva: the call sits over the lower part of the phone, so the screen Oiva shows stays visible above */
 .call{position:absolute;left:0;right:0;bottom:0;z-index:45;padding:0 10px 10px}
@@ -115,3 +115,5 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .phone:has(#oiva-call:not([hidden])) .guide{display:none}
 .call-captions:empty{min-height:0}
 @media (prefers-color-scheme:dark){.call-panel{box-shadow:0 0 0 1px #2f7a52,0 -6px 30px rgba(0,0,0,.5)}}
+.bd-set{display:inline-block;margin-top:4px;font-size:13.5px;font-weight:700;color:var(--brand)}
+.phone:has(.bd-toast:not([hidden])) .talk-fab{display:none}

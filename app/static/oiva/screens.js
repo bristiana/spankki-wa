@@ -48,6 +48,7 @@
     host.querySelector("#oiva-retry").addEventListener("click", retry);
   }
   function chart(el, spec) { if (window.birkyChart) window.birkyChart(el, spec); }
+  const BASKET_COLOR = {regular: 0, irregular: 2, everyday: 4};  // slices share their basket's colour; no red, no judging
   const BASKET = {regular: "Mandatory & regular", irregular: "Mandatory & irregular", everyday: "Slips through your fingers"};
 
   // ---------- Spending ----------
@@ -70,7 +71,7 @@
     h += '<div class="sp-total amount">' + money(d.total_eur) + '</div>'
       + '<p class="muted">spent on everyday things' + (d.month === thisMonth ? " so far" : "") + '</p>'
       + '<div class="sp-facts">'
-      + (isNum(d.prev_total_eur) ? '<span>' + esc(monthName(shiftMonth(d.month, -1)).split(" ")[0]) + ': <b>' + money(d.prev_total_eur) + '</b></span>' : "")
+      + (isNum(d.prev_total_eur) ? '<span>All of ' + esc(monthName(shiftMonth(d.month, -1)).split(" ")[0]) + ': <b>' + money(d.prev_total_eur) + '</b></span>' : "")
       + (isNum(d.income_eur) ? '<span>Income: <b>' + money(d.income_eur) + '</b></span>' : "")
       + '</div></section>';
 
@@ -123,7 +124,8 @@
     if (el.querySelector("#sp-donut")) {
       const top = cats.filter(c => c.spent_eur > 0), main = top.slice(0, 4), rest = top.slice(4).reduce((a, c) => a + c.spent_eur, 0);
       chart(el.querySelector("#sp-donut"), {type: "donut", title: "Where it went", subtitle: monthName(d.month), unit: "€",
-        labels: main.map(c => c.label).concat(rest > 0 ? ["Other"] : []), values: main.map(c => c.spent_eur).concat(rest > 0 ? [rest] : [])});
+        labels: main.map(c => c.label).concat(rest > 0 ? ["Other"] : []), values: main.map(c => c.spent_eur).concat(rest > 0 ? [rest] : []),
+        colors: main.map(c => BASKET_COLOR[c.basket] != null ? BASKET_COLOR[c.basket] : 5).concat(rest > 0 ? [5] : [])});
     }
     const prev = el.querySelector(".sp-prev"), next = el.querySelector(".sp-next");
     if (prev) prev.addEventListener("click", () => renderers.spend(el, {month: shiftMonth(d.month, -1)}));
@@ -142,8 +144,8 @@
     const cohortText = co.age_band ? "people aged " + co.age_band.replace("-", "–") + " in " + co.city + ", " + co.n + " people" : "";
     let h = sampleNote(res)
       + '<section class="card"><p class="muted bd-intro">Tap a category to set its monthly budget: your own amount, or what is typical for people like you.</p>'
-      + '<button class="btn ghost" type="button" id="bd-all">Set all to people like me</button>'
-      + (cohortText ? '<p class="fi bd-cohort">Typical (median) spend for ' + esc(cohortText) + '. S-Pankki data, Apr–Sep 2026.</p>' : "")
+      + '<button class="btn" type="button" id="bd-all">Set all to people like me</button>'
+      + (cohortText ? '<p class="fi bd-cohort">Typical (median) spend for ' + esc(cohortText) + (res.live ? ". S-Pankki customers, Apr–Sep 2026." : ". Sample peer figures until the live service is connected.") + '</p>' : "")
       + '</section><section class="card bd-list">';
     for (const it of d.items) {
       const lim = isNum(it.limit_eur) ? it.limit_eur : null, spent = isNum(it.spent_eur) ? it.spent_eur : 0;
@@ -154,7 +156,7 @@
           ? '<span class="bar' + (over ? " over" : "") + '"><i style="width:' + (lim > 0 ? Math.min(100, Math.round(spent / lim * 100)) : (spent > 0 ? 100 : 0)) + '%"></i></span>'
             + '<small>' + (over ? "Over by " + money(spent - lim) : money(spent) + " spent · " + money(lim - spent) + " left"
               + (isNum(it.left_per_day_eur) ? ", " + money(it.left_per_day_eur) + " a day" : "")) + ' · ' + esc(SOURCE[it.source] || "Your own") + '</small>'
-          : '<small>No budget yet · ' + money(spent) + ' spent this month</small>')
+          : '<small>No budget yet · ' + money(spent) + ' spent this month</small><span class="bd-set">Set a budget ›</span>')
         + '</button>';
     }
     h += '</section><p class="fi bd-foot">A budget is a setting, not a payment: no PIN needed, and you can undo it.</p>';
@@ -274,7 +276,7 @@
         + (TARGETS[f.id] && f.better !== "none" ? '<p class="cp-target">' + esc(TARGETS[f.id]) + '</p>' : "")
         + '<a class="more" href="' + chatLink("Explain my " + (f.label || f.id).toLowerCase() + " compared with people like me") + '">Ask Oiva about this</a></section>';
     }
-    h += '<p class="fi cp-src">' + esc("S-Pankki customers aged " + age + " in " + co.city + (when ? ", " + when : "") + (isNum(co.n) ? ", n = " + co.n : "")) + '. No one in the group can be identified.</p>';
+    h += '<p class="fi cp-src">' + esc((res.live ? "" : "Sample figures shaped like ") + "S-Pankki customers aged " + age + " in " + co.city + (when ? ", " + when : "") + (isNum(co.n) ? ", n = " + co.n : "")) + '. No one in the group can be identified.</p>';
     el.innerHTML = h;
   };
 

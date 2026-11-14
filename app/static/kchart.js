@@ -98,6 +98,7 @@
   }
 
   function donut(svg, spec, W) {  // where the money went: a ring, the total in the middle, a legend with amounts
+    const col = i => (spec.colors && spec.colors[i] != null ? spec.colors[i] : i % 6);  // optional colour index per slice
     const v = spec.values, unit = spec.unit, sum = v.reduce((a, b) => a + Math.max(b, 0), 0) || 1;
     const R = Math.min(78, W / 4), r = R * 0.62, cx = R + 4, cy = R + 4, row = 22;
     const H = Math.max(2 * R + 8, v.length * row + 4);
@@ -106,15 +107,15 @@
     v.forEach((val, i) => {
       const part = Math.max(val, 0) / sum, a1 = a0 + part * 2 * Math.PI;
       if (part >= 0.9999) {  // one category is everything: a full ring
-        svg.appendChild(el("circle", {cx, cy, r: (R + r) / 2, fill: "none", "stroke-width": R - r, class: "kc-arc kc-c" + (i % 6)}));
+        svg.appendChild(el("circle", {cx, cy, r: (R + r) / 2, fill: "none", "stroke-width": R - r, class: "kc-arc kc-c" + col(i)}));
       } else if (part > 0) {
         const big = a1 - a0 > Math.PI ? 1 : 0, p = (rad, a) => `${(cx + rad * Math.cos(a)).toFixed(2)},${(cy + rad * Math.sin(a)).toFixed(2)}`;
         svg.appendChild(el("path", {d: `M${p(R, a0)} A${R},${R} 0 ${big} 1 ${p(R, a1)} L${p(r, a1)} A${r},${r} 0 ${big} 0 ${p(r, a0)} Z`,
-                                    class: "kc-arc kc-c" + (i % 6)}));
-      } else svg.appendChild(el("path", {d: "", class: "kc-arc kc-c" + (i % 6)}));  // keeps one arc per label
+                                    class: "kc-arc kc-c" + col(i)}));
+      } else svg.appendChild(el("path", {d: "", class: "kc-arc kc-c" + col(i)}));  // keeps one arc per label
       a0 = a1;
       const lx = 2 * R + 22, ly = i * row + (H - v.length * row) / 2 + 15;
-      svg.appendChild(el("rect", {x: lx, y: ly - 10, width: 11, height: 11, rx: 3, class: "kc-c" + (i % 6)}));
+      svg.appendChild(el("rect", {x: lx, y: ly - 10, width: 11, height: 11, rx: 3, class: "kc-c" + col(i)}));
       svg.appendChild(el("text", {x: lx + 17, y: ly, class: "kc-label"}, spec.labels[i]));
       svg.appendChild(el("text", {x: W, y: ly, "text-anchor": "end", class: "kc-val"}, num(val, unit, 2)));
     });
