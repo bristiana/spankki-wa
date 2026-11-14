@@ -136,4 +136,6 @@ def pick(e: Engine, who: str, force: bool = False) -> dict | None:
     sent = e.state.get("sent", {}).get(who, {})
     if not force and e.today.isoformat() in sent.values():
         return None
-    return next((s for s in signals(e) if cooled(sent, s["dedup_key"], e.today)), None)
+    no_checkin = (e.state.get("onboarding", {}).get(who) or {}).get("answers", {}).get("weekly_checkin") is False
+    return next((s for s in signals(e) if cooled(sent, s["dedup_key"], e.today)
+                 and not (no_checkin and s["type"] == "WEEKLY_CHECK_IN")), None)

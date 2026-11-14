@@ -363,6 +363,48 @@ class Engine:
                       "- a buffer for irregular costs (your average health, home & tech and travel spend)",
         }
 
+    def afford(self, amount: float, what: str = "") -> dict:
+        """'Can I afford it?': a purchase against this month's flexible budget and safe to spend. Informs, never decides."""
+        if not 0 < amount <= 1_000_000:
+            raise ValueError("amount must be between 0 and 1,000,000 EUR")
+        safe = self.safe_to_spend()
+        days = max(1, safe["next_payday"]["days_away"])
+        cats = BASKETS["everyday"]["categories"]
+        budget = sum(self.monthly_avg(c, 3) for c in cats)
+        s = self._slice(month_start(self.today), self.today)
+        spent = -s[(s["tx_amount_eur"] < 0) & s["category"].isin(cats)]["tx_amount_eur"].sum()
+        # The "slips through your fingers" bills: subscriptions charging before payday.
+        subs = sum(x["price_eur"] for x in self.subscriptions()["subscriptions"]
+                   if x["status"] == "active" and x["days_to_next"] < days)
+        left = budget - spent - subs
+        safe_left = safe["safe_to_spend_until_payday_eur"]
+        goals = []
+        for g in self.goals():
+            if g["left_to_save_eur"] <= 0 or not g["options"]:
+                continue
+            pace = g.get("needed_per_month_for_deadline_eur") or g["options"][0]["monthly_eur"]
+            goals.append({"name": g["goal"]["name"], "monthly_pace_eur": eur(pace),
+                          "pushes_back_days": max(1, round(amount / pace * 30.4))})
+        return {
+            "item": what.strip()[:60] or None,
+            "price_eur": eur(amount),
+            "fits": bool(amount <= left and amount <= safe_left),
+            "fits_flexible_budget": bool(amount <= left),
+            "fits_safe_to_spend": bool(amount <= safe_left),
+            "flexible_budget_per_month_eur": eur(budget),
+            "spent_this_month_eur": eur(spent),
+            "subscriptions_before_payday_eur": eur(subs),
+            "flexible_left_this_month_eur": eur(left),
+            "flexible_left_after_eur": eur(left - amount),
+            "safe_to_spend_until_payday_eur": eur(safe_left),
+            "safe_left_after_eur": eur(safe_left - amount),
+            "days_to_payday": days,
+            "per_day_after_eur": eur(max(0.0, safe_left - amount) / days),
+            "goals": goals,
+            "method": "flexible budget = your average monthly 'slips through your fingers' spending (last 3 months) "
+                      "- spent on it this month - subscriptions due before payday; safe to spend as in get_safe_to_spend",
+        }
+
     def simulate_cut(self, category: str, cut_pct: float, fund_id: str | None = None, years: int = 5) -> dict:
         if category not in SPEND_CATEGORIES:
             raise ValueError(f"unknown category {category!r}")

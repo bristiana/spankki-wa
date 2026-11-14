@@ -161,3 +161,19 @@ def test_web_session_gets_inbox_message(client, monkeypatch):
     assert r[0]["via"] == "inbox"
     assert "rent of 771.82 €" in client.get("/api/inbox?session=s1").json()["messages"][0]
     assert client.sent == []
+
+
+def test_weekly_checkin_respects_onboarding_no(tmp_path):
+    from datetime import date
+    from app import rules
+    from app.engine import Engine
+    e = Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json")
+    who = "40700000001"
+    e.state.setdefault("onboarding", {})[who] = {"step": "done", "paused": False, "skipped": [],
+                                                 "answers": {"weekly_checkin": False}}
+    for _ in range(10):
+        s = rules.pick(e, who, force=True)
+        if s is None:
+            break
+        assert s["type"] != "WEEKLY_CHECK_IN"
+        e.state.setdefault("sent", {}).setdefault(who, {})[s["dedup_key"]] = e.today.isoformat()
