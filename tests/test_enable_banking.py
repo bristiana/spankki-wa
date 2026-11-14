@@ -181,3 +181,14 @@ def test_new_number_lands_in_the_demo(monkeypatch):
     main.handle_message({"from": "40700000002", "name": "Jury", "id": "m2", "text": "Hi"})
     assert calls == [("welcome", "40700000002")] and main.connected("40700000002")
     main.engine.state["connected"].pop("40700000002", None)
+
+
+def test_demo_login_for_the_jury():
+    from fastapi.testclient import TestClient
+    c = TestClient(main.app)
+    assert "Use the demo account" in c.get("/login").text
+    r = c.get("/login", params={"demo": 1, "next": "/chat"}, follow_redirects=False)
+    assert r.headers["location"] == "/chat" and "birky_demo=1" in r.headers["set-cookie"]
+    c.cookies.set("birky_demo", "1")
+    assert c.get("/bank", follow_redirects=False).headers["location"] == "/connect/bank?demo=1"
+    assert ">Demo</a>" in c.get("/chat").text

@@ -200,7 +200,9 @@ def fi_money(x: float) -> str:
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
 templates.env.filters["fimoney"] = fi_money
-templates.env.globals["wa_login"] = lambda request: enable_banking.mask(wa_phone(request))
+DEMO_COOKIE = "birky_demo"
+templates.env.globals["wa_login"] = lambda request: (enable_banking.mask(wa_phone(request))
+                                                     or ("Demo" if request.cookies.get(DEMO_COOKIE) else ""))
 
 
 def connected(phone: str) -> bool:
@@ -692,6 +694,11 @@ def login(request: Request, next: str = "/app"):
     """Login with WhatsApp: ?t= comes from the link Birky sends when you write "login"; without it, the way there."""
     nxt = next if next.startswith("/") and not next.startswith("//") else "/app"
     t = request.query_params.get("t")
+    if request.query_params.get("demo"):  # the jury: the demo account, no WhatsApp needed
+        r = RedirectResponse(nxt, status_code=303)
+        r.set_cookie(DEMO_COOKIE, "1", max_age=enable_banking.LINK_DAYS * 86400, httponly=True, secure=True,
+                     samesite="lax")
+        return r
     if t and enable_banking.verify(t):
         r = RedirectResponse(nxt, status_code=303)
         _set_login(r, t)
@@ -732,12 +739,15 @@ def terms(request: Request):
 def logout():
     r = RedirectResponse("/", status_code=303)
     r.delete_cookie(enable_banking.COOKIE)
+    r.delete_cookie(DEMO_COOKIE)
     return r
 
 
 @app.get("/bank", response_class=HTMLResponse)
 def real_bank_page(request: Request):
     phone = wa_phone(request)
+    if not phone and request.cookies.get(DEMO_COOKIE):  # the demo account links the synthetic Demo Bank
+        return RedirectResponse("/connect/bank?demo=1", status_code=303)
     if not phone:
         return RedirectResponse("/login?next=/bank", status_code=303)
     if not enable_banking.configured():
