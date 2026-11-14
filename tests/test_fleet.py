@@ -116,7 +116,8 @@ def test_negative_balance_is_never_shown_as_spendable(tmp_path):
     assert e.balance() < 0
     out = run_all(e)
     s = out["safe_to_spend"]
-    assert s["safe_to_spend_until_payday_eur"] < 0 and s["safe_per_day_eur"] == 0 and s["safe_this_week_eur"] == 0
+    assert s["safe_to_spend_until_payday_eur"] == 0 and s["safe_per_day_eur"] == 0 and s["safe_this_week_eur"] == 0
+    assert s["overdrawn"] and s["status"] == "overdrawn" and s["short_by_eur"] > 0  # never a negative "safe"
     assert out["safe_to_save"]["now_max_eur"] == 0
     assert not out["afford"]["fits"]
     assert out["home_readiness"]["deposit"]["covered_pct"] == 0
