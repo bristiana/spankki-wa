@@ -53,7 +53,8 @@ working on sample data now and on Bogdan's and Christiana's APIs as soon as they
 **Files:**
 - Create:
   - `app/static/fixtures/spend.json`, `budget.json`, `compare.json` and `recurring.json`: Antti-like sample values
-    with `"fixture": true`;
+    with `"fixture": true`. `recurring.json` is a
+    real `Engine.commitments()` output for Antti, saved as JSON;
   - `app/static/oiva/data.js`;
   - `tests/contracts.py` (shape checkers, reusable on the live API);
   - `tests/test_sm_contracts.py`.
@@ -239,19 +240,24 @@ working on sample data now and on Bogdan's and Christiana's APIs as soon as they
 **Files:**
 - Modify: `screens.js` (`renderBills`) and `screens.css`.
 
-**What the screen shows:**
-- **A month calendar strip** with dots on the bills' days.
-- **A list:** name, typical amount, next date, and a flag chip ("Price up 20 %" or "Unusual"). Subscriptions are
-  labelled "Simulated".
+**What the screen shows,** from `Engine.commitments()` (Cristiana's #64):
+- **A header:** bills per month, and outgoing per month against income.
+- **A row per regular payment:** name, the monthly amount, and either "next {date}" or the `note` for utilities.
+- **Chips:**
+  - the trend's own `direction` text when it isn't "about the same";
+  - "Unusual bill" when `unusual_bill` is set;
+  - a "Stopped" or "Paused" chip from `status`.
+- **A footer line:** "We checked your card payments: no subscriptions found" when `subscriptions_found` is false.
 
 - [ ] **Step 1: Write the failing check.** Playwright:
-  - the price-up chip shows for the fixture's utility;
-  - a subscription row shows "Simulated";
-  - an empty `bills` list shows "No recurring bills found".
+  - a row shows for each fixture regular payment (rent, utilities, investing, salary);
+  - the utilities row shows its `note` rather than a date;
+  - with `unusual_bill` set through interception, an "Unusual bill" chip shows;
+  - the no-subscriptions line shows.
 - [ ] **Step 2: Run it.** Expected: FAIL.
 - [ ] **Step 3: Write `renderBills`.**
 - [ ] **Step 4: Run the check.** Expected: PASS.
-- [ ] **Step 5: Commit** `feat(s-mobiili): Bills screen`.
+- [ ] **Step 5: Commit** `feat(s-mobiili): Bills screen from Engine.commitments()`.
 
 ### Task 8: Talk to Oiva — the call view
 

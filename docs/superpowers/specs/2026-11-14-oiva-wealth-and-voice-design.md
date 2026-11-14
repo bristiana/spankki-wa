@@ -61,6 +61,7 @@ character you have a conversation with, like Meta's friendly AI companion, who t
 | Recurring payments in the data | Rent, salary and monthly investing: one a month. Utilities: about 3 a month, 20–75 €, no merchant name |
 | Statistics Finland | Table 14q4 (by age) is already used. 14q7 has urban vs rural. **Nothing by city** |
 | Default demo customer | **Antti, 38** (#71), so cohort 35–44 in his city |
+| Recurring payments | `Engine.commitments()` (#64) already finds them from the real data |
 | S-mobiili mock | **`/s-mobiili/`** (`app/templates/smobiili.html`, #69). Build there; `/mobile-demo` is the older page |
 
 ## Approaches for voice (decided: A)
@@ -130,13 +131,17 @@ to the age band across all three cities, and say so.
 
 ### 4. Recurring bills
 
-- **What's detected:** rent, salary and monthly investing, as the engine does today. Plus **utilities**: group
-  `utilities_payment` rows by day of month (within ±3 days, in at least 4 of 6 months) into bills named by their
-  day, like "Utility bill, around the 12th". Typical amount = the median.
-- **Flags:** "price up" when the last 2 payments are more than 10 % above the earlier median; "unusual" when one is
-  more than 1.5 × typical. These reuse the engine's existing `unusual_bill`.
-- **Next expected date** for each bill. A monthly calendar strip on the Spend screen.
-- **Subscriptions** stay the demo's simulated ones, marked `simulated: true` and labelled on screen.
+**Already built by Cristiana in #64:** `Engine.commitments()` finds, in each customer's own data:
+- rent;
+- utilities (about 3 bills a month with no merchant name, treated as one monthly total with the usual range of one
+  bill);
+- the monthly investment deposit;
+- salary.
+
+For each it gives the monthly and yearly cost, the usual day, the next expected date, the status, a trend (the last
+3 months against the 3 before, counted only beyond the usual swing) and unusual bills. The made-up subscriptions are
+gone; the card-subscription check finds none. **The Bills screen shows exactly this**, in Cristiana's wording, and
+`/api/recurring` returns `Engine.commitments()` unchanged.
 
 ### 5. Talking to Oiva (voice, in S-mobiili)
 
@@ -270,14 +275,12 @@ these examples are made up; only the field names and shapes are the contract.** 
 The `id` values are `income`, `rent_share`, `savings_rate`, `restaurants`, `shopping` and `buffer_months`. The
 `unit` values are `eur`, `pct` and `months`.
 
-`GET /api/recurring`
-```json
-{"bills": [{"id": "utility-12", "name": "Utility bill, around the 12th", "kind": "utility", "simulated": false,
-            "typical_day": 12, "typical_eur": 41.00, "last_eur": 49.06, "change_pct": 20,
-            "next_date": "2026-10-12", "flag": "price_up"}]}
-```
-The `kind` values are `rent`, `utility`, `salary`, `investment` and `subscription`. The `flag` values are `null`,
-`price_up` and `unusual`.
+`GET /api/recurring` returns `Engine.commitments()` unchanged:
+- `regular_payments` is a list of `{id, name, what, direction, status, basket, per_month_eur, per_year_eur,
+  usual_day, next_expected, days_to_next, last_payment, trend: {direction, change_pct, …}, actions, note?,
+  unusual_bill?}`;
+- plus `outgoing_per_month_eur`, `bills_per_month_eur`, `income_per_month_eur`, `subscriptions_found` and
+  `card_subscriptions`.
 
 **Voice:**
 - **`POST /api/voice/session {"as": "<persona id>"}`** returns `{"agent_id", "conversation_token" (or "signed_url"),
@@ -302,6 +305,7 @@ To avoid merge conflicts, each person mostly touches only their own files. `app/
 
 - **Bogdan:**
   - `scripts/build_cohorts.py` and `data/cohorts.json`;
+  - `/api/recurring`, which returns `Engine.commitments()`;
   - `app/insights.py` and `app/insights_api.py`;
   - the tool wrappers in `app/tools.py`;
   - tests in `tests/test_insights.py`;
