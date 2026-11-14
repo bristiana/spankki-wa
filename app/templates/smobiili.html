@@ -111,6 +111,12 @@
   .ok{width:76px;height:76px;border-radius:50%;background:var(--card);color:var(--brand);display:grid;place-items:center;font-size:38px;margin:24px auto 12px;
       box-shadow:0 1px 2px rgba(0,40,20,.08)}
   .failed .ok{background:var(--warn-bg);color:var(--warn)}
+  .btn.talk{margin:0 0 12px;justify-content:flex-start;padding:8px 18px 8px 10px}
+  .btn.talk img{width:38px;height:38px;border-radius:50%;background:#fff6e8}
+  .oiva-tiles{padding:4px 16px}
+  .oiva-tiles .tile{padding:12px 0;border-top:1px solid var(--line);min-height:56px}.oiva-tiles .tile:first-child{border-top:0}
+  .oiva-tiles .tile img{width:40px;height:40px;border-radius:50%;background:var(--soft);flex:none}
+  .oiva-tiles .t{font-size:17px}
   [hidden]{display:none!important}
   /* Face ID, simulated: no camera, just the moment */
   .fid{position:absolute;inset:0;z-index:30;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
@@ -181,12 +187,23 @@
       <span class="t">Investments <small>· Sijoitukset</small></span>
       <span class="sub">Funds paid in <span>{{ a.funds|money }}</span></span>
       {% for pl in a.plans %}<span class="sub"><span>Monthly plan: {{ pl.amount|money }} into {{ pl.name }}</span></span>{% endfor %}</div>{{ icon("chevron", "i chev") }}</section>
+{% set q = home_url[11:] %}
+    <h2>Your money with Oiva <span class="fi">· Oiva</span></h2>
+    <button class="btn talk" type="button" id="talk-oiva"><img src="/static/oiva/idle.svg" alt="" width="34" height="34">Talk to Oiva</button>
+    <section class="card oiva-tiles">
+      <a class="tile" id="tile-spend" href="/s-mobiili/spend{{ q }}"><img src="/static/oiva/safe_to_spend.svg" alt=""><div><span class="t">Spending <small>· Kulutus</small></span><span class="sub">This month, by category</span></div>{{ icon("chevron", "i chev") }}</a>
+      <a class="tile" id="tile-budget" href="/s-mobiili/budget{{ q }}"><img src="/static/oiva/saving.svg" alt=""><div><span class="t">Budget <small>· Budjetti</small></span><span class="sub">Set it yourself or like people near you</span></div>{{ icon("chevron", "i chev") }}</a>
+      <a class="tile" id="tile-compare" href="/s-mobiili/compare{{ q }}"><img src="/static/oiva/teaching.svg" alt=""><div><span class="t">People like me <small>· Vertailu</small></span><span class="sub">Your age, your city</span></div>{{ icon("chevron", "i chev") }}</a>
+      <a class="tile" id="tile-bills" href="/s-mobiili/bills{{ q }}"><img src="/static/oiva/caution.svg" alt=""><div><span class="t">Bills <small>· Laskut</small></span><span class="sub">Rent, utilities and other regular payments</span></div>{{ icon("chevron", "i chev") }}</a>
+    </section>
     <h2>Recent <span class="fi">· Tapahtumat</span></h2>
     <section class="card tx" id="recent">
       {% for t in recent %}<div class="row"><span>{{ t.what }}<small>{{ t.date }}{% if t.basket %} · {{ t.basket }}{% endif %}</small></span>
         <b class="{{ 'pos' if t.amount_eur > 0 else '' }}">{{ t.amount_eur|money }}</b></div>
       {% else %}<p class="muted">No transactions yet.</p>{% endfor %}
     </section>
+  {% elif screen != "flow" %}
+    <div id="oiva-screen" data-screen="{{ screen }}" aria-live="polite"><p class="muted">Loading…</p></div>
   {% else %}
     {% if f.first_pocket and not done %}
     <section id="step-pocket" class="card center">
@@ -221,7 +238,7 @@
     </section>
   {% endif %}
   </main>
-  {% if screen == "home" %}
+  {% if screen != "flow" %}
   <nav class="tabs" aria-label="Concept tabs (not working)">
     <a href="{{ home_url }}">{{ icon("home") }}Home</a>
     <a href="{{ home_url }}">{{ icon("card") }}Bonus card</a>
@@ -245,9 +262,13 @@
   {% endif %}
 </div>
 <script type="application/json" id="guide-steps">{{ steps|tojson }}</script>
-{% if screen != "home" %}<script type="application/json" id="pocket-steps">{{ pocket_steps|tojson }}</script>
+{% if screen == "flow" %}<script type="application/json" id="pocket-steps">{{ pocket_steps|tojson }}</script>
 <script type="application/json" id="flow">{{ {"route": route, "pid": pid, "cheer": f.cheer, "back": "WhatsApp" if wa else "the chat", "done": done}|tojson }}</script>{% endif %}
 <script src="/static/birky/guide.js"></script>
+{% if screen != "flow" %}<script src="/static/kchart.js"></script>
+<script src="/static/oiva/data.js"></script>
+<script src="/static/oiva/screens.js"></script>
+{% if screen != "home" %}<script>OivaScreens.render({{ screen|tojson }}, document.getElementById("oiva-screen"));</script>{% endif %}{% endif %}
 <script>
 (() => {
   const $ = id => document.getElementById(id), json = id => $(id) ? JSON.parse($(id).textContent) : null;
