@@ -35,7 +35,7 @@ def e(tmp_path):
     ("simulate_cut", {"category": "Restaurants", "cut_pct": 20, "years": 5},
      ["× 365", "3.19 € a day", "97.18 € a month", "1 166.16 € a year"]),
     ("get_spender_profile", {}, ["38%", "change today"]),
-    ("get_subscriptions", {}, ["4 small charges", "858.55 € a year"]),
+    ("get_regular_payments", {}, ["basket 1 on autopilot", "894.47 € a month", "10 733.64 € a year"]),
 ])
 def test_tool_results_carry_a_lesson_with_their_own_numbers(e, tool, args, expect):
     out = run_tool(e, tool, args, [])

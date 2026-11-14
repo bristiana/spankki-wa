@@ -1,4 +1,4 @@
-"""Subscriptions, savings goals, portfolio, alerts and the new confirm pages."""
+"""Pausing monthly investing, savings goals, portfolio, alerts and the new confirm pages."""
 from datetime import date
 
 import pytest
@@ -14,24 +14,17 @@ def e(tmp_path):
     return Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json")
 
 
-def test_subscriptions_status_and_price_increase(e):
-    subs = {s["name"]: s for s in e.subscriptions()["subscriptions"]}
-    assert subs["StreamPlus"]["status"] == "active" and subs["StreamPlus"]["next_charge"] == "2026-10-07"
-    assert subs["StreamPlus"]["price_increase"] == {"from_eur": 11.99, "to_eur": 13.99, "since": "2026-08-07"}
-    assert subs["CloudDrive"]["status"] == "inactive" and subs["GamePass Plus"]["status"] == "inactive"
-    assert subs["LinguaPro"]["cadence"] == "yearly" and subs["LinguaPro"]["per_month_eur"] == round(79.99 / 12, 2)
-    assert e.subscriptions()["active_count"] == 4
-
-
-def test_stop_subscription(e):
+def test_pause_investing(e):
     before = e.balance()
-    p = e.create_stop_subscription("streamplus")
+    assert any(b["name"] == "Monthly investment" for b in e.upcoming_bills(14))
+    p = e.create_pause_investing()
     e.confirm(p["pending_id"])
-    subs = {s["name"]: s for s in e.subscriptions()["subscriptions"]}
-    assert subs["StreamPlus"]["status"] == "stopped_by_you"
-    assert e.balance() == before
+    inv = next(x for x in e.commitments()["regular_payments"] if x["id"] == "investing")
+    assert inv["status"] == "paused_by_you" and inv["paused_since"] == "2026-10-06" and inv["next_expected"] is None
+    assert e.balance() == before  # pausing moves no money
+    assert not any(b["name"] == "Monthly investment" for b in e.upcoming_bills(45))
     with pytest.raises(ValueError):
-        e.create_stop_subscription("CloudDrive")  # already inactive
+        e.create_pause_investing()  # already paused
 
 
 def test_goal_and_saving(e):
@@ -57,7 +50,8 @@ def test_portfolio_matches_data(e):
 def test_alerts(e):
     u = e.alert("unusual")
     assert u["found"] and u["times_usual"] >= 1.5
-    assert e.alert("renewal")["name"] == "StreamPlus"
+    b = e.alert("bills")  # the 75 € utility bill on 28 Aug is above the usual range
+    assert b["found"] and b["type"] == "unusual_bill" and b["unusual_bill"]["amount_eur"] == 75.0
     assert e.alert("salary")["salary_eur"] > 0
 
 
@@ -80,10 +74,14 @@ def client(tmp_path, monkeypatch):
 
 
 def test_stop_and_save_pages(client):
-    p = main.engine.create_stop_subscription("StreamPlus")
-    assert "Stop recurring card payment" in client.get(f"/stop/{p['pending_id']}").text
+    p = main.engine.create_pause_investing()
+    page = client.get(f"/stop/{p['pending_id']}").text
+    assert "Pause monthly investing" in page and "Stays invested" in page
+    assert client.post(f"/stop/{p['pending_id']}", data={"pin": "12"}, follow_redirects=False).status_code == 303
+    assert main.engine.state["paused"] == {}  # a wrong PIN pauses nothing
     r = client.post(f"/stop/{p['pending_id']}", data={"pin": "1234"})
-    assert "Payment stopped" in r.text
+    assert "Investing paused" in r.text and "Sun 18 Oct" in r.text
+    assert main.engine.state["paused"] == {"investment_deposit": "2026-10-06"}
     main.engine.create_goal("Laptop", 900)
     s = main.engine.create_saving("laptop", 50)
     assert "Move to savings" in client.get(f"/save/{s['pending_id']}").text
@@ -91,7 +89,7 @@ def test_stop_and_save_pages(client):
 
 
 def test_demo_alerts_send_buttons(client):
-    for kind in ("salary", "unusual", "renewal"):
+    for kind in ("salary", "unusual", "bills"):
         r = client.post("/demo/alert", params={"kind": kind, "to": "40700000000"})
         assert r.json()["sent"], kind
         assert client.sent[-1]["interactive"]["type"] == "button"

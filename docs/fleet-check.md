@@ -3,9 +3,11 @@
 The demo runs on one persona (CUST04831). `scripts/fleet_check.py` runs the same engine on every customer in the
 challenge dataset (3,626,755 transactions), on the demo date 2026-10-06, and calls every read-only method the tools
 and the dashboard use: spending (all, by category, by merchant type), baskets, upcoming bills, next payday, safe to
-spend, safe to save, can I afford, simulate cut, spender profile, subscriptions, monthly flow, full picture,
-portfolio, first-home readiness, salary nudge, unusual-spend alert and the whole dashboard overview. `explore` is
-called too once it exists. Each engine gets a throwaway state file; the run checks that none was written.
+spend, safe to save, can I afford, simulate cut, spender profile, regular payments and the bill alert, monthly flow,
+full picture, portfolio, first-home readiness, salary nudge, unusual-spend alert and the whole dashboard overview.
+`explore` is called too once it exists. Each engine gets a throwaway state file; the run checks that none was written.
+The tables below are the full 5,100-customer run; the regular-payments figures further down are from a 500-customer
+sample (`--sample 500 --jobs 6`: 0 exceptions, 0 impossible numbers).
 
 ```
 python scripts/fleet_check.py --data-dir <dataset> [--sample N] [--jobs 6]
@@ -107,8 +109,10 @@ All 5,100 customers, before and after (€):
 - **The reserve is not checked against an emergency fund.** Safe to save offers the whole reserve as movable to
   savings or investing (still PIN-confirmed, the person decides) and says that money needed soon usually stays in
   savings; it does not compute an emergency-fund size.
-- **Only read-only calls are checked across the fleet.** Payments, savings, goals and subscription stops are covered by
-  the existing tests on the persona and the new synthetic tests, not run per customer.
-- **Subscriptions are the demo's synthetic ones for every customer** (the dataset has none), so that part of each
-  result is the same for all.
+- **Only read-only calls are checked across the fleet.** Payments, savings, goals and pausing the monthly investing are
+  covered by the tests on the persona and on synthetic frames, not run per customer.
+- **Regular payments come from each customer's own rows** (`commitments`, `alert_bills`). On a 500-customer sample
+  (seed 7): rent found for 479 (460 active, 19 stopped), utility bills for 484, monthly investing for 154, salary for
+  498; 0 card subscriptions (no merchant charges the same amount every month), 0 customers whose utility bills land
+  on fixed days, utilities that really went up for 10 and one utility bill well above the usual range for 60.
 - **Peers exist only for ages 20-29.** Everyone else gets no peer comparison until the benchmark is built per age band.

@@ -134,13 +134,14 @@
     </div>
 
     <div class="card">
-      <div class="k">Subscriptions</div>
-      <div class="big" style="font-size:24px">{{ money(o.subs.active_per_month_eur) }}<span class="muted" style="font-size:15px"> a month · {{ money(o.subs.active_per_year_eur) }} a year</span></div>
-      {% for s in o.subs.subscriptions %}
-      <div class="row"><span class="l">{{ s.name }}<small>{{ s.what }}{% if s.price_increase %} · was {{ money(s.price_increase.from_eur) }}{% endif %}</small></span>
-        <span>{% if s.status == 'active' %}{% if s.price_increase %}<span class="pill warn">price up</span> {% endif %}{{ money(s.price_eur) }}{% elif s.status == 'inactive' %}<span class="pill off">inactive</span>{% else %}<span class="pill">stopped</span>{% endif %}</span></div>
+      <div class="k">Regular payments</div>
+      <div class="big" style="font-size:24px">{{ money(o.regular.outgoing_per_month_eur) }}<span class="muted" style="font-size:15px"> a month out · {{ money(o.regular.outgoing_per_year_eur) }} a year</span></div>
+      {% for s in o.regular.regular_payments %}
+      {% set up = s.trend and s.trend.direction == 'up' %}
+      <div class="row"><span class="l">{{ s.name }}<small>{% if s.id == 'utilities' %}about {{ s.bills_per_month|round|int }} a month{% if s.unusual_bill %} · {{ money(s.unusual_bill.amount_eur) }} on {{ nice(s.unusual_bill.date) }}, usually up to {{ money(s.unusual_bill.usual_high_eur) }}{% endif %}{% elif s.next_expected %}next {{ nice(s.next_expected) }}{% else %}{{ s.what }}{% endif %}{% if up %} · was {{ money(s.trend.previous_per_month_eur) }}{% endif %}</small></span>
+        <span>{% if s.status == 'active' %}{% if up %}<span class="pill warn">went up</span> {% elif s.unusual_bill %}<span class="pill warn">big bill</span> {% endif %}{{ '+' if s.direction == 'in' else '' }}{{ money(s.per_month_eur) }}{% elif s.status == 'stopped' %}<span class="pill off">stopped</span>{% else %}<span class="pill">paused</span>{% endif %}</span></div>
       {% endfor %}
-      <div class="src">Demo subscriptions: the S-Pankki dataset has none.</div>
+      <div class="src">{% if not o.regular.subscriptions_found %}No subscriptions in your account. {% endif %}Found in your S-Pankki transactions; per month, last 3 months.</div>
     </div>
     <div class="card">
       <div class="k">You vs Finland</div>

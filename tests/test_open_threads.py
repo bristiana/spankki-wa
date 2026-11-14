@@ -65,7 +65,7 @@ def test_thread_comes_back_once(e):
 
 def test_thread_priority_sits_after_urgent_before_drift(e):
     p = rules.PRIORITY
-    assert p["SUBSCRIPTION_PRICE_INCREASE"] < p["OPEN_THREAD"] < p["GOAL_DRIFT"] < p["WEEKLY_CHECK_IN"]
+    assert p["RECURRING_CHARGE_UPCOMING"] < p["BILL_INCREASE"] < p["OPEN_THREAD"] < p["GOAL_DRIFT"] < p["WEEKLY_CHECK_IN"]
     learn.start(e, "u")
     kinds = [s["type"] for s in rules.signals(quiet(e, "u", 20), "u")]
     assert kinds.index("OPEN_THREAD") > kinds.index("RECURRING_CHARGE_UPCOMING")  # rent tomorrow comes first

@@ -8,7 +8,7 @@
     {% if open %}<div class="note" style="background:var(--soft);color:var(--brand)">✅ WhatsApp window open: the buttons below reach the phone.</div>
     {% else %}<div class="note">⚠️ Write "Hi" to the bot from the phone first. WhatsApp only delivers these within 24 hours of your last message. Reload this page after.</div>{% endif %}
     <p><button class="btn" data-u="/demo/remind">⏰ Rent reminder + pay</button></p>
-    <p><button class="btn" data-u="/demo/alert?kind=renewal">🔁 Subscription renewal</button></p>
+    <p><button class="btn" data-u="/demo/alert?kind=bills">🧾 Bill alert (a bill that went up, or the next one due)</button></p>
     <p><button class="btn" data-u="/demo/alert?kind=salary">💰 Salary landed + save</button></p>
     <p><button class="btn" data-u="/demo/alert?kind=unusual">👀 Unusual spend</button></p>
     {% set wake = "/cron/wake?force=1&key=" ~ (key|urlencode) ~ "&to=" ~ (phone|urlencode) %}

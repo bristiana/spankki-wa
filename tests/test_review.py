@@ -106,13 +106,20 @@ def test_wrong_pin_keeps_web_flag(client):
     assert r.headers["location"] == f"/pay/{pid}?err=1&web=1"
 
 
-def test_renewal_alert_after_all_subscriptions_stopped(client):
-    for s in main.engine.subscriptions()["subscriptions"]:
-        if s["status"] == "active":
-            main.engine.confirm(main.engine.create_stop_subscription(s["name"])["pending_id"])
-    assert client.post("/demo/alert", params={"kind": "renewal", "to": "1"}).json() == {"sent": False,
-                                                                                       "reason": "nothing to say"}
-    assert client.post("/api/chat", json={"text": "__alert__:renewal"}).status_code == 200
+def test_bill_alert_with_nothing_to_say(client, monkeypatch):
+    monkeypatch.setattr(main.engine, "commitments", lambda: {"regular_payments": []})
+    assert client.post("/demo/alert", params={"kind": "bills", "to": "1"}).json() == {"sent": False,
+                                                                                     "reason": "nothing to say"}
+    r = client.post("/api/chat", json={"text": "__alert__:bills"})
+    assert r.status_code == 200 and r.json()["text"] == "Nothing to flag right now."
+    assert client.post("/api/chat", json={"text": "__alert__:renewal"}).status_code == 400  # no renewals any more
+
+
+def test_bill_alert_is_the_real_utility_bill(client):
+    r = client.post("/api/chat", json={"text": "__alert__:bills"}).json()
+    assert "75.00 €" in r["text"] and "19.94 €" in r["text"] and "60.09 €" in r["text"]
+    assert [q["send"] for q in r["quick"]] == ["__btn__:ask:bills", "__btn__:later:bills"]
+    assert client.post("/api/chat", json={"text": "__btn__:later:bills"}).json()["text"].startswith("Okay")
 
 
 def test_unknown_alert_kind_is_400(client):

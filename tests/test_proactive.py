@@ -24,27 +24,36 @@ def test_signals_sorted_by_priority(tmp_path):
     e.state["goals"]["lapland"]["created"] = "2026-08-06"  # two months in, nothing saved: behind plan
     sigs = rules.signals(e)
     kinds = [s["type"] for s in sigs]
-    assert kinds == ["RECURRING_CHARGE_UPCOMING", "RECURRING_CHARGE_UPCOMING", "GOAL_DRIFT",
-                     "SALARY_RECEIVED", "WEEKLY_CHECK_IN"]
-    assert sigs[0]["dedup_key"] == "due:housing_payment-2026-10-07"  # rent before the 13.99 € renewal
-    drift = sigs[2]["data"]
+    assert kinds == ["RECURRING_CHARGE_UPCOMING", "GOAL_DRIFT", "SALARY_RECEIVED", "WEEKLY_CHECK_IN"]
+    assert sigs[0]["dedup_key"] == "due:housing_payment-2026-10-07"  # rent, from the real data
+    drift = sigs[1]["data"]
     assert drift["saved_eur"] == 0 and drift["behind_eur"] > 300 and drift["catch_up_eur"] >= drift["behind_eur"]
-    assert sigs[3]["data"]["salary_eur"] > 0 and sigs[3]["dedup_key"] == "salary:2026-10"
+    assert sigs[2]["data"]["salary_eur"] > 0 and sigs[2]["dedup_key"] == "salary:2026-10"
 
 
-def test_unusual_and_price_rise_on_their_days(tmp_path):
+def test_unusual_and_bill_increase_on_their_days(tmp_path):
     top = rules.pick(engine(tmp_path, date(2026, 9, 28)), PHONE)
     assert top["type"] == "UNUSUAL_TRANSACTION" and top["data"]["amount_eur"] == 117.32
     assert rules.pick(engine(tmp_path, date(2026, 10, 6)), PHONE)["type"] != "UNUSUAL_TRANSACTION"  # 10 days old
-    top = rules.pick(engine(tmp_path, date(2026, 8, 10)), PHONE)
-    assert top["type"] == "SUBSCRIPTION_PRICE_INCREASE" and top["data"]["extra_per_year_eur"] == 24.0
+    top = rules.pick(engine(tmp_path, date(2026, 8, 30)), PHONE)  # the real 75 € utility bill of 28 Aug
+    assert top["type"] == "BILL_INCREASE" and top["dedup_key"] == "bill:utilities:2026-08-28:75.0"
+    assert top["data"]["unusual_bill"]["usual_high_eur"] < 75 and top["data"]["increase"] == "one_bill"
+    text, buttons = main.signal_message(top, "Aino")
+    assert "75.00 €" in text and "Fri 28 Aug" in text and [b for b, _ in buttons] == ["ask:bills", "later:bills"]
+
+
+def test_monthly_investing_the_day_before(tmp_path):
+    top = rules.pick(engine(tmp_path, date(2026, 10, 17)), PHONE)
+    assert top["type"] == "RECURRING_CHARGE_UPCOMING" and top["dedup_key"] == "due:investing:2026-10-18"
+    text, buttons = main.signal_message(top, "Aino")
+    assert "goes out tomorrow" in text and [b for b, _ in buttons] == ["keep:investing", "pause:investing"]
 
 
 def test_cooldown_and_one_a_day(tmp_path):
     e = engine(tmp_path)
     e.state["sent"] = {PHONE: {"due:housing_payment-2026-10-07": "2026-10-05"}}
-    assert rules.pick(e, PHONE)["dedup_key"] == "renewal:StreamPlus:2026-10-07"  # rent cooling down
-    e.state["sent"][PHONE]["renewal:StreamPlus:2026-10-07"] = "2026-10-06"
+    assert rules.pick(e, PHONE)["dedup_key"] == "checkin"  # rent cooling down; no subscription renewals any more
+    e.state["sent"][PHONE]["salary:2026-10"] = "2026-10-06"
     assert rules.pick(e, PHONE) is None  # already had one today
     assert rules.pick(e, PHONE, force=True)["type"] == "WEEKLY_CHECK_IN"
     assert rules.pick(e, "someone-else")["dedup_key"].startswith("due:")  # per person

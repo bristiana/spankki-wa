@@ -210,7 +210,7 @@ def test_rent_reminder_pay_and_confirmation(chat):
 
 
 # ---------------- AI replies with action buttons ----------------
-def test_invest_save_stop_from_the_coach(chat):
+def test_invest_save_pause_from_the_coach(chat):
     connected(chat)
 
     def script(e, text, buttons):
@@ -222,13 +222,11 @@ def test_invest_save_stop_from_the_coach(chat):
             g = e.create_goal("Lapland trip with friends", 1500, "2027-06-30")["goal"]
             run_tool(e, "create_saving_link", {"goal_id": g["id"], "amount_eur": 125}, buttons)
             return "Put 125 € aside now for your Lapland trip?"
-        for s in e.subscriptions()["subscriptions"]:
-            if s["status"] == "active":
-                run_tool(e, "create_stop_subscription_link", {"name": s["name"]}, buttons)
-        return "Here are your active subscriptions, each with a stop button."
+        run_tool(e, "create_pause_investing_link", {}, buttons)
+        return "Pause your monthly investing? Confirm with your PIN."
 
     main._coach.script = script
-    for question in ("I want to invest", "help me save", "stop my subscriptions"):
+    for question in ("I want to invest", "help me save", "pause the monthly deposits"):
         chat.say(question)
     urls = [i["action"]["parameters"]["url"] for i in chat.interactive("cta_url")]
     assert any("/invest/" in u for u in urls) and any("/save/" in u for u in urls) and any("/stop/" in u for u in urls)
@@ -236,7 +234,7 @@ def test_invest_save_stop_from_the_coach(chat):
         chat.confirm(u)
     done = chat.texts()
     assert any("Monthly saving started" in t for t in done) and any("*Invested*" in t for t in done)
-    assert any("stopped." in t for t in done) and any("*Saved" in t for t in done)
+    assert any("Monthly investing paused" in t for t in done) and any("*Saved" in t for t in done)
 
 
 def test_explore_chart_reply_is_a_link_button(chat):
@@ -313,7 +311,7 @@ def test_reply_with_two_buttons_and_a_failing_coach(chat):
 
 
 # ---------------- proactive ----------------
-@pytest.mark.parametrize("kind", ["salary", "unusual", "renewal"])
+@pytest.mark.parametrize("kind", ["salary", "unusual", "bills"])
 def test_each_demo_alert_and_its_buttons(chat, kind):
     connected(chat)
     r = chat.client.post("/demo/alert", params={"kind": kind, "to": chat.phone}).json()
@@ -333,7 +331,7 @@ def test_salary_alert_with_a_goal_and_a_long_name(chat):
     assert chat.buttons()[0][0].startswith("save:")
 
 
-@pytest.mark.parametrize("today", ["2026-10-06", "2026-10-15", "2026-10-17"])
+@pytest.mark.parametrize("today", ["2026-08-30", "2026-10-06", "2026-10-15", "2026-10-17"])
 def test_cron_wake_every_signal(chat, monkeypatch, today):
     monkeypatch.setenv("DEMO_PROACTIVE", "1")
     main.engine = Engine(today=date.fromisoformat(today), state_path=main.engine.state_path)
@@ -437,9 +435,8 @@ def test_hello_at_the_goal_question_is_not_a_goal(chat):
 def test_open_thread_comes_back_the_next_day_with_one_button(chat, monkeypatch):
     monkeypatch.setenv("DEMO_PROACTIVE", "1")
     connected(chat).say("learn").tap("learn:next:0", "Next lesson").say("stop")
-    # rent and a renewal were already flagged this week, so nothing more urgent is waiting today
-    main.engine.state["sent"] = {chat.phone: {"due:housing_payment-2026-10-07": "2026-10-01",
-                                              "renewal:StreamPlus:2026-10-07": "2026-10-01"}}
+    # rent was already flagged this week, so nothing more urgent is waiting today
+    main.engine.state["sent"] = {chat.phone: {"due:housing_payment-2026-10-07": "2026-10-01"}}
     ago = time.time() - 20 * 3600  # they went quiet yesterday, mid-course; WhatsApp's 24 hours are still open
     main.engine.state["wa_last"][chat.phone] = main.last_seen[chat.phone] = ago
     r = chat.client.post("/cron/wake", params={"key": "vt"}).json()["results"][0]
