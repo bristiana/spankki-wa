@@ -98,3 +98,27 @@ def test_old_web_pages_lead_to_s_mobiili(client, path):
     assert client.get(path, params={"lang": "en"}, follow_redirects=False).headers["location"] == "/s-mobiili/?lang=en"
     assert client.get(path).status_code == 200
     assert client.get("/app/explore.csv").status_code == 404
+
+
+def test_your_money_screen(client):
+    """Pankki -> Your money: the seven Oiva charts, on Antti's own figures, so the tile is on his account only."""
+    from pathlib import Path
+    pankki = client.get("/s-mobiili/?tab=pankki&persona=CUST01656&lang=en").text
+    assert 'id="your-money"' in pankki and "tab=raha" in pankki
+    assert 'id="your-money"' not in client.get("/s-mobiili/?tab=pankki&persona=CUST04831&lang=en").text
+    r = client.get("/s-mobiili/?tab=raha&persona=CUST01656&lang=en")
+    assert r.status_code == 200
+    for card in ("trend", "cats", "budget", "sit", "fig", "income", "cal"):
+        assert f'id="{card}"' in r.text
+    assert "/static/oiva/money.js" in r.text and "/static/oiva/money.css" in r.text
+    src = r.text.split('data-src="')[1].split('"')[0]
+    static = Path(main.__file__).parent / "static"
+    for name in ("spend", "budget", "compare", "recurring"):
+        assert (static / src.removeprefix("/static/") / f"{name}.json").is_file()
+        assert client.get(f"{src}{name}.json").status_code == 200
+
+
+def test_your_money_is_only_for_its_own_customer(client):
+    """Another customer asking for ?tab=raha gets Pankki, never Antti's figures."""
+    r = client.get("/s-mobiili/?tab=raha&persona=CUST04831&lang=en")
+    assert r.status_code == 200 and 'id="money"' not in r.text and "money.js" not in r.text

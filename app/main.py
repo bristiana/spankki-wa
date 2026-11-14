@@ -1297,7 +1297,12 @@ def sm_ctx(request: Request, persona: str, **extra) -> dict:
 
 
 # The real app's bottom bar: Koti · S-Etukortti · (+) Maksu · Pankki · Minä. "kortti" is the card page under Pankki.
-SM_TABS = ("koti", "etukortti", "pankki", "mina", "kortti")
+SM_TABS = ("koti", "etukortti", "pankki", "mina", "kortti", "raha")
+# "raha" (Pankki -> Your money): the seven Oiva charts, drawn from app/static/mockups/charts/data (built by
+# scripts/build_chart_mockup_fixtures.py). Those figures are one customer's own (the one their "source" names), so
+# the tile shows on that account only.
+MONEY_DATA = Path(__file__).parent / "static/mockups/charts/data"
+MONEY_PERSONA = next(iter(re.findall(r"CUST\d{5}", json.loads((MONEY_DATA / "spend.json").read_text())["source"])), None)
 FI_MONTH_FROM = ("tammikuulta", "helmikuulta", "maaliskuulta", "huhtikuulta", "toukokuulta", "kesäkuulta",
                  "heinäkuulta", "elokuulta", "syyskuulta", "lokakuulta", "marraskuulta", "joulukuulta")
 
@@ -1388,12 +1393,14 @@ def smobiili_home(request: Request):
     tab = request.query_params.get("tab") or "koti"
     if tab not in SM_TABS:
         tab = "koti"
+    if tab == "raha" and persona != MONEY_PERSONA:  # the charts are one customer's own figures: nobody else sees them
+        tab = "pankki"
     if tab != "koti":  # the other tabs: the bank's own screens, no guide walk
         bills_due = e.upcoming_bills(30)
         return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
             request, persona, screen="tab", tab=tab, a=a, steps=[], ready=None, bills_due=bills_due,
             personas=[{"id": k, "name": v["name"], "label": v["label"]} for k, v in PERSONAS.items()],
-            persona_id=persona))
+            persona_id=persona, money=persona == MONEY_PERSONA))
     b = e.baskets("last_3_months")
     ready = sm_ready(request, e)
     first = [("ready", "I've got it ready, tap to check and confirm", "happy")] if ready and not ready["done"] else []

@@ -1,0 +1,49 @@
+/* Your money (Pankki -> Your money): the seven Oiva charts from the chart mockup (app/static/mockups/charts), scoped to
+   .money so they never touch S-mobiili's own .hero, .card or .row. Light only, like the rest of S-mobiili, on its own
+   tokens; the additions are the strong ink, the warning amber (#b45309, the Oiva screens' "over") and the category
+   scale c0-c7 (S-mobiili's three greens, a teal, an olive, three greys; each at least 3:1 on the card). */
+.money{--strong:#222;--head:var(--brand);--hero-ink:var(--brand);--warn:#b45309;--warn-bg:#fff4d6;
+  --c0:#004628;--c1:#007841;--c2:#00aa46;--c3:#0e8f6e;--c4:#5b8f1e;--c5:#4f5a55;--c6:#707b76;--c7:#8b9590;
+  --glyph-dark:#06140d;--glyph-light:#fff;color:var(--ink)}
+/* S-mobiili's .ok is the big tick circle on the payment receipt; inside .money it is only a colour state */
+.money .ok{width:auto;height:auto;border-radius:0;background:none;display:inline;font-size:inherit;margin:0}
+.money .ok svg{width:auto;height:auto}
+.money .asof{font-size:12.5px;color:var(--muted);margin:0 2px 14px;line-height:1.4}
+.money .card{padding:18px 16px 16px}
+.money .k{font-size:12.5px;color:var(--muted);margin:0}
+.money .hero{background:none;padding:0;text-align:left;font-weight:700;font-size:34px;letter-spacing:-.5px;color:var(--hero-ink);
+  line-height:1.05;margin:2px 0 0;font-variant-numeric:tabular-nums}
+.money .hero small{font-size:20px;letter-spacing:0}
+.money .chip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;padding:3px 9px 3px 7px;border-radius:99px;margin-top:8px}
+.money .chip.warn{background:var(--warn-bg);color:var(--warn)}.money .chip.ok{background:var(--mint);color:var(--brand)}
+.money .chip svg{width:12px;height:12px}
+.money .sub{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.4}.money .sub b{color:var(--strong);font-weight:600}
+.money .chart-gap{height:12px}
+.money svg.ch{display:block;width:100%;height:auto;overflow:visible;font-family:var(--font)}
+.money #trend svg.ch{touch-action:pan-y}
+.money svg.ch text{font-size:11px;fill:var(--muted)}
+.money .h3{font-size:20px;font-weight:700;color:var(--head);line-height:1.2;margin:0}
+.money .seg{display:flex;gap:2px;height:14px;margin:14px 0 6px}
+.money .seg i{display:block;height:100%}.money .seg i:first-child{border-radius:4px 0 0 4px}.money .seg i:last-child{border-radius:0 4px 4px 0}
+.money .row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.money .row:first-of-type{border-top:0}
+.money .ico{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center}
+.money .ico svg{width:18px;height:18px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.money .row .mid{flex:1;min-width:0}.money .row .nm{font-size:15px;color:var(--strong)}
+.money .row .sm{font-size:12.5px;color:var(--muted);margin-top:1px}
+.money .row .amt{text-align:right;font-size:15px;font-weight:700;color:var(--brand);white-space:nowrap;font-variant-numeric:tabular-nums}
+.money .row .amt small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+.money .track{position:relative;height:6px;border-radius:99px;background:var(--line);margin:7px 0 4px}
+.money .track>i{position:absolute;left:0;top:0;height:100%;border-radius:99px}
+.money .track>b{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;background:var(--strong);border-radius:1px;box-shadow:0 0 0 1.5px var(--card)}
+.money .st{font-size:12px;font-weight:600}.money .st.ok{color:var(--brand)}.money .st.over,.money .st.fast{color:var(--warn)}
+.money .chips{display:flex;flex-wrap:wrap;column-gap:6px}
+.money .nob{font-size:12.5px;color:var(--muted);padding:10px 0 0;border-top:1px solid var(--line);margin-top:2px}
+.money .nob a,.money .sub a{color:var(--brand);font-weight:600;text-decoration:none}
+.money .key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:8px}
+.money .key span{display:inline-flex;align-items:center;gap:6px}
+.money .key i{display:inline-block;width:12px;height:8px;border-radius:99px}
+.money .tip{position:absolute;pointer-events:none;background:var(--strong);color:var(--card);font-size:12.5px;font-weight:600;padding:4px 8px;
+  border-radius:6px;white-space:nowrap;transform:translate(-50%,-100%);display:none;z-index:2}
+.money .rel{position:relative}
+.money .notes{background:var(--warn-bg);border-radius:8px;padding:10px 14px;font-size:13px}
