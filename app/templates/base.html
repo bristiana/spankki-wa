@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{% block lang %}en{% endblock %}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
@@ -73,12 +73,10 @@
 {% block head %}{% endblock %}
 </head>
 <body{% if embed or request.query_params.get('web') %} class="embed"{% endif %}>
-{% if not embed and not request.query_params.get('web') %}{% set here = request.url.path %}<div class="bar"><a class="home" href="/" aria-label="S-Pankki home"><div class="logo" aria-hidden="true">S</div><b>S-Pankki</b></a><nav><a href="/chat"{% if here == "/chat" %} aria-current="page"{% endif %}>Chat</a><a href="/app"{% if here == "/app" %} aria-current="page"{% endif %}>My money</a><a href="/app/explore"{% if here == "/app/explore" %} aria-current="page"{% endif %}>Explore</a></nav>{% set me = wa_login(request) %}{% if me %}<a class="login" href="/bank" title="Logged in with WhatsApp">{{ me }}</a>{% else %}<a class="login" href="/login">Log in</a>{% endif %}<small>demo</small></div>
+{% if not embed and not request.query_params.get('web') %}{% set here = request.url.path %}<div class="bar"><a class="home" href="/" aria-label="S-Pankki home"><div class="logo" aria-hidden="true">S</div><b>S-Pankki</b></a><nav><a href="/chat"{% if here == "/chat" %} aria-current="page"{% endif %}>Chat</a><a href="/app"{% if here == "/app" %} aria-current="page"{% endif %}>My money</a><a href="/app/explore"{% if here == "/app/explore" %} aria-current="page"{% endif %}>Explore</a></nav>{% set me = wa_login(request) %}{% if me %}<a class="login" href="/bank" title="Logged in with WhatsApp">{{ me }}</a>{% else %}<a class="login" href="/login">Log in</a>{% endif %}</div>
 {% if persona %}<details class="who"><summary>Viewing as <b>{{ persona.name }}</b> · {{ persona.label }}</summary>
-<div class="who-menu">{% for p in personas %}<a href="?as={{ p.id }}"{% if p.id == persona.id %} aria-current="true"{% endif %}><b>{{ p.name }}</b> · {{ p.label }}<small>{{ p.description }}</small></a>{% endfor %}
-<p>Real customers from the challenge data, names made up. Each has its own payments and goals.</p></div></details>{% endif %}{% endif %}
+<div class="who-menu">{% for p in personas %}<a href="?as={{ p.id }}"{% if p.id == persona.id %} aria-current="true"{% endif %}><b>{{ p.name }}</b> · {{ p.label }}<small>{{ p.description }}</small></a>{% endfor %}</div></details>{% endif %}{% endif %}
 {% block body %}{% endblock %}
-{% if not embed and not request.query_params.get('web') %}<footer>Junction 2026 prototype on synthetic data. No real money moves.</footer>{% endif %}
 <script>
 // Inside the chat's confirm sheet (an iframe), "back" links close the sheet instead of loading the chat in it.
 if (window.parent !== window) document.querySelectorAll("[data-back]").forEach(a => a.addEventListener("click", e => {

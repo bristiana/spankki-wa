@@ -138,7 +138,7 @@ def regular_payments(a, o):
 def full_picture(a, o):
     figs = _figs(o, [("All balances", "total_balances_eur", eur), ("Card debt", "card_debt_eur", eur),
                      ("Net position", "net_position_eur", eur)])
-    src = [TX] + (["your linked demo bank (PSD2, synthetic)"] if o.get("linked") else [])
+    src = [TX] + (["your linked Demo Bank (PSD2)"] if o.get("linked") else [])
     return "Added up your accounts across banks", figs, src
 
 

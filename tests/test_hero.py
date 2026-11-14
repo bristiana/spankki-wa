@@ -57,7 +57,7 @@ def test_spender_profile_compares_the_hero_with_his_own_age_and_area(hero, tmp_p
 def test_landing_shows_the_hero_and_the_three_questions(tmp_path):
     main.engine = main.persona_engine(main.DEFAULT_PERSONA, date(2026, 10, 6), tmp_path / "s.json")
     page = TestClient(main.app).get("/").text
-    assert f"Demo customer {main.DEMO_NAME}, {main.PERSONAS[main.HERO]['age']}" in page
+    assert "synthetic" not in page and "Demo customer" not in page
     assert all(q in page for q in THREE) and "the average Finnish household" in page and "any age" in page
 
 

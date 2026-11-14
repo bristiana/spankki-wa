@@ -1,9 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Oiva in a banking app · concept{% endblock %}
+{% block title %}Oiva in a banking app{% endblock %}
 {% block head %}
 <style>
-  .concept{max-width:980px;margin:16px auto 0;padding:0 16px;text-align:center}
-  .concept b{display:inline-block;background:var(--warn-bg);color:var(--warn);border-radius:99px;padding:6px 14px;font-size:14px}
   .stage{display:flex;gap:40px;justify-content:center;align-items:center;max-width:980px;margin:0 auto;padding:20px 16px 8px}
   .notes{max-width:300px;font-size:14px;color:var(--muted)}
   .notes b{color:var(--ink);display:block;font-size:15px;margin-top:14px}
@@ -63,8 +61,6 @@
   @media (max-width:520px){
     .bar,footer{display:none}
     body{display:flex;flex-direction:column;height:100dvh}
-    .concept{margin:0;padding:6px 12px calc(6px);padding-top:calc(6px + env(safe-area-inset-top))}
-    .concept b{font-size:12px;padding:4px 10px}
     .stage{flex:1;min-height:0;width:100%;padding:0}
     .phone{width:100%;height:100%;border:0;border-radius:0;box-shadow:none}
     .status{display:none}
@@ -73,13 +69,12 @@
 </style>
 {% endblock %}
 {% block body %}
-<div class="concept"><b>Concept: how Oiva could sit inside S-mobiili. Not the real app.</b></div>
 <div class="stage">
   <div class="phone" id="phone">
     <div class="status"><span>9:41</span><i></i><span>5G ▮</span></div>
     <div class="screen">
       <div class="hi"><div><div class="muted">Good morning</div><b>{{ name }}</b></div><div class="av">{{ name[0] }}</div></div>
-      <div class="acct"><small>Current account · FI00 0000 0000 0000 00 (demo)</small><div class="big">{{ money(balance) }}</div><small>Available balance</small></div>
+      <div class="acct"><small>Current account · FI00 0000 0000 0000 00</small><div class="big">{{ money(balance) }}</div><small>Available balance</small></div>
       <div class="quick" aria-hidden="true"><span><i><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></i>Pay</span><span><i><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14l-3-3M20 16H6l3 3"/></svg></i>Transfer</span><span><i><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 10h18"/></svg></i>Cards</span><span><i><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9h-9z"/></svg></i>Savings</span></div>
       <h2><img src="/static/oiva/oiva.png" alt="">Oiva for you</h2>
       <div class="cards" id="cards" aria-live="polite"><div class="kcard"><span class="t">Loading…</span></div></div>

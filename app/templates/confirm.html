@@ -17,7 +17,7 @@
       {% if request.query_params.get("err") %}<p class="err" id="pin-err" role="alert">The PIN is 4 digits, like 1234. Please try again.</p>{% endif %}
       <button class="btn" type="submit">{{ button|nb }}</button>
       <a class="btn ghost" href="{{ 'https://wa.me/' ~ wa if wa else '/chat' }}" data-back style="margin-top:8px">Cancel</a>
-      <p class="muted" style="text-align:center;font-size:12px;margin:10px 0 0">Demo: any 4 digits work. No real money moves.</p>
+      <p class="muted" style="text-align:center;font-size:12px;margin:10px 0 0">Any 4 digits work.</p>
     {% endif %}
   </form>
 </main>
