@@ -8,7 +8,9 @@
   const STATE_TEXT = {connecting: "Connecting…", listening: "Listening", thinking: "Thinking…", speaking: "Oiva is talking", ended: "Call ended"};
   const TITLES = {spend: "Spending", budget: "Budget", compare: "People like me", bills: "Bills"};
   const $ = id => document.getElementById(id);
-  let voice = null, oiva = null, wired = false, live = false, startedAt = 0, tick = null, muted = false;
+  let voice = null, oiva = null, wired = false, live = false, startedAt = 0, tick = null, muted = false, capped = false;
+  const CONNECT_MS = 12000;  // never an endless "connecting"
+  const withTimeout = (pr, ms) => Promise.race([pr, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), ms))]);
 
   const maxMs = () => Number(window.OIVA_CALL_MAX_MS) || 5 * 60 * 1000;
 
@@ -90,7 +92,7 @@
   }
 
   function onState(s) {
-    $("call-state").textContent = STATE_TEXT[s] || s;
+    if (!(capped && s === "ended")) $("call-state").textContent = STATE_TEXT[s] || s;
     if (STATE_TO_OIVA[s]) setOiva(STATE_TO_OIVA[s]);
     if (s === "ended") { live = false; clearInterval(tick); $("call-end").textContent = "Close"; }
   }
@@ -107,9 +109,9 @@
 
   function clock() {
     const ms = Date.now() - startedAt, s = Math.floor(ms / 1000);
-    $("call-timer").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    $("call-timer").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + " / 5:00";
     if (ms >= maxMs()) {
-      stop();
+      capped = true; stop();
       $("call-state").textContent = "Calls stop at 5 minutes. Start a new one any time.";
     }
   }
@@ -118,29 +120,32 @@
     const box = $("oiva-call"); if (!box) return;
     box.hidden = false;
     $("call-captions").textContent = ""; $("call-summary").hidden = true; $("call-error").hidden = true;
-    $("call-end").textContent = "End"; $("call-timer").textContent = "0:00"; $("call-mute").hidden = false;
+    $("call-end").textContent = "End"; $("call-timer").textContent = "0:00 / 5:00"; capped = false; $("call-mute").hidden = false;
     let first = true;
     try { first = !sessionStorage.getItem("oiva-provider-seen"); sessionStorage.setItem("oiva-provider-seen", "1"); } catch (e) { /* private mode */ }
     $("call-provider").hidden = !first;
     setOiva("thinking"); onState("connecting");
     $("call-end").focus();
-    voice = await pickVoice();
+    try { voice = await withTimeout(pickVoice(), CONNECT_MS); } catch (e) { voice = null; }
     $("call-demo").hidden = !(voice && voice.demo);
-    if (!voice) return failed();
+    if (!voice) return failed("Voice isn't available right now.");
     wire(voice);
     try {
-      await voice.start();
+      await withTimeout(voice.start(), CONNECT_MS);
     } catch (err) {
-      return failed();
+      const why = String((err && (err.name + " " + err.message)) || "");
+      return failed(/NotAllowed|Permission|microphone/i.test(why) ? "The microphone is blocked. Allow it in the browser to talk."
+        : /timeout/.test(why) ? "Oiva didn't answer in time." : "Voice isn't available right now.");
     }
     live = true; startedAt = Date.now(); clearInterval(tick); tick = setInterval(clock, 250);
   }
 
-  function failed() {
+  function failed(why) {
     live = false; clearInterval(tick);
     setOiva("error");
     $("call-state").textContent = "Not connected";
     $("call-error").hidden = false;
+    $("call-why").textContent = why || "";
     $("call-mute").hidden = true; $("call-end").textContent = "Close";
   }
 
