@@ -52,7 +52,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 .track{position:relative;height:6px;border-radius:99px;background:var(--line);margin:7px 0 4px}
 .track>i{position:absolute;left:0;top:0;height:100%;border-radius:99px}
 .track>b{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;background:var(--strong);border-radius:1px}
-.st{font-size:12px;font-weight:600}.st.ok{color:var(--brand)}.st.ahead{color:var(--warn)}.st.over{color:var(--warn)}
+.st{font-size:12px;font-weight:600}.st.ok,.st.none{color:var(--brand)}.st.ahead{color:var(--warn)}.st.over{color:var(--warn)}
 .nob{font-size:13px;color:var(--muted);padding:10px 0 0;border-top:1px solid var(--line);margin-top:2px}
 .nob a{color:var(--brand);font-weight:600;text-decoration:none}
 .key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:8px}
@@ -65,7 +65,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 <body>
 <div class="wrap">
   <h1>Oiva's charts, fintech style</h1>
-  <p class="intro">Left: the chart on the Oiva screens today. Right: the same sample data, redrawn after Revolut, Monzo, Copilot, N26 and Lunar, in S-mobiili's font and greens. Mockup only, 6 October 2026 (day 6 of 31).</p>
+  <p class="intro">Left: the chart on the Oiva screens today. Right: the same sample data, redrawn after Revolut, Monzo, Copilot, N26 and Lunar, in S-mobiili's font and greens. Mockup only, 6 October 2026 (day 6 of 31). The sample data's overall budget (1 900 €) and its category budgets (850 €) disagree; both are shown as they are.</p>
 
   <section class="pair" id="p-trend">
     <h2>1 · Spending this month (Kulutus: Your pace)</h2>
@@ -83,7 +83,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 
   <section class="pair" id="p-budget">
     <h2>3 · Budgets and pace (Budjetti)</h2>
-    <p>Copilot: each bar knows the date. The tick is where an even pace would be today; amber means ahead of pace. Monzo: one "left to spend" number with a per-day figure.</p>
+    <p>Copilot: each bar knows the date. The tick is where an even pace would be today; amber means spending faster than an even pace. Monzo: one "left to spend" number with a per-day figure.</p>
     <div class="cols"><div class="col now"><p class="tag">Now</p><img src="now/budget-card1.png" alt="Today's budget list"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="budget"></div></div></div>
   </section>
@@ -120,7 +120,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 <script>
 (async function () {
   "use strict";
-  const NB = " ", MINUS = "−", NS = "http://www.w3.org/2000/svg";
+  const NB = "\u00a0", MINUS = "−", NS = "http://www.w3.org/2000/svg";
   const get = n => fetch("data/" + n + ".json").then(r => r.json());
   const [spend, budget, compare, rec] = await Promise.all(["spend", "budget", "compare", "recurring"].map(get));
 
@@ -162,8 +162,8 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
     const daily = spend.daily, spent = spend.total_eur, B = spend.budget_total_eur;
     const ahead = spend.pace.spent_by_today_eur - spend.pace.expected_by_today_eur;
     const proj = spent / TODAY * DAYS, left = B - spent;
-    host.innerHTML = `<p class="k">Spent in October</p><p class="hero">${hero(spent)}</p>
-      <span class="chip warn"><svg viewBox="0 0 12 12"><path d="M6 2l4 7H2z" fill="currentColor"/></svg>${eur(ahead)} ahead of an even pace</span>
+    host.innerHTML = `<p class="k">Everyday spending in October (bills not included)</p><p class="hero">${hero(spent)}</p>
+      <span class="chip warn"><svg viewBox="0 0 12 12"><path d="M6 2l4 7H2z" fill="currentColor"/></svg>${eur(ahead)} over an even pace</span>
       <p class="sub"><b>${eur(left)}</b> left of ${eur(B, 0)} · <b>${eur(left / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days</p>
       <div class="periods"><span>Week</span><span class="on">Month</span><span>6 months</span><span>Year</span></div>`;
     const W = 318, H = 176, L = 2, R = 40, T = 22, Bm = 22, pw = W - L - R, ph = H - T - Bm;
@@ -171,15 +171,15 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
     const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Spent ${eur(spent)} by 6 October; at this rate ${eur(proj, 0)} by the end of the month, budget ${eur(B, 0)}`});
     const defs = el("defs", {}); defs.innerHTML = `<linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${css("bright")}" stop-opacity=".28"/><stop offset="1" stop-color="${css("bright")}" stop-opacity="0"/></linearGradient>`;
     svg.appendChild(defs);
-    [0, 1000, 2000].forEach(t => {
+    [0, 1000, 2000].filter(t => Math.abs(t - B) > 250).forEach(t => {
       svg.appendChild(el("line", {x1: L, x2: L + pw, y1: y(t), y2: y(t), stroke: css("line"), "stroke-width": 1}));
-      svg.appendChild(el("text", {x: W, y: y(t) + 3.5, "text-anchor": "end"}, t ? (t / 1000) + "k" : "0"));
+      svg.appendChild(el("text", {x: W, y: y(t) + 3.5, "text-anchor": "end"}, t ? (t / 1000) + "k" + NB + "€" : "0" + NB + "€"));
     });
     // budget: a target line across the month
     svg.appendChild(el("line", {x1: L, x2: L + pw, y1: y(B), y2: y(B), stroke: css("strong"), "stroke-width": 1.2, "stroke-dasharray": "3 3"}));
     svg.appendChild(el("text", {x: L, y: y(B) - 5, style: "fill:" + css("strong") + ";font-weight:600"}, "Budget " + eur(B, 0)));
     // projection at this rate: dotted, lighter
-    svg.appendChild(el("line", {x1: x(TODAY), y1: y(spent), x2: x(DAYS), y2: y(proj), stroke: css("bright"), "stroke-width": 2, "stroke-dasharray": "1 4", "stroke-linecap": "round"}));
+    svg.appendChild(el("line", {x1: x(TODAY), y1: y(spent), x2: x(DAYS), y2: y(proj), stroke: proj > B ? css("warn") : css("bright"), "stroke-width": 2, "stroke-dasharray": "1 4", "stroke-linecap": "round"}));
     svg.appendChild(el("text", {x: x(DAYS), y: y(proj) - 7, "text-anchor": "end", style: "fill:" + css("warn") + ";font-weight:600"}, "At this rate " + eur(proj, 0)));
     // this month, solid with a soft fill
     const pts = [[0, 0]].concat(daily.map(d => [d.day, d.cumulative_eur]));
@@ -188,8 +188,8 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
     svg.appendChild(el("path", {d: path, fill: "none", stroke: css("brand"), "stroke-width": 2.5, "stroke-linejoin": "round", "stroke-linecap": "round"}));
     svg.appendChild(el("circle", {cx: x(TODAY), cy: y(spent), r: 9, fill: css("bright"), opacity: .18}));
     svg.appendChild(el("circle", {cx: x(TODAY), cy: y(spent), r: 4.5, fill: css("brand"), stroke: "#fff", "stroke-width": 2}));
-    [[1, "1 Oct"], [TODAY, "Today"], [16, "16"], [DAYS, "31 Oct"]].forEach(([d, t]) =>
-      svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": d === 1 ? "start" : d === DAYS ? "end" : "middle", style: d === TODAY ? "fill:" + css("strong") + ";font-weight:600" : ""}, t)));
+    [[0, "1 Oct"], [TODAY, "Today"], [15, "15"], [DAYS, "31 Oct"]].forEach(([d, t]) =>
+      svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": d === 0 ? "start" : d === DAYS ? "end" : "middle", style: d === TODAY ? "fill:" + css("strong") + ";font-weight:600" : ""}, t)));
     // scrub: drag to read a day
     const cross = el("line", {y1: T - 6, y2: T + ph, stroke: css("strong"), "stroke-width": 1, opacity: 0});
     const dot = el("circle", {r: 4, fill: css("brand"), stroke: "#fff", "stroke-width": 2, opacity: 0});
@@ -205,7 +205,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
       tip.style.display = "block"; tip.textContent = `${d} Oct · ${eur(v, 0)}${known ? "" : " at this rate"}`;
       const hr = host.getBoundingClientRect(), half = tip.offsetWidth / 2;  // svg has no offsetLeft: measure against the card
       tip.style.left = Math.min(Math.max(r.left - hr.left + x(d) * r.width / W, half + 4), hr.width - half - 4) + "px";
-      tip.style.top = (r.top - hr.top + (T - 8) * r.height / H) + "px";
+      tip.style.top = (r.top - hr.top + (T + ph * .45) * r.height / H) + "px";  // inside the plot, clear of the period buttons
     };
     svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move);
     svg.addEventListener("pointerleave", () => { tip.style.display = "none"; cross.setAttribute("opacity", 0); dot.setAttribute("opacity", 0); });
@@ -229,20 +229,20 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
     const host = document.getElementById("budget"), items = budget.items, paceShare = TODAY / DAYS;
     const set = items.filter(i => i.limit_eur != null), unset = items.filter(i => i.limit_eur == null);
     const lim = set.reduce((a, i) => a + i.limit_eur, 0), sp = set.reduce((a, i) => a + i.spent_eur, 0), left = lim - sp;
-    const state = i => i.spent_eur > i.limit_eur ? "over" : i.spent_eur / i.limit_eur > paceShare + 0.05 ? "ahead" : "ok";
-    const colour = {ok: css("bright"), ahead: css("amber"), over: css("warn")};
-    const words = {ok: "On pace", ahead: "Ahead of pace", over: "Over budget"};
-    const nAhead = set.filter(i => state(i) !== "ok").length;
+    const state = i => i.spent_eur > i.limit_eur ? "over" : i.spent_eur === 0 ? "none" : i.spent_eur / i.limit_eur > paceShare + 0.05 ? "ahead" : "ok";
+    const colour = {ok: css("bright"), ahead: css("amber"), over: css("warn"), none: css("bright")};
+    const words = {ok: "Within an even pace", ahead: "Faster than an even pace", over: "Over budget", none: "Nothing spent yet"};
+    const nAhead = set.filter(i => ["ahead", "over"].includes(state(i))).length;
     host.innerHTML = `<p class="k">Left to spend in your budgets</p><p class="hero">${hero(left)}</p>
       <p class="sub"><b>${eur(left / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days · ${eur(sp)} of ${eur(lim, 0)} spent</p>
-      ${nAhead ? `<span class="chip warn"><svg viewBox="0 0 12 12"><path d="M6 2l4 7H2z" fill="currentColor"/></svg>${nAhead} of ${set.length} ahead of pace</span>` : ""}
+      ${nAhead ? `<span class="chip warn"><svg viewBox="0 0 12 12"><path d="M6 2l4 7H2z" fill="currentColor"/></svg>${nAhead} of ${set.length} going faster than an even pace</span>` : ""}
       <div style="margin-top:12px">${set.map(i => { const s = state(i), f = Math.min(i.spent_eur / i.limit_eur, 1);
         return `<div class="row">${icon(i.category)}<div class="mid">
           <div style="display:flex;justify-content:space-between;gap:8px"><span class="nm">${i.label}</span><span class="nm" style="font-weight:600">${eur(i.left_eur)} <span style="font-weight:400;color:var(--muted);font-size:13px">left</span></span></div>
           <div class="track"><i style="width:${(f * 100).toFixed(1)}%;background:${colour[s]}"></i><b style="left:${(paceShare * 100).toFixed(1)}%"></b></div>
           <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)"><span class="st ${s}">${words[s]}</span><span>${eur(i.spent_eur)} of ${eur(i.limit_eur, 0)}</span></div>
         </div></div>`; }).join("")}</div>
-      <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Even pace by today</span><span><i style="background:var(--bright)"></i>On pace</span><span><i style="background:var(--amber)"></i>Ahead of pace</span></div>
+      <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Even pace by today</span><span><i style="background:var(--bright)"></i>Within</span><span><i style="background:var(--amber)"></i>Faster than even pace</span></div>
       <p class="nob">No budget yet: ${unset.map(i => `${i.label} ${eur(i.spent_eur, 0)}`).join(" · ")} <a href="#">Set ›</a></p>`;
   })();
 
@@ -267,7 +267,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
     const yb = F.length * rowH + 18;
     [[0, "lowest"], [50, "typical"], [100, "highest"]].forEach(([p, t]) =>
       svg.appendChild(el("text", {x: px(p), y: yb, "text-anchor": p ? (p === 100 ? "end" : "middle") : "start"}, t)));
-    host.innerHTML = `<p class="h3">Where you sit</p><p class="k" style="margin-top:2px">Among ${c.n} people aged ${c.age_band.replace("-", "–")} in ${c.city}, Apr–Sep 2026</p>`;
+    host.innerHTML = `<p class="h3">Where you sit</p><p class="k" style="margin-top:2px">Among ${c.n} people aged ${c.age_band.replace("-", "–")} in ${c.city}, <span style="white-space:nowrap">Apr–Sep 2026</span></p>`;
     host.appendChild(svg);
     host.insertAdjacentHTML("beforeend", `<div class="key"><span><i style="background:var(--brand);width:10px;height:10px"></i>You</span><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Typical</span><span><i style="background:var(--c4)"></i>Middle half</span><span><i style="background:var(--amber);width:10px;height:10px"></i>Lower than most, where higher is better</span></div>`);
   })();
@@ -279,7 +279,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
     const W = 318, H = 126, x0 = 8, x1 = W - 8, px = v => x0 + (v - lo) / (hi - lo) * (x1 - x0), yb = 64;
     const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Your income ${eur(f.you)}, typical ${eur(f.median)}, middle half ${eur(f.p25, 0)} to ${eur(f.p75, 0)}`});
     svg.appendChild(el("line", {x1: x0, x2: x1, y1: yb, y2: yb, stroke: css("line"), "stroke-width": 4, "stroke-linecap": "round"}));
-    svg.appendChild(el("line", {x1: px(f.p25), x2: px(f.p75), y1: yb, y2: yb, stroke: css("c4"), "stroke-width": 12, "stroke-linecap": "round"}));
+    svg.appendChild(el("line", {x1: px(f.p25), x2: px(f.p75), y1: yb, y2: yb, stroke: css("c4"), "stroke-width": 12}));
     // typical below, you above: pins with their own labels
     svg.appendChild(el("line", {x1: px(f.median), x2: px(f.median), y1: yb - 8, y2: yb + 16, stroke: css("strong"), "stroke-width": 1.5}));
     svg.appendChild(el("line", {x1: px(f.median), x2: px(f.median), y1: yb + 16, y2: yb + 34, stroke: css("strong"), "stroke-width": 1.5}));
@@ -303,8 +303,8 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
     const inc = P.find(p => p.id === "salary").per_month_eur, bills = rec.bills_per_month_eur;
     const inv = P.find(p => p.id === "investing").per_month_eur, rest = inc - bills - inv;
     const parts = [["Bills: rent and utilities", bills, css("c0")], ["Monthly investing", inv, css("c3")], ["Left for everything else", rest, css("c4")]];
-    host.innerHTML = `<p class="k">Left after fixed payments, each month</p><p class="hero">${hero(rest)}</p>
-      <p class="sub">of your <b>${eur(inc)}</b> salary</p>
+    host.innerHTML = `<p class="k">Left after bills and investing, a typical month</p><p class="hero">${hero(rest)}</p>
+      <p class="sub">of your <b>${eur(inc)}</b> average salary (last 3 months)</p>
       <div class="seg" style="height:18px" role="img" aria-label="Salary split">${parts.map(p => `<i style="flex:${p[1]};background:${p[2]}"></i>`).join("")}</div>
       ${parts.map(p => `<div class="row" style="padding:7px 0"><span style="width:12px;height:12px;border-radius:3px;background:${p[2]};flex:none"></span>
         <div class="mid nm" style="font-size:14px">${p[0]}</div><div class="amt" style="font-size:14px">${eur(p[1])}<small>${pct(p[1] / inc)}</small></div></div>`).join("")}`;
@@ -314,11 +314,12 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
   (function () {
     const host = document.getElementById("cal"), P = rec.regular_payments, by = id => P.find(p => p.id === id);
     const lanes = [
-      {name: "Rent", sub: eur(by("rent").per_month_eur), day: 3, paid: true},
-      {name: "Utilities", sub: "~3 bills, " + eur(by("utilities").per_month_eur, 0), from: by("utilities").day_range.first, to: by("utilities").day_range.last},
+      {name: "Rent", sub: eur(by("rent").per_month_eur), day: +spend.bills.find(b => b.name === "Rent").date.slice(8)},  // paid this month, per spend.json
+      {name: "Utilities", sub: "~3 bills, " + eur(by("utilities").per_month_eur, 0), from: by("utilities").day_range.first, to: by("utilities").day_range.last,
+       paidDays: spend.bills.filter(b => /utility/i.test(b.name)).map(b => +b.date.slice(8))},
       {name: "Salary", sub: "+" + eur(by("salary").per_month_eur), day: by("salary").usual_day, incoming: true},
       {name: "Investing", sub: eur(by("investing").per_month_eur), day: by("investing").usual_day}];
-    const W = 318, labW = 104, lane = 42, T = 18, H = T + lanes.length * lane + 18, x0 = labW + 6, x1 = W - 8;
+    const W = 318, labW = 104, lane = 42, T = 30, H = T + lanes.length * lane + 18, x0 = labW + 6, x1 = W - 8;
     const x = d => x0 + (d - 1) / (DAYS - 1) * (x1 - x0);
     const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "October's regular payments by day"});
     // weeks as faint columns
@@ -331,7 +332,9 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
       svg.appendChild(el("text", {x: 0, y: yc + 13, style: "font-size:11.5px;fill:" + (l.incoming ? css("brand") : css("muted")) + (l.incoming ? ";font-weight:600" : "")}, l.sub));
       svg.appendChild(el("line", {x1: x0, x2: x1, y1: yc, y2: yc, stroke: css("line"), "stroke-width": 1}));
       if (l.from) {
-        svg.appendChild(el("line", {x1: x(l.from), x2: x(l.to), y1: yc, y2: yc, stroke: css("c3"), "stroke-width": 8, "stroke-linecap": "round"}));
+        svg.appendChild(el("line", {x1: x(l.from), x2: x(l.to), y1: yc, y2: yc, stroke: css("c4"), "stroke-width": 8, "stroke-linecap": "round"}));
+        (l.paidDays || []).forEach(d => { svg.appendChild(el("circle", {cx: x(d), cy: yc, r: 6, fill: css("c3"), stroke: "#fff", "stroke-width": 2}));
+          svg.appendChild(el("path", {d: `M${x(d) - 2.6},${yc}l1.8,1.8l3.6,-3.6`, fill: "none", stroke: css("c0"), "stroke-width": 1.5, "stroke-linecap": "round"})); });
       } else {
         const past = l.day < TODAY;
         svg.appendChild(el("circle", {cx: x(l.day), cy: yc, r: 7, fill: past ? css("c4") : l.incoming ? css("bright") : css("brand"), stroke: "#fff", "stroke-width": 2}));
@@ -341,7 +344,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
     });
     svg.appendChild(el("text", {x: x(TODAY), y: T - 12, "text-anchor": "middle", style: "font-weight:600;fill:" + css("strong")}, "Today"));
     [[1, "1"], [8, "8"], [15, "15"], [22, "22"], [29, "29"]].forEach(([d, t]) => svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": "middle"}, t)));
-    host.innerHTML = `<p class="h3">October's regular payments</p><p class="k" style="margin-top:2px">Next: salary in on 15 Oct, then investing ${eur(by("investing").per_month_eur)} out on 17 Oct</p>`;
+    host.innerHTML = `<p class="h3">October's regular payments</p><p class="k" style="margin-top:2px">Coming up: salary on 15 Oct, investing on 17 Oct, utility bills any day to the 29th</p>`;
     host.appendChild(svg);
   })();
 })();
