@@ -920,8 +920,8 @@ class Engine:
         bank = self.linked_bank()
         if not bank:
             return {"linked": False, "banks": banks, "total_balances_eur": bal, "net_position_eur": bal,
-                    "how_to_link": "The customer can link another bank on the Connect page: 'Add another bank' "
-                                   "(PSD2 consent, read-only)."}
+                    "how_to_link": "The customer writes 'add bank' on WhatsApp (or taps Add a bank on the site) to link "
+                                   "Revolut or another bank through Enable Banking (PSD2, read only)."}
         bill = self.card_bill()
         repaid = -sum(a["amount"] for a in self.state["actions"] if a["transaction_type"] == "card_repayment")
         spent = -sum(x["amount_eur"] for x in self._card_tx() if x["date"] >= add_months(month_start(self.today), -1))

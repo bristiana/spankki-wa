@@ -636,7 +636,10 @@ def connect_page(request: Request, u: str = ""):
 
 @app.get("/connect/bank", response_class=HTMLResponse)
 def bank_page(request: Request, u: str = ""):
-    """PSD2 account information consent for a second bank. Mock: the bank and its data are synthetic."""
+    """PSD2 account information consent for a second bank. Mock: the bank and its data are synthetic. With Enable
+    Banking set up, "Add another bank" goes to the real one (/bank); the mock stays at ?demo=1."""
+    if enable_banking.configured() and not request.query_params.get("demo"):
+        return RedirectResponse("/bank", status_code=303)
     return templates.TemplateResponse(request, "bank.html", {"u": u, "bank": DEMO_BANK, "linked": engine.linked_bank()})
 
 

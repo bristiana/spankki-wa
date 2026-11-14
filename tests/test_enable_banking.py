@@ -61,7 +61,7 @@ def test_full_picture_only_for_the_owner():
         other = run_tool(e, "get_full_picture", {}, [])
     finally:
         eb.viewer.reset(tok)
-    assert "Revolut" not in other
+    assert "real data" not in other and "250.0" not in other
 
 
 def test_merge_adds_balance_and_spending():
@@ -140,3 +140,12 @@ def test_privacy_and_terms_pages():
     from fastapi.testclient import TestClient
     c = TestClient(main.app)
     assert "Enable Banking" in c.get("/privacy").text and c.get("/terms").status_code == 200
+
+
+def test_add_another_bank_goes_to_the_real_one(monkeypatch):
+    from fastapi.testclient import TestClient
+    monkeypatch.setenv("EB_APP_ID", "app")
+    monkeypatch.setenv("EB_PRIVATE_KEY", "key")
+    c = TestClient(main.app)
+    assert c.get("/connect/bank", follow_redirects=False).headers["location"] == "/bank"
+    assert "Demo Bank" in c.get("/connect/bank", params={"demo": 1}).text
