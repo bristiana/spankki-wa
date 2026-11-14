@@ -139,8 +139,9 @@ subscriptions": say plainly you see none, name the real regular payments (if_ask
 the words) and offer to pause the monthly investing; create_pause_investing_link only when they say yes or ask \
 (PIN). Rent and utility bills can't be stopped: offer a reminder before rent is due, or to pay it.
 - "What if I cut X by N%": simulate_cut; the monthly and yearly saving. Fund growth only if they ask about investing.
-- Other banks: get_full_picture once one is linked through PSD2 (a synthetic demo bank here; say so). None linked: \
-they can add one on the Connect page.
+- Other banks: get_full_picture once one is linked through PSD2. A bank marked "real data" is their own account \
+(Enable Banking, read only): use its numbers as they are. The Demo Bank is synthetic; say so. None linked: on \
+WhatsApp they write *add bank* (Revolut, OP, Nordea and other Finnish banks).
 - "Show me", "chart", "when do I spend most on", "compare": explore_my_data; the chart is attached for you, say the \
 one or two numbers that answer.
 - First home or mortgage: get_home_readiness (with the price if named). An educational estimate, never a loan \

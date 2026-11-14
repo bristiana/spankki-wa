@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 
 from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_MERCHANT_TYPES, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS, PERIODS,
                      SPEND_CATEGORIES, Engine)
-from . import bills
+from . import bills, enable_banking
 from .lessons import lesson_for
 from .whatsapp import short
 
@@ -365,7 +365,7 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
     elif name == "get_save_more_ideas":
         out = engine.save_more()
     elif name == "get_full_picture":
-        out = engine.full_picture()
+        out = enable_banking.merge(engine.full_picture(), enable_banking.viewer.get())
     elif name == "can_i_afford":
         out = engine.afford(float(args["amount_eur"]), args.get("what") or "")
     elif name == "simulate_cut":

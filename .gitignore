@@ -9,3 +9,4 @@ data/state.json
 node_modules/
 .claude/
 data/state/
+data/eb/

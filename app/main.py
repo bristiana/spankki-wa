@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bills, broker, guardrails, learn, onboarding, quiz, rules, voice
+from . import bills, broker, enable_banking, guardrails, learn, onboarding, quiz, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -194,6 +194,7 @@ def money_nb(x: float) -> str:
 
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
+templates.env.globals["wa_login"] = lambda request: enable_banking.mask(wa_phone(request))
 
 
 def connected(phone: str) -> bool:
@@ -472,14 +473,17 @@ def wa_back(request: Request) -> str:
 
 
 def ask(persona: str | None, user: str, text: str, name: str, context: str | None = None, may_pay: bool = True,
-        photo: bool = False):
-    """coach.ask, telling the bill tool whose turn it is and whether it may prepare the bill payment."""
+        photo: bool = False, viewer: str | None = None):
+    """coach.ask, telling the bill tool whose turn it is and whether it may prepare the bill payment. viewer: the
+    WhatsApp number whose real linked banks may be used (default: the WhatsApp sender; none for a web visitor)."""
     hint = None if photo else bills.context_line(engine_for(persona), user)
     token = bills.turn.set((user, may_pay))
+    vtoken = enable_banking.viewer.set(viewer or (None if user.startswith("web:") else user))
     try:
         return coach(persona).ask(user, text, name=name, context=" ".join(x for x in (context, hint) if x) or None)
     finally:
         bills.turn.reset(token)
+        enable_banking.viewer.reset(vtoken)
 
 
 def ask_about_bill(persona: str | None, user: str, bill: dict, caption: str | None, name: str):
@@ -577,6 +581,15 @@ def handle_message(m: dict):
             if not text:
                 return
             extra = SECRET_CONTEXT.format(what=secret[0])
+        if LOGIN.match(text):
+            wa.send_url_button(to, "Tap to log in to the S-Pankki demo site with this WhatsApp. The link is just for "
+                                   "you; don't forward it.", "Log in", f"{public_url()}/login?t={enable_banking.sign(to)}")
+            return
+        if ADD_BANK.search(text) and enable_banking.configured():
+            wa.send_url_button(to, "Bring your other bank here too (Revolut, OP, Nordea...). Read only: I see balances "
+                                   "and the last 90 days, I can't move money there. The link is just for you.",
+                               "Add a bank", f"{public_url()}/bank?t={enable_banking.sign(to)}")
+            return
         if text.strip().lower() in ("my data", "download my data", "export"):
             wa.send_url_button(to, "Your data, yours to keep (MyData): every transaction and what Birky "
                                    "calculated from it, as a file.", "Download my data", f"{public_url()}/app/export.json")
@@ -634,6 +647,121 @@ def bank_submit(request: Request, u: str = Form(""), scope: list[str] = Form([])
                   "Birky now counts the card bill in safe to spend. Synthetic demo bank, no real data.",
                   "Ask Birky: \"Show my money across all my banks\"."],
         "wa": wa_back(request) if u else ""})
+
+
+# ---------------- another bank, for real (Enable Banking), login with WhatsApp ----------------
+ADD_BANK = re.compile(r"^\s*(add|link|connect)\s+(a\s+|another\s+|my\s+)?(other\s+)?bank\b|\brevolut\b", re.I)
+
+
+LOGIN = re.compile(r"^\s*(log\s*in|login|sign\s*in)\b", re.I)
+
+
+def wa_phone(request: Request) -> str | None:
+    """The WhatsApp number behind a signed link (?t=) or the cookie it set."""
+    return enable_banking.verify(request.query_params.get("t") or request.cookies.get(enable_banking.COOKIE))
+
+
+def _set_login(response, token: str):
+    response.set_cookie(enable_banking.COOKIE, token, max_age=enable_banking.LINK_DAYS * 86400, httponly=True,
+                        secure=True, samesite="lax")
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login(request: Request, next: str = "/app"):
+    """Login with WhatsApp: ?t= comes from the link Birky sends when you write "login"; without it, the way there."""
+    nxt = next if next.startswith("/") and not next.startswith("//") else "/app"
+    t = request.query_params.get("t")
+    if t and enable_banking.verify(t):
+        r = RedirectResponse(nxt, status_code=303)
+        _set_login(r, t)
+        return r
+    return templates.TemplateResponse(request, "login.html", {"wa": os.environ.get("WA_DISPLAY_NUMBER", ""),
+                                                              "me": enable_banking.mask(wa_phone(request)),
+                                                              "expired": bool(t)})
+
+
+@app.get("/logout")
+def logout():
+    r = RedirectResponse("/", status_code=303)
+    r.delete_cookie(enable_banking.COOKIE)
+    return r
+
+
+@app.get("/bank", response_class=HTMLResponse)
+def real_bank_page(request: Request):
+    phone = wa_phone(request)
+    if not phone:
+        return RedirectResponse("/login?next=/bank", status_code=303)
+    if not enable_banking.configured():
+        return templates.TemplateResponse(request, "done.html", {
+            "title": "Not available yet", "failed": True, "lines": ["Linking other banks isn't switched on here."],
+            "wa": os.environ.get("WA_DISPLAY_NUMBER", "")})
+    try:
+        names = enable_banking.banks()
+    except Exception:
+        log.exception("bank list failed")
+        names = enable_banking.FIRST
+    linked = enable_banking.load(phone)
+    r = templates.TemplateResponse(request, "bank_real.html", {"banks": names, "linked": linked,
+                                                               "err": request.query_params.get("err")})
+    if request.query_params.get("t"):
+        _set_login(r, request.query_params["t"])
+    return r
+
+
+@app.post("/bank/start")
+def real_bank_start(request: Request, bank: str = Form(...)):
+    phone = wa_phone(request)
+    if not phone:
+        return RedirectResponse("/bank", status_code=303)
+    try:
+        url = enable_banking.start(phone, bank, f"{public_url()}/eb/callback")
+    except Exception:
+        log.exception("bank start failed")
+        return RedirectResponse("/bank?err=start", status_code=303)
+    return RedirectResponse(url, status_code=303)
+
+
+@app.post("/bank/unlink")
+def real_bank_unlink(request: Request):
+    phone = wa_phone(request)
+    if phone:
+        enable_banking.unlink(phone)
+    return RedirectResponse("/bank", status_code=303)
+
+
+@app.get("/eb/callback", response_class=HTMLResponse)
+def real_bank_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+    wa_no = os.environ.get("WA_DISPLAY_NUMBER", "")
+    p = enable_banking.pending(state)
+    if not p:
+        return templates.TemplateResponse(request, "done.html", {"title": "Link expired", "failed": True, "wa": wa_no,
+                                                                 "lines": ["Write \"add bank\" to Birky again."]})
+    phone, bank = p
+    if not code:
+        return templates.TemplateResponse(request, "done.html", {"title": f"{bank} not linked", "failed": True,
+                                                                 "wa": wa_no, "lines": ["The bank didn't finish the "
+                                                                 "connection, so nothing was saved."]})
+    try:
+        link = enable_banking.finish(phone, bank, code)
+    except Exception:
+        log.exception("bank session failed")
+        return templates.TemplateResponse(request, "done.html", {"title": f"{bank} not linked", "failed": True,
+                                                                 "wa": wa_no, "lines": ["The bank didn't open the "
+                                                                 "connection. Try again in a minute."]})
+    if not link["accounts"]:
+        return templates.TemplateResponse(request, "done.html", {"title": f"{bank}: no account shared", "failed": True,
+                                                                 "wa": wa_no, "lines": ["Try again and tick the "
+                                                                 "account when your bank asks which ones to share."]})
+    total = sum(a.get("balance_eur") or 0 for a in link["accounts"])
+    n = sum(len(a.get("transactions") or []) for a in link["accounts"])
+    line = f"{bank} linked ✅ {len(link['accounts'])} account(s), {money(total)} in total, {n} transactions."
+    try:
+        wa.send_text(phone, line + " Ask me: \"Show my money across all my banks\".")
+    except Exception:
+        log.exception("bank linked message failed")
+    return templates.TemplateResponse(request, "done.html", {"title": f"{bank} linked", "wa": wa_no, "lines": [
+        line, "Read only, last 90 days. Birky now adds it to your full picture."]})
 
 
 @app.post("/connect", response_class=HTMLResponse)
@@ -1458,7 +1586,8 @@ def dashboard(request: Request):
     o = engine_for(persona).overview()
     return templates.TemplateResponse(request, "dashboard.html", _ctx(
         o=o, name=name_for(persona), today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o),
-        peers=_peers_card(engine_for(persona)), **persona_ctx(persona)))
+        peers=_peers_card(engine_for(persona)), **persona_ctx(persona),
+        me=enable_banking.mask(wa_phone(request)), real_banks=enable_banking.picture(wa_phone(request))))
 
 
 def _peers_card(eng: Engine) -> dict | None:
@@ -1656,7 +1785,8 @@ async def chat_api(request: Request):
     if not bid and hasattr(c, "last_said"):
         note_chat_later(e, sid, text, c.last_said(sid))
     context = coach_context(e, sid, text, extra)
-    return await web_answer(e, sid, lambda: ask(persona, sid, text, name, context), quick, secret)
+    me = wa_phone(request)
+    return await web_answer(e, sid, lambda: ask(persona, sid, text, name, context, viewer=me), quick, secret)
 
 
 async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption: str, quick):
