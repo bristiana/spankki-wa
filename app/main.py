@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 import time
 from datetime import date
@@ -18,6 +19,7 @@ from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import broker, onboarding, quiz, rules, templates_wa
 from . import whatsapp as wa
@@ -150,6 +152,21 @@ def nice_date(iso: str) -> str:
 
 def money(x: float) -> str:
     return f"{x:,.2f} €".replace(",", " ")
+
+
+_NB = re.compile(r"(?<=\d) (?=\d{3}(?!\d))|(?<=\d) (?=€)")
+
+
+def nb(text) -> str:
+    """Web pages: an amount never breaks across lines ("1 313.89 €" keeps its spaces non-breaking)."""
+    return _NB.sub(" ", str(text))
+
+
+def money_nb(x: float) -> str:
+    return nb(money(x))
+
+
+templates.env.filters["nb"] = nb
 
 
 def connected(phone: str) -> bool:
@@ -404,6 +421,43 @@ def _pending_or_404(pid: str, kind: str) -> tuple[Engine, dict]:
     raise HTTPException(404, "This link has expired.")
 
 
+# ---------------- Friendly error pages: a browser gets a page, an API caller keeps JSON ----------------
+CONFIRM_PATHS = ("/pay/", "/invest/", "/save/", "/stop/")
+ERRORS = {
+    "expired": ("This link has expired", "Payment and saving links from Kurre work once, and this one is no longer valid. "
+                                         "Nothing was paid or moved. Ask Kurre again for a fresh link."),
+    404: ("Page not found", "This page doesn't exist. It may have moved, or the link has a typo."),
+    400: ("That didn't work", "Something in the link or the form wasn't right. Go back and try again."),
+    500: ("Something went wrong on our side", "Nothing was paid or moved. Try again in a minute."),
+}
+
+
+def wants_html(request: Request) -> bool:
+    return "text/html" in request.headers.get("accept", "") and not request.url.path.startswith(("/api/", "/webhook", "/cron"))
+
+
+def error_page(request: Request, status: int, key=None):
+    title, text = ERRORS.get(key or status, ERRORS[500 if status >= 500 else 400])
+    return templates.TemplateResponse(request, "error.html", {"title": title, "text": text, "wa": wa_back(request)},
+                                      status_code=status)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException):
+    if not wants_html(request):
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=getattr(exc, "headers", None))
+    expired = exc.status_code == 404 and request.url.path.startswith(CONFIRM_PATHS)
+    return error_page(request, exc.status_code, "expired" if expired else None)
+
+
+@app.exception_handler(Exception)
+async def server_error(request: Request, exc: Exception):
+    log.exception("unhandled error on %s", request.url.path, exc_info=exc)
+    if wants_html(request):
+        return error_page(request, 500)
+    return JSONResponse({"detail": "Internal Server Error"}, status_code=500)
+
+
 def bad_pin(request: Request, path: str):
     web = "&web=1" if request.query_params.get("web") else ""
     return RedirectResponse(f"{path}?err=1{web}", status_code=303)
@@ -420,7 +474,7 @@ def not_done(request: Request, err: Exception):
 def pay_page(request: Request, pid: str):
     e, p = _pending_or_404(pid, "payment")
     return templates.TemplateResponse(request, "confirm.html", {
-        "p": p, "action": f"/pay/{pid}", "title": "Confirm payment", "amount": money(p["amount"]),
+        "p": p, "wa": wa_back(request), "action": f"/pay/{pid}", "title": "Confirm payment", "amount": money(p["amount"]),
         "rows": [("To", "Landlord · Asunto Oy Demo" if p["category"] == "Housing" else p["name"]),
                  ("Account", "FI00 0000 0000 0000 00 (demo)"), ("For", p["name"]),
                  ("Due", nice_date(p["due_date"])), ("From", "S-Pankki current account")],
@@ -453,7 +507,7 @@ def invest_page(request: Request, pid: str):
     f = FUNDS_BY_ID[p["fund_id"]]
     when = f"Every payday, from {nice_date(e.next_payday()['date'])}" if p["monthly"] else "Today, one-off"
     return templates.TemplateResponse(request, "confirm.html", {
-        "p": p, "action": f"/invest/{pid}", "title": "Confirm investment",
+        "p": p, "wa": wa_back(request), "action": f"/invest/{pid}", "title": "Confirm investment",
         "amount": money(p["amount"]) + (" / month" if p["monthly"] else ""),
         "rows": [("Fund", f["name"]), ("Risk", f"{f['risk']} ({f['risk_level']}/7)"), ("Holds", f["what"]),
                  ("When", when), ("From", "S-Pankki current account")],
@@ -501,7 +555,7 @@ def order_text(order: dict) -> str:
 def stop_page(request: Request, pid: str):
     e, p = _pending_or_404(pid, "stop_subscription")
     return templates.TemplateResponse(request, "confirm.html", {
-        "p": p, "action": f"/stop/{pid}", "title": "Stop recurring card payment",
+        "p": p, "wa": wa_back(request), "action": f"/stop/{pid}", "title": "Stop recurring card payment",
         "amount": money(p["amount"]) + (" / month" if p["cadence"] == "monthly" else " / year"),
         "rows": [("Merchant", p["name"]), ("Next charge", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
                  ("You save", f"{money(p['per_year_eur'])} a year"), ("Card", "S-Pankki Visa •• 4821 (demo)")],
@@ -514,7 +568,10 @@ def stop_confirm(request: Request, pid: str, pin: str = Form("")):
     e, p = _pending_or_404(pid, "stop_subscription")
     if len(pin) != 4 or not pin.isdigit():
         return bad_pin(request, f"/stop/{pid}")
-    done = e.confirm(pid)
+    try:
+        done = e.confirm(pid)
+    except ValueError as e:
+        return not_done(request, e)
     subs = e.subscriptions()
     msg = (f"✅ *{done['name']} stopped.* No more charges of {money(done['amount'])}. "
            f"That's {money(done['per_year_eur'])} a year back in your pocket.\n"
@@ -531,7 +588,7 @@ def save_page(request: Request, pid: str):
     e, p = _pending_or_404(pid, "saving")
     g = e.state["goals"][p["goal_id"]]
     return templates.TemplateResponse(request, "confirm.html", {
-        "p": p, "action": f"/save/{pid}", "title": "Move to savings", "amount": money(p["amount"]),
+        "p": p, "wa": wa_back(request), "action": f"/save/{pid}", "title": "Move to savings", "amount": money(p["amount"]),
         "rows": [("Goal", g["name"]), ("Saved so far", f"{money(g['saved'])} of {money(g['target'])}"),
                  ("From", "S-Pankki current account"), ("To", "Savings pocket")],
         "button": f"Save {money(p['amount'])}"})
@@ -772,7 +829,7 @@ def demo_reset():
 
 # ---------------- Web chat (same coach, embeddable in S-mobiili) ----------------
 def _ctx(**extra) -> dict:
-    return {"money": money, "nice": nice_date, "wa": os.environ.get("WA_DISPLAY_NUMBER", ""), **extra}
+    return {"money": money_nb, "nice": nice_date, "wa": os.environ.get("WA_DISPLAY_NUMBER", ""), **extra}
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
