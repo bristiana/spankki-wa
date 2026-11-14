@@ -6,10 +6,14 @@ Runs against a LOCAL server only (it calls /demo/reset first). Every AI turn is 
     python scripts/convo_eval.py --label before                     # -> docs/convo-eval/before.json
     python scripts/convo_eval.py --label after --only taxi,subs_all  # a few scenarios
     python scripts/convo_eval.py --report before after               # averages of the scores files
+    python scripts/convo_eval.py --label instinct-after --only instinct   # the Instinct-voice subset (~30 AI turns)
+    python scripts/convo_eval.py --compose instinct-before           # the same subset from the stored transcripts
 
 Each reply gets automatic phone checks (words, WhatsApp bubbles from whatsapp.bubbles, questions asked, markdown that
-WhatsApp can't show, the number guard's verdict). The 1-5 scores per criterion are given by a human reader in
-docs/convo-eval/scores-<label>.json ({"<scenario>#<turn>": {"correct": 4, ...}}); --report averages them.
+WhatsApp can't show, the number guard's verdict) and Instinct checks (the reaction on the person's message, bubbles
+and the longest one, sentences per bubble, numbers per message, report-like formatting). The 1-5 scores per
+criterion are given by a human reader in docs/convo-eval/scores-<label>.json ({"<scenario>#<turn>": {"correct": 4,
+...}}); --report averages them. The Instinct criteria (INSTINCT) are scored next to the older seven when present.
 """
 from __future__ import annotations
 
@@ -25,10 +29,15 @@ import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from app.guard import check as guard_check  # noqa: E402
+from app.reactions import quick_reaction  # noqa: E402
 from app.whatsapp import bubbles  # noqa: E402
 
 OUT = ROOT / "docs" / "convo-eval"
 CRITERIA = ["correct", "answers", "clarity", "phone", "tone", "pedagogy", "next_step"]
+# Messaging a friend on WhatsApp: did it react fittingly (or rightly not), are the bubbles few and short, does it
+# mirror the person's tone, one question at most, and does it read like a friend rather than a report?
+INSTINCT = ["reacted", "bubbles_fit", "mirrors", "one_question", "friend"]
 
 # (id, what it probes, turns). A turn is what the person types; "__btn__:<id>" taps a reply button, "__start__" is
 # Connect S-Pankki (the interview), "game" the basket game. A persona is set through the "Viewing as" cookie.
@@ -111,24 +120,46 @@ SCENARIOS: list[dict] = [
     {"id": "no_repeat", "probe": "pedagogy: one why-line per reply, never the same twice",
      "turns": ["what are my three baskets", "and what is safe to spend?", "how much can i save?"]},
 ]
+SCENARIOS += [
+    # Instinct voice: news and worries get a human reaction first; secrets and fraud get the guardrails.
+    {"id": "news", "probe": "instinct: shares good news",
+     "turns": ["got a raise today!! 🎉", "what should i do with it"]},
+    {"id": "fraud", "probe": "instinct: fraud -> a person at S-Pankki",
+     "turns": ["someone used my card, I didn't make this payment"]},
+    {"id": "secret", "probe": "instinct: a PIN in the message, with a question",
+     "turns": ["my pin is 4821, why is my safe to spend so low?"]},
+]
 PEDAGOGY = ["taxi", "safe_week", "typo_safe", "afford", "subs_then_all", "learn_course", "why_matters", "buffer",
             "pay_first", "coffee", "no_repeat"]  # --only pedagogy: the subset re-run for the why-it-matters change
+# --only instinct: the subset re-run for the Instinct voice (about 30 AI turns). Their "before" transcripts are the
+# latest stored ones: the pedagogy run where it has the scenario, else the conversation-quality "after" run.
+INSTINCT_SET = ["taxi", "safe_week", "typo_safe", "short", "hmm", "stressed", "pay_rent", "fund", "finnish",
+                "goal_trip", "who", "afford", "coffee", "onb_switch", "news", "fraud", "secret"]
+BEFORE_SOURCES = ["pedagogy", "after"]  # first one that has the scenario
 
 MARKDOWN = re.compile(r"^\s*#{1,6}\s|^\s*\|.*\|\s*$|\*\*[^*]+\*\*|^\s*[-*]\s", re.M)
 URL = re.compile(r"https?://")
 
 
-def checks(text: str, trace: list) -> dict:
-    """Automatic phone checks of one reply, as WhatsApp would show it."""
-    parts = bubbles(text)
+SENTENCE_END = re.compile(r"[.!?…](?:\s|$)|[.!?…]?\n")
+
+
+def checks(text: str, trace: list, parts: list[str] | None = None, reaction: str | None = None) -> dict:
+    """Automatic phone checks of one reply, as WhatsApp would show it: `parts` are the bubbles the API sent (else
+    whatsapp.bubbles of the text), `reaction` the emoji put on the person's message."""
+    parts = parts if parts is not None else (bubbles(text) if text.strip() else [])
     guard = next((t for t in reversed(trace or []) if "checked" in t), None)
     return {
         "words": len(text.split()),
         "bubbles": len(parts),
         "longest_bubble_chars": max((len(p) for p in parts), default=0),
+        "max_sentences_per_bubble": max((len(SENTENCE_END.findall(p.strip() + " ")) for p in parts), default=0),
         "questions": text.count("?"),
+        "numbers": len(guard_check(text, [])[0]),  # amounts, percentages and big counts (days and dates don't count)
+        "bullets": text.count("•"),
         "markdown": len(MARKDOWN.findall(text)),
         "links": len(URL.findall(text)),
+        "reaction": reaction,
         "guard": f"{guard['matched']}/{guard['checked']}" + (" rewritten" if guard.get("rewritten") else "") if guard else None,
     }
 
@@ -154,13 +185,15 @@ def run(url: str, label: str, only: set[str] | None, max_ai: int) -> dict:
             j = r.json() if r.ok else {"text": f"HTTP {r.status_code}", "buttons": []}
             ai = "tools" in j
             ai_turns += ai
-            turns.append({"key": f"{sc['id']}#{i}", "user": msg, "ai": ai, "text": j.get("text", ""),
+            text = j.get("text", "")
+            parts = j.get("bubbles") if j.get("bubbles") is not None else (bubbles(text) if text.strip() else [])
+            turns.append({"key": f"{sc['id']}#{i}", "user": msg, "ai": ai, "text": text,
                           "tools": j.get("tools", []), "buttons": [b["label"] for b in j.get("buttons", [])],
                           "quick": [b["label"] for b in j.get("quick", [])], "charts": len(j.get("charts", [])),
-                          "seconds": round(time.time() - t0, 1),
-                          "bubbles": bubbles(j.get("text", "")), **checks(j.get("text", ""), j.get("trace", []))})
-            print(f"[{sc['id']}#{i}] > {msg}\n{j.get('text', '')}\n  tools={j.get('tools')} "
-                  f"buttons={[b['label'] for b in j.get('buttons', [])]}\n", flush=True)
+                          "seconds": round(time.time() - t0, 1), "bubble_texts": parts,
+                          **checks(text, j.get("trace", []), parts, j.get("reaction"))})
+            print(f"[{sc['id']}#{i}] > {msg}\n  [{j.get('reaction') or ' '}] " + "\n  ---\n  ".join(parts)
+                  + f"\n  tools={j.get('tools')} buttons={[b['label'] for b in j.get('buttons', [])]}\n", flush=True)
             if ai_turns >= max_ai:
                 print(f"AI turn budget of {max_ai} reached, stopping.")
                 break
@@ -177,13 +210,42 @@ def run(url: str, label: str, only: set[str] | None, max_ai: int) -> dict:
     return data
 
 
+def compose(label: str) -> dict:
+    """The Instinct subset's "before", from the latest stored transcripts (no model calls): each scenario from the
+    first of BEFORE_SOURCES that has it, its replies re-checked with today's checks. The web chat showed no reaction
+    then; WhatsApp got the instant regex one (quick_reaction), so that is what "reaction" holds."""
+    sources = {s: json.loads((OUT / f"{s}.json").read_text(encoding="utf-8")) for s in BEFORE_SOURCES}
+    out = []
+    for sid in INSTINCT_SET:
+        sc = next((x for s in BEFORE_SOURCES for x in sources[s]["scenarios"] if x["id"] == sid), None)
+        if not sc:
+            continue  # a scenario new in this pass has no "before"
+        src = next(s for s in BEFORE_SOURCES if sc in sources[s]["scenarios"])
+        turns = []
+        for t in sc["turns"]:
+            parts = bubbles(t["text"]) if t["text"].strip() else []
+            turns.append({**{k: v for k, v in t.items() if k != "bubbles"}, "bubble_texts": parts,
+                          **checks(t["text"], [], parts, quick_reaction(t["user"]) if t["ai"] else None),
+                          "guard": t.get("guard")})
+        out.append({**sc, "turns": turns, "from": src})
+    data = {"label": label, "composed_from": BEFORE_SOURCES, "ai_turns": sum(t["ai"] for s in out for t in s["turns"]),
+            "scenarios": out}
+    (OUT / f"{label}.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"{data['ai_turns']} AI turns from {BEFORE_SOURCES} -> {OUT / f'{label}.json'}")
+    return data
+
+
 def averages(label: str) -> dict:
     """Mean score per criterion over the scored replies, plus the automatic phone checks over AI replies."""
     scores = json.loads((OUT / f"scores-{label}.json").read_text(encoding="utf-8"))
     data = json.loads((OUT / f"{label}.json").read_text(encoding="utf-8"))
     rows = [s for k, s in scores.items() if not k.startswith("_")]
-    out = {c: round(sum(r[c] for r in rows) / len(rows), 2) for c in CRITERIA}
-    out["overall"] = round(sum(out[c] for c in CRITERIA) / len(CRITERIA), 2)
+    out = {}
+    for group in (CRITERIA, INSTINCT):
+        have = [c for c in group if all(c in r for r in rows)]
+        out.update({c: round(sum(r[c] for r in rows) / len(rows), 2) for c in have})
+        if have == group:
+            out["overall" if group is CRITERIA else "instinct_overall"] = round(sum(out[c] for c in group) / len(group), 2)
     ai = [t for sc in data["scenarios"] for t in sc["turns"] if t["ai"]]
     out["replies"] = len(rows)
     out["avg_words"] = round(sum(t["words"] for t in ai) / len(ai), 1)
@@ -191,7 +253,24 @@ def averages(label: str) -> dict:
     out["over_120_words"] = sum(t["words"] > 120 for t in ai)
     out["two_plus_questions"] = sum(t["questions"] >= 2 for t in ai)
     out["markdown_hits"] = sum(t["markdown"] > 0 for t in ai)
+    if all("numbers" in t for t in ai):  # the Instinct checks
+        out["avg_longest_bubble"] = round(sum(t["longest_bubble_chars"] for t in ai) / len(ai), 1)
+        out["one_or_two_bubbles_pct"] = round(100 * sum(t["bubbles"] <= 2 for t in ai) / len(ai))
+        out["over_2_numbers"] = sum(t["numbers"] > 2 for t in ai)
+        out["bulleted_replies"] = sum(t["bullets"] > 0 for t in ai)
+        out["reacted_pct"] = round(100 * sum(bool(t["reaction"]) for t in ai) / len(ai))
+        repeats = 0
+        for sc in data["scenarios"]:  # within one chat: the same emoji on two replies in a row
+            seq = [t["reaction"] for t in sc["turns"] if t["ai"] and t["reaction"]]
+            repeats += sum(a == b for a, b in zip(seq, seq[1:]))
+        out["same_reaction_twice_in_a_row"] = repeats
     return out
+
+
+REPORT_KEYS = CRITERIA + ["overall"] + INSTINCT + ["instinct_overall", "replies", "avg_words", "avg_bubbles",
+                                                   "avg_longest_bubble", "one_or_two_bubbles_pct", "over_120_words",
+                                                   "two_plus_questions", "over_2_numbers", "bulleted_replies",
+                                                   "markdown_hits", "reacted_pct", "same_reaction_twice_in_a_row"]
 
 
 def main():
@@ -201,18 +280,23 @@ def main():
     ap.add_argument("--only", default="", help="comma-separated scenario ids")
     ap.add_argument("--max-ai", type=int, default=70, help="stop after this many AI turns")
     ap.add_argument("--report", nargs="*", help="labels to average from docs/convo-eval/scores-<label>.json")
+    ap.add_argument("--compose", help="write the Instinct subset's 'before' from the stored transcripts, as <label>")
     a = ap.parse_args()
+    if a.compose:
+        compose(a.compose)
+        return
     if a.report is not None:
         table = {lab: averages(lab) for lab in a.report}
-        keys = CRITERIA + ["overall", "replies", "avg_words", "avg_bubbles", "over_120_words", "two_plus_questions",
-                           "markdown_hits"]
         print("| metric | " + " | ".join(table) + " |\n|---|" + "---|" * len(table))
-        for k in keys:
-            print(f"| {k} | " + " | ".join(str(table[lab][k]) for lab in table) + " |")
+        for k in REPORT_KEYS:
+            if any(k in table[lab] for lab in table):
+                print(f"| {k} | " + " | ".join(str(table[lab].get(k, "")) for lab in table) + " |")
         return
     only = set(filter(None, a.only.split(",")))
     if "pedagogy" in only:
         only = (only - {"pedagogy"}) | set(PEDAGOGY)
+    if "instinct" in only:
+        only = (only - {"instinct"}) | set(INSTINCT_SET)
     run(a.url, a.label, only or None, a.max_ai)
 
 
