@@ -619,6 +619,11 @@ def handle_message(m: dict):
             wa.send_url_button(to, "Tap to log in to the S-Pankki site with this WhatsApp. The link is just for "
                                    "you; don't forward it.", "Log in", f"{public_url()}/login?t={enable_banking.sign(to)}")
             return
+        if not secret and REFRESH_BANK.match(said) and enable_banking.configured() and enable_banking.load(to):
+            n = enable_banking.refresh(to)
+            total = sum(b for x in enable_banking.picture(to) for a in x["accounts"] if (b := a.get("balance_eur")))
+            wa.send_text(to, f"Refreshed {n} account(s) from your bank: {money(total)} in total, all currencies in euros.")
+            return
         if not secret and ADD_BANK.search(said) and enable_banking.configured():
             wa.send_url_button(to, "Bring your other bank here too (Revolut, OP, Nordea...). Read only: I see balances "
                                    "and the last 90 days, I can't move money there. The link is just for you.",
@@ -737,10 +742,11 @@ def bank_submit(request: Request, u: str = Form(""), scope: list[str] = Form([])
 
 
 # ---------------- another bank, for real (Enable Banking), login with WhatsApp ----------------
-ADD_BANK = re.compile(r"\b(add|link|connect|bring)\b(?!.*s-?pankki).*\b(bank|account)s?\b|\brevolut\b|"
-                      r"\benable\s*banking\b", re.I)
+ADD_BANK = re.compile(r"\b(add|link|connect|bring)\b(?!.*s-?pankki).*\b(banks?|accounts?|revolut|enable\s*banking)\b",
+                      re.I)
 
 
+REFRESH_BANK = re.compile(r"^\s*(refresh|sync|update|reload)\b.*\b(banks?|revolut|accounts?)\b", re.I)
 LOGIN = re.compile(r"^\s*(log\s*in|login|sign\s*in)\b", re.I)
 
 
