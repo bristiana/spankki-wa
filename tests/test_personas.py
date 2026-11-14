@@ -81,8 +81,8 @@ def test_a_payment_in_one_persona_leaves_the_others_alone(client):
     j = client.post("/api/chat", json={"session": "s1", "text": f"__btn__:pay:{rent['bill_id']}", "as": pid}).json()
     url = j["buttons"][0]["url"]
     client.cookies.set(main.PERSONA_COOKIE, main.DEFAULT_PERSONA)  # the confirm page acts on the creator, not the cookie
-    r = client.post(url.split("?")[0], data={"pin": "1234"})
-    assert r.status_code == 200 and "Payment sent" in r.text
+    r = client.post(url.split("?")[0] + "/confirm", json={})
+    assert r.status_code == 200 and r.json()["title"] == "Payment sent"
     assert other.balance() == round(other_before - rent["amount_eur"], 2)
     assert main.engine.balance() == aino_before
     assert other.state_path.parent == main.STATE_DIR and other.state_path.exists()

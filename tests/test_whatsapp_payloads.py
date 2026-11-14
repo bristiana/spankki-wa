@@ -86,9 +86,11 @@ class Chat:
         return [b["text"]["body"] for b in self.sent if b.get("type") == "text"]
 
     def confirm(self, url=None):
-        """The PIN page behind a cta_url button, confirmed with a PIN."""
-        page = self.client.post((url or self.url()).replace(BASE, ""), data={"pin": "1234"})
-        assert page.status_code == 200
+        """The S-mobiili review behind a cta_url button, confirmed with (simulated) Face ID."""
+        path = (url or self.url()).replace(BASE, "")
+        assert path.startswith("/s-mobiili/") and self.client.get(path).status_code == 200
+        page = self.client.post(path + "/confirm", json={})
+        assert page.status_code == 200 and page.json()["ok"]
         return page
 
     def connect(self):
