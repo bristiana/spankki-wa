@@ -84,9 +84,10 @@ def test_reply_gets_date_and_money_style(e):
 def test_context_reaches_the_system_prompt(e):
     rec = Recorder("Fine.")
     Coach(e, client=rec).ask("u", "what does prudent mean", context="The interview asks again: Which is closest?")
-    assert rec.requests[0]["system"].endswith("<right_now>\nThe interview asks again: Which is closest?\n</right_now>")
+    assert rec.requests[0]["system"][1]["text"].endswith(
+        "<right_now>\nThe interview asks again: Which is closest?\n</right_now>")
     Coach(e, client=rec).ask("u", "hi")
-    assert "<right_now>" not in rec.requests[1]["system"]
+    assert "<right_now>" not in rec.requests[1]["system"][1]["text"]
 
 
 def test_remembered_flow_turns_are_history_and_number_sources(e):

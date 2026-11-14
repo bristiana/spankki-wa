@@ -13,3 +13,10 @@ def persona_isolation(tmp_path, monkeypatch):
     yield
     main._engines.clear()
     main._coaches.clear()
+
+
+@pytest.fixture(autouse=True)
+def chats_isolation(tmp_path, monkeypatch):
+    """Coaches keep their conversations under tmp, never in data/."""
+    from app import agent
+    monkeypatch.setattr(agent, "chats_path", lambda e: tmp_path / "chats" / f"{e.state_path.stem}-chats.json")

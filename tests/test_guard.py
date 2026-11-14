@@ -49,7 +49,7 @@ def test_guard_retries_once(tmp_path):
     assert r.text == "You have 68.60 € safe to spend." and client.calls == 3
     assert "99.99" in client.seen[-1]
     history = coach.histories["u"]
-    assert [m["role"] for m in history] == ["user", "assistant", "user", "assistant"]
+    assert [m["role"] for m in history] == ["user", "assistant"]  # only what they saw: no draft, no tool JSON
     assert "99.99" not in str(history)
 
 
