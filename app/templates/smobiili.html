@@ -380,7 +380,7 @@
     </div>
   {% elif screen == "tab" and tab == "raha" %}
     <div class="pad money" id="money" data-src="/static/mockups/charts/data/">
-      <p class="asof" id="money-asof">{{ t("Omista tapahtumistasi {date} asti. Kaltaisesi: {n} S-Pankin asiakasta, 30–39-vuotiaat Vantaan alueella.", "From your own transactions up to {date}. People like you: {n} S-Pankki customers aged 30–39 in the Vantaa area.") }}</p>
+      <p class="asof" id="money-asof">{{ t("Omista tapahtumistasi {date} asti. Kaltaisesi: {n} S‑Pankin asiakasta, 30–39-vuotiaat Vantaan alueella.", "From your own transactions up to {date}. People like you: {n} S‑Pankki customers aged 30–39 in the Vantaa area.") }}</p>
       {% for id in ("trend", "cats", "budget", "sit", "fig", "income", "cal") %}<section class="card{{ ' rel' if id == 'trend' }}" id="{{ id }}"></section>
       {% endfor %}
     </div>

@@ -118,3 +118,9 @@ def test_your_money_screen(client):
     for name in ("spend", "budget", "compare", "recurring"):
         assert (static / src.removeprefix("/static/") / f"{name}.json").is_file()
         assert client.get(f"{src}{name}.json").status_code == 200
+
+
+def test_your_money_is_only_for_its_own_customer(client):
+    """Another customer asking for ?tab=raha gets Pankki, never Antti's figures."""
+    r = client.get("/s-mobiili/?tab=raha&persona=CUST04831&lang=en")
+    assert r.status_code == 200 and 'id="money"' not in r.text and "money.js" not in r.text

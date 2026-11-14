@@ -2,10 +2,10 @@
 // (app/static/mockups/charts/index.html), drawn from the same fixtures (data-src on #money), built by
 // scripts/build_chart_mockup_fixtures.py from Antti's own transactions and his real peer group.
 (async function () {
+  "use strict";
   const HOST = document.getElementById("money");
   if (!HOST) return;
   const BASE = HOST.dataset.src;
-  "use strict";
   const NB = " ", MINUS = "−", NS = "http://www.w3.org/2000/svg";
   const get = n => fetch(BASE + n + ".json").then(r => { if (!r.ok) throw new Error(n + ".json: " + r.status); return r.json(); });
   const [spend, budget, compare, rec] = await Promise.all(["spend", "budget", "compare", "recurring"].map(get));
@@ -149,7 +149,7 @@
       <div>${used.map(c => `<div class="row">${icon(c.category)}<div class="mid"><div class="nm">${c.label}</div>
         <div class="sm">${pct(c.spent_eur / total)} · last month ${eur(c.prev_eur, 0)}</div></div>
         <div class="amt">${eur(c.spent_eur)}</div></div>`).join("")}</div>
-      ${none.length ? `<p class="nob">Nothing yet on ${none.map(c => c.label).join(" or ")}.</p>` : ""}`;
+      ${none.length ? `<p class="nob">Nothing yet on ${none.length > 1 ? none.slice(0, -1).map(c => c.label).join(", ") + " or " + none[none.length - 1].label : none[0].label}.</p>` : ""}`;
   })();
 
   /* 3 · budgets and pace */

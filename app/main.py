@@ -1401,6 +1401,8 @@ def smobiili_home(request: Request):
     tab = request.query_params.get("tab") or "koti"
     if tab not in SM_TABS:
         tab = "koti"
+    if tab == "raha" and persona != MONEY_PERSONA:  # the charts are one customer's own figures: nobody else sees them
+        tab = "pankki"
     if tab != "koti":  # the other tabs: the bank's own screens, no guide walk
         bills_due = e.upcoming_bills(30)
         return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
