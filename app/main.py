@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from datetime import date
 from pathlib import Path
 
@@ -32,7 +33,9 @@ app = FastAPI(title="S-Pankki Chat")
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 seen: set[str] = set()
 owner: dict[str, str] = {}
-inbox: dict[str, list[str]] = {}  # web chat session -> confirmations waiting to be shown  # pending_id -> WhatsApp number that asked for it
+inbox: dict[str, list[str]] = {}  # web chat session -> confirmations waiting to be shown
+last_seen: dict[str, float] = {}  # WhatsApp number -> when they last wrote (free-form replies only within 24 h)
+WINDOW_S = 24 * 3600
 DEMO_NAME = "Aino"
 # Quick-reply buttons that turn into a question for the coach.
 ASK = {
@@ -88,12 +91,20 @@ async def incoming(request: Request, bg: BackgroundTasks):
     raw = await request.body()
     if not wa.verify_signature(raw, request.headers.get("x-hub-signature-256")):
         raise HTTPException(403, "bad signature")
-    for m in wa.parse(await request.json()):
-        if m["id"] in seen:
-            continue
+    payload = await request.json()
+    for f in wa.failed_statuses(payload):
+        log.warning("delivery failed to %s: %s %s", str(f["to"])[-4:], f["code"], f["title"])
+    new = [m for m in wa.parse(payload) if m["id"] not in seen]
+    for m in new:
         seen.add(m["id"])
-        bg.add_task(handle_message, m)
+        last_seen[m["from"]] = time.time()
+    if new:
+        bg.add_task(lambda: [handle_message(m) for m in new])  # one delivery, answered in order
     return {"ok": True}
+
+
+def window_open(phone: str | None) -> bool:
+    return bool(phone) and time.time() - last_seen.get(phone, 0) < WINDOW_S
 
 
 def send_reply(to: str, reply):
@@ -467,7 +478,8 @@ def demo_panel(request: Request, key: str = ""):
     """Filming helper: buttons that send each proactive message to the demo phone."""
     if not key or key != os.environ.get("WA_VERIFY_TOKEN"):
         raise HTTPException(404)
-    return templates.TemplateResponse(request, "demo.html", _ctx(phone=os.environ.get("DEMO_PHONE", "")))
+    phone = os.environ.get("DEMO_PHONE", "")
+    return templates.TemplateResponse(request, "demo.html", _ctx(phone=phone, open=window_open(phone)))
 
 
 @app.post("/demo/reset")
