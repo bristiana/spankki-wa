@@ -78,10 +78,10 @@ def test_save_more_is_a_tool_with_a_trace_step(hero):
 
 def test_the_three_questions_are_the_first_chips():
     page = TestClient(main.app).get("/chat").text
-    chips = page[page.index('id="chips"'):page.index("</div>", page.index('id="chips"'))]
-    first = [c.split(">", 1)[1].split("</button>")[0] for c in chips.split("<button")[1:4]]
-    assert first == THREE
-    assert all(f"<button>{q}</button>" in chips for q in THREE)  # visible, not under "More ideas"
+    start = page.index('id="top"')
+    assert start < page.index('id="chips"')  # above the scrolling ideas
+    top = page[start:page.index("</div>", start)]
+    assert [c.split(">", 1)[1].split("</button>")[0] for c in top.split("<button")[1:]] == THREE  # visible, not "More"
 
 
 class Script:

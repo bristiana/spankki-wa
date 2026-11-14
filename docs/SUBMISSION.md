@@ -30,6 +30,6 @@ Birky is for everyday money at any age, and especially helpful for young adults 
 
 Simulated, and labelled as such: the PIN pages and the payments, savings and pauses they confirm (a stand-in for PSD2 payment initiation), the "Demo Fund" names over real ETF prices, and the optional linked "Demo Bank" (a made-up second bank for the multi-bank view). Every balance, bill and regular payment comes from the S-Pankki dataset.
 
-**Built with:** Claude (tool use over a deterministic pandas engine), FastAPI, WhatsApp Cloud API, Cloudflare Containers, Statistics Finland PxWeb API. 552 automated tests, plus an end-to-end browser walkthrough of every flow.
+**Built with:** Claude (tool use over a deterministic pandas engine), FastAPI, WhatsApp Cloud API, Cloudflare Containers, Statistics Finland PxWeb API. 547 automated tests, plus an end-to-end browser walkthrough of every flow.
 
 **S-mobiili fit:** the same API powers an in-app chat. Next steps are PSD2 payment initiation, a real multi-bank view and card data, where the same detector would also find card subscriptions.
