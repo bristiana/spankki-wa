@@ -44,13 +44,15 @@
   .kc-line{fill:none;stroke:var(--brand);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
   .kc-area{fill:var(--brand);opacity:.1}
   .kc-dot{fill:var(--brand);stroke:var(--card);stroke-width:1.5}
+  /* inside a banking app's WebView: no site chrome, no outer margins, clear of notches */
+  body.embed{padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
   .kc-empty{color:var(--muted);font-size:14px;margin:8px 0}
 </style>
 {% block head %}{% endblock %}
 </head>
-<body>
-<div class="bar"><a class="home" href="/"><div class="logo">S</div><b>S-Pankki</b></a><nav><a href="/chat">Chat</a><a href="/app">My money</a><a href="/app/explore">Explore</a></nav><small>demo</small></div>
+<body{% if embed %} class="embed"{% endif %}>
+{% if not embed %}<div class="bar"><a class="home" href="/"><div class="logo">S</div><b>S-Pankki</b></a><nav><a href="/chat">Chat</a><a href="/app">My money</a><a href="/app/explore">Explore</a></nav><small>demo</small></div>{% endif %}
 {% block body %}{% endblock %}
-<footer>Junction 2026 prototype on synthetic data. No real money moves.</footer>
+{% if not embed %}<footer>Junction 2026 prototype on synthetic data. No real money moves.</footer>{% endif %}
 </body>
 </html>

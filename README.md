@@ -24,6 +24,7 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 | Save | Goals with deadlines ("1,500 € for Lapland by June"), honest monthly options, salary-day nudge "pay yourself first", savings pocket with PIN |
 | Invest | What-if cuts ("dining out −20% = 97.18 €/month") checked against **real ETF prices** over the last 2 years; your real deposits valued in each fund; one-off investments can place a real order on a Trading 212 Practice account |
 | My money | Dashboard: balance trend, safe to spend, three baskets, weekly in/out, bills, subscriptions, you vs Finland, goals, investing, latest transactions |
+| Inside S-mobiili | Concept page [/mobile-demo](app/templates/mobile_demo.html): a generic banking-app home screen with Kurre cards drawn natively from `/api/widgets` (engine numbers, no AI, cacheable), and an "Ask Kurre" bar that slides up the chat as a WebView (`/chat?embed=1`). A card tap opens the chat with its question (`/chat?q=...`). See [docs/integration.md](docs/integration.md) |
 | MyData | **Explore** (`/app/explore`): build your own view of your transactions (spending or income, one category, basket or kind of place, grouped by month, week, weekday, category, basket or place; euros, count or average) and download exactly that view as CSV. Ask Kurre "When do I spend most on restaurants?" and the chart is drawn in the web chat, or comes as an *Open chart* button on WhatsApp. "Download my data" (CSV/JSON) on the dashboard or by writing *my data*; *STOP* switches Kurre off and deletes the chat history |
 | Feels like a person | Instant reaction on your message (👀 🙏 💰 👋), read receipt + typing, replies in short bubbles; card numbers, IBANs and Finnish personal IDs are removed before the AI sees them |
 
@@ -74,10 +75,10 @@ cp .env.example .env          # ANTHROPIC_API_KEY, optional WhatsApp and Trading
 uvicorn app.main:app --port 8000
 ```
 
-- Landing http://127.0.0.1:8000 · chat `/chat` · dashboard `/app` · explore `/app/explore`
+- Landing http://127.0.0.1:8000 · chat `/chat` · dashboard `/app` · explore `/app/explore` · inside a banking app `/mobile-demo` · cards `/api/widgets`
 - From the terminal: `python -m app.agent "What is safe for me to spend this week?"`
 - End to end, every flow in a phone-sized browser: `python scripts/demo_walkthrough.py --url http://127.0.0.1:8000`
-- Tests: `python -m pytest` (130)
+- Tests: `python -m pytest` (137)
 - Refresh real data: `python scripts/fetch_market.py`, `python scripts/fetch_statfin.py`; rebuild the persona with `python scripts/extract_persona.py --data-dir <dataset>` and the mortgage benchmark with `python scripts/build_mortgage_benchmark.py --data-dir <dataset>`
 - WhatsApp: set `<url>/webhook` and `WA_VERIFY_TOKEN` in the Meta app, subscribe to `messages`. Proactive messages: `POST /demo/remind`, `POST /demo/alert?kind=salary|unusual|renewal`
 - Proactive check: `POST /cron/wake?key=<WA_VERIFY_TOKEN>` (also on a Worker cron at 07, 12 and 17 UTC) picks the most urgent signal per person from `app/rules.py` and sends it, or a template from `docs/whatsapp-templates.md` outside the 24-hour window. It sends nothing unless `DEMO_PROACTIVE=1`; add `&dry_run=1` to only see what would go out

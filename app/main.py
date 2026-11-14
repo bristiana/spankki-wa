@@ -9,6 +9,7 @@ import os
 import time
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlencode
 
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
@@ -796,8 +797,85 @@ def dashboard(request: Request):
 
 
 @app.get("/chat", response_class=HTMLResponse)
-def chat_page(request: Request):
-    return templates.TemplateResponse(request, "chat.html", {"name": DEMO_NAME})
+def chat_page(request: Request, q: str = "", embed: str = ""):
+    """?q= asks a question once on load (deep link); ?embed=1 drops the site chrome for a WebView."""
+    return templates.TemplateResponse(request, "chat.html", {"name": DEMO_NAME, "q": q[:500], "embed": embed == "1"})
+
+
+# ---------------- S-mobiili integration: native home-screen cards, no AI ----------------
+WIDGETS_MAX_AGE = 300
+
+
+def ask_link(question: str) -> str:
+    return "/chat?" + urlencode({"q": question})
+
+
+def widgets() -> dict:
+    """Small cards a banking app home screen can draw natively. Every number comes from the engine;
+    each card deep-links into the chat with a question (or a direct action that needs no AI)."""
+    s = engine.safe_to_spend()
+    pay = s["next_payday"]
+    cards = [{"id": "safe_to_spend", "title": "Safe to spend", "value": money(s["safe_to_spend_until_payday_eur"]),
+              "subtitle": f"until payday {nice_date(pay['date'])} · {money(s['safe_per_day_eur'])} a day",
+              "amount_eur": s["safe_to_spend_until_payday_eur"], "per_day_eur": s["safe_per_day_eur"],
+              "payday": pay["date"], "days_to_payday": pay["days_away"],
+              "deep_link": ask_link("What is safe for me to spend until payday?")}]
+    bill = next((b for b in engine.upcoming_bills(45) if b["bill_id"] and b["category"] != "Invest Deposit"), None)
+    if bill:
+        when = "tomorrow" if bill["days_away"] == 1 else f"in {bill['days_away']} days"
+        cards.append({"id": "next_bill", "title": "Next bill", "value": money(bill["amount_eur"]),
+                      "subtitle": f"{bill['name']} · {nice_date(bill['due_date'])} ({when})",
+                      "name": bill["name"], "amount_eur": bill["amount_eur"], "due_date": bill["due_date"],
+                      "days_away": bill["days_away"],
+                      "deep_link": ask_link(f"How does my {bill['name'].lower()} fit before payday?"),
+                      "actions": [{"label": "Pay", "deep_link": ask_link(f"__btn__:pay:{bill['bill_id']}")}]})
+    b = engine.baskets("this_month")
+    if not b["total_spent_eur"]:  # early in the month: show the last full month instead of three zeros
+        b = engine.baskets("last_month")
+    month = "this month" if b["from"][:7] == engine.today.isoformat()[:7] else "last month"
+    cards.append({"id": "baskets", "title": "Your three baskets", "value": money(b["total_spent_eur"]),
+                  "subtitle": f"spent {month}", "period": month.replace(" ", "_"), "from": b["from"], "to": b["to"],
+                  "total_eur": b["total_spent_eur"],
+                  "baskets": [{"key": x["basket"], "label": x["label"], "share_pct": x["share_pct"],
+                               "total_eur": x["total_eur"]} for x in b["baskets"]],
+                  "deep_link": ask_link(f"Where did my money go {month}, basket by basket?")})
+    subs = engine.subscriptions()["subscriptions"]
+    up = next((x for x in subs if x["status"] == "active" and x["price_increase"]), None)
+    off = next((x for x in subs if x["status"] == "inactive"), None)
+    if up:
+        inc = up["price_increase"]
+        cards.append({"id": "subscription", "kind": "price_increase", "title": f"{up['name']} went up",
+                      "value": money(inc["to_eur"]), "subtitle": f"was {money(inc['from_eur'])} · {money(up['per_year_eur'])} a year",
+                      "name": up["name"], "from_eur": inc["from_eur"], "to_eur": inc["to_eur"],
+                      "per_year_eur": up["per_year_eur"],
+                      "deep_link": ask_link(f"{up['name']} went up in price. Is it still worth it?")})
+    elif off:
+        cards.append({"id": "subscription", "kind": "inactive", "title": f"{off['name']} looks unused",
+                      "value": money(off["price_eur"]), "subtitle": f"last charged {nice_date(off['last_charge'])}",
+                      "name": off["name"], "price_eur": off["price_eur"], "last_charge": off["last_charge"],
+                      "deep_link": ask_link("What subscriptions am I paying for?")})
+    goals = engine.goals()
+    if goals:
+        g = goals[0]
+        cards.append({"id": "goal", "title": g["goal"]["name"], "value": f"{g['progress_pct']}%",
+                      "subtitle": f"{money(g['goal']['saved'])} of {money(g['goal']['target'])}",
+                      "goal_id": g["goal"]["id"], "progress_pct": g["progress_pct"],
+                      "saved_eur": g["goal"]["saved"], "target_eur": g["goal"]["target"],
+                      "deadline": g["goal"].get("deadline"),
+                      "deep_link": ask_link(f"How is my {g['goal']['name']} goal going?")})
+    return {"version": 1, "as_of": engine.today.isoformat(), "max_age_s": WIDGETS_MAX_AGE, "widgets": cards}
+
+
+@app.get("/api/widgets")
+def widgets_api():
+    return JSONResponse(widgets(), headers={"cache-control": f"private, max-age={WIDGETS_MAX_AGE}"})
+
+
+@app.get("/mobile-demo", response_class=HTMLResponse)
+def mobile_demo(request: Request):
+    """Concept mock: Kurre's cards and chat inside a generic banking app home screen."""
+    return templates.TemplateResponse(request, "mobile_demo.html", _ctx(
+        name=DEMO_NAME, balance=engine.balance(), recent=engine.recent(6)))
 
 
 @app.post("/api/chat")
