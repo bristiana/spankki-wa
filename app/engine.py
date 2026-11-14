@@ -853,18 +853,22 @@ class Engine:
         out = {"category": category, "current_per_month_eur": eur(now), "cut_pct": cut_pct,
                "new_per_month_eur": eur(now - save), "saving_per_month_eur": eur(save),
                "saving_per_year_eur": eur(save * 12), "based_on": "average of the last 3 full months",
-               "if_invested": []}
-        for f in ([FUNDS_BY_ID[fund_id]] if fund_id else FUNDS):
-            r = f["scenario_return"] / 12
-            n = years * 12
-            fv = save * (((1 + r) ** n - 1) / r)
-            out["if_invested"].append({"fund": f["name"], "risk": f["risk"], "years": years,
-                                       "paid_in_eur": eur(save * n), "value_eur": eur(fv),
-                                       "scenario_return_pct": f["scenario_return"] * 100})
+               "if_invested": self.grow_monthly(save, years, fund_id)}
         out["disclaimer"] = "Scenario, not a promise. Funds can lose value."
         past = self.backtest_monthly(save, 24)
         if past:
             out["real_past_check"] = past
+        return out
+
+    @staticmethod
+    def grow_monthly(monthly: float, years: int, fund_id: str | None = None) -> list[dict]:
+        """The same amount put in every month for `years`, at each demo fund's scenario return (not a promise)."""
+        out = []
+        for f in ([FUNDS_BY_ID[fund_id]] if fund_id else FUNDS):
+            r, n = f["scenario_return"] / 12, years * 12
+            out.append({"fund": f["name"], "risk": f["risk"], "years": years, "paid_in_eur": eur(monthly * n),
+                        "value_eur": eur(monthly * (((1 + r) ** n - 1) / r)),
+                        "scenario_return_pct": f["scenario_return"] * 100})
         return out
 
     # ---------- real market prices (data/market.json) ----------

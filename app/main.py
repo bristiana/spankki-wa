@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import broker, onboarding, quiz, rules
+from . import broker, learn, onboarding, quiz, rules
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -238,6 +238,7 @@ def switch_off(to: str):
     coach().reset(to)
     onboarding.forget(engine, to)
     quiz.forget(engine, to)
+    learn.forget(engine, to)
     names.pop(to, None)
     wa.send_text(to, "Done ✅ Birky is switched off for this number and our chat history is deleted. "
                      "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
@@ -267,6 +268,13 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
                 "url": (wa.short(f"Stop {p['name']}"), f"{public_url()}/stop/{p['pending_id']}{q}")}
     if bid.startswith("keep:"):
         return {"text": f"Okay, {bid[5:]} stays on 👍 I'll tell you if the price changes again."}
+    if bid == "learn:buffer" or bid.startswith("learn:save:"):  # a lesson's action: a goal, then the usual save
+        goal_id, amount = learn.goal_for(e, bid)
+        if amount < 1:
+            g = e.state["goals"][goal_id]
+            return {"text": f"Your *{g['name']}* goal of *{money(g['target'])}* is set 🌰 Nothing is free to move "
+                            "before payday, so the first saving can wait for payday."}
+        bid = f"save:{goal_id}:{amount:.0f}"
     if bid.startswith("save:"):
         _, goal_id, amount = bid.split(":")
         p = e.create_saving(goal_id, float(amount))
@@ -288,12 +296,22 @@ def flow_context(e: Engine, user: str) -> str | None:
         return ("The person is in the short first-chat interview (no AI). Right after your reply, the app asks them "
                 f"again: \"{waiting.text}\" Answer only their side question, in a few lines, and end without a "
                 "question or offer of your own.")
+    lesson = learn.waiting_lesson(e, user)
+    if lesson:
+        return ("The person paused the short money course (no AI) at this lesson: \"" + lesson + "\" Their "
+                "question may be about it. Right after your reply, the app tells them how to pick the course up. "
+                "Answer only their question, in a few lines, and end without a question or offer of your own.")
     paused = quiz.waiting_question(e, user)
     if paused:
         return ("The person paused the basket game (no AI) at this question: \"" + paused + "\" Right after your "
                 "reply, the app tells them how to pick it up. Answer only their question, in a few lines, and end "
                 "without a question or offer of your own.")
     return None
+
+
+def flow_turn(e: Engine, user: str, text: str, bid: str = "") -> onboarding.Turn | None:
+    """The no-AI flows, in order: the Learn course, the basket game, the interview. None = the coach answers."""
+    return learn.turn(e, user, text, bid) or quiz.turn(e, user, text, bid) or onboarding.turn(e, user, text, bid)
 
 
 def remember(persona: str | None, user: str, said: str, t: onboarding.Turn):
@@ -339,7 +357,8 @@ def handle_message(m: dict):
         if emoji:
             wa.send_reaction(to, m["id"], emoji)
         word = (m["text"] or "").strip().lower().strip(".!")
-        stop = word in ("stop", "lopeta") and quiz.active(engine, to)  # mid-game, a bare "stop" pauses the game
+        # mid-game or mid-course, a bare "stop" pauses it
+        stop = word in ("stop", "lopeta") and (quiz.active(engine, to) or learn.active(engine, to))
         if word in STOP_WORDS and not stop:
             switch_off(to)
             return
@@ -355,6 +374,7 @@ def handle_message(m: dict):
             welcome(to)
             return
         bid = m.get("button_id") or ""
+        learn.step_away(engine, to, bid)
         try:
             direct = button_reply(to, bid)
         except ValueError as e:  # e.g. tapping "Pay rent now" again after paying
@@ -374,7 +394,7 @@ def handle_message(m: dict):
                                    "calculated from it, as a file.", "Download my data", f"{public_url()}/app/export.json")
             return
         if bid not in ASK:
-            t = quiz.turn(engine, to, text, bid) or onboarding.turn(engine, to, text, bid)
+            t = flow_turn(engine, to, text, bid)
             if t:
                 if stop:
                     t.text += "\n\nTo switch me off completely, write *STOP* again."
@@ -386,9 +406,9 @@ def handle_message(m: dict):
             if "chart" not in b:
                 owner[b["url"].rsplit("/", 1)[-1]] = to
         send_reply(to, reply)
-        paused = quiz.paused_note(engine, to)  # a side question mid-game: how to get back to it
-        if paused:
-            wa.send_text(to, paused)
+        for note in (quiz.paused_note(engine, to), learn.paused_note(engine, to)):  # how to get back to it
+            if note:
+                wa.send_text(to, note)
         again = onboarding.reask(engine, to)  # a side question mid-interview: the waiting question comes back
         if again:
             send_turn(to, again)
@@ -1115,6 +1135,7 @@ async def chat_api(request: Request):
     bid = ""
     if text.startswith("__btn__:"):
         bid = text.split(":", 1)[1]
+        learn.step_away(e, sid, bid)
         try:
             direct = button_reply(sid, bid, web=True, e=e)
         except ValueError as err:
@@ -1125,7 +1146,7 @@ async def chat_api(request: Request):
         text = ASK.get(bid, bid)
     if bid not in ASK:
         typed = "" if bid else text
-        t = quiz.turn(e, sid, typed, bid) or onboarding.turn(e, sid, typed, bid)
+        t = flow_turn(e, sid, typed, bid)
         if t:
             remember(persona, sid, typed or f"[tapped {bid}]", t)
             return interview(t)
@@ -1145,8 +1166,9 @@ async def chat_api(request: Request):
         owner[b["url"].rsplit("/", 1)[-1]] = sid
         out.append({"label": b["label"], "url": b["url"].replace(public_url(), "") + "?web=1"})
     paused = quiz.paused_note(e, sid)
+    waiting = learn.paused_note(e, sid)
     again = onboarding.reask(e, sid)  # a side question mid-interview: the waiting question comes back
-    extra = "".join(f"\n\n{x}" for x in (paused, again and again.text) if x)
+    extra = "".join(f"\n\n{x}" for x in (paused, waiting, again and again.text) if x)
     return JSONResponse({"text": reply.text + extra, "tools": reply.tools_used, "trace": reply.trace,
                          "buttons": out, "charts": charts, "quick": quick(again.buttons) if again else []})
 

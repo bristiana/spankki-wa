@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 
 from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_MERCHANT_TYPES, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS, PERIODS,
                      SPEND_CATEGORIES, Engine)
+from .lessons import lesson_for
 from .whatsapp import short
 
 GUIDE_PATH = Path(__file__).resolve().parent.parent / "content" / "finland-money-guide.md"
@@ -359,4 +360,7 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out["asp"]["sources"] = GUIDE.get("asp", {}).get("sources", [])
     else:
         raise ValueError(f"unknown tool {name}")
+    lesson = lesson_for(name, out)
+    if lesson:
+        out["lesson"] = lesson
     return json.dumps(out, default=str)

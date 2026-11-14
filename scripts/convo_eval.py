@@ -96,7 +96,23 @@ SCENARIOS: list[dict] = [
      "turns": ["who are you", "what can you do"]},
     {"id": "afford", "probe": "afford + what-if follow-up",
      "turns": ["can i afford a 120€ jacket", "and if its 300"]},
+    # Pedagogy: does a reply teach why its numbers matter, once, without preaching?
+    {"id": "learn_course", "probe": "pedagogy: Learn course + a question mid-lesson",
+     "turns": ["learn", "__btn__:learn:next:0", "__btn__:learn:next:1", "why does the buffer matter for me?", "learn",
+               "__btn__:learn:next:2", "__btn__:learn:next:3", "__btn__:learn:finish"]},
+    {"id": "why_matters", "probe": "pedagogy: a number, then why it matters",
+     "turns": ["how much do i spend on fast food a month", "why does that matter?"]},
+    {"id": "buffer", "probe": "pedagogy: the buffer, on her numbers",
+     "turns": ["do i have an emergency fund?"]},
+    {"id": "pay_first", "probe": "pedagogy: a habit, on her numbers",
+     "turns": ["what does pay yourself first mean"]},
+    {"id": "coffee", "probe": "pedagogy: small amounts add up",
+     "turns": ["is a 5€ coffee every day really a big deal"]},
+    {"id": "no_repeat", "probe": "pedagogy: one why-line per reply, never the same twice",
+     "turns": ["what are my three baskets", "and what is safe to spend?", "how much can i save?"]},
 ]
+PEDAGOGY = ["taxi", "safe_week", "typo_safe", "afford", "subs_then_all", "learn_course", "why_matters", "buffer",
+            "pay_first", "coffee", "no_repeat"]  # --only pedagogy: the subset re-run for the why-it-matters change
 
 MARKDOWN = re.compile(r"^\s*#{1,6}\s|^\s*\|.*\|\s*$|\*\*[^*]+\*\*|^\s*[-*]\s", re.M)
 URL = re.compile(r"https?://")
@@ -194,7 +210,10 @@ def main():
         for k in keys:
             print(f"| {k} | " + " | ".join(str(table[lab][k]) for lab in table) + " |")
         return
-    run(a.url, a.label, set(filter(None, a.only.split(","))) or None, a.max_ai)
+    only = set(filter(None, a.only.split(",")))
+    if "pedagogy" in only:
+        only = (only - {"pedagogy"}) | set(PEDAGOGY)
+    run(a.url, a.label, only or None, a.max_ai)
 
 
 if __name__ == "__main__":

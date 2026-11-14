@@ -167,18 +167,83 @@ After (one question, the interview's):
 - **"and the month before?"** after an answer that already gave both months repeats the earlier month instead of
   going one month further back.
 - **Pedagogy is the lowest criterion (3.41)**: questions about identity, banks or subscriptions have no natural basket
-  moment, and the rubric scores those low.
+  moment, and the rubric scores those low. Follow-up pass below.
 - One reply in the re-test said "4% of that", a figure no tool gave; the guard let small percentages through. The
   guard now checks them; the spot check after that change (6 turns) had no ungrounded number.
 - Scores are one careful human read, not a panel; transcripts and per-reply notes are committed so they can be
   re-read.
+
+## Pedagogy pass: why the numbers matter
+
+Pedagogy (3.41) was the weakest criterion. Replies gave the right numbers but seldom said what they mean. Two changes:
+
+1. **A "why it matters" line.** `app/lessons.py` has `lesson_for(tool, result)`, a deterministic function that
+   returns one teaching line built from the tool's own figures. `run_tool` adds it to the result as `"lesson"`, for
+   example: *"Small amounts × 365: 3.19 € a day is 97.18 € a month and 1 166.16 € a year"*, *"Your balance is not
+   your budget: of 1 001.94 €, 68.60 € is free…"*, *"Subscriptions are basket 3 on autopilot: 4 small charges add up
+   to 858.55 € a year"*. Any figure the line derives (the per-day amount, a share in %) goes into the result too,
+   so the number guard accepts it. The prompt gets one short rule: when a reply gives the person's numbers, add at
+   most one such line, tied to a basket or a habit, never the same idea twice in a conversation, never preachy, and
+   none for small talk.
+2. **Learn in 2 minutes** (`app/learn.py`, no AI): five 30-second lessons on the person's own engine numbers, with
+   reply buttons that work on WhatsApp and the web: the three baskets, safe to spend vs. the balance, the buffer
+   (with the money guide's S-Pankki source), the top "slips through" place × 12, and pay yourself first over a
+   labelled 10-year scenario. Each lesson's action reuses an existing flow: the basket game, My money, a buffer or
+   pay-yourself-first goal with the PIN savings flow, or the coach.
+
+**Re-run:** only the pedagogy subset (`--only pedagogy`, 20 AI turns, `docs/convo-eval/pedagogy.json`, scores
+in `docs/convo-eval/scores-pedagogy.json`). It has 11 earlier chats (taxi, safe_week, typo_safe, afford,
+subs_then_all) and 6 new scenarios: the course with a question in the middle of a lesson, "why does that matter?",
+"do I have an emergency fund?", "what does pay yourself first mean", "is a 5 € coffee a day a big deal", and three
+questions in a row to check that the line is not repeated.
+
+| criterion | before (all 51) | before (same 11) | after (same 11) | after (9 new) | after (all 20) |
+|---|---|---|---|---|---|
+| correct | 4.88 | 4.91 | 4.91 | 4.89 | 4.90 |
+| answers | 4.67 | 4.73 | 4.73 | 4.89 | 4.80 |
+| clarity | 4.59 | 4.73 | 4.91 | 4.56 | 4.75 |
+| phone fit | 3.90 | 4.00 | 4.00 | 3.11 | 3.60 |
+| tone | 4.94 | 5.00 | 5.00 | 4.89 | 4.95 |
+| **pedagogy** | **3.41** | **3.36** | **3.91** | **4.67** | **4.25** |
+| next step | 3.90 | 3.91 | 3.91 | 4.11 | 4.00 |
+| overall | 4.33 | 4.38 | 4.48 | 4.44 | 4.46 |
+
+Average words: 59.4 → 64.1 on the same 11 chats. The 9 new replies average 97.7 words, because they are explaining
+questions. No reply ended with two questions and none went over 120 words. The guard checked every figure; one reply
+(`coffee#0`) needed its one rewrite.
+
+**Before and after, the same question:**
+
+`typo_safe#0` "wat is safe to spnd". Before (pedagogy 2): *"• Your account balance is the limit this time. Your
+usual pay cycle would leave 288.82 € for flexible spending."* After (5):
+
+> You can safely spend *68.60 €* until payday on Thu 15 Oct, in 9 days. [...]
+>
+> Your balance isn't your budget: of the 1 001.94 € in your account, only 68.60 € is free to spend.
+
+`afford#1` "and if its 300". Before (4): *"It would still fit your usual monthly budget for shopping and fun, with
+495.92 € left after it."* After (5):
+
+> Over a whole month it still fits, but it would take *37%* of your usual 809.91 € for wants. That would leave
+> 495.92 € for everything else in that basket.
+
+**Still weak after this pass**
+
+- **Explaining replies run long.** Phone fit dropped to 3.11 on the new scenarios (`coffee#0` 117 words,
+  `no_repeat#0` 112, `buffer#0` 105). The why-line adds about 15 words. A tighter word cap for concept answers is
+  the next step.
+- `pay_first#0` explains the idea well but uses none of her numbers. The Learn lesson 5 does.
+- `learn_course#3` guessed what happens without a buffer ("out of next month's rent money or on credit").
+- The same 11 chats give the fairest comparison (3.36 → 3.91). The 9 new scenarios have no "before" because they
+  were written for this pass. As before, the scores are one careful human read.
 
 ## Re-run
 
 ```bash
 WA_TOKEN= WA_PHONE_NUMBER_ID= DEMO_PHONE= PUBLIC_URL=http://127.0.0.1:8801 \
   python -m uvicorn app.main:app --host 127.0.0.1 --port 8801
-python scripts/convo_eval.py --label after                 # all scenarios (about 51 AI turns)
+python scripts/convo_eval.py --label after                 # all scenarios (about 60 AI turns)
 python scripts/convo_eval.py --label after --only home,fund  # a few
-python scripts/convo_eval.py --report before after
+python scripts/convo_eval.py --label pedagogy --only pedagogy --url http://127.0.0.1:8802  # 20 AI turns
+python scripts/convo_eval.py --report before after pedagogy
 ```
