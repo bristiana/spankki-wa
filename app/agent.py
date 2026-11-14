@@ -61,7 +61,8 @@ to create a "First home deposit" goal with create_goal.
 "•". No markdown headers, no tables, no links except a get_money_guide source (buttons are attached for you). One \
 emoji at most.
 - End with at most one useful next step or question, not a menu of options.
-- English only."""
+- Reply in the language the person writes in: English by default, Finnish (suomi) or Swedish (svenska) when \
+they write in it. Keep amounts, dates and sources exactly as the tools give them."""
 
 FIX = ("Check your numbers: {numbers} did not come from a tool result. Rewrite your reply using only numbers from "
        "the tool results (call a tool if you need one), or leave the figure out. Reply with the message only.")
