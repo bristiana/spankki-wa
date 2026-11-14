@@ -11,6 +11,9 @@
 .kc .kc-total{font-size:17px;font-weight:750;fill:var(--ink)}
 .kc-grid{stroke:var(--line)}.kc-base{stroke:var(--muted);opacity:.45}
 .kc-bar{fill:var(--brand)}.kc-soft{opacity:.42}
+@media (prefers-color-scheme:dark){.kc-soft{opacity:.62}}
+.kc .kc-halo{paint-order:stroke;stroke:var(--card);stroke-width:4px;stroke-linejoin:round}
+.kc-tight text{font-size:9.5px}.kc-tight .kc-val{font-size:10px}
 .kc-line{fill:none;stroke:var(--brand);stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round}
 .kc-line.kc-over{stroke:var(--over)}
 .kc-area{fill:var(--brand);opacity:.1}
@@ -70,6 +73,7 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .cp-band{position:relative;height:14px;margin:14px 0 4px;border-radius:99px;background:var(--line)}
 .cp-band i{position:absolute;top:0;height:100%}
 .cp-mid{background:var(--brand);opacity:.28;border-radius:99px}
+@media (prefers-color-scheme:dark){.cp-mid{opacity:.55}}
 .cp-med{width:2px;margin-left:-1px;background:var(--ink);top:-4px !important;height:22px !important}
 .cp-you{width:16px;height:16px !important;top:-1px !important;margin-left:-8px;border-radius:50%;background:var(--brand);border:2px solid var(--card);box-sizing:border-box}
 .cp-scale{margin:6px 0 0;font-size:12.5px;color:var(--muted)}.cp-key{display:inline-block;width:14px;height:8px;border-radius:99px;background:var(--brand);opacity:.28;margin-right:6px}

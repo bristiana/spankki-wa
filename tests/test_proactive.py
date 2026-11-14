@@ -39,7 +39,7 @@ def test_unusual_and_bill_increase_on_their_days(tmp_path):
     assert top["type"] == "BILL_INCREASE" and top["dedup_key"] == "bill:utilities:2026-08-28:75.0"
     assert top["data"]["unusual_bill"]["usual_high_eur"] < 75 and top["data"]["increase"] == "one_bill"
     text, buttons = main.signal_message(top, "Aino")
-    assert "75.00 €" in text and "Fri 28 Aug" in text and [b for b, _ in buttons] == ["ask:bills", "later:bills"]
+    assert "75,00 €" in text and "Fri 28 Aug" in text and [b for b, _ in buttons] == ["ask:bills", "later:bills"]
 
 
 def test_monthly_investing_the_day_before(tmp_path):
@@ -94,7 +94,7 @@ def test_wake_sends_nothing_without_demo_proactive(client):
     r = client.post("/cron/wake?key=vt&force=1").json()
     assert r["live"] is False and r["dry_run"] is True
     assert [x["signal"] for x in r["results"]] == ["RECURRING_CHARGE_UPCOMING"] * 2  # what it would send
-    assert "rent of 771.82 €" in r["results"][0]["text"]
+    assert "rent of 771,82 €" in r["results"][0]["text"]
     assert client.sent == [] and main.inbox == {}
     assert "sent" not in main.engine.state
 
@@ -105,7 +105,7 @@ def test_wake_inside_window_sends_full_message(client, monkeypatch):
     r = client.post("/cron/wake?key=vt").json()
     assert r["results"][0]["via"] == "text"
     body = client.sent[0]["interactive"]
-    assert "rent of 771.82 €" in body["body"]["text"]
+    assert "rent of 771,82 €" in body["body"]["text"]
     assert [b["reply"]["id"] for b in body["action"]["buttons"]][0] == "pay:housing_payment-2026-10-07"
     assert main.engine.state["sent"][PHONE] == {"due:housing_payment-2026-10-07": "2026-10-06"}
     client.post("/cron/wake?key=vt")
@@ -133,7 +133,7 @@ def test_web_session_gets_inbox_message(client, monkeypatch):
     main.web_sessions.add("web:s1")
     r = client.post("/cron/wake?key=vt").json()["results"]
     assert r[0]["via"] == "inbox"
-    assert "rent of 771.82 €" in client.get("/api/inbox?session=s1").json()["messages"][0]
+    assert "rent of 771,82 €" in client.get("/api/inbox?session=s1").json()["messages"][0]
     assert client.sent == []
 
 

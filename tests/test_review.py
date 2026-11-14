@@ -117,7 +117,7 @@ def test_bill_alert_with_nothing_to_say(client, monkeypatch):
 
 def test_bill_alert_is_the_real_utility_bill(client):
     r = client.post("/api/chat", json={"text": "__alert__:bills"}).json()
-    assert "75.00 €" in r["text"] and "19.94 €" in r["text"] and "60.09 €" in r["text"]
+    assert "75,00 €" in r["text"] and "19,94 €" in r["text"] and "60,09 €" in r["text"]
     assert [q["send"] for q in r["quick"]] == ["__btn__:ask:bills", "__btn__:later:bills"]
     assert client.post("/api/chat", json={"text": "__btn__:later:bills"}).json()["text"].startswith("Okay")
 

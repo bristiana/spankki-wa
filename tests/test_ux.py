@@ -84,12 +84,12 @@ def test_done_page_always_has_a_way_back(client):
 
 
 def test_amounts_do_not_break_across_lines(client):
-    assert main.money_nb(1313.89) == f"1{NBSP}313.89{NBSP}€"
-    assert main.nb("Balance 82 799.61 € on Thu 15 Oct") == f"Balance 82{NBSP}799.61{NBSP}€ on Thu 15 Oct"
+    assert main.money_nb(1313.89) == f"1{NBSP}313,89{NBSP}€"
+    assert main.nb("Balance 82 799.61 € on Thu 15 Oct") == f"Balance 82{NBSP}799,61{NBSP}€ on Thu 15 Oct"
     pid = rent_link(client)
     page = client.get(f"/pay/{pid}").text
-    assert f"771.82{NBSP}€" in page and "771.82 €" not in page
-    assert f"{NBSP}€" in client.get("/app").text and "771.82 €" not in client.get("/app").text
+    assert f"771,82{NBSP}€" in page and "771,82 €" not in page
+    assert f"{NBSP}€" in client.get("/app").text and "771,82 €" not in client.get("/app").text
 
 
 def test_stop_page_survives_a_bank_refusal(client):
@@ -106,10 +106,10 @@ def test_pages_have_a_favicon_and_mark_the_current_tab(client):
 
 
 @pytest.mark.parametrize("raw, shown", [
-    ("loans of about €379,899.51, for homes", "loans of about 379 899.51 €, for homes"),
+    ("loans of about €379,899.51, for homes", "loans of about 379 899,51 €, for homes"),
     ("a median of €15,000 (72 applications)", "a median of 15 000 € (72 applications)"),
-    ("1,234.50€ in total", "1 234.50 € in total"),
-    ("You have 68.60 € safe to spend.", "You have 68.60 € safe to spend."),
+    ("1,234.50€ in total", "1 234,50 € in total"),
+    ("You have 68.60 € safe to spend.", "You have 68,60 € safe to spend."),
     ("items 1, 2, 3", "items 1, 2, 3"),
 ])
 def test_ai_replies_use_the_app_currency_style(raw, shown):

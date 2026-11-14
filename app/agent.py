@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from . import reactions
 from .engine import Engine
+from . import money
 from .explain import check_line, explain
 from .guard import check
 from .guardrails import defang, reply_problems
@@ -161,7 +162,7 @@ Numbers here are made up; yours always come from the tools.
 <them>how much did i spend on taxis last month</them>
 <oiva>[react]🚕
 ---
-*42.10 €* on taxis in September.</oiva>
+*42,10 €* on taxis in September.</oiva>
 </example>
 <example>
 <them>GOT THE JOB!!! starting in january</them>
@@ -175,7 +176,7 @@ When the first salary lands, want me to help you put a slice aside before spendi
 <them>rent is due and i'm freaking out, i'm so broke</them>
 <oiva>[react]🫂
 ---
-That's a heavy feeling, I've got you. Your rent is covered, and *54.20 €* is still free until payday on Fri.
+That's a heavy feeling, I've got you. Your rent is covered, and *54,20 €* is still free until payday on Fri.
 ---
 Want to see where a little room could come from?</oiva>
 </example>
@@ -201,7 +202,7 @@ Here you go, the PIN step is yours.</oiva>
 <them>Paljonko voin käyttää tällä viikolla?</them>
 <oiva>[react]👀
 ---
-Tällä viikolla voit käyttää noin *48.00 €*, eli vähän alle 7 € päivässä.</oiva>
+Tällä viikolla voit käyttää noin *48,00 €*, eli vähän alle 7 € päivässä.</oiva>
 </example>
 </examples>"""
 
@@ -210,19 +211,12 @@ FIX_NUMBERS = ("Check your numbers: {numbers} did not come from a tool result. U
 FIX = "Rewrite your reply. {problems} Keep the [react] line and the --- bubbles; reply with the message only."
 
 
-_EURO = re.compile(r"€\s?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?!\d)|(?<![\d.,])(\d{1,3}(?:,\d{3})+)(\.\d+)?\s?€")
-
-
 def euro_style(text: str) -> str:
-    """One currency style on every screen: "€1,313.89" or "1,313.89€" from the model becomes "1 313.89 €", and
-    "68.6 €" becomes "68.60 €"."""
-    def fix(m):
-        whole, dec = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
-        return f"{whole.replace(',', ' ')}{dec or ''} €"
-    return _CENTS.sub(r"\1\g<2>0", _EURO.sub(fix, text))
+    """The app's currency style on every screen: "€1,313.89", "1,313.89€" or "68.6 €" from the model becomes
+    "1 313,89 €" / "68,60 €" (money.style)."""
+    return money.style(text)
 
 
-_CENTS = re.compile(r"(?<![\d.,])(\d{1,3}(?: \d{3})*|\d+)(\.\d)(?=\s?€)")
 _ISO_DATE = re.compile(r"(?<![\d-])(20\d\d)-(\d\d)-(\d\d)(?![\d-])")
 
 

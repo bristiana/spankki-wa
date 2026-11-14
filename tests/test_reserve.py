@@ -77,4 +77,4 @@ def test_demo_persona_headline_numbers_unchanged(tmp_path):
 
 def test_reminder_names_the_reserve_only_when_it_matters():
     assert main.reserve_line(0) == "" and main.reserve_line(99.99) == ""
-    assert main.reserve_line(81025.0) == "\nThe other 81 025.00 € on your account is beyond this pay cycle, more like savings."
+    assert main.reserve_line(81025.0) == "\nThe other 81 025,00 € on your account is beyond this pay cycle, more like savings."

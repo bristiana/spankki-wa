@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from app import agent, learn, main, quiz
+from app import agent, learn, main, money, quiz
 from app import whatsapp as wa
 from app.agent import Reply
 from app.engine import Engine
@@ -260,4 +260,4 @@ def test_web_course_uses_the_viewed_persona(client):
     pe = main.engine_for(eetu)
     assert pe.state["learn"]["web:p"]["lesson"] == 0 and "web:p" not in main.engine.state.get("learn", {})
     b = {x["basket"]: x for x in pe.baskets("last_3_months")["baskets"]}
-    assert eur(b["everyday"]["per_month_eur"]) in r["text"]
+    assert money.style(eur(b["everyday"]["per_month_eur"])) in r["text"]

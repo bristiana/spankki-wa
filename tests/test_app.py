@@ -60,7 +60,7 @@ def test_unconnected_user_gets_connect_button(client):
 def test_reminder_then_pay_flow(client):
     main.engine.state["connected"]["40700000000"] = {}
     r = client.post("/demo/remind", params={"to": "40700000000"})
-    assert "771.82 €" in r.json()["text"] and "tomorrow" in r.json()["text"]
+    assert "771,82 €" in r.json()["text"] and "tomorrow" in r.json()["text"]
     bill_id = next(b for b in main.engine.upcoming_bills() if b["name"] == "Rent")["bill_id"]
     post_signed(client, wa_payload(mid="m2", button=f"pay:{bill_id}"))
     url = client.sent[-1]["interactive"]["action"]["parameters"]["url"]
@@ -96,7 +96,7 @@ class FakeClient:
 def test_agent_loop_uses_tool_numbers(tmp_path):
     coach = Coach(Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json"), client=FakeClient())
     r = coach.ask("u", "restaurants last month?")
-    assert r.text == "You spent 644.63 €" and r.tools_used == ["get_spending"]
+    assert r.text == "You spent 644,63 €" and r.tools_used == ["get_spending"]
 
 
 def test_demo_panel_needs_key(client):

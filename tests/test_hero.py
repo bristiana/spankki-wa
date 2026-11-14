@@ -6,7 +6,7 @@ from types import SimpleNamespace as NS
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main
+from app import main, money
 from app.agent import SYSTEM, Coach
 from app.engine import Engine
 from app.explain import explain
@@ -106,4 +106,4 @@ def test_web_chat_answers_as_the_hero_by_default(tmp_path, monkeypatch, q, tool)
     j = TestClient(main.app).post("/api/chat", json={"session": "h", "text": q}).json()
     want = main.engine.save_more()["ideas"][0]["saving_per_year_eur"] if tool == "get_save_more_ideas" else \
         main.engine.safe_to_spend()["safe_this_week_eur"]
-    assert f"{want:.2f} €" in j["text"]
+    assert money.eur(want) in j["text"]

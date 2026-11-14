@@ -10,6 +10,8 @@ import time
 
 import httpx
 
+from . import money
+
 from .guardrails import redact  # noqa: F401  (kept here: the webhook path redacts before the coach)
 from .reactions import SEPARATOR, quick_reaction  # noqa: F401
 
@@ -254,6 +256,7 @@ def repair(body: dict) -> list[dict]:
 
 def _post(body: dict) -> dict | None:
     """Send one message. An invalid body is logged and repaired (see repair) instead of being rejected by Meta."""
+    body = money.style_all(body)  # 412,30 €, the way S-mobiili writes amounts
     problems = validate_payload(body)
     if not problems:
         return _send(body)

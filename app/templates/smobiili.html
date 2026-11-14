@@ -189,7 +189,7 @@
       <span class="bk-bar" aria-hidden="true">{% for k in baskets.baskets %}<i class="k{{ loop.index }}" style="flex:{{ k.share_pct }}"></i>{% endfor %}</span>
       {% for k in baskets.baskets %}<span class="bk-row" id="basket-{{ k.basket }}"><i class="k{{ loop.index }}"></i>
         <span><b>{{ k.label }}</b><small>e.g. {{ k.example }}</small>{% if k.basket == "everyday" %}<span class="bk-hint">the only basket you can change today</span>{% endif %}</span>
-        <span class="n">{{ k.per_month_eur|money }}<small>a month · {{ k.share_pct }}%</small></span></span>
+        <span class="n">{{ k.per_month_eur|money }}<small>a month · {{ k.share_pct }}&nbsp;%</small></span></span>
       {% endfor %}
       <span class="bk-ask">Where does my money go? Ask Oiva{{ icon("chevron") }}</span>
     </a>

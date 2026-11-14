@@ -142,7 +142,7 @@ def test_whatsapp_gets_no_trace_messages(client):
     main.engine.state["connected"]["40700000000"] = {}
     main.handle_message({"from": "40700000000", "name": "Aino", "id": "m1", "text": "Can I afford a 120€ jacket?"})
     bodies = json.dumps(client.sent, ensure_ascii=False)
-    assert "51.40" in bodies and "How I worked this out" not in bodies and "figures checked" not in bodies and "Sources" not in bodies
+    assert "51,40" in bodies and "How I worked this out" not in bodies and "figures checked" not in bodies and "Sources" not in bodies
 
 
 @pytest.mark.skipif(not shutil.which("node"), reason="needs node to run the page's renderer")

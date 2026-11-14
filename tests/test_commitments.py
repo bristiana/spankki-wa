@@ -133,7 +133,7 @@ def test_rent_increase_with_old_and_new_numbers(tmp_path):
     sig = next(s for s in rules.signals(e) if s["type"] == "BILL_INCREASE")
     assert sig["data"]["extra_per_year_eur"] == 1200.0
     text, _ = main.signal_message(sig, "Test")
-    assert "800.00 € a month" in text and "700.00 €" in text and "1 200.00 €" in text
+    assert "800,00 € a month" in text and "700,00 €" in text and "1 200,00 €" in text
 
 
 def test_utilities_increase_and_fixed_days(tmp_path):
@@ -205,4 +205,4 @@ def test_pages_show_regular_payments_not_subscriptions(client):
     landing = client.get("/").text
     for page in (app_page, landing, client.get("/chat").text):
         assert "StreamPlus" not in page and "Subscriptions" not in page
-    assert "75.00" in landing
+    assert "75,00" in landing

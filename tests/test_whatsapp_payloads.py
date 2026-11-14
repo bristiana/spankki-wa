@@ -556,7 +556,7 @@ def test_whatsapp_stays_on_the_default_persona(chat):
     chat.client.get(f"/app?as={other}")  # a judge switched the web app
     connected(chat)
     r = chat.client.post("/demo/remind", params={"to": chat.phone}).json()
-    assert "771.82 €" in r["text"]
+    assert "771,82 €" in r["text"]
     chat.say("What is safe to spend?")
     assert main._coach.asked == ["What is safe to spend?"] and other not in main._coaches
 

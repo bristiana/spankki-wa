@@ -24,6 +24,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import bills, broker, enable_banking, guardrails, learn, onboarding, quiz, rules, voice
+from . import money as money_style
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -177,15 +178,15 @@ def nice_date(iso: str) -> str:
 
 
 def money(x: float) -> str:
-    return f"{x:,.2f} €".replace(",", " ")
+    return money_style.eur(x)
 
 
 _NB = re.compile(r"(?<=\d) (?=\d{3}(?!\d))|(?<=\d) (?=€)")
 
 
 def nb(text) -> str:
-    """Web pages: an amount never breaks across lines ("1 313.89 €" keeps its spaces non-breaking)."""
-    return _NB.sub(" ", str(text))
+    """Web pages: amounts in the app's style ("1 313,89 €"), never broken across lines (non-breaking spaces)."""
+    return _NB.sub("\u00a0", money_style.style(str(text)))
 
 
 def money_nb(x: float) -> str:
@@ -1065,7 +1066,7 @@ def demo_reference(seed: str) -> str:
 
 def short_money(x: float) -> str:
     """97 € rather than 97.00 € in Oiva's bubbles."""
-    return nb(money(x).replace(".00 €", " €"))
+    return nb(money(x).replace(",00 €", " €"))
 
 
 def sm_persona(request: Request) -> str:
@@ -1734,6 +1735,12 @@ WEB_UPLOAD_MAX = bills.MAX_BYTES * 4 // 3 + 64_000  # a 5 MB photo as base64, pl
 
 @app.post("/api/chat")
 async def chat_api(request: Request):
+    """The web chat (also inside S-mobiili): every amount in the answer in the app's style, 412,30 €."""
+    out = await _chat_api(request)
+    return money_style.style_all(out) if isinstance(out, dict) else out
+
+
+async def _chat_api(request: Request):
     if int(request.headers.get("content-length") or 0) > WEB_UPLOAD_MAX:  # before reading it
         raise HTTPException(413, "image too large (max 5 MB)")
     try:

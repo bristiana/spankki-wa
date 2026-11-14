@@ -100,7 +100,7 @@ def test_save_first_time_opens_the_pocket(client):
     assert main.engine.state["savings_pocket_opened"] == "2026-10-06"
     again = main.engine.create_saving(p["goal_id"], 10)
     assert 'id="step-pocket"' not in client.get(f"/s-mobiili/save/{again['pending_id']}").text  # only the first time
-    assert "97.00" in client.get("/s-mobiili/").text.replace(" ", " ")
+    assert "97,00" in client.get("/s-mobiili/").text.replace(" ", " ")
 
 
 def test_invest_shows_the_chosen_fund_and_risk_in_plain_words(client):

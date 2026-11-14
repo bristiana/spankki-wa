@@ -37,10 +37,10 @@ def test_bubbles_share_the_length_instead_of_one_long_last_bubble():
 
 # ---------------- how a reply reads ----------------
 @pytest.mark.parametrize("raw, shown", [
-    ("safe to spend 68.6 € until payday", "safe to spend 68.60 € until payday"),
-    ("1 234.5 € in total", "1 234.50 € in total"),
-    ("€596.9 on cafés", "596.90 € on cafés"),
-    ("68.60 € and 12.5% and 3.5 years", "68.60 € and 12.5% and 3.5 years"),
+    ("safe to spend 68.6 € until payday", "safe to spend 68,60 € until payday"),
+    ("1 234.5 € in total", "1 234,50 € in total"),
+    ("€596.9 on cafés", "596,90 € on cafés"),
+    ("68.60 € and 12.5% and 3.5 years", "68,60 € and 12,5 % and 3.5 years"),
 ])
 def test_amounts_always_have_two_decimals(raw, shown):
     assert euro_style(raw) == shown
@@ -78,7 +78,7 @@ class Recorder:
 
 def test_reply_gets_date_and_money_style(e):
     r = Coach(e, client=Recorder()).ask("u", "when is payday?")
-    assert r.text == "Payday is Thu 15 Oct, safe to spend 68.60 €."
+    assert r.text == "Payday is Thu 15 Oct, safe to spend 68,60 €."
 
 
 def test_context_reaches_the_system_prompt(e):

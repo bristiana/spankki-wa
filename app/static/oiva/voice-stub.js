@@ -37,7 +37,7 @@
     [4200, "screen", "bills"],
     [0, "caption", {who: "oiva", text: "And your rent, 1 065 euros 17, comes on the 3rd. I can remind you the day before."}],
     [3800, "state", "listening"],
-    [0, "summary", {title: "Your call with Oiva", lines: ["Spent so far in October: 412.30 €", "People like you keep 7 % of income; you spent 4 % more than came in", "Typical restaurant budget for people like you: 296.00 €"], unbacked_numbers: []}]
+    [0, "summary", {title: "Your call with Oiva", lines: ["Spent so far in October: 412,30 €", "People like you keep 7 % of income; you spent 4 % more than came in", "Typical restaurant budget for people like you: 296,00 €"], unbacked_numbers: []}]
   ];
   const handlers = {};
   let timer = null, running = false;

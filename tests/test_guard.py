@@ -46,7 +46,7 @@ def test_guard_retries_once(tmp_path):
     client = GuardClient()
     coach = Coach(Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json"), client=client)
     r = coach.ask("u", "what is safe?")
-    assert r.text == "You have 68.60 € safe to spend." and client.calls == 3
+    assert r.text == "You have 68,60 € safe to spend." and client.calls == 3
     assert "99.99" in client.seen[-1]
     history = coach.histories["u"]
     assert [m["role"] for m in history] == ["user", "assistant", "user", "assistant"]
@@ -58,5 +58,5 @@ def test_guard_gives_up_quietly(tmp_path, caplog):
     coach = Coach(Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json"), client=client)
     with caplog.at_level("WARNING", logger="coach"):
         r = coach.ask("u", "what is safe?")
-    assert r.text == "Still 99.99 €." and client.calls == 3
+    assert r.text == "Still 99,99 €." and client.calls == 3
     assert "ungrounded" in caplog.text

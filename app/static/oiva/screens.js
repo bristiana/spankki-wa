@@ -11,14 +11,15 @@
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
   }
-  function money(v, decimals) {  // 1 234.56 € with spaces that never break, a real minus sign
+  function fiNum(v, d) {  // 1234.5 -> "1 234,50": the S-mobiili app's style (spaces that never break, decimal comma)
+    return v.toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d}).replace(/,/g, NB).replace(".", ",");
+  }
+  function money(v, decimals) {  // 1 234,56 € the way S-mobiili writes it, with a real minus sign
     if (!isNum(v)) return "–";
-    const d = decimals == null ? 2 : decimals;
-    const s = Math.abs(v).toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d}).replace(/,/g, NB);
-    return (v < 0 ? MINUS : "") + s + NB + "€";
+    return (v < 0 ? MINUS : "") + fiNum(Math.abs(v), decimals == null ? 2 : decimals) + NB + "€";
   }
   function pct(v) { return isNum(v) ? (v < 0 ? MINUS : "") + Math.round(Math.abs(v) * 100) + NB + "%" : "–"; }
-  function months(v) { return isNum(v) ? v.toFixed(1) + NB + "months" : "–"; }
+  function months(v) { return isNum(v) ? fiNum(v, 1) + NB + "months" : "–"; }
   function monthName(ym) {
     const m = /^(\d{4})-(\d{2})$/.exec(ym || "");
     return m ? new Date(Date.UTC(+m[1], +m[2] - 1, 1)).toLocaleString("en-GB", {month: "long", year: "numeric", timeZone: "UTC"}) : "";
@@ -48,7 +49,7 @@
     host.querySelector("#oiva-retry").addEventListener("click", retry);
   }
   function chart(el, spec) { if (window.birkyChart) window.birkyChart(el, spec); }
-  const BASKET_COLOR = {regular: 0, irregular: 2, everyday: 4};  // slices share their basket's colour; no red, no judging
+  const SLICE_COLOR = [0, 1, 2, 4];  // a colour per slice, "Other" grey; no red, no judging
   const BASKET = {regular: "Mandatory & regular", irregular: "Mandatory & irregular", everyday: "Slips through your fingers"};
 
   // ---------- Spending ----------
@@ -125,7 +126,7 @@
       const top = cats.filter(c => c.spent_eur > 0), main = top.slice(0, 4), rest = top.slice(4).reduce((a, c) => a + c.spent_eur, 0);
       chart(el.querySelector("#sp-donut"), {type: "donut", title: "Where it went", subtitle: monthName(d.month), unit: "€",
         labels: main.map(c => c.label).concat(rest > 0 ? ["Other"] : []), values: main.map(c => c.spent_eur).concat(rest > 0 ? [rest] : []),
-        colors: main.map(c => BASKET_COLOR[c.basket] != null ? BASKET_COLOR[c.basket] : 5).concat(rest > 0 ? [5] : [])});
+        colors: main.map((c, i) => SLICE_COLOR[i]).concat(rest > 0 ? [5] : [])});
     }
     const prev = el.querySelector(".sp-prev"), next = el.querySelector(".sp-next");
     if (prev) prev.addEventListener("click", () => renderers.spend(el, {month: shiftMonth(d.month, -1)}));
