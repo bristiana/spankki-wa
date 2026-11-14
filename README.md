@@ -17,7 +17,10 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 | One-tap pay | Button → S-Pankki confirm page → 4-digit PIN → "✅ Rent paid, balance now …" back in the chat |
 | Ask anything | "How much did I spend on taxis last month?" · "What kind of spender am I?" (vs 535 S-Pankki peers aged 20-29 **and** Statistics Finland households aged 17-24) · "What is safe to spend this week?" |
 | Can I afford it? | "Can I afford a 120€ jacket?" → fits your usual fun budget, but it is 51.40 € more than safe to spend until payday; what is left per day, and how many days it pushes back your goal |
+| First home? | "Could I afford my first home?" → from your salary and 200 S-Pankki mortgage applications: the loan and price range people with that income carried, the deposit plus transfer tax and fees, months to it at several saving paces, ASP, and what banks look at (collateral, income, equity, debts). Educational estimate, never a loan offer; offers a "First home deposit" goal |
 | Subscriptions | Active, inactive and price rises ("StreamPlus went up from 11.99 € to 13.99 €"), renewal alert the day before, stop future card payments with PIN |
+| Safe to save | "How much can I safely save?": what can move now without touching bills before payday or the irregular buffer, a sustainable monthly amount from the real surplus, and, when there is none, which cut would free money; one tap to the savings pocket with PIN |
+| All my banks | "Add another bank" on the Connect page: a mock PSD2 consent links a synthetic **Demo Bank** (savings + credit card). Kurre then shows total balances, net position after card debt, how many months those savings cover the irregular basket, and counts the card bill in safe to spend |
 | Save | Goals with deadlines ("1,500 € for Lapland by June"), honest monthly options, salary-day nudge "pay yourself first", savings pocket with PIN |
 | Invest | What-if cuts ("dining out −20% = 97.18 €/month") checked against **real ETF prices** over the last 2 years; your real deposits valued in each fund; one-off investments can place a real order on a Trading 212 Practice account |
 | My money | Dashboard: balance trend, safe to spend, three baskets, weekly in/out, bills, subscriptions, you vs Finland, goals, investing, latest transactions |
@@ -36,9 +39,10 @@ Every answer uses the challenge's teaching model:
 |---|---|
 | S-Pankki synthetic transactions (challenge dataset) | Demo customer `CUST04831` (24 y): every balance, bill, basket, salary and deposit; peer group of 535 customers aged 20-29 |
 | [Statistics Finland, Household Budget Survey 2022, table 14q4](https://pxdata.stat.fi/PxWeb/pxweb/en/StatFin/StatFin__ktutk/statfin_ktutk_pxt_14q4.px/) | "You vs Finland": monthly spending of households by age of the reference person (`scripts/fetch_statfin.py`) |
+| S-Pankki mortgage applications (challenge dataset, 200 applications + negotiation history) | First-home estimate: income-to-loan rule, equity share, one-off costs, rejection reasons (`scripts/build_mortgage_benchmark.py` → `data/mortgage_benchmark.json`) |
 | Real monthly ETF prices (VWCE, XEON; Yahoo Finance) | Backtests of the customer's real deposits and of monthly savings (`scripts/fetch_market.py`) |
 
-**Simulated, and labelled as such:** the PIN pages (a stand-in for PSD2 payment initiation), the demo customer's subscriptions (the dataset has none, so a few are added outside the balance), and the "Demo Fund" names.
+**Simulated, and labelled as such:** the PIN pages (a stand-in for PSD2 payment initiation), the demo customer's subscriptions (the dataset has none, so a few are added outside the balance), the "Demo Fund" names, and the linked "Demo Bank" (a made-up bank: its savings, card and card purchases are generated).
 
 ## Trust by design
 - **Numbers come from code, not the model.** Claude only calls tools over a deterministic, tested engine (`app/engine.py`); the system prompt forbids any figure that is not in a tool result. A number guard checks the reply: a figure that is in no tool result gets one rewrite.
@@ -57,8 +61,8 @@ S-mobiili web chat (/chat) ────────┼─> FastAPI (Cloudflare C
 Trading 212 Practice API <─────────┘      (one-off investments, only after PIN, when keys are set)
 ```
 
-- `app/engine.py`: three baskets, recurring payments (rent day 7 and salary day 15 found from history), safe to spend, subscriptions, goals, what-if, real-price backtests, benchmarks.
-- `app/agent.py` + `app/tools.py`: Kurre's persona and 18 tools, incl. `can_i_afford`, `explore_my_data` (only enum parameters, no code or SQL from the model) and `get_money_guide` over `content/finland-money-guide.md` (checked facts with official sources: Kela, vero.fi, ASP, deposit guarantee, KKV); `app/guard.py` checks every number in a reply against the tool results and asks for one rewrite if one is not there; Claude Opus 5.5 at low effort for fast chat replies.
+- `app/engine.py`: three baskets, spending by merchant type (ISO 18245 MCC: taxis, fast food, parking…), recurring payments (rent day 7 and salary day 15 found from history), safe to spend, subscriptions, goals, what-if, real-price backtests, benchmarks.
+- `app/agent.py` + `app/tools.py`: Kurre's persona and 21 tools, incl. `can_i_afford`, `get_safe_to_save`, `get_full_picture`, `get_home_readiness`, `explore_my_data` (only enum parameters, no code or SQL from the model) and `get_money_guide` over `content/finland-money-guide.md` (checked facts with official sources: Kela, vero.fi, ASP, deposit guarantee, KKV); `app/guard.py` checks every number in a reply against the tool results and asks for one rewrite if one is not there; Claude Opus 5.5 at low effort for fast chat replies.
 - `app/main.py`: WhatsApp webhook (signature checked), web chat API, confirm pages, dashboard, demo triggers.
 - `worker/index.ts` + `Dockerfile`: the same Python app as a Cloudflare Container behind a Worker.
 
@@ -73,8 +77,8 @@ uvicorn app.main:app --port 8000
 - Landing http://127.0.0.1:8000 · chat `/chat` · dashboard `/app` · explore `/app/explore`
 - From the terminal: `python -m app.agent "What is safe for me to spend this week?"`
 - End to end, every flow in a phone-sized browser: `python scripts/demo_walkthrough.py --url http://127.0.0.1:8000`
-- Tests: `python -m pytest` (108)
-- Refresh real data: `python scripts/fetch_market.py`, `python scripts/fetch_statfin.py`; rebuild the persona with `python scripts/extract_persona.py --data-dir <dataset>`
+- Tests: `python -m pytest` (130)
+- Refresh real data: `python scripts/fetch_market.py`, `python scripts/fetch_statfin.py`; rebuild the persona with `python scripts/extract_persona.py --data-dir <dataset>` and the mortgage benchmark with `python scripts/build_mortgage_benchmark.py --data-dir <dataset>`
 - WhatsApp: set `<url>/webhook` and `WA_VERIFY_TOKEN` in the Meta app, subscribe to `messages`. Proactive messages: `POST /demo/remind`, `POST /demo/alert?kind=salary|unusual|renewal`
 - Proactive check: `POST /cron/wake?key=<WA_VERIFY_TOKEN>` (also on a Worker cron at 07, 12 and 17 UTC) picks the most urgent signal per person from `app/rules.py` and sends it, or a template from `docs/whatsapp-templates.md` outside the 24-hour window. It sends nothing unless `DEMO_PROACTIVE=1`; add `&dry_run=1` to only see what would go out
 - Deploy: `wrangler deploy` (bump `INSTANCE` in `wrangler.jsonc` for a fresh container)

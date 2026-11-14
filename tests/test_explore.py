@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app import main
 from app.agent import Coach
-from app.engine import MERCHANT_TYPES, WEEKDAYS, Engine, merchant_type_of
+from app.engine import EXPLORE_MERCHANT_TYPES, MCC_LABELS, MERCHANT_TYPES, WEEKDAYS, Engine
 from app.guard import ungrounded_numbers
 from app.tools import TOOLS, run_tool
 
@@ -24,7 +24,7 @@ def engine(tmp_path):
 # ---------- engine.explore: validation ----------
 @pytest.mark.parametrize("kw", [
     {"what": "everything"}, {"group_by": "hour"}, {"metric": "median"}, {"period": "forever"},
-    {"category": "Casino"}, {"basket": "fun"}, {"merchant_type": "5812"},
+    {"category": "Casino"}, {"basket": "fun"}, {"merchant_type": "restaurants_cafes"}, {"merchant_type": "1234"},
     {"what": "income", "category": "Restaurants"}, {"what": "income", "merchant_type": "taxis"},
     {"category": "Restaurants", "basket": "everyday"},
     {"start": "yesterday"}, {"start": "2026-05-01", "end": "2026-04-01"},
@@ -40,12 +40,19 @@ def test_explore_rejects_unknown_arguments(engine):
         engine.explore(code="print(1)")
 
 
-def test_merchant_types_group_raw_mcc_codes():
-    assert merchant_type_of("5812") == merchant_type_of("5814") == "restaurants_cafes"
-    assert merchant_type_of("4121") == "taxis" and merchant_type_of("1234") == "other_card"
-    assert merchant_type_of(None) == merchant_type_of(float("nan")) == "no_card"
-    codes = [c for _, cs in MERCHANT_TYPES.values() for c in cs]
-    assert len(codes) == len(set(codes))  # each code in one group
+def test_merchant_types_share_get_spendings_map(engine):
+    """One MCC map: explore_my_data and get_spending name and count kinds of place the same way."""
+    assert set(EXPLORE_MERCHANT_TYPES) == set(MERCHANT_TYPES) | set(MCC_LABELS)
+    by_type = engine.explore(group_by="merchant_type", period="last_3_months")
+    assert {r["label"] for r in by_type["rows"]} <= set(MCC_LABELS.values()) | {"No merchant code"}
+    for word in ("taxi", "uber", "4121", "coffee", "parking"):
+        e = engine.explore(merchant_type=word, group_by="month", period="last_12_months")
+        s = engine.spending(None, "last_12_months", merchant_type=word)
+        assert e["totals"]["total_eur"] == s["total_eur"] and e["totals"]["transactions"] == s["transactions"], word
+        assert e["title"].endswith(f"at {s['merchant_type']} by month")
+    split = engine.spending("Restaurants", "last_3_months")["by_merchant_type"]
+    rest = engine.explore(category="Restaurants", group_by="merchant_type", period="last_3_months")
+    assert {r["label"]: r["value"] for r in rest["rows"]} == split
 
 
 # ---------- engine.explore: grouping ----------
@@ -94,8 +101,8 @@ def test_baskets_merchants_and_merchant_types_add_up(engine):
 def test_filters_by_basket_merchant_type_dates_and_income(engine):
     b = engine.explore(basket="everyday", group_by="category")
     assert {x["key"] for x in b["rows"]} <= {"Restaurants", "Entertainment", "Lifestyle"}
-    t = engine.explore(merchant_type="restaurants_cafes", group_by="month", metric="count")
-    assert t["totals"]["value"] > 0 and "Restaurants, bars" in t["title"]
+    t = engine.explore(merchant_type="5812", group_by="month", metric="count")
+    assert t["totals"]["value"] > 0 and t["title"] == "Number of payments · Spending at Restaurants by month"
     d = engine.explore(group_by="weekday", start="2026-09-01", end="2026-09-30")
     assert d["from"] == "2026-09-01" and d["to"] == "2026-09-30"
     i = engine.explore(what="income", group_by="month")
@@ -221,3 +228,11 @@ def test_explore_is_linked_and_chips_exist(client):
     chat = client.get("/chat").text
     assert "When do I spend most on restaurants?" in chat and "Show my groceries by month" in chat
     assert "/static/kchart.js" in chat and client.get("/static/kchart.js").status_code == 200
+    assert "data-more" in chat and chat.count('class="more"') == chat.count("<button") - 9 - 2  # 8 shown + More
+
+
+def test_explore_page_kind_of_place_uses_the_mcc_labels(client):
+    page = client.get("/app/explore", params={"merchant_type": "coffee", "group_by": "weekday"})
+    assert 'value="merchant_type:coffee" selected>Fast food and cafés and Restaurants</option>' in page.text
+    page = client.get("/app/explore", params={"filter": "merchant_type:4121"})
+    assert 'value="merchant_type:4121" selected>Taxis and ride-hailing</option>' in page.text

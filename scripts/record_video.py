@@ -297,7 +297,10 @@ def run(url, work: Path, durs):
             sleep(0.8)
             before = fr.locator("#log .msg.bot").count()
             if kind == "chip":
-                fr.locator("#chips button", has_text=s["arg"]).first.click()
+                chip = fr.locator("#chips button", has_text=s["arg"]).first
+                if not chip.is_visible():  # behind the "More ideas" chip
+                    fr.locator("#chips [data-more]").click()
+                chip.click()
                 text = ai_wait(before)
             elif kind == "type":
                 fr.locator("#q").click()

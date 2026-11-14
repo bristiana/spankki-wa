@@ -19,8 +19,8 @@ from fastapi.templating import Jinja2Templates
 from . import broker, onboarding, rules, templates_wa
 from . import whatsapp as wa
 from .agent import Coach
-from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MERCHANT_TYPES, PERIODS,
-                     SPEND_CATEGORIES, Engine)
+from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
+                     SPEND_CATEGORIES, Engine, merchant_codes)
 from .tools import explore_query, public_url
 
 load_dotenv()
@@ -263,7 +263,29 @@ def handle_message(m: dict):
 # ---------------- Connect (consent) ----------------
 @app.get("/connect", response_class=HTMLResponse)
 def connect_page(request: Request, u: str = ""):
-    return templates.TemplateResponse(request, "connect.html", {"u": u, "done": connected(u) if u else False})
+    return templates.TemplateResponse(request, "connect.html", {"u": u, "done": connected(u) if u else False,
+                                                                 "linked": engine.linked_bank()})
+
+
+@app.get("/connect/bank", response_class=HTMLResponse)
+def bank_page(request: Request, u: str = ""):
+    """PSD2 account information consent for a second bank. Mock: the bank and its data are synthetic."""
+    return templates.TemplateResponse(request, "bank.html", {"u": u, "bank": DEMO_BANK, "linked": engine.linked_bank()})
+
+
+@app.post("/connect/bank", response_class=HTMLResponse)
+def bank_submit(request: Request, u: str = Form(""), scope: list[str] = Form([])):
+    if "accounts" not in scope:
+        return RedirectResponse(f"/connect/bank?u={u}&err=1", status_code=303)
+    f = engine.link_bank(scope)
+    bill = f["next_card_bill"]
+    return templates.TemplateResponse(request, "done.html", {
+        "title": f"{DEMO_BANK['name']} linked",
+        "lines": [f"Savings {money(f['banks'][1]['accounts'][0]['balance_eur'])} · card to repay "
+                  f"{money(bill['amount_eur'])} by {nice_date(bill['due_date'])}.",
+                  "Kurre now counts the card bill in safe to spend. Synthetic demo bank, no real data.",
+                  "Ask Kurre: \"Show my money across all my banks\"."],
+        "wa": wa_back(request) if u else ""})
 
 
 @app.post("/connect", response_class=HTMLResponse)
@@ -718,10 +740,15 @@ def explore_args(request: Request) -> dict:
     return {k: v[:40] for k, v in args.items() if v}
 
 
-def explore_filters() -> list[tuple[str, list[tuple[str, str]]]]:
+def explore_filters(merchant_type: str | None = None) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Dropdown groups. Kinds of place are the MCC labels get_spending uses; a word from a chat link ('coffee')
+    that is not one code gets its own option so the dropdown shows what is selected."""
+    places = sorted(((f"merchant_type:{c}", label) for c, label in MCC_LABELS.items()), key=lambda o: o[1])
+    if merchant_type and merchant_type not in MCC_LABELS:
+        places.insert(0, (f"merchant_type:{merchant_type}", merchant_codes(merchant_type)[0]))
     return [("Category", [(f"category:{c}", c) for c in SPEND_CATEGORIES]),
             ("Basket", [(f"basket:{k}", b["label"]) for k, b in BASKETS.items()]),
-            ("Kind of place", [(f"merchant_type:{k}", label) for k, (label, _) in MERCHANT_TYPES.items()])]
+            ("Kind of place", places)]
 
 
 @app.get("/app/explore", response_class=HTMLResponse)
@@ -733,7 +760,7 @@ def explore_page(request: Request):
     q = view["query"]
     current = next((f"{k}:{q[k]}" for k in ("category", "basket", "merchant_type") if q[k]), "")
     return templates.TemplateResponse(request, "explore.html", _ctx(
-        v=view, error=error, current=current, filters=explore_filters(), labels=EXPLORE_LABELS,
+        v=view, error=error, current=current, filters=explore_filters(q["merchant_type"]), labels=EXPLORE_LABELS,
         options={"what": EXPLORE_WHAT, "metric": EXPLORE_METRICS, "group_by": EXPLORE_GROUP_BY, "period": PERIODS},
         csv_url="/app/explore.csv?" + explore_query(q)))
 

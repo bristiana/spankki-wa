@@ -80,6 +80,53 @@ DEMO_SUBSCRIPTIONS = [
      "change": None, "cadence": "yearly"},
 ]
 
+# Merchant category codes (ISO 18245) found in the persona data, as plain English.
+MCC_LABELS = {
+    "4111": "Public transport", "4121": "Taxis and ride-hailing", "4722": "Travel agencies",
+    "5200": "Home supply stores", "5411": "Supermarkets", "5422": "Butchers", "5451": "Dairy shops",
+    "5499": "Food shops", "5541": "Fuel stations", "5542": "Fuel (self-service pumps)", "5712": "Furniture stores",
+    "5732": "Electronics stores", "5812": "Restaurants", "5813": "Bars and pubs", "5814": "Fast food and cafés",
+    "5912": "Pharmacies", "5941": "Sports shops", "5942": "Book shops", "5945": "Toy and game shops",
+    "5999": "Other shops", "7011": "Hotels", "7523": "Parking", "7832": "Cinema", "7922": "Theatre and event tickets",
+    "7991": "Tourist attractions", "7996": "Amusement parks", "7999": "Recreation", "8011": "Doctors",
+    "8021": "Dentists", "8099": "Health services",
+}
+# Words people use -> codes. "coffee" has no code of its own: cafés file as fast food or restaurants.
+MERCHANT_TYPES = {
+    "taxi": ["4121"], "uber": ["4121"], "bolt": ["4121"], "cab": ["4121"], "ride-hailing": ["4121"],
+    "public transport": ["4111"], "bus": ["4111"], "train": ["4111"], "tram": ["4111"], "metro": ["4111"],
+    "hsl": ["4111"], "fuel": ["5541", "5542"], "petrol": ["5541", "5542"], "gas": ["5541", "5542"],
+    "parking": ["7523"], "fast food": ["5814"], "coffee": ["5814", "5812"], "cafe": ["5814", "5812"],
+    "café": ["5814", "5812"], "restaurant": ["5812"], "bar": ["5813"], "pub": ["5813"], "drink": ["5813"],
+    "supermarket": ["5411"], "groceries": ["5411", "5422", "5451", "5499"], "cinema": ["7832"], "movie": ["7832"],
+    "event": ["7922"], "concert": ["7922"], "theatre": ["7922"], "recreation": ["7999", "7991", "7996"],
+    "pharmacy": ["5912"], "doctor": ["8011"], "dentist": ["8021"], "hotel": ["7011"], "furniture": ["5712"],
+    "electronics": ["5732"], "book": ["5942"], "sport": ["5941"],
+}
+
+
+def merchant_codes(kind: str) -> tuple[str, list[str]]:
+    """'taxis' / 'uber' / '4121' / 'Parking' -> (label, MCC codes). Raises ValueError for an unknown type."""
+    k = (kind or "").strip().lower()
+    if k in MCC_LABELS:
+        codes = [k]
+    else:
+        codes = MERCHANT_TYPES.get(k) or MERCHANT_TYPES.get(k.removesuffix("s")) or [
+            c for c, label in MCC_LABELS.items() if k and (k == label.lower() or k.removesuffix("s") in label.lower())]
+    if not codes:
+        raise ValueError(f"unknown merchant type {kind!r}; try one of {sorted(MERCHANT_TYPES)}")
+    return " and ".join(MCC_LABELS[c] for c in codes), codes
+
+
+# PSD2 account information: a second bank the customer can link. SYNTHETIC: no real bank, no partnership.
+DEMO_BANK = {
+    "id": "demo", "name": "Demo Bank", "savings_eur": 2450.00, "card_limit_eur": 1500.00, "card_due_day": 12,
+    # day of month, what, category, amount: card purchases repeated every month
+    "card_monthly": [(3, "Online shop", "Lifestyle", 34.90), (14, "Café", "Restaurants", 18.50),
+                     (22, "Cinema", "Entertainment", 12.00)],
+    "note": "Synthetic demo bank linked through a mock PSD2 consent. Not a real bank, not real data.",
+}
+
 PERIODS = ["this_month", "last_month", "last_7_days", "last_30_days", "last_3_months", "last_12_months", "all"]
 
 
@@ -93,39 +140,13 @@ def merchant_name(mid) -> str | None:
     return f"{kinds.get(kind, 'Merchant')} #{int(num)}"
 
 
-# Merchant types from the card network's merchant category code (MCC, ISO 18245). The dataset has no label map,
-# so the raw codes it contains are grouped here; anything else is "Other card purchases".
-MERCHANT_TYPES = {
-    "restaurants_cafes": ("Restaurants, bars & cafés", ["5812", "5813", "5814"]),
-    "groceries": ("Grocery & food stores", ["5411", "5422", "5451", "5499"]),
-    "public_transport": ("Public transport", ["4111"]),
-    "taxis": ("Taxis", ["4121"]),
-    "parking": ("Parking", ["7523"]),
-    "fuel": ("Fuel stations", ["5541", "5542"]),
-    "cinema_shows": ("Cinema & shows", ["7832", "7922"]),
-    "sport_leisure": ("Sport & leisure", ["5941", "7991", "7996", "7999"]),
-    "pharmacy": ("Pharmacies", ["5912"]),
-    "doctors": ("Doctors & dentists", ["8011", "8021", "8099"]),
-    "home_electronics": ("Home, DIY & electronics", ["5200", "5712", "5732"]),
-    "shops": ("Other shops", ["5945", "5999"]),
-    "travel_hotels": ("Travel agencies & hotels", ["4722", "7011"]),
-    "other_card": ("Other card purchases", []),
-    "no_card": ("Bills & transfers (no card)", []),
-}
-MCC_TYPE = {code: key for key, (_, codes) in MERCHANT_TYPES.items() for code in codes}
-
-
-def merchant_type_of(mcc) -> str:
-    """MCC code -> MERCHANT_TYPES key."""
-    if not isinstance(mcc, str) or not mcc.strip():
-        return "no_card"
-    return MCC_TYPE.get(mcc.strip(), "other_card")
-
-
 # MyData explorer: the only knobs a query can turn. Every value is checked against these lists.
 EXPLORE_WHAT = ["spent", "income"]
 EXPLORE_GROUP_BY = ["month", "week", "weekday", "category", "basket", "merchant", "merchant_type"]
 EXPLORE_METRICS = ["sum", "count", "average"]
+# Kinds of place: the same words and codes get_spending understands (MERCHANT_TYPES synonyms, MCC_LABELS codes).
+EXPLORE_MERCHANT_TYPES = sorted(MERCHANT_TYPES) + sorted(MCC_LABELS)
+NO_MCC = "No merchant code"
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 EXPLORE_TOP = 10  # merchants listed one by one; the rest become one "other places" row
 
@@ -164,13 +185,18 @@ class Engine:
         self.benchmark = json.loads(bp.read_text()) if bp.exists() else None
         base = pd.read_csv(self.csv_path, dtype={"merchant_id": "string", "mcc_code": "string"})
         base["date"] = pd.to_datetime(base["tx_date"]).dt.date
-        self.base = base[["date", "category", "tx_amount_eur", "transaction_type", "merchant_id", "balance_after_eur",
-                          "mcc_code"]]
+        self.base = base[["date", "category", "tx_amount_eur", "transaction_type", "merchant_id", "mcc_code",
+                          "balance_after_eur"]]
+        # Which spending category each merchant code belongs to (for "where did the transport money go instead").
+        self.mcc_category = (base.dropna(subset=["mcc_code"]).groupby("mcc_code")["category"]
+                             .agg(lambda c: c.mode()[0]).to_dict())
         self.customer_id = str(base["customer_id"].iloc[0])
         sp = ROOT / "data" / "statfin_benchmark.json"
         self.statfin = json.loads(sp.read_text()) if sp.exists() else None
         mp = ROOT / "data" / "market.json"
         self.market = json.loads(mp.read_text()) if mp.exists() else None
+        mb = ROOT / "data" / "mortgage_benchmark.json"
+        self.mortgage = json.loads(mb.read_text()) if mb.exists() else None
         self.state = self._load_state()
         self._lock = threading.Lock()  # confirm pages run in a thread pool
 
@@ -178,21 +204,23 @@ class Engine:
     def _load_state(self) -> dict:
         if self.state_path.exists():
             return json.loads(self.state_path.read_text())
-        return {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": []}
+        return {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": [],
+                "linked_banks": {}}
 
     def _save(self):
         self.state_path.write_text(json.dumps(self.state, indent=2, default=str))
 
     def reset(self):
-        self.state = {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": []}
+        self.state = {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": [],
+                      "linked_banks": {}}
         self._save()
 
     @property
     def tx(self) -> pd.DataFrame:
         """All transactions: dataset plus confirmed demo actions."""
         extra = [{"date": date.fromisoformat(a["date"]), "category": a["category"], "tx_amount_eur": a["amount"],
-                  "transaction_type": a["transaction_type"], "merchant_id": pd.NA, "balance_after_eur": None,
-                  "mcc_code": pd.NA}
+                  "transaction_type": a["transaction_type"], "merchant_id": pd.NA, "mcc_code": pd.NA,
+                  "balance_after_eur": None}
                  for a in self.state["actions"]]
         df = self.base if not extra else pd.concat([self.base, pd.DataFrame(extra)], ignore_index=True)
         return df[df["date"] <= self.today]
@@ -241,16 +269,22 @@ class Engine:
 
     # ---------- questions ----------
     def spending(self, category: str | None = None, period: str = "last_month",
-                 start: str | None = None, end: str | None = None) -> dict:
+                 start: str | None = None, end: str | None = None, merchant_type: str | None = None) -> dict:
         d0, d1 = self.period_range(period, start, end)
-        s = self._slice(d0, d1)
-        s = s[s["tx_amount_eur"] < 0]
-        if category:
-            if category not in SPEND_CATEGORIES + ["Invest Deposit"]:
-                raise ValueError(f"unknown category {category!r}; use one of {SPEND_CATEGORIES}")
-            s = s[s["category"] == category]
-        else:
-            s = s[s["category"].isin(SPEND_CATEGORIES)]
+        codes = None
+        if merchant_type:
+            label, codes = merchant_codes(merchant_type)
+            category = None  # the merchant type is the narrower filter
+        elif category and category not in SPEND_CATEGORIES + ["Invest Deposit"]:
+            raise ValueError(f"unknown category {category!r}; use one of {SPEND_CATEGORIES}")
+
+        def pick(df):
+            df = df[df["tx_amount_eur"] < 0]
+            if codes:
+                return df[df["mcc_code"].isin(codes)]
+            return df[df["category"] == category] if category else df[df["category"].isin(SPEND_CATEGORIES)]
+
+        s = pick(self._slice(d0, d1))
         total = -s["tx_amount_eur"].sum()
         # Same-length window right before, for "vs before"
         span = (d1 - d0).days + 1
@@ -259,14 +293,11 @@ class Engine:
             p1 = d0 - timedelta(days=1) if period == "last_month" else p0 + timedelta(days=span - 1)
         else:
             p0, p1 = d0 - timedelta(days=span), d0 - timedelta(days=1)
-        ps = self._slice(p0, p1)
-        ps = ps[ps["tx_amount_eur"] < 0]
-        ps = ps[ps["category"] == category] if category else ps[ps["category"].isin(SPEND_CATEGORIES)]
-        prev = -ps["tx_amount_eur"].sum()
+        prev = -pick(self._slice(p0, p1))["tx_amount_eur"].sum()
         top = (s.dropna(subset=["merchant_id"]).groupby("merchant_id")["tx_amount_eur"]
                .agg(["sum", "count"]).sort_values("sum").head(3))
         out = {
-            "category": category or "all spending",
+            "category": category or (None if codes else "all spending"),
             "basket": BASKETS[CATEGORY_BASKET[category]]["label"] if category in CATEGORY_BASKET else None,
             "from": d0.isoformat(), "to": d1.isoformat(),
             "total_eur": eur(total), "transactions": int(len(s)),
@@ -276,10 +307,27 @@ class Engine:
             "top_merchants": [{"name": merchant_name(m), "total_eur": eur(-r["sum"]), "visits": int(r["count"])}
                               for m, r in top.iterrows()],
         }
-        if not category:
+        if codes:
+            parent = self.mcc_category.get(codes[0])
+            out |= {"merchant_type": label, "mcc_codes": codes, "found": bool(len(s)), "within_category": parent}
+            if parent:
+                out["category_by_merchant_type"] = self._by_mcc(self._slice(d0, d1), parent)
+            if not len(s):
+                instead = (f"category_by_merchant_type shows where the {parent} money went instead"
+                           if out.get("category_by_merchant_type") else f"there was no {parent or 'such'} spending at all")
+                out["note"] = f"No {label.lower()} payments in this period; {instead}. Never guess an amount."
+        elif category in SPEND_CATEGORIES:
+            out["by_merchant_type"] = self._by_mcc(s, category)
+        if not category and not codes:
             by = s.groupby("category")["tx_amount_eur"].sum().sort_values()
             out["by_category"] = {c: eur(-v) for c, v in by.items()}
         return out
+
+    def _by_mcc(self, df: pd.DataFrame, category: str) -> dict:
+        """Spending in one category split by merchant type, biggest first."""
+        df = df[(df["category"] == category) & (df["tx_amount_eur"] < 0)]
+        names = df["mcc_code"].map(lambda c: MCC_LABELS.get(c, f"Code {c}") if isinstance(c, str) else "No merchant code")
+        return {k: eur(-v) for k, v in df["tx_amount_eur"].groupby(names).sum().sort_values().items()}
 
     def baskets(self, period: str = "last_3_months", start: str | None = None, end: str | None = None) -> dict:
         d0, d1 = self.period_range(period, start, end)
@@ -325,8 +373,10 @@ class Engine:
             raise ValueError(f"unknown category {category!r}; use one of {SPEND_CATEGORIES}")
         if basket and basket not in BASKETS:
             raise ValueError(f"unknown basket {basket!r}; use one of {list(BASKETS)}")
-        if merchant_type and merchant_type not in MERCHANT_TYPES:
-            raise ValueError(f"unknown merchant_type {merchant_type!r}; use one of {list(MERCHANT_TYPES)}")
+        if merchant_type and merchant_type not in EXPLORE_MERCHANT_TYPES:
+            raise ValueError(f"unknown merchant_type {merchant_type!r}; use a word like taxi, fuel or parking "
+                             f"({', '.join(sorted(MERCHANT_TYPES))}) or a merchant code ({', '.join(sorted(MCC_LABELS))})")
+        place, codes = merchant_codes(merchant_type) if merchant_type else (None, [])
         if sum(bool(x) for x in (category, basket, merchant_type)) > 1:
             raise ValueError("use one filter at a time: category, basket or merchant type")
         if what == "income" and (category or basket or merchant_type):
@@ -344,13 +394,13 @@ class Engine:
         else:
             s = s[s["transaction_type"].isin(INCOME_TYPES) & (s["tx_amount_eur"] > 0)]
         s = s.assign(amount=s["tx_amount_eur"].abs().astype(float),
-                     mtype=[merchant_type_of(m) for m in s["mcc_code"]])
+                     mtype=[MCC_LABELS.get(m, f"Code {m}") if isinstance(m, str) else NO_MCC for m in s["mcc_code"]])
         if category:
             s = s[s["category"] == category]
         if basket:
             s = s[s["category"].isin(BASKETS[basket]["categories"])]
         if merchant_type:
-            s = s[s["mtype"] == merchant_type]
+            s = s[s["mcc_code"].isin(codes)]
 
         # Bucket of every transaction, and every bucket in display order (None = biggest first).
         if group_by == "month":
@@ -375,7 +425,7 @@ class Engine:
             order = [(k, b["label"]) for k, b in BASKETS.items()] if what == "spent" else None
         elif group_by == "merchant":
             keys, order = [merchant_name(mid) or "Bills & transfers (no merchant)" for mid in s["merchant_id"]], None
-        else:  # merchant_type
+        else:  # merchant_type: the same labels get_spending uses (MCC_LABELS)
             keys, order = list(s["mtype"]), None
         s = s.assign(bucket=keys)
 
@@ -388,8 +438,8 @@ class Engine:
 
         stats = {k: (measure(v), int(len(v)), eur(v.sum())) for k, v in s.groupby("bucket")["amount"]}
         if order is None:
-            name = (lambda k: MERCHANT_TYPES[k][0]) if group_by == "merchant_type" else (
-                lambda k: BASKETS[k]["label"] if k in BASKETS else "Not in a basket") if group_by == "basket" else (lambda k: k)
+            name = (lambda k: BASKETS[k]["label"] if k in BASKETS else "Not in a basket") if group_by == "basket" else (
+                lambda k: k)
             order = [(k, name(k)) for k in sorted(stats, key=lambda k: (-stats[k][0], k))]
         empty = (0 if metric == "count" else 0.0, 0, 0.0)
         rows = [{"key": k, "label": label, "value": stats.get(k, empty)[0], "transactions": stats.get(k, empty)[1],
@@ -406,7 +456,7 @@ class Engine:
         unit = "" if metric == "count" else "€"
         subject = ("Income" if what == "income" else "Spending") + (
             f" on {category}" if category else f" in {BASKETS[basket]['label']}" if basket else
-            f" at {MERCHANT_TYPES[merchant_type][0]}" if merchant_type else "")
+            f" at {place}" if merchant_type else "")
         prefix = {"sum": "", "count": "Number of payments · ", "average": "Average payment · "}[metric]
         title = f"{prefix}{subject} by {group_by.replace('_', ' ')}"
         span = f"{d0.day} {d0.strftime('%b %Y')} to {d1.day} {d1.strftime('%b %Y')}"
@@ -480,6 +530,11 @@ class Engine:
                             "amount_eur": r.avg_amount, "due_date": d.isoformat(),
                             "days_away": (d - self.today).days,
                             "basket": BASKETS[CATEGORY_BASKET[r.category]]["label"] if r.category in CATEGORY_BASKET else "Saving"})
+        card = self.card_bill()
+        if card and card["amount_eur"] > 0 and card["days_away"] <= days:
+            out.append({"bill_id": f"card_repayment-{card['due_date']}", "name": card["name"], "category": "Credit card",
+                        "amount_eur": card["amount_eur"], "due_date": card["due_date"], "days_away": card["days_away"],
+                        "basket": "Card repayment", "note": "Demo Bank (synthetic, linked via PSD2)"})
         util = self.monthly_avg("Utilities", 6)
         out.append({"bill_id": None, "name": "Utilities (several small bills)", "category": "Utilities",
                     "amount_eur": util, "due_date": None, "days_away": None, "basket": BASKETS["regular"]["label"],
@@ -518,8 +573,123 @@ class Engine:
             "safe_to_spend_until_payday_eur": eur(free),
             "safe_per_day_eur": eur(per_day),
             "safe_this_week_eur": eur(per_day * min(7, days)),
-            "method": "balance - bills due before payday - usual utilities, groceries and transport until payday "
-                      "- a buffer for irregular costs (your average health, home & tech and travel spend)",
+            "method": "balance - bills due before payday (incl. a linked bank's card bill) - usual utilities, groceries "
+                      "and transport until payday - a buffer for irregular costs (your average health, home & tech and "
+                      "travel spend)",
+        }
+
+    def safe_to_save(self) -> dict:
+        """What can go to savings now without touching bills before payday or the irregular buffer, and per month."""
+        safe = self.safe_to_spend()
+        days = max(1, safe["next_payday"]["days_away"])
+        free = safe["safe_to_spend_until_payday_eur"]
+        fun = sum(self.monthly_avg(c, 3) for c in BASKETS["everyday"]["categories"]) * days / 30.4
+        flow = self.monthly_flow()
+        card = self.linked_bank()
+        card_monthly = self.card_spend_per_month() if card else 0.0
+        surplus = flow["left_per_month_eur"] - card_monthly
+        out = {
+            "now_max_eur": eur(max(0.0, free)),
+            "now_keeping_usual_fun_eur": eur(max(0.0, free - fun)),
+            "usual_fun_until_payday_eur": eur(fun),
+            "safe_to_spend_until_payday_eur": free,
+            "next_payday": safe["next_payday"],
+            "bills_before_payday": safe["bills_before_payday"],
+            "surprise_buffer_kept_eur": safe["surprise_buffer_eur"],
+            "monthly": {**flow, "linked_card_spending_per_month_eur": eur(card_monthly),
+                        "surplus_per_month_eur": eur(surplus),
+                        "sustainable_saving_per_month_eur": float(max(0, int(surplus)))},
+            "goals": [{"goal_id": g["goal"]["id"], "name": g["goal"]["name"], "left_to_save_eur": g["left_to_save_eur"]}
+                      for g in self.goals()],
+            "how_to_act": "create_saving_link(goal_id, amount) prepares a move to a goal's savings pocket; the person "
+                          "confirms with their PIN. With no goal yet, create_goal first.",
+            "method": "now = safe to spend until payday (bills, usual needs and the irregular buffer already kept aside); "
+                      "per month = average income - spending - investing over the last 3 full months"
+                      + (" - card spending at the linked bank" if card else ""),
+        }
+        if surplus <= 0:
+            cuts = [self.simulate_cut(c, 20) for c in BASKETS["everyday"]["categories"] if self.monthly_avg(c, 3) > 0]
+            out["where_a_cut_could_come_from"] = sorted(
+                ({"category": c["category"], "cut_pct": 20, "saving_per_month_eur": c["saving_per_month_eur"]}
+                 for c in cuts), key=lambda c: -c["saving_per_month_eur"])
+            out["note"] = ("The last 3 months spent and invested more than came in, so there is no steady surplus. "
+                           "A monthly saving has to come from a cut (see where_a_cut_could_come_from)"
+                           + (f"; investing already takes {flow['investing_per_month_eur']} EUR a month."
+                              if flow["investing_per_month_eur"] > 0 else "."))
+        return out
+
+    # ---------- other banks (PSD2 account information, mock) ----------
+    def link_bank(self, scope: list[str] | None = None) -> dict:
+        """Mock PSD2 consent: store a synthetic second bank (savings + credit card + 3 months of card purchases)."""
+        b = DEMO_BANK
+        tx = []
+        for i in range(-3, 1):
+            m = add_months(month_start(self.today), i)
+            for day, what, cat, amt in b["card_monthly"]:
+                d = m.replace(day=day)
+                if d <= self.today:
+                    tx.append({"date": d.isoformat(), "what": what, "category": cat, "amount_eur": -amt})
+        self.state.setdefault("linked_banks", {})[b["id"]] = {
+            "bank": b["name"], "synthetic": True, "linked": self.today.isoformat(),
+            "scope": scope or ["accounts", "balances", "transactions"], "consent_valid_days": 180,
+            "savings_eur": b["savings_eur"], "card": {"limit_eur": b["card_limit_eur"], "due_day": b["card_due_day"]},
+            "card_transactions": tx, "note": b["note"]}
+        self._save()
+        return self.full_picture()
+
+    def linked_bank(self) -> dict | None:
+        return self.state.get("linked_banks", {}).get(DEMO_BANK["id"])
+
+    def _card_tx(self) -> list[dict]:
+        bank = self.linked_bank()
+        return [{**t, "date": date.fromisoformat(t["date"])} for t in (bank or {}).get("card_transactions", [])]
+
+    def card_spend_per_month(self, months: int = 3) -> float:
+        d0, d1 = self._full_months(months)
+        return eur(-sum(t["amount_eur"] for t in self._card_tx() if d0 <= t["date"] <= d1) / months)
+
+    def card_bill(self) -> dict | None:
+        """The linked card's next bill: last month's purchases, due on the due day (none once repaid this month)."""
+        bank = self.linked_bank()
+        if not bank:
+            return None
+        t, day = self.today, bank["card"]["due_day"]
+        paid = any(a["transaction_type"] == "card_repayment" and a["date"][:7] == t.isoformat()[:7]
+                   for a in self.state["actions"])
+        due = t.replace(day=day) if t.day <= day and not paid else add_months(month_start(t), 1).replace(day=day)
+        stmt0 = add_months(month_start(due), -1)
+        amount = -sum(x["amount_eur"] for x in self._card_tx() if stmt0 <= x["date"] < month_start(due))
+        return {"name": f"{bank['bank']} credit card", "amount_eur": eur(amount), "due_date": due.isoformat(),
+                "days_away": (due - t).days, "statement_month": stmt0.isoformat()[:7],
+                "statement_closed": month_start(due) <= t}
+
+    def full_picture(self) -> dict:
+        """All accounts across banks: balances, card debt, net position."""
+        bal = self.balance()
+        banks = [{"bank": "S-Pankki", "accounts": [{"type": "current account", "balance_eur": bal}]}]
+        bank = self.linked_bank()
+        if not bank:
+            return {"linked": False, "banks": banks, "total_balances_eur": bal, "net_position_eur": bal,
+                    "how_to_link": "The customer can link another bank on the Connect page: 'Add another bank' "
+                                   "(PSD2 consent, read-only)."}
+        bill = self.card_bill()
+        repaid = -sum(a["amount"] for a in self.state["actions"] if a["transaction_type"] == "card_repayment")
+        spent = -sum(x["amount_eur"] for x in self._card_tx() if x["date"] >= add_months(month_start(self.today), -1))
+        owed = max(0.0, spent - repaid)
+        irregular = sum(self.monthly_avg(c, 6) for c in BASKETS["irregular"]["categories"])
+        banks.append({"bank": f"{bank['bank']} (synthetic demo bank)", "linked_since": bank["linked"],
+                      "accounts": [{"type": "savings account", "balance_eur": bank["savings_eur"]},
+                                   {"type": "credit card", "outstanding_eur": eur(owed),
+                                    "limit_eur": bank["card"]["limit_eur"]}],
+                      "card_spending_per_month_eur": self.card_spend_per_month(),
+                      "recent_card_purchases": [{**x, "date": x["date"].isoformat()} for x in self._card_tx()[-5:][::-1]]})
+        total = bal + bank["savings_eur"]
+        return {
+            "linked": True, "banks": banks, "total_balances_eur": eur(total), "card_debt_eur": eur(owed),
+            "net_position_eur": eur(total - owed), "next_card_bill": bill,
+            "irregular_basket_per_month_eur": eur(irregular),
+            "savings_cover_irregular_months": round(bank["savings_eur"] / irregular, 1) if irregular else None,
+            "note": bank["note"] + " The card bill is counted in safe to spend when it falls due before payday.",
         }
 
     def afford(self, amount: float, what: str = "") -> dict:
@@ -718,6 +888,7 @@ class Engine:
     def overview(self) -> dict:
         port = self.portfolio()
         return {"today": self.today.isoformat(), "balance_eur": self.balance(), "safe": self.safe_to_spend(),
+                "full": self.full_picture(),
                 "baskets": self.baskets("last_3_months"), "flow": self.weekly_flow(), "series": self.balance_series(),
                 "bills": self.upcoming_bills(), "subs": self.subscriptions(), "goals": self.goals(),
                 "invest": {"put_in": port["net_put_in_eur"], "plan": port["monthly_plan_in_data"],
@@ -734,6 +905,7 @@ class Engine:
                 "transactions": rows, "baskets_last_3_months": self.baskets("last_3_months"),
                 "subscriptions": self.subscriptions(), "goals": self.state.get("goals", {}),
                 "investment_plans": self.state.get("plans", []), "consents": self.state.get("connected", {}),
+                "linked_banks": self.state.get("linked_banks", {}),
                 "note": "Synthetic S-Pankki demo data. Subscriptions are demo additions."}
 
     # ---------- money moves (only after the user confirms) ----------
@@ -1007,3 +1179,105 @@ class Engine:
                 return {"kind": kind, "found": False}
             return {"kind": kind, "found": True, **min(subs, key=lambda x: x["days_to_next"])}
         raise ValueError("kind must be salary, unusual or renewal")
+
+    # ---------- first home (data/mortgage_benchmark.json) ----------
+    REASON_LABELS = {
+        "insufficient_collateral": "Collateral: the bank values the home below its price, so a big loan often needs "
+                                   "extra collateral (another flat or a guarantee)",
+        "insufficient_income": "Income: enough steady monthly income to carry the loan",
+        "insufficient_equity": "Own money (equity): savings that pay part of the price",
+        "existing_debt": "Existing debts: other loans you are paying",
+    }
+
+    def _home_costs(self, price: float) -> dict:
+        """Deposit (median equity share of approved applications) plus typical one-off costs at this price."""
+        m = self.mortgage
+        share = m["approved_applications"]["equity_share_pct"]["median"] / 100
+        ex = m["expenses"]
+        costs = {t: eur(price * ex[t]["median_share_of_price_pct"] / 100) if t == "transfer_tax"
+                 else float(ex[t]["median_eur"]) for t in m["one_off_cost_types"]}
+        equity = price * share
+        return {"price_eur": eur(price), "equity_share_pct": eur(share * 100), "equity_eur": eur(equity),
+                "loan_eur": eur(price - equity),
+                "one_off_costs_eur": {f"{t}_eur": v for t, v in costs.items()},
+                "total_needed_eur": eur(equity + sum(costs.values())),
+                "not_counted": {"renovation_median_eur": float(ex["renovation"]["median_eur"]),
+                                "renovation_applications": ex["renovation"]["applications"],
+                                "maintenance_fee_median_eur_per_month": float(ex["maintenance_fee"]["median_eur"])}}
+
+    def home_readiness(self, price: float | None = None) -> dict:
+        """'Ready for my first home?': an educational estimate from the challenge's mortgage data. Never a loan offer."""
+        m = self.mortgage
+        if not m:
+            raise ValueError("mortgage benchmark not available (run scripts/build_mortgage_benchmark.py)")
+        if price is not None and not 10_000 <= price <= 5_000_000:
+            raise ValueError("price must be between 10,000 and 5,000,000 EUR")
+        sal = self._rec("salary")
+        if not sal:
+            raise ValueError("no regular salary found in the account history")
+        income, ratio = sal.avg_amount, m["required_income_per_loan_eur"]
+        appr = m["approved_applications"]
+        loan = income / ratio
+        prices = {k: eur(loan / (1 - appr["equity_share_pct"][p] / 100))
+                  for k, p in (("with_small_deposit", "p25"), ("typical", "median"), ("with_big_deposit", "p75"))}
+        need = self._home_costs(float(price) if price is not None else prices["typical"])
+        saved = sum(g["saved"] for g in self.state.get("goals", {}).values())
+        have = self.balance() + saved
+        gap = max(0.0, need["total_needed_eur"] - have)
+        need.update({"you_have_eur": eur(have), "still_to_save_eur": eur(gap),
+                     "covered_pct": min(100, round(have / need["total_needed_eur"] * 100))})
+        port = self.portfolio()
+        paces = [("Cut restaurants by 20%", self.simulate_cut("Restaurants", 20)["saving_per_month_eur"]),
+                 ("Save 50 € a month", 50.0), ("Save 100 € a month", 100.0)]
+        if port["monthly_plan_in_data"]:
+            paces.append(("Put your monthly investing into the deposit instead",
+                          port["monthly_plan_in_data"]["amount_eur"]))
+        path = []
+        for how, pace in paces:
+            n = int(-(-gap // pace)) if gap else 0
+            path.append({"how": how, "monthly_eur": eur(pace), "months": n, "years": round(n / 12, 1),
+                         "reached_by": add_months(month_start(self.today), n).isoformat()[:7]})
+        out = {
+            "label": "Educational estimate from S-Pankki's challenge data (200 mortgage applications, synthetic but "
+                     "modelled on real S-Bank data). Not a loan offer and not a loan decision.",
+            "your_money": {"monthly_salary_eur": income, "balance_eur": self.balance(), "saved_in_goals_eur": eur(saved),
+                           "invested_so_far_eur": port["net_put_in_eur"],
+                           "invested_note": "Not counted in what you have: investments can be sold for a deposit, "
+                                            "but their value goes up and down."},
+            "at_your_income": {
+                "loan_eur": eur(loan),
+                "rule": f"In the data every application needed a monthly income of {ratio} x the loan, "
+                        f"so a loan of about {round(1 / ratio, 1)} x monthly income",
+                "price_range_eur": prices,
+                "approved_homes_price_eur": appr["property_price_eur"],
+                "cheaper_than_most_approved_homes": bool(prices["typical"] < appr["property_price_eur"]["p25"]),
+            },
+            "deposit": need,
+            "saving_path": path,
+            "asp": {"guide_topic": "asp", "note": "ASP is the state-backed savings account for a first home; "
+                                                  "get_money_guide('asp') has its rules and the official source."},
+            "what_banks_look_at": [{"reason": r["reason"], "what": self.REASON_LABELS.get(r["reason"], r["reason"]),
+                                    "rejections": r["count"], "share_of_rejections_pct": r["share_of_rejections_pct"]}
+                                   for r in m["rejection_reasons"]],
+            "collateral_fact": {
+                "home_valued_as_collateral_pct_of_price": appr["collateral_value_share_of_price_pct"]["median"],
+                "typical_loan_pct_of_price": appr["loan_to_value_pct"]["median"],
+                "applications_asked_for_more_collateral_pct": m["additional_collateral_requested_pct"]},
+            "data": {"applications": m["applications"], "approval_rate_pct": m["approval_rate_pct"],
+                     "approved_applicants_age": appr["age"], "property_types": m["property_types"]},
+            "suggested_goal": {"name": "First home deposit", "target_eur": need["total_needed_eur"]},
+            "source": m["source"],
+        }
+        age = (self.benchmark or {}).get("persona_age")
+        if age and age < appr["age"]["min"]:
+            out["age_note"] = (f"Approved applicants in the data were aged {appr['age']['min']}-{appr['age']['max']}; "
+                               f"nobody aged {age} is in it, so compare loosely.")
+        if price is not None:
+            income_needed = need["loan_eur"] * ratio
+            out["price_check"] = {
+                "price_eur": eur(price), "loan_needed_eur": need["loan_eur"],
+                "monthly_income_needed_eur": eur(income_needed), "your_salary_eur": income,
+                "income_enough": bool(income >= income_needed),
+                "income_short_by_eur": eur(max(0.0, income_needed - income)),
+                "max_price_at_your_income_eur": prices["typical"]}
+        return out

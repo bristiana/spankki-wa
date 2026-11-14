@@ -77,7 +77,10 @@ def run(url, record_dir=None, slow=1.0):
             before = page.locator("#log .msg.bot").count()
             t0 = time.time()
             if action == "chip":
-                page.locator("#chips button", has_text=arg).first.click()
+                chip = page.locator("#chips button", has_text=arg).first
+                if not chip.is_visible():  # behind the "More ideas" chip
+                    page.locator("#chips [data-more]").click()
+                chip.click()
                 text = wait_reply(page, before)
             elif action == "type":
                 page.fill("#q", arg)
