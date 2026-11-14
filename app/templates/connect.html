@@ -1,11 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Connect your coach{% endblock %}
+{% block head %}<style>
+.bank{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;font-size:15px;opacity:.55}
+.bank.on{opacity:1;border-color:var(--brand);background:var(--soft)}
+.bank .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--brand)}.bank.on .dot{background:var(--brand)}
+.bank .muted{margin-left:auto;font-size:13px}
+</style>{% endblock %}
 {% block body %}
 <main>
   <form class="card" method="post" action="/connect">
     <img src="/static/kurre.svg" alt="Kurre the squirrel" width="120" height="120" style="display:block;margin:0 auto 4px">
     <h1>Chat with your money on WhatsApp</h1>
     <p class="muted">Your S-Pankki coach answers questions about your own spending, reminds you before bills and helps you save. You decide what it can see.</p>
+    <div class="k" style="font-size:13px;color:var(--muted);margin:14px 0 6px">Accounts</div>
+    <div class="bank on"><span class="dot"></span><b>S-Pankki</b><span class="muted">current account · Visa</span></div>
+    <div class="bank"><span class="dot"></span><b>Add another bank</b><span class="muted">Nordea, OP, Danske… via PSD2 · next step</span></div>
     <label class="opt"><input type="checkbox" name="scope" value="transactions" checked><span><b>Transactions and balance</b><br><span class="muted">So the coach can answer "how much did I spend on…"</span></span></label>
     <label class="opt"><input type="checkbox" name="scope" value="reminders" checked><span><b>Bill reminders</b><br><span class="muted">A message before rent and other regular payments</span></span></label>
     <label class="opt"><input type="checkbox" name="scope" value="payments" checked><span><b>Payment and saving buttons</b><br><span class="muted">You always confirm with your PIN. The coach can't move money by itself.</span></span></label>

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Kurre · your S-Pankki money coach{% endblock %}
+{% block head %}
+<style>
+  main{max-width:980px}
+  .hero{display:grid;grid-template-columns:1fr;gap:10px;align-items:center;padding:16px 0 8px}
+  @media (min-width:820px){.hero{grid-template-columns:1.2fr 1fr}}
+  .hero h1{font-size:clamp(32px,7vw,54px);line-height:1.05;letter-spacing:-1px;margin:0 0 12px}
+  .hero p{font-size:18px;color:var(--muted);margin:0 0 18px}
+  .hero img{width:min(320px,70vw);margin:0 auto;display:block;animation:bob 2.8s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(2deg)}}
+  @media (prefers-reduced-motion:reduce){.hero img{animation:none}}
+  .cta{display:flex;gap:10px;flex-wrap:wrap}
+  .cta .btn{flex:1;min-width:200px}
+  .feats{display:grid;grid-template-columns:1fr;gap:12px;margin:22px 0}
+  @media (min-width:700px){.feats{grid-template-columns:1fr 1fr}}
+  .feat{margin:0}
+  .feat > b{display:block;font-size:17px;margin-bottom:4px}
+  .feat .muted{font-size:15px}
+  .bub{background:var(--soft);border-radius:14px 14px 14px 4px;padding:10px 12px;font-size:14px;margin-top:10px}
+  .trust{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 24px}
+  @media (min-width:700px){.trust{grid-template-columns:repeat(3,1fr)}}
+  .trust div{font-size:14px;color:var(--muted)}
+  .trust b{color:var(--ink);display:block;font-size:15px}
+</style>
+{% endblock %}
+{% block body %}
+<main>
+  <section class="hero">
+    <div>
+      <h1>Your money coach, where you already chat.</h1>
+      <p>Kurre is the S-Pankki savings squirrel. Ask about your own money in plain words, get a heads-up before bills, and put small savings away with one tap.</p>
+      <div class="cta">
+        {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}?text=Hi%20Kurre">💬 Chat on WhatsApp</a>{% endif %}
+        <a class="btn {{ 'ghost' if wa else '' }}" href="/chat">Try it in S-mobiili</a>
+      </div>
+      <p class="muted" style="font-size:13px;margin-top:10px">Demo customer on synthetic S-Pankki data · <a href="/app">See the money dashboard</a></p>
+    </div>
+    <img src="/static/kurre.svg" alt="Kurre the squirrel holding a euro coin">
+  </section>
+
+  <section class="feats">
+    <div class="card feat"><b>Ask anything</b><span class="muted">"How much did I spend on taxis last month?" "What kind of spender am I?"</span>
+      <div class="bub">You spend <b>{{ money(L.rest) }} a month</b> on restaurants, about {{ L.times }}× Finnish households your age (Statistics Finland).</div></div>
+    <div class="card feat"><b>Safe to spend</b><span class="muted">Before rent, Kurre tells you what's really left until payday, then you pay with one tap and your PIN.</span>
+      <div class="bub">Rent of <b>{{ money(L.rent) }}</b> is due soon. After it you have <b>{{ money(L.safe) }}</b> safe to spend until payday.</div></div>
+    <div class="card feat"><b>Subscriptions, sorted</b><span class="muted">Active, forgotten and price rises in one list. Stop a card payment with your PIN.</span>
+      <div class="bub">{{ L.sub_name }} went up from {{ money(L.sub_from) }} to <b>{{ money(L.sub_to) }}</b>. That's {{ money(L.sub_year) }} a year. Keep it?</div></div>
+    <div class="card feat"><b>Save, then invest</b><span class="muted">Goals with real deadlines, savings pockets, and what investing would really have done, on real ETF prices.</span>
+      <div class="bub">Cutting dining out by 20% frees <b>{{ money(L.cut) }} a month</b>. Over the last 2 years that would have grown to {{ money(L.cut_growth) }} in a global fund, on real prices.</div></div>
+  </section>
+
+  <section class="trust">
+    <div><b>Numbers from code</b>Every figure is calculated by a tested engine; the AI only explains.</div>
+    <div><b>Your PIN, your decision</b>Kurre prepares payments and savings; nothing moves until you confirm.</div>
+    <div><b>Informs, never advises</b>Kurre explains risk and options. You pick. You can switch it off any time.</div>
+  </section>
+</main>
+{% endblock %}
