@@ -344,6 +344,11 @@ def public_url() -> str:
     return os.environ.get("PUBLIC_URL", "http://localhost:8000").rstrip("/")
 
 
+def confirm_url(route: str, pid: str) -> str:
+    """Where a money-move button goes: the S-mobiili mock (review, then Face ID). Add ?pin=1 for the PIN page."""
+    return f"{public_url()}/s-mobiili/{route}/{pid}"
+
+
 def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
     """Run one tool. Returns JSON text; appends a URL button when a money move was prepared."""
     if name == "get_spending":
@@ -372,28 +377,28 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
                for f in FUNDS]
     elif name == "create_payment_link":
         p = engine.create_payment(args["bill_id"])
-        buttons.append({"label": f"Pay {p['amount']:.2f} €", "url": f"{public_url()}/pay/{p['pending_id']}"})
+        buttons.append({"label": f"Pay {p['amount']:.2f} €", "url": confirm_url("pay", p["pending_id"])})
         out = {**p, "note": "A 'Pay' button is attached to your message. Do not paste a link."}
     elif name == "create_investment_link":
         p = engine.create_investment(float(args["amount_eur"]), args["fund_id"], bool(args["monthly"]))
         label = f"Invest {p['amount']:.0f} €" + ("/month" if p["monthly"] else "")
-        buttons.append({"label": label, "url": f"{public_url()}/invest/{p['pending_id']}"})
+        buttons.append({"label": label, "url": confirm_url("invest", p["pending_id"])})
         out = {**p, "note": "An 'Invest' button is attached to your message. Do not paste a link."}
     elif name == "get_regular_payments":
         out = engine.commitments()
         out["if_asked_to_cancel_subscriptions"] = no_subscriptions_answer(out)
     elif name == "create_pause_investing_link":
         p = engine.create_pause_investing()
-        buttons.append({"label": short("Pause investing"), "url": f"{public_url()}/stop/{p['pending_id']}"})
-        out = {**p, "note": "A 'Pause investing' button is attached to your message; nothing is paused until the PIN. "
-                            "Do not paste a link."}
+        buttons.append({"label": short("Pause investing"), "url": confirm_url("stop", p["pending_id"])})
+        out = {**p, "note": "A 'Pause investing' button is attached to your message; nothing is paused until they "
+                            "confirm with Face ID in S-mobiili. Do not paste a link."}
     elif name == "create_goal":
         out = engine.create_goal(args["name"], float(args["target_eur"]), args.get("deadline"))
     elif name == "get_goals":
         out = engine.goals() or {"goals": [], "note": "No goals yet."}
     elif name == "create_saving_link":
         p = engine.create_saving(args["goal_id"], float(args["amount_eur"]))
-        buttons.append({"label": f"Save {p['amount']:.0f} €", "url": f"{public_url()}/save/{p['pending_id']}"})
+        buttons.append({"label": f"Save {p['amount']:.0f} €", "url": confirm_url("save", p["pending_id"])})
         out = {**p, "note": "A 'Save' button is attached to your message. Do not paste a link."}
     elif name == "get_portfolio":
         out = engine.portfolio()
@@ -423,7 +428,7 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out["say"] = ("Compare only to reassure or help a choice, never to judge. Say it is averages of at least 30 "
                       "S-Pankki customers, never one person.")
     elif name == "create_bill_payment_link":
-        out = bills.run_tool(engine, buttons, f"{public_url()}/pay")
+        out = bills.run_tool(engine, buttons, confirm_url("pay", "").rstrip("/"))
     else:
         raise ValueError(f"unknown tool {name}")
     lesson = lesson_for(name, out)

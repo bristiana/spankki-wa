@@ -182,9 +182,11 @@ def test_pause_investing_button_then_pin(client):
     r = client.post("/api/chat", json={"text": "__btn__:pause:investing"}).json()
     assert "monthly investing" in r["text"] and "Sun 18 Oct" in r["text"]
     url = r["buttons"][0]["url"]
-    assert r["buttons"][0]["label"] == "Pause investing" and url.startswith("/stop/")
+    assert r["buttons"][0]["label"] == main.OPEN_APP and url.startswith("/s-mobiili/stop/") and "Face ID" in r["text"]
     assert "Pause monthly investing" in client.get(url).text
-    assert "Investing paused" in client.post(url.split("?")[0], data={"pin": "4321"}).text
+    pin = url.split("?")[0].replace("/s-mobiili", "")  # the PIN page still works
+    assert "Pause monthly investing" in client.get(pin).text
+    assert "Investing paused" in client.post(pin, data={"pin": "4321"}).text
     again = client.post("/api/chat", json={"text": "__btn__:pause:investing"}).json()["text"]
     assert again == "I can't do that: monthly investing is already paused by you"
     assert "paused" in client.get("/app").text

@@ -215,7 +215,7 @@ def test_pay_it_creates_exactly_one_payment_with_the_bill_fields(web):
     assert "create_bill_payment_link" in main._coach.calls[-1][1]  # the stored bill is mentioned to the coach
     [button] = r.json()["buttons"]
     [(pid, p)] = main.engine.state["pending"].items()
-    assert button == {"label": "Pay 57.08 €", "url": f"/pay/{pid}?web=1"}
+    assert button == {"label": "Pay 57.08 €", "url": f"/s-mobiili/pay/{pid}?web=1"}
     assert {k: p[k] for k in ("kind", "name", "amount", "iban", "reference", "due_date", "category", "status")} == {
         "kind": "payment", "name": "Voltti Energia Oy (demo)", "amount": 57.08, "iban": "FI5979900020451187",
         "reference": "20261005837", "due_date": "2026-10-20", "category": "Utilities", "status": "pending"}
@@ -223,6 +223,9 @@ def test_pay_it_creates_exactly_one_payment_with_the_bill_fields(web):
     assert len(main.engine.state["pending"]) == 1
     page = web.get(f"/pay/{pid}?web=1").text
     assert "FI59 7990 0020 4511 87" in page and "20261005837" in page and "Voltti Energia Oy (demo)" in page
+    sm = web.get(f"/s-mobiili/pay/{pid}?web=1").text  # the S-mobiili review shows the bill's own fields too
+    assert "FI59 7990 0020 4511 87" in sm and "20261005837" in sm and "Voltti Energia Oy (demo)" in sm
+    assert "FI00 0000" not in sm and "copied from your bill" in sm
     before = main.engine.balance()
     assert web.post(f"/pay/{pid}", data={"pin": "1234"}).status_code == 200
     assert main.engine.balance() == pytest.approx(before - 57.08)

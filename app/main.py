@@ -5,6 +5,7 @@ Run: uvicorn app.main:app --port 8000
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -27,7 +28,7 @@ from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
                      RESERVE_NOTE_EUR, SPEND_CATEGORIES, Engine, merchant_codes)
-from .tools import explore_query, public_url
+from .tools import confirm_url, explore_query, public_url
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -192,6 +193,7 @@ def money_nb(x: float) -> str:
 
 
 templates.env.filters["nb"] = nb
+templates.env.filters["money"] = money_nb
 
 
 def connected(phone: str) -> bool:
@@ -282,6 +284,9 @@ def switch_off(to: str):
                      "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
 
 
+OPEN_APP = "Open in S-mobiili"  # the button on a prepared money move (a WhatsApp cta_url label: max 20 chars)
+
+
 def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None) -> dict | None:
     """Direct answers to quick-reply buttons (no AI needed). None = not a direct action."""
     q = "?web=1" if web else ""
@@ -289,17 +294,18 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
     if bid.startswith("pay:"):
         p = e.create_payment(bid[4:])
         owner[p["pending_id"]] = user
-        return {"text": f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*. "
-                        "Confirm it with your PIN in S-Pankki.",
-                "url": (f"Pay {money(p['amount'])}", f"{public_url()}/pay/{p['pending_id']}{q}")}
-    if bid.startswith("resume:") and bid != "resume:later":  # "Finish it" on a PIN link left open yesterday
+        return {"text": f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*, filled in and ready "
+                        "in S-mobiili. Check it and confirm with Face ID.",
+                "url": (OPEN_APP, confirm_url("pay", p["pending_id"]) + q)}
+    if bid.startswith("resume:") and bid != "resume:later":  # "Finish it" on a confirmation left open yesterday
         p = e.pending(bid[7:])
         if not p or p["status"] != "pending":
             return {"text": "That one's already done ✅"}
         owner[p["pending_id"]] = user
         path = {"payment": "pay", "investment": "invest", "saving": "save", "pause_investing": "stop"}[p["kind"]]
-        return {"text": f"Here it is again: *{p['name']}*, {money(p['amount'])}. Confirm it with your PIN.",
-                "url": ("Confirm with PIN", f"{public_url()}/{path}/{p['pending_id']}{q}")}
+        return {"text": f"Here it is again: *{p['name']}*, {money(p['amount'])}. It's ready in S-mobiili: "
+                        "confirm with Face ID.",
+                "url": (OPEN_APP, confirm_url(path, p["pending_id"]) + q)}
     if bid.startswith("later:"):
         note_later(e, user, bid)
         if bid == "later:unusual":
@@ -314,8 +320,8 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         owner[p["pending_id"]] = user
         nxt = f" The next one would go out on {nice_date(p['next_charge'])}." if p["next_charge"] else ""
         return {"text": f"Pause your *monthly investing* of about *{money(p['amount'])}*?{nxt} What you've invested "
-                        "so far stays invested. Confirm with your PIN.",
-                "url": ("Pause investing", f"{public_url()}/stop/{p['pending_id']}{q}")}
+                        "so far stays invested. It's ready in S-mobiili: confirm with Face ID.",
+                "url": (OPEN_APP, confirm_url("stop", p["pending_id"]) + q)}
     if bid.startswith("keep:"):
         return {"text": "Okay, your monthly investing stays on 👍 Paying yourself first, on autopilot."}
     if bid.startswith("remind:"):
@@ -337,8 +343,9 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         p = e.create_saving(goal_id, float(amount))
         owner[p["pending_id"]] = user
         goal = p["name"].split(": ", 1)[1]
-        return {"text": f"Move *{money(p['amount'])}* to your savings pocket for *{goal}*? Confirm with your PIN.",
-                "url": (f"Save {money(p['amount'])}", f"{public_url()}/save/{p['pending_id']}{q}")}
+        return {"text": f"Move *{money(p['amount'])}* to your savings pocket for *{goal}*? "
+                        "It's ready in S-mobiili: confirm with Face ID.",
+                "url": (OPEN_APP, confirm_url("save", p["pending_id"]) + q)}
     if bid == "quiz:money":
         return {"text": "Your three baskets, balance and safe to spend, all in one place 📊",
                 "url": ("Open My money", f"{public_url()}/app{q}")}
@@ -657,7 +664,7 @@ def _pending_or_404(pid: str, kind: str) -> tuple[Engine, dict]:
 
 
 # ---------------- Friendly error pages: a browser gets a page, an API caller keeps JSON ----------------
-CONFIRM_PATHS = ("/pay/", "/invest/", "/save/", "/stop/")
+CONFIRM_PATHS = ("/pay/", "/invest/", "/save/", "/stop/", "/s-mobiili/")
 ERRORS = {
     "expired": ("This link has expired", "Payment and saving links from Birky work once, and this one is no longer valid. "
                                          "Nothing was paid or moved. Ask Birky again for a fresh link."),
@@ -700,9 +707,111 @@ def bad_pin(request: Request, path: str):
 
 def not_done(request: Request, err: Exception):
     """The bank said no (bill already paid, not enough money): a page, not a 500."""
-    msg = str(err)
     return templates.TemplateResponse(request, "done.html", {
-        "title": "Not done", "failed": True, "lines": [msg[:1].upper() + msg[1:] + "."], "wa": wa_back(request)})
+        "title": "Not done", "failed": True, "lines": [sentence(err)], "wa": wa_back(request)})
+
+
+def sentence(err: Exception) -> str:
+    msg = str(err)
+    return msg[:1].upper() + msg[1:] + "."
+
+
+def plain(msg: str) -> str:
+    return msg.replace("✅ ", "").replace("*", "")
+
+
+# One confirm for every way in (the PIN page and S-mobiili's Face ID): the same engine call, the same double-confirm
+# and overdraft checks, the same message back to WhatsApp or the web chat. Each returns (what the engine did, the
+# receipt title, the receipt lines) and raises ValueError when the bank says no.
+def settle_payment(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
+    done = e.confirm(pid)
+    s = e.safe_to_spend()
+    if done["first_time"]:
+        notify(pid, f"✅ *{done['name']} paid*: {money(done['amount'])}\n"
+                    f"Balance now {money(done['balance_eur'])}.\n"
+                    f"Safe to spend until payday ({nice_date(s['next_payday']['date'])}): "
+                    f"*{money(s['safe_to_spend_until_payday_eur'])}*, about {money(s['safe_per_day_eur'])} a day.")
+    return done, "Payment sent", [f"{done['name']}: {money(done['amount'])}", f"Balance {money(done['balance_eur'])}"]
+
+
+def settle_investment(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
+    done = e.confirm(pid)
+    if done.get("monthly"):
+        msg = (f"✅ *Monthly saving started*: {money(done['amount'])} into {done['name']} every payday, "
+               f"first on {nice_date(done['starts'])}. You can change or stop it any time.")
+    else:
+        msg = f"✅ *Invested* {money(done['amount'])} in {done['name']}. Balance now {money(done['balance_eur'])}."
+        if done["first_time"] and broker.configured():
+            order = broker.place(done["fund_id"], done["amount"])
+            e.state.setdefault("orders", []).append({"pending_id": pid, "fund": done["name"],
+                                                     "amount": done["amount"], **order})
+            e._save()
+            msg += "\n\n" + order_text(order)
+    if done["first_time"]:
+        notify(pid, msg)
+    return done, "Done", [plain(msg)]
+
+
+def settle_pause_investing(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
+    done = e.confirm(pid)
+    when = f" on {nice_date(done['next_charge'])}" if done.get("next_charge") else ""
+    msg = (f"✅ *Monthly investing paused.* The deposit of about {money(done['amount'])} won't go out{when}. "
+           f"That's {money(done['per_year_eur'])} a year staying on your account.\n"
+           "What you've invested so far stays invested. Start again any time.")
+    if done["first_time"]:
+        notify(pid, msg)
+    return done, "Investing paused", [plain(msg)]
+
+
+def settle_saving(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
+    done = e.confirm(pid)
+    g = e.state["goals"][p["goal_id"]]
+    pct = round(g["saved"] / g["target"] * 100)
+    msg = (f"✅ *Saved {money(done['amount'])}* for {g['name']}.\n"
+           f"{money(g['saved'])} of {money(g['target'])} ({pct}%). Balance now {money(done['balance_eur'])}.")
+    if done["first_time"]:
+        notify(pid, msg)
+    return done, "Saved", [plain(msg)]
+
+
+SETTLE = {"payment": settle_payment, "investment": settle_investment, "pause_investing": settle_pause_investing,
+          "saving": settle_saving}
+
+
+def pin_confirm(request: Request, path: str, kind: str, pid: str, pin: str):
+    """A PIN page's form: 4 digits, then the shared settle step."""
+    e, p = _pending_or_404(pid, kind)
+    if len(pin) != 4 or not pin.isdigit():
+        return bad_pin(request, path)
+    try:
+        _, title, lines = SETTLE[kind](e, pid, p)
+    except ValueError as err:
+        return not_done(request, err)
+    return templates.TemplateResponse(request, "done.html", {"title": title, "lines": lines, "wa": wa_back(request)})
+
+
+DEMO_IBAN = "FI00 0000 0000 0000 00 (demo)"
+INVEST_NOTE = "Funds can go down as well as up. Past or scenario returns are not a promise."
+PAUSE_NOTE = "Only new monthly deposits stop. You can start investing again any time."
+
+
+def recipient(p: dict) -> str:
+    return "Landlord · Asunto Oy Demo" if p["category"] == "Housing" else p["name"]
+
+
+def bill_iban(p: dict) -> str:
+    """The account number read from a bill photo, in groups of four."""
+    return " ".join(re.findall(".{1,4}", p["iban"]))
+
+
+def pause_rows(p: dict) -> list[tuple[str, str]]:
+    return [("What", "Your monthly deposit to investments"), ("Usually on", f"day {p['usual_day']} of the month"),
+            ("Next one", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
+            ("Already invested", "Stays invested")]
+
+
+def invest_when(e: Engine, p: dict) -> str:
+    return f"Every payday, from {nice_date(e.next_payday()['date'])}" if p["monthly"] else "Today, one-off"
 
 
 @app.get("/pay/{pid}", response_class=HTMLResponse)
@@ -710,74 +819,34 @@ def pay_page(request: Request, pid: str):
     e, p = _pending_or_404(pid, "payment")
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "wa": wa_back(request), "action": f"/pay/{pid}", "title": "Confirm payment", "amount": money(p["amount"]),
-        "rows": [("To", p["name"]), ("Account", " ".join(re.findall(".{1,4}", p["iban"]))),
+        "rows": [("To", p["name"]), ("Account", bill_iban(p)),
                  ("Reference", p.get("reference") or "none on the bill"), ("Due", nice_date(p["due_date"])),
                  ("From", "S-Pankki current account")] if p.get("source") == "photo" else  # a bill photo (bills.py)
-                [("To", "Landlord · Asunto Oy Demo" if p["category"] == "Housing" else p["name"]),
-                 ("Account", "FI00 0000 0000 0000 00 (demo)"), ("For", p["name"]),
+                [("To", recipient(p)), ("Account", DEMO_IBAN), ("For", p["name"]),
                  ("Due", nice_date(p["due_date"])), ("From", "S-Pankki current account")],
         "button": f"Pay {money(p['amount'])}"})
 
 
 @app.post("/pay/{pid}", response_class=HTMLResponse)
 def pay_confirm(request: Request, pid: str, pin: str = Form("")):
-    e, p = _pending_or_404(pid, "payment")
-    if len(pin) != 4 or not pin.isdigit():
-        return bad_pin(request, f"/pay/{pid}")
-    try:
-        done = e.confirm(pid)
-    except ValueError as e:
-        return not_done(request, e)
-    s = e.safe_to_spend()
-    if done["first_time"]:
-        notify(pid, f"✅ *{done['name']} paid*: {money(done['amount'])}\n"
-                         f"Balance now {money(done['balance_eur'])}.\n"
-                         f"Safe to spend until payday ({nice_date(s['next_payday']['date'])}): "
-                         f"*{money(s['safe_to_spend_until_payday_eur'])}*, about {money(s['safe_per_day_eur'])} a day.")
-    return templates.TemplateResponse(request, "done.html", {
-        "title": "Payment sent", "lines": [f"{done['name']}: {money(done['amount'])}", f"Balance {money(done['balance_eur'])}"],
-        "wa": wa_back(request)})
+    return pin_confirm(request, f"/pay/{pid}", "payment", pid, pin)
 
 
 @app.get("/invest/{pid}", response_class=HTMLResponse)
 def invest_page(request: Request, pid: str):
     e, p = _pending_or_404(pid, "investment")
     f = FUNDS_BY_ID[p["fund_id"]]
-    when = f"Every payday, from {nice_date(e.next_payday()['date'])}" if p["monthly"] else "Today, one-off"
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "wa": wa_back(request), "action": f"/invest/{pid}", "title": "Confirm investment",
         "amount": money(p["amount"]) + (" / month" if p["monthly"] else ""),
         "rows": [("Fund", f["name"]), ("Risk", f"{f['risk']} ({f['risk_level']}/7)"), ("Holds", f["what"]),
-                 ("When", when), ("From", "S-Pankki current account")],
-        "note": "Funds can go down as well as up. Past or scenario returns are not a promise.",
-        "button": "Invest" if not p["monthly"] else "Start monthly saving"})
+                 ("When", invest_when(e, p)), ("From", "S-Pankki current account")],
+        "note": INVEST_NOTE, "button": "Invest" if not p["monthly"] else "Start monthly saving"})
 
 
 @app.post("/invest/{pid}", response_class=HTMLResponse)
 def invest_confirm(request: Request, pid: str, pin: str = Form("")):
-    e, p = _pending_or_404(pid, "investment")
-    if len(pin) != 4 or not pin.isdigit():
-        return bad_pin(request, f"/invest/{pid}")
-    try:
-        done = e.confirm(pid)
-    except ValueError as e:
-        return not_done(request, e)
-    first_time = done["first_time"]
-    if done.get("monthly"):
-        msg = (f"✅ *Monthly saving started*: {money(done['amount'])} into {done['name']} every payday, "
-               f"first on {nice_date(done['starts'])}. You can change or stop it any time.")
-    else:
-        msg = f"✅ *Invested* {money(done['amount'])} in {done['name']}. Balance now {money(done['balance_eur'])}."
-        if first_time and broker.configured():
-            order = broker.place(done["fund_id"], done["amount"])
-            e.state.setdefault("orders", []).append({"pending_id": pid, "fund": done["name"],
-                                                          "amount": done["amount"], **order})
-            e._save()
-            msg += "\n\n" + order_text(order)
-    if first_time:
-        notify(pid, msg)
-    return templates.TemplateResponse(request, "done.html", {
-        "title": "Done", "lines": [msg.replace("✅ ", "").replace("*", "")], "wa": wa_back(request)})
+    return pin_confirm(request, f"/invest/{pid}", "investment", pid, pin)
 
 
 def order_text(order: dict) -> str:
@@ -794,32 +863,13 @@ def stop_page(request: Request, pid: str):
     e, p = _pending_or_404(pid, "pause_investing")
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "wa": wa_back(request), "action": f"/stop/{pid}", "title": "Pause monthly investing",
-        "amount": money(p["amount"]) + " / month",
-        "rows": [("What", "Your monthly deposit to investments"), ("Usually on", f"day {p['usual_day']} of the month"),
-                 ("Next one", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
-                 ("Already invested", "Stays invested")],
-        "note": "Only new monthly deposits stop. You can start investing again any time.",
+        "amount": money(p["amount"]) + " / month", "rows": pause_rows(p), "note": PAUSE_NOTE,
         "button": "Pause investing"})
 
 
 @app.post("/stop/{pid}", response_class=HTMLResponse)
 def stop_confirm(request: Request, pid: str, pin: str = Form("")):
-    e, p = _pending_or_404(pid, "pause_investing")
-    if len(pin) != 4 or not pin.isdigit():
-        return bad_pin(request, f"/stop/{pid}")
-    try:
-        done = e.confirm(pid)
-    except ValueError as e:
-        return not_done(request, e)
-    when = f" on {nice_date(done['next_charge'])}" if done.get("next_charge") else ""
-    msg = (f"✅ *Monthly investing paused.* The deposit of about {money(done['amount'])} won't go out{when}. "
-           f"That's {money(done['per_year_eur'])} a year staying on your account.\n"
-           "What you've invested so far stays invested. Start again any time.")
-    if done["first_time"]:
-        notify(pid, msg)
-    return templates.TemplateResponse(request, "done.html", {
-        "title": "Investing paused", "lines": [msg.replace("✅ ", "").replace("*", "")],
-        "wa": wa_back(request)})
+    return pin_confirm(request, f"/stop/{pid}", "pause_investing", pid, pin)
 
 
 @app.get("/save/{pid}", response_class=HTMLResponse)
@@ -835,21 +885,181 @@ def save_page(request: Request, pid: str):
 
 @app.post("/save/{pid}", response_class=HTMLResponse)
 def save_confirm(request: Request, pid: str, pin: str = Form("")):
-    e, p = _pending_or_404(pid, "saving")
-    if len(pin) != 4 or not pin.isdigit():
-        return bad_pin(request, f"/save/{pid}")
+    return pin_confirm(request, f"/save/{pid}", "saving", pid, pin)
+
+
+# ---------------- S-mobiili mock: Birky's buttons open the bank app with the move filled in ----------------
+# A concept prototype, clearly labelled: our own screens, not S-Bank's. Review -> Face ID (simulated) -> receipt.
+SM_ROUTES = {"pay": "payment", "save": "saving", "invest": "investment", "stop": "pause_investing"}
+RISK_WORDS = {"low": "Low risk: small ups and downs, and slow growth.",
+              "medium": "Medium risk: it can drop in a bad year, and grows more over time.",
+              "high": "High risk: it can fall 20-30% in a bad year. Best for 10+ years."}
+
+
+def demo_reference(seed: str) -> str:
+    """A made-up Finnish-style payment reference (7-3-1 check digit), the same for the same bill: demo only."""
+    base = str(10**8 + int(hashlib.sha1(seed.encode()).hexdigest(), 16) % (9 * 10**8))
+    ref = base + str(-sum(int(d) * w for d, w in zip(reversed(base), (7, 3, 1) * 3)) % 10)
+    return f"{ref[:5]} {ref[5:]}"
+
+
+def short_money(x: float) -> str:
+    """97 € rather than 97.00 € in Birky's bubbles."""
+    return nb(money(x).replace(".00 €", " €"))
+
+
+def sm_persona(request: Request) -> str:
+    """?persona= works like ?as= in the mock (handy when recording), without touching the cookie."""
+    pick = request.query_params.get("persona")
+    return valid_persona(pick) if pick else persona_of(request)
+
+
+def pocket_open(e: Engine) -> bool:
+    return bool(e.state.get("savings_pocket_opened")) or any(g.get("saved") for g in e.state.get("goals", {}).values())
+
+
+def accounts(e: Engine) -> dict:
+    goals = list(e.state.get("goals", {}).values())
+    return {"current": e.balance(), "pocket": round(sum(g.get("saved", 0) for g in goals), 2),
+            "pocket_open": pocket_open(e), "goals": goals, "funds": e.portfolio()["net_put_in_eur"],
+            "plans": e.state.get("plans", [])}
+
+
+def sm_flow(route: str, e: Engine, p: dict) -> dict:
+    """A flow's review screen and Birky's lines on it. Guide targets are element ids on the page."""
+    amt = short_money(p["amount"])
+    if route == "pay":
+        photo = p.get("source") == "photo"  # a bill photo (bills.py): the bill's own IBAN and reference
+        to = p["name"] if photo else recipient(p)
+        due = f", due {nice_date(p['due_date'])}" if p.get("due_date") else ""
+        return {"title": "Pay a bill", "fi": "Maksu", "heading": p["name"], "amount": money(p["amount"]),
+                "rows": [("recipient", "Recipient", to), ("iban", "IBAN", bill_iban(p) if photo else DEMO_IBAN),
+                         ("reference", "Reference", (p.get("reference") or "none on the bill") if photo
+                          else demo_reference(p["bill_id"])),
+                         ("due", "Due date", nice_date(p["due_date"]) if p.get("due_date") else "-"),
+                         ("from", "From", "Current account")],
+                "button": f"Pay {money(p['amount'])}", "cheer": f"Paid! {p['name']} is sorted 🌰",
+                "steps": [("amount", f"This is the amount we planned: {amt}", "talk"),
+                          ("row-recipient", f"It goes to {to}{due}", "talk"),
+                          ("row-reference", "IBAN and reference are copied from your bill. Nothing to type" if photo
+                           else "IBAN and reference are filled in. Nothing to type", "talk")]}
+    if route == "save":
+        g = e.state["goals"][p["goal_id"]]
+        after = g["saved"] + p["amount"]
+        pct = round(after / g["target"] * 100)
+        return {"title": "Move to savings", "fi": "Säästäjä", "heading": g["name"], "amount": money(p["amount"]),
+                "rows": [("goal", "Goal", g["name"]),
+                         ("so-far", "Saved so far", f"{money(g['saved'])} of {money(g['target'])}"),
+                         ("after", "After this", f"{money(after)} ({pct}%)"),
+                         ("from", "From", "Current account"), ("to", "To", "Savings pocket")],
+                "button": f"Save {money(p['amount'])}", "cheer": f"Saved! {amt} is in your pocket 🌰",
+                "first_pocket": not pocket_open(e),
+                "steps": [("amount", f"This is the amount we planned: {amt}", "talk"),
+                          ("row-to", "Your Savings pocket. It keeps this apart from everyday money", "talk"),
+                          ("row-after", f"That takes {g['name']} to {pct}%", "happy")]}
+    if route == "invest":
+        f = FUNDS_BY_ID[p["fund_id"]]
+        per = " / month" if p["monthly"] else ""
+        return {"title": "Invest monthly" if p["monthly"] else "Invest", "fi": "Sijoitukset", "heading": f["name"],
+                "amount": money(p["amount"]) + per, "note": INVEST_NOTE,
+                "rows": [("fund", "Fund", f"{f['name']} (your choice)"),
+                         ("risk", "Risk", f"{RISK_WORDS[f['risk']]} {f['risk_level']} of 7."),
+                         ("holds", "Holds", f["what"]), ("when", "When", invest_when(e, p)),
+                         ("from", "From", "Current account")],
+                "button": "Start monthly investing" if p["monthly"] else f"Invest {money(p['amount'])}",
+                "cheer": "Done! It starts on payday 🌱" if p["monthly"] else "Invested 🌱",
+                "steps": [("amount", f"This is the amount we planned: {amt}{per}", "talk"),
+                          ("row-fund", "The fund you picked. I explain, you choose", "talk"),
+                          ("row-risk", "Risk in plain words: " + RISK_WORDS[f["risk"]].split(": ", 1)[1], "think")]}
+    return {"title": "Pause monthly investing", "fi": "Sijoitukset", "heading": "Monthly investing",
+            "amount": f"{money(p['amount'])} / month", "note": PAUSE_NOTE, "button": "Pause investing",
+            "rows": [("what", "What", "Your monthly deposit to investments"),
+                     ("usual", "Usually on", f"Day {p['usual_day']} of the month"),
+                     ("next", "Next one", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
+                     ("invested", "Already invested", "Stays invested"), ("from", "From", "Current account")],
+            "cheer": f"Paused. {short_money(p['per_year_eur'])} a year stays with you 🌰",
+            "steps": [("amount", f"Your monthly investing: about {amt} a month", "talk"),
+                      ("row-next", "Only new deposits stop. " + (f"The next one was due {nice_date(p['next_charge'])}"
+                                                                if p["next_charge"] else "Nothing else changes"), "talk"),
+                      ("row-invested", "What you've already invested stays invested", "happy")]}
+
+
+def guide_steps(steps) -> list[dict]:
+    return [{"target": t, "say": nb(s), "mood": m} for t, s, m in steps]
+
+
+def sm_ctx(request: Request, persona: str, **extra) -> dict:
+    q = request.query_params
+    keep = {k: q[k] for k in ("persona", "web", "autoplay") if q.get(k)}
+    return {"wa": wa_back(request), "web": bool(q.get("web")), "autoplay": q.get("autoplay") == "1",
+            "home_url": "/s-mobiili/" + (f"?{urlencode(keep)}" if keep else ""), "name": name_for(persona), **extra}
+
+
+@app.get("/s-mobiili", include_in_schema=False)
+def smobiili_root(request: Request):
+    return RedirectResponse("/s-mobiili/" + (f"?{request.url.query}" if request.url.query else ""), status_code=307)
+
+
+@app.get("/s-mobiili/", response_class=HTMLResponse)
+def smobiili_home(request: Request):
+    persona = sm_persona(request)
+    e = engine_for(persona)
+    a = accounts(e)
+    steps = [("acct-current", f"Your current account: {short_money(a['current'])}", "talk"),
+             ("acct-pocket", "Your Savings pocket" if a["pocket_open"] else "Your Savings pocket, once you open one",
+              "talk"),
+             ("acct-funds", "Your funds. Only you choose where money goes", "talk"),
+             ("recent", "Your latest payments, straight from your account", "talk"),
+             ("ask", "Questions? I'm in WhatsApp and right here", "wave")]
+    bill = next(iter(e.upcoming_bills(30)), None)
+    return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
+        request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps),
+        bill={**bill, "due": nice_date(bill["due_date"])} if bill else None))
+
+
+@app.get("/s-mobiili/{route}/{pid}", response_class=HTMLResponse)
+def smobiili_flow(request: Request, route: str, pid: str):
+    if route not in SM_ROUTES:
+        raise HTTPException(404)
+    if request.query_params.get("pin"):  # the PIN page stays as a fallback
+        return RedirectResponse(f"/{route}/{pid}" + ("?web=1" if request.query_params.get("web") else ""),
+                                status_code=303)
+    e, p = _pending_or_404(pid, SM_ROUTES[route])
+    f = sm_flow(route, e, p)
+    steps = guide_steps(f.pop("steps") + [("faceid", "Tap here and use Face ID", "talk")])
+    pocket = guide_steps([("open-pocket", "First time? Open your Savings pocket. It's free, one tap", "talk")]
+                         if f.get("first_pocket") else [])
+    return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
+        request, sm_persona(request), screen="flow", route=route, pid=pid, p=p, f=f, steps=steps,
+        pocket_steps=pocket, done=p["status"] == "done"))
+
+
+@app.post("/s-mobiili/{route}/{pid}/confirm")
+async def smobiili_confirm(request: Request, route: str, pid: str):
+    """Face ID passed in the mock: the same settle step as the PIN page. JSON only, so a cross-site form can't post
+    it. A second confirm is refused with 409 and moves nothing."""
+    if route not in SM_ROUTES:
+        raise HTTPException(404)
+    if not request.headers.get("content-type", "").startswith("application/json"):
+        raise HTTPException(415, "Send JSON.")
     try:
-        done = e.confirm(pid)
-    except ValueError as e:
-        return not_done(request, e)
-    g = e.state["goals"][p["goal_id"]]
-    pct = round(g["saved"] / g["target"] * 100)
-    msg = (f"✅ *Saved {money(done['amount'])}* for {g['name']}.\n"
-           f"{money(g['saved'])} of {money(g['target'])} ({pct}%). Balance now {money(done['balance_eur'])}.")
-    if done["first_time"]:
-        notify(pid, msg)
-    return templates.TemplateResponse(request, "done.html", {
-        "title": "Saved", "lines": [msg.replace("✅ ", "").replace("*", "")], "wa": wa_back(request)})
+        body = await request.json()
+    except ValueError:
+        body = None
+    body = body if isinstance(body, dict) else {}
+    e, p = _pending_or_404(pid, SM_ROUTES[route])
+    if p["status"] == "done":
+        raise HTTPException(409, "Already confirmed. Nothing more was moved.")
+    try:
+        done, title, lines = SETTLE[p["kind"]](e, pid, p)
+    except ValueError as err:
+        return JSONResponse({"detail": sentence(err)}, status_code=422)
+    if not done["first_time"]:  # two taps at once: the engine's lock let only one through
+        raise HTTPException(409, "Already confirmed. Nothing more was moved.")
+    if route == "save" and body.get("open_pocket") and not e.state.get("savings_pocket_opened"):
+        e.state["savings_pocket_opened"] = e.today.isoformat()
+        e._save()
+    return {"ok": True, "title": title, "lines": [nb(x) for x in lines], "balance_eur": done["balance_eur"]}
 
 
 # ---------------- Demo triggers (used while filming) ----------------
@@ -1010,8 +1220,8 @@ def thread_message(d: dict, name: str) -> tuple[str, list]:
         return (f"Hey {name} 🧺 Your basket game is paused at {d['round']}/{d['of']}. One more round?",
                 [("quiz:resume", "Keep playing")])
     if t == "pin":
-        return (f"Hey {name} 🔐 *{d['name']}* ({money(d['amount_eur'])}) is still waiting for your PIN. "
-                "Want to finish it?", [(f"resume:{d['pending_id']}", "Finish it")])
+        return (f"Hey {name} 🔐 *{d['name']}* ({money(d['amount_eur'])}) is still waiting for you to confirm it "
+                "with Face ID in S-mobiili. Want to finish it?", [(f"resume:{d['pending_id']}", "Finish it")])
     if t == "goal":
         return (f"Hey {name} 🌰 Your *{d['name']}* goal is set, but nothing's in it yet. Start with "
                 f"{money(d['amount_eur'])}?",

@@ -249,7 +249,7 @@ def test_web_chip_runs_the_course_with_quick_replies(client):
     r = say("__btn__:learn:next:3")
     save = next(q["send"] for q in r["quick"] if "learn:save:" in q["send"])
     out = say(save)
-    assert out["buttons"][0]["url"].startswith("/save/") and out["buttons"][0]["url"].endswith("?web=1")
+    assert out["buttons"][0]["url"].startswith("/s-mobiili/save/") and out["buttons"][0]["url"].endswith("?web=1")
     assert "Pay yourself first" in out["text"]
     assert len(main._coach.asked) == 1  # only the one real question went to the AI
 
