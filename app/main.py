@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import broker, onboarding, quiz, rules, templates_wa
+from . import broker, onboarding, quiz, rules
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -55,7 +55,6 @@ ASK = {
 }
 names: dict[str, str] = {}  # WhatsApp number -> first name from the profile
 web_sessions: set[str] = set()  # web chat sessions that get proactive messages in their inbox
-HELD_STALE_S = 3 * 24 * 3600  # a held proactive message older than this is dropped, not delivered
 
 
 def first_name(profile: str) -> str:
@@ -201,6 +200,7 @@ async def incoming(request: Request, bg: BackgroundTasks):
         seen.add(m["id"])
         done.append(m["id"])
         last_seen[m["from"]] = time.time()
+        engine.state.setdefault("wa_last", {})[m["from"]] = last_seen[m["from"]]
     if new:
         del done[:-300]
         engine._save()
@@ -210,7 +210,8 @@ async def incoming(request: Request, bg: BackgroundTasks):
 
 
 def window_open(phone: str | None) -> bool:
-    return bool(phone) and time.time() - last_seen.get(phone, 0) < WINDOW_S
+    last = max(last_seen.get(phone, 0), engine.state.get("wa_last", {}).get(phone, 0)) if phone else 0
+    return bool(phone) and time.time() - last < WINDOW_S
 
 
 def send_reply(to: str, reply):
@@ -233,7 +234,6 @@ def switch_off(to: str):
     """Consent withdrawn: forget the connection, the chat history and the name."""
     engine.state.setdefault("connected", {}).pop(to, None)
     engine.state.setdefault("switched_off", {})[to] = engine.today.isoformat()
-    engine.state.get("held", {}).pop(to, None)
     engine._save()
     coach().reset(to)
     onboarding.forget(engine, to)
@@ -329,13 +329,6 @@ def handle_message(m: dict):
             welcome(to)
             return
         bid = m.get("button_id") or ""
-        held = take_held(to)
-        if held:  # a proactive message went out as a template: the full one comes first
-            wa.send_reply_buttons(to, *signal_message(held, name))
-        if bid == templates_wa.SHOW or m.get("kind") == "button":  # a tap on a template's button
-            if not held:
-                wa.send_text(to, "That update is no longer current 🙂 Ask me anything about your money.")
-            return
         try:
             direct = button_reply(to, bid)
         except ValueError as e:  # e.g. tapping "Pay rent now" again after paying
@@ -751,19 +744,6 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
     return text, [("ask:week", "Where did it go?"), ("ask:tight", "How do I stretch it?")]
 
 
-def held_signal(to: str) -> dict | None:
-    """The proactive signal waiting for this person since a template went out, if still fresh."""
-    h = engine.state.get("held", {}).get(to)
-    return h["signal"] if h and time.time() - h["at"] < HELD_STALE_S else None
-
-
-def take_held(to: str) -> dict | None:
-    sig = held_signal(to)
-    if engine.state.get("held", {}).pop(to, None):
-        engine._save()
-    return sig
-
-
 def mask(to: str) -> str:
     return to if to.startswith("web:") else "•••" + to[-4:]
 
@@ -779,26 +759,16 @@ def wake_one(to: str, dry: bool, force: bool = False) -> dict:
         return out
     text, buttons = signal_message(sig, name_for(persona) if web else name_of(to))
     out.update(dedup_key=sig["dedup_key"], text=text)
-    tpl = None
     if web:
         out["via"] = "inbox"
     elif window_open(to):
         out["via"] = "text"
-    else:
-        tpl = templates_wa.template_for(sig, e.today)
-        held = held_signal(to)
-        if not tpl:
-            return {**out, "reason": "no safe template for this signal"}
-        if held and held["priority"] <= sig["priority"]:
-            return {**out, "reason": f"{held['type']} is already waiting for a reply"}
-        out.update(via="template", template=tpl[0], params=tpl[1])
+    else:  # WhatsApp allows free messages only within 24 h of the person's last one; Birky waits to be asked
+        return {**out, "reason": "outside the 24-hour window: waits until the person writes"}
     if dry:
         return out
     if web:
         inbox.setdefault(to, []).append(text)
-    elif tpl:
-        wa.send_template(to, tpl[0], tpl[1], templates_wa.LANG, payload=templates_wa.SHOW)
-        engine.state.setdefault("held", {})[to] = {"signal": sig, "at": time.time()}  # one at a time
     else:
         wa.send_reply_buttons(to, text, buttons)
     e.state.setdefault("sent", {}).setdefault(to, {})[sig["dedup_key"]] = e.today.isoformat()

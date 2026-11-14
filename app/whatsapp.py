@@ -297,19 +297,6 @@ def send_reply_buttons(to: str, text: str, buttons: list[tuple[str, str]]):
         "buttons": [{"type": "reply", "reply": {"id": i, "title": t}} for i, t in buttons]}})
 
 
-def send_template(to: str, name: str, params: list[str], lang: str = "en", payload: str | None = None):
-    """A pre-approved template (the only thing allowed outside the 24 h window). `payload` comes back on a
-    quick-reply tap as the message's button_id."""
-    components = []
-    if params:
-        components.append({"type": "body", "parameters": [{"type": "text", "text": p} for p in params]})
-    if payload:
-        components.append({"type": "button", "sub_type": "quick_reply", "index": "0",
-                           "parameters": [{"type": "payload", "payload": payload}]})
-    return _post({"to": to, "type": "template",
-                  "template": {"name": name, "language": {"code": lang}, "components": components}})
-
-
 # ---------------- conversation feel and privacy (ideas from Moni) ----------------
 
 BUBBLE_PAUSE_S = 0.8
