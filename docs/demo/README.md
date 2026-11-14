@@ -2,11 +2,15 @@
 
 `Kurre-demo.mp4`: 2:50, 1920x1080, 30 fps, H.264, narrated. A real recording of the app running locally on the
 challenge's synthetic S-Pankki data; the only edits are that the waits for AI replies play 4x faster.
+
+**Old name:** this take was recorded before the coach was renamed, so its narration still says Kurre. A new take
+(`scripts/record_video.py`) writes `Birky-demo.mp4` and says Birky.
+
 `voiceover.txt` has the narration lines with their timestamps.
 
 ## How it is made
 
-- `app/static/video/stage.html` is the 1920x1080 stage: title, "Meet Kurre", "Why another app?", a split screen
+- `app/static/video/stage.html` is the 1920x1080 stage: title, "Meet Birky", "Why another app?", a split screen
   (headline on the left, a phone on the right with the real `/`, `/chat` and `/app` pages in an iframe),
   manifesto, "Simulated vs Real" and the end card.
 - `scripts/record_video.py` drives the stage with Playwright (Microsoft Edge, headless), clicks through the chat
