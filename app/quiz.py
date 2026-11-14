@@ -186,9 +186,10 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
     """One game step. None = not a game turn (the coach or the interview answers)."""
     r = _rec(engine, user)
     text = (text or "").strip()
-    if button_id in ("quiz:start", "quiz:again") or (not button_id and START.match(text)):
-        if r and not r["done"] and r["paused"] and button_id != "quiz:again":
-            r["paused"] = r["note"] = False  # "game" while paused: back where they left
+    if button_id in ("quiz:start", "quiz:again", "quiz:resume") or (not button_id and START.match(text)):
+        # "game" while paused, or the "Keep playing" of a follow-up the day after: back where they left
+        if r and not r["done"] and (r["paused"] or button_id == "quiz:resume") and button_id != "quiz:again":
+            r["paused"] = r["note"] = False
             engine._save()
             t = _question(r)
             t.lead = ["🧺 Back to the game."]

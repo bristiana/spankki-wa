@@ -782,6 +782,8 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
                 f"on {nice_date(inc['since'])}. That's {money(d['extra_per_year_eur'])} more a year, "
                 f"{money(d['per_year_eur'])} a year in total.\n\nStill worth it?",
                 [(f"keep:{d['name']}", "Keep it"), (f"stop:{d['name']}", "Stop payments")])
+    if kind == "OPEN_THREAD":
+        return thread_message(d, name)
     if kind == "GOAL_DRIFT":
         return (f"🎯 {name}, your *{d['name']}* goal is a bit behind plan: {money(d['saved_eur'])} saved, "
                 f"while {money(d['expected_by_now_eur'])} would be on track by today. To reach {money(d['target_eur'])} "
@@ -797,6 +799,34 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
         text += "\nComing up: " + ", ".join(f"{b['name']} {money(b['amount_eur'])} on {nice_date(b['due_date'])}"
                                             for b in d["bills_next_7d"]) + "."
     return text, [("ask:week", "Where did it go?"), ("ask:tight", "How do I stretch it?")]
+
+
+def thread_message(d: dict, name: str) -> tuple[str, list]:
+    """The "comes back a day later" message for an open thread: one short friendly line, one button to carry on."""
+    t = d["thread"]
+    if t == "learn":
+        done = f" ({d['done']} of {d['of']} done 🌰)" if d["done"] else ""
+        return (f"Hey {name} 📚 Lesson {d['lesson']}/{d['of']}, *{d['title'].lower()}*, is waiting{done}. 30 seconds?",
+                [("learn:start", "Continue lesson")])
+    if t == "onboarding":
+        return (f"Hey {name} 👋 We stopped halfway through setting up your goal. Finish it? It takes a minute.",
+                [("ob:resume", "Let's finish")])
+    if t == "quiz":
+        return (f"Hey {name} 🧺 Your basket game is paused at {d['round']}/{d['of']}. One more round?",
+                [("quiz:resume", "Keep playing")])
+    if t == "pin":
+        return (f"Hey {name} 🔐 *{d['name']}* ({money(d['amount_eur'])}) is still waiting for your PIN. "
+                "Want to finish it?", [(f"resume:{d['pending_id']}", "Finish it")])
+    if t == "goal":
+        return (f"Hey {name} 🌰 Your *{d['name']}* goal is set, but nothing's in it yet. Start with "
+                f"{money(d['amount_eur'])}?",
+                [(f"save:{d['goal_id']}:{d['amount_eur']:.0f}", f"Save {d['amount_eur']:.0f} €")])
+    if d["kind"] == "bill":
+        b = d["bill"]
+        return (f"Hey {name} ⏰ You said later yesterday: *{b['name'].lower()}* of {money(b['amount_eur'])} is due "
+                f"{nice_date(b['due_date'])}. Pay it now?", [(f"pay:{b['bill_id']}", pay_label(b["name"]))])
+    return (f"Hey {name} 🙂 Yesterday you said maybe later to this: \"{d['offer']}\" Still up for it?",
+            [("resume:later", "Yes, let's do it")])
 
 
 def mask(to: str) -> str:
