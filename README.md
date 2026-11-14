@@ -20,6 +20,8 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 | Save | Goals with deadlines ("1,500 € for Lapland by June"), honest monthly options, salary-day nudge "pay yourself first", savings pocket with PIN |
 | Invest | What-if cuts ("dining out −20% = 97.18 €/month") checked against **real ETF prices** over the last 2 years; your real deposits valued in each fund; one-off investments can place a real order on a Trading 212 Practice account |
 | My money | Dashboard: balance trend, safe to spend, three baskets, weekly in/out, bills, subscriptions, you vs Finland, goals, investing, latest transactions |
+| MyData | "Download my data" (CSV/JSON) on the dashboard or by writing *my data*; *STOP* switches Kurre off and deletes the chat history |
+| Feels like a person | Instant reaction on your message (👀 🙏 💰 👋), read receipt + typing, replies in short bubbles; card numbers, IBANs and Finnish personal IDs are removed before the AI sees them |
 
 ### The three baskets
 Every answer uses the challenge's teaching model:

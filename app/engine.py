@@ -523,6 +523,18 @@ class Engine:
                            "real": port["if_your_deposits_were_in_each_fund"]},
                 "official": self.official_benchmark(), "recent": self.recent()}
 
+    def export(self) -> dict:
+        """MyData: everything Kurre knows about this customer, in one portable file."""
+        rows = [{"date": r["date"].isoformat(), "category": r["category"],
+                 "basket": BASKETS[CATEGORY_BASKET[r["category"]]]["label"] if r["category"] in CATEGORY_BASKET else None,
+                 "amount_eur": eur(r["tx_amount_eur"]), "type": r["transaction_type"],
+                 "merchant": merchant_name(r["merchant_id"])} for _, r in self.tx.iterrows()]
+        return {"customer_id": self.customer_id, "as_of": self.today.isoformat(), "balance_eur": self.balance(),
+                "transactions": rows, "baskets_last_3_months": self.baskets("last_3_months"),
+                "subscriptions": self.subscriptions(), "goals": self.state.get("goals", {}),
+                "investment_plans": self.state.get("plans", []), "consents": self.state.get("connected", {}),
+                "note": "Synthetic S-Pankki demo data. Subscriptions are demo additions."}
+
     # ---------- money moves (only after the user confirms) ----------
     def create_payment(self, bill_id: str) -> dict:
         bill = next((b for b in self.upcoming_bills(45) if b["bill_id"] == bill_id), None)

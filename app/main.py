@@ -97,13 +97,29 @@ async def incoming(request: Request, bg: BackgroundTasks):
 
 
 def send_reply(to: str, reply):
+    """Short bubbles like a person typing; a button rides on the last bubble."""
+    parts = wa.bubbles(reply.text)
     if reply.buttons:
+        wa.send_bubbles(to, parts[:-1])
         first, *rest = reply.buttons
-        wa.send_url_button(to, reply.text, first["label"], first["url"])
+        wa.send_url_button(to, parts[-1], first["label"], first["url"])
         for b in rest:
             wa.send_url_button(to, "One more:", b["label"], b["url"])
     else:
-        wa.send_text(to, reply.text)
+        wa.send_bubbles(to, parts)
+
+
+STOP_WORDS = {"stop", "unsubscribe", "delete my data", "switch off", "lopeta"}
+
+
+def switch_off(to: str):
+    """Consent withdrawn: forget the connection, the chat history and the name."""
+    engine.state.setdefault("connected", {}).pop(to, None)
+    engine._save()
+    coach().reset(to)
+    names.pop(to, None)
+    wa.send_text(to, "Done ✅ Kurre is switched off for this number and our chat history is deleted. "
+                     "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
 
 
 def button_reply(user: str, bid: str, web: bool = False) -> dict | None:
@@ -156,6 +172,12 @@ def handle_message(m: dict):
     names[to] = name
     try:
         wa.mark_read_typing(m["id"])
+        emoji = wa.quick_reaction(m["text"])
+        if emoji:
+            wa.send_reaction(to, m["id"], emoji)
+        if (m["text"] or "").strip().lower().strip(".!") in STOP_WORDS:
+            switch_off(to)
+            return
         if not connected(to):
             wa.send_url_button(
                 to,
@@ -178,7 +200,11 @@ def handle_message(m: dict):
         if m["text"] is None:
             wa.send_text(to, "For now I can read text messages only. What would you like to know?")
             return
-        text = ASK.get(bid, m["text"])
+        text = ASK.get(bid) or wa.redact(m["text"])
+        if text.strip().lower() in ("my data", "download my data", "export"):
+            wa.send_url_button(to, "Your data, yours to keep (MyData): every transaction and what Kurre "
+                                   "calculated from it, as a file.", "Download my data", f"{public_url()}/app/export.json")
+            return
         reply = coach().ask(to, text, name=name)
         for b in reply.buttons:
             owner[b["url"].rsplit("/", 1)[-1]] = to
@@ -488,6 +514,24 @@ def _chart(o: dict) -> dict:
         hin, hout = round(w["in"] / top * 95, 1), round(w["out"] / top * 95, 1)
         bars.append({"x": round(i * 25 + 3, 1), "hin": hin, "yin": round(100 - hin, 1), "hout": hout, "yout": round(100 - hout, 1)})
     return {"series_pts": line, "series_area": f"0,70 {line} 300,70", "flow_bars": bars}
+
+
+@app.get("/app/export.json")
+def export_json():
+    return JSONResponse(engine.export(), headers={"content-disposition": 'attachment; filename="my-s-pankki-data.json"'})
+
+
+@app.get("/app/export.csv")
+def export_csv():
+    import csv
+    import io
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["date", "category", "basket", "amount_eur", "type", "merchant"])
+    for t in engine.export()["transactions"]:
+        w.writerow([t["date"], t["category"], t["basket"] or "", t["amount_eur"], t["type"], t["merchant"] or ""])
+    return PlainTextResponse(buf.getvalue(), media_type="text/csv",
+                             headers={"content-disposition": 'attachment; filename="my-s-pankki-transactions.csv"'})
 
 
 @app.get("/app", response_class=HTMLResponse)

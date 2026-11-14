@@ -106,3 +106,32 @@ def test_demo_panel_needs_key(client):
 
 def test_chat_api_rejects_non_object(client):
     assert client.post("/api/chat", json=["x"]).status_code == 400
+
+
+def test_stop_switches_off(client):
+    main.engine.state["connected"]["40700000000"] = {}
+    post_signed(client, wa_payload(text="STOP", mid="m9"))
+    assert "40700000000" not in main.engine.state["connected"]
+    assert "switched off" in client.sent[-1]["text"]["body"]
+
+
+def test_quick_reaction_and_redaction():
+    from app import whatsapp as w
+    assert w.quick_reaction("How much did I spend?") == "👀" and w.quick_reaction("ok") is None
+    assert "[card number removed]" in w.redact("card 4242 4242 4242 4242")
+    assert "[personal ID removed]" in w.redact("my id is 131052-308T")
+    assert w.redact("I spent 120 euros") == "I spent 120 euros"
+    assert w.bubbles("a\n\nb\n\nc\n\nd") == ["a", "b", "c\n\nd"]
+
+
+def test_mydata_export(client):
+    j = client.get("/app/export.json").json()
+    assert j["transactions"] and j["balance_eur"] == main.engine.balance()
+    csv_text = client.get("/app/export.csv").text
+    assert csv_text.startswith("date,category,basket") and csv_text.count("\n") == len(j["transactions"]) + 1
+
+
+def test_my_data_command(client):
+    main.engine.state["connected"]["40700000000"] = {}
+    post_signed(client, wa_payload(text="my data", mid="m10"))
+    assert client.sent[-1]["interactive"]["action"]["parameters"]["url"].endswith("/app/export.json")
