@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main, rules
+from app import main, rules, tools
 from app.engine import Engine, add_months
 from app.tools import no_subscriptions_answer, run_tool
 
@@ -182,9 +182,9 @@ def test_pause_investing_button_then_pin(client):
     r = client.post("/api/chat", json={"text": "__btn__:pause:investing"}).json()
     assert "monthly investing" in r["text"] and "Sun 18 Oct" in r["text"]
     url = r["buttons"][0]["url"]
-    assert r["buttons"][0]["label"] == main.OPEN_APP and url.startswith("/s-mobiili/stop/") and "Face ID" in r["text"]
+    assert r["buttons"][0]["label"] == main.OPEN_APP and url.startswith("/s-mobiili/?ready=stop:") and "Face ID" in r["text"]
     assert "Pause monthly investing" in client.get(url).text
-    pin = url.split("?")[0].replace("/s-mobiili", "")  # the PIN page still works
+    pin = "/stop/" + tools.pending_id_of(url)  # the PIN page still works
     assert "Pause monthly investing" in client.get(pin).text
     assert "Investing paused" in client.post(pin, data={"pin": "4321"}).text
     again = client.post("/api/chat", json={"text": "__btn__:pause:investing"}).json()["text"]

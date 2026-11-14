@@ -96,7 +96,7 @@ def test_safe_to_save_links_to_saving(e):
     assert out["goals"][0]["goal_id"] == "laptop" and "create_saving_link" in out["how_to_act"]
     buttons = []
     run_tool(e, "create_saving_link", {"goal_id": "laptop", "amount_eur": out["now_max_eur"]}, buttons)
-    assert buttons[0]["url"].split("/")[-2] == "save"
+    assert "/s-mobiili/?ready=save:" in buttons[0]["url"]
 
 
 # ---------- multi-bank (mock PSD2) ----------

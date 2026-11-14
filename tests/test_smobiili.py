@@ -70,7 +70,7 @@ def test_goal_widget_after_a_goal(client):
 def test_pay_deep_link_prepares_payment_without_ai(client):
     q = question(cards(client)["next_bill"]["actions"][0]["deep_link"])
     j = client.post("/api/chat", json={"session": "m", "text": q}).json()
-    assert j["buttons"][0]["url"].startswith("/s-mobiili/pay/") and "rent" in j["text"]
+    assert j["buttons"][0]["url"].startswith("/s-mobiili/?ready=pay:") and "rent" in j["text"]
     assert main._coach is None  # no AI involved
 
 
