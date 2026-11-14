@@ -23,7 +23,7 @@ TODAY = pd.Timestamp("2026-10-06")
 COLS = ["customer_id", "bank_account_id", "tx_date", "tx_timestamp", "category", "tx_amount_eur",
         "balance_after_eur", "transaction_type", "merchant_id", "mcc_code"]
 DEFAULT = {"id": "CUST04831", "name": "Aino", "file": None, "age": 24, "label": "Demo persona, 24",
-           "description": "The demo persona: steady salary, rent, a few subscriptions and dining out."}
+           "description": "The demo persona: steady salary, rent, monthly investing and dining out."}
 NAMES = {"student": "Eetu", "high_earner": "Helena", "irregular": "Mikko", "homeowner": "Pirkko"}
 OUTFLOW = {"purchase", "utilities_payment", "housing_payment"}
 
