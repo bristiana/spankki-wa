@@ -133,6 +133,8 @@ class Engine:
         self.statfin = json.loads(sp.read_text()) if sp.exists() else None
         mp = ROOT / "data" / "market.json"
         self.market = json.loads(mp.read_text()) if mp.exists() else None
+        mb = ROOT / "data" / "mortgage_benchmark.json"
+        self.mortgage = json.loads(mb.read_text()) if mb.exists() else None
         self.state = self._load_state()
         self._lock = threading.Lock()  # confirm pages run in a thread pool
 
@@ -848,3 +850,105 @@ class Engine:
                 return {"kind": kind, "found": False}
             return {"kind": kind, "found": True, **min(subs, key=lambda x: x["days_to_next"])}
         raise ValueError("kind must be salary, unusual or renewal")
+
+    # ---------- first home (data/mortgage_benchmark.json) ----------
+    REASON_LABELS = {
+        "insufficient_collateral": "Collateral: the bank values the home below its price, so a big loan often needs "
+                                   "extra collateral (another flat or a guarantee)",
+        "insufficient_income": "Income: enough steady monthly income to carry the loan",
+        "insufficient_equity": "Own money (equity): savings that pay part of the price",
+        "existing_debt": "Existing debts: other loans you are paying",
+    }
+
+    def _home_costs(self, price: float) -> dict:
+        """Deposit (median equity share of approved applications) plus typical one-off costs at this price."""
+        m = self.mortgage
+        share = m["approved_applications"]["equity_share_pct"]["median"] / 100
+        ex = m["expenses"]
+        costs = {t: eur(price * ex[t]["median_share_of_price_pct"] / 100) if t == "transfer_tax"
+                 else float(ex[t]["median_eur"]) for t in m["one_off_cost_types"]}
+        equity = price * share
+        return {"price_eur": eur(price), "equity_share_pct": eur(share * 100), "equity_eur": eur(equity),
+                "loan_eur": eur(price - equity),
+                "one_off_costs_eur": {f"{t}_eur": v for t, v in costs.items()},
+                "total_needed_eur": eur(equity + sum(costs.values())),
+                "not_counted": {"renovation_median_eur": float(ex["renovation"]["median_eur"]),
+                                "renovation_applications": ex["renovation"]["applications"],
+                                "maintenance_fee_median_eur_per_month": float(ex["maintenance_fee"]["median_eur"])}}
+
+    def home_readiness(self, price: float | None = None) -> dict:
+        """'Ready for my first home?': an educational estimate from the challenge's mortgage data. Never a loan offer."""
+        m = self.mortgage
+        if not m:
+            raise ValueError("mortgage benchmark not available (run scripts/build_mortgage_benchmark.py)")
+        if price is not None and not 10_000 <= price <= 5_000_000:
+            raise ValueError("price must be between 10,000 and 5,000,000 EUR")
+        sal = self._rec("salary")
+        if not sal:
+            raise ValueError("no regular salary found in the account history")
+        income, ratio = sal.avg_amount, m["required_income_per_loan_eur"]
+        appr = m["approved_applications"]
+        loan = income / ratio
+        prices = {k: eur(loan / (1 - appr["equity_share_pct"][p] / 100))
+                  for k, p in (("with_small_deposit", "p25"), ("typical", "median"), ("with_big_deposit", "p75"))}
+        need = self._home_costs(float(price) if price is not None else prices["typical"])
+        saved = sum(g["saved"] for g in self.state.get("goals", {}).values())
+        have = self.balance() + saved
+        gap = max(0.0, need["total_needed_eur"] - have)
+        need.update({"you_have_eur": eur(have), "still_to_save_eur": eur(gap),
+                     "covered_pct": min(100, round(have / need["total_needed_eur"] * 100))})
+        port = self.portfolio()
+        paces = [("Cut restaurants by 20%", self.simulate_cut("Restaurants", 20)["saving_per_month_eur"]),
+                 ("Save 50 € a month", 50.0), ("Save 100 € a month", 100.0)]
+        if port["monthly_plan_in_data"]:
+            paces.append(("Put your monthly investing into the deposit instead",
+                          port["monthly_plan_in_data"]["amount_eur"]))
+        path = []
+        for how, pace in paces:
+            n = int(-(-gap // pace)) if gap else 0
+            path.append({"how": how, "monthly_eur": eur(pace), "months": n, "years": round(n / 12, 1),
+                         "reached_by": add_months(month_start(self.today), n).isoformat()[:7]})
+        out = {
+            "label": "Educational estimate from S-Pankki's challenge data (200 mortgage applications, synthetic but "
+                     "modelled on real S-Bank data). Not a loan offer and not a loan decision.",
+            "your_money": {"monthly_salary_eur": income, "balance_eur": self.balance(), "saved_in_goals_eur": eur(saved),
+                           "invested_so_far_eur": port["net_put_in_eur"],
+                           "invested_note": "Not counted in what you have: investments can be sold for a deposit, "
+                                            "but their value goes up and down."},
+            "at_your_income": {
+                "loan_eur": eur(loan),
+                "rule": f"In the data every application needed a monthly income of {ratio} x the loan, "
+                        f"so a loan of about {round(1 / ratio, 1)} x monthly income",
+                "price_range_eur": prices,
+                "approved_homes_price_eur": appr["property_price_eur"],
+                "cheaper_than_most_approved_homes": bool(prices["typical"] < appr["property_price_eur"]["p25"]),
+            },
+            "deposit": need,
+            "saving_path": path,
+            "asp": {"guide_topic": "asp", "note": "ASP is the state-backed savings account for a first home; "
+                                                  "get_money_guide('asp') has its rules and the official source."},
+            "what_banks_look_at": [{"reason": r["reason"], "what": self.REASON_LABELS.get(r["reason"], r["reason"]),
+                                    "rejections": r["count"], "share_of_rejections_pct": r["share_of_rejections_pct"]}
+                                   for r in m["rejection_reasons"]],
+            "collateral_fact": {
+                "home_valued_as_collateral_pct_of_price": appr["collateral_value_share_of_price_pct"]["median"],
+                "typical_loan_pct_of_price": appr["loan_to_value_pct"]["median"],
+                "applications_asked_for_more_collateral_pct": m["additional_collateral_requested_pct"]},
+            "data": {"applications": m["applications"], "approval_rate_pct": m["approval_rate_pct"],
+                     "approved_applicants_age": appr["age"], "property_types": m["property_types"]},
+            "suggested_goal": {"name": "First home deposit", "target_eur": need["total_needed_eur"]},
+            "source": m["source"],
+        }
+        age = (self.benchmark or {}).get("persona_age")
+        if age and age < appr["age"]["min"]:
+            out["age_note"] = (f"Approved applicants in the data were aged {appr['age']['min']}-{appr['age']['max']}; "
+                               f"nobody aged {age} is in it, so compare loosely.")
+        if price is not None:
+            income_needed = need["loan_eur"] * ratio
+            out["price_check"] = {
+                "price_eur": eur(price), "loan_needed_eur": need["loan_eur"],
+                "monthly_income_needed_eur": eur(income_needed), "your_salary_eur": income,
+                "income_enough": bool(income >= income_needed),
+                "income_short_by_eur": eur(max(0.0, income_needed - income)),
+                "max_price_at_your_income_eur": prices["typical"]}
+        return out

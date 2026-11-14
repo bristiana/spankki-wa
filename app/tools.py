@@ -199,6 +199,16 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {"topic": {"type": "string", "enum": list(GUIDE)}},
                          "required": ["topic"], "additionalProperties": False},
     },
+    {
+        "name": "get_home_readiness",
+        "description": "'Ready for my first home?': from the user's salary and S-Pankki's mortgage application data, the "
+                       "loan and price range people with that income carried, the deposit and one-off costs typically "
+                       "needed, what they have, months to the deposit at several saving paces, what banks look at "
+                       "(rejection reasons), and the ASP pointer. Educational estimate, not a loan offer.",
+        "input_schema": {"type": "object", "properties": {
+            "price_eur": {"type": ["number", "null"], "description": "A specific home price to check, or null."}},
+            "required": ["price_eur"], "additionalProperties": False},
+    },
 ]
 
 
@@ -252,6 +262,10 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out = engine.portfolio()
     elif name == "get_money_guide":
         out = money_guide(args["topic"])
+    elif name == "get_home_readiness":
+        price = args.get("price_eur")
+        out = engine.home_readiness(float(price) if price else None)
+        out["asp"]["sources"] = GUIDE.get("asp", {}).get("sources", [])
     else:
         raise ValueError(f"unknown tool {name}")
     return json.dumps(out, default=str)
