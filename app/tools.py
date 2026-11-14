@@ -5,8 +5,10 @@ import json
 import os
 import re
 from pathlib import Path
+from urllib.parse import urlencode
 
-from .engine import FUNDS, PERIODS, SPEND_CATEGORIES, Engine
+from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_MERCHANT_TYPES, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS, PERIODS,
+                     SPEND_CATEGORIES, Engine)
 
 GUIDE_PATH = Path(__file__).resolve().parent.parent / "content" / "finland-money-guide.md"
 
@@ -221,6 +223,37 @@ TOOLS = [
                          "required": ["topic"], "additionalProperties": False},
     },
     {
+        "name": "explore_my_data",
+        "description": "MyData explorer: the customer's own transactions filtered, grouped and measured, with a chart "
+                       "attached to your message (web chat: drawn in the chat; WhatsApp: an 'Open chart' button). Use for "
+                       "'show me…', 'chart…', 'when do I spend most on…' (group_by weekday), 'how did X change' "
+                       "(month or week) and 'compare…' (category, basket, merchant or merchant_type) questions. "
+                       "Use one filter at a time.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "what": {"type": "string", "enum": EXPLORE_WHAT, "description": "spent = card and bill spending; income = money in."},
+                "category": {"type": ["string", "null"], "enum": SPEND_CATEGORIES + [None],
+                             "description": "Only this category (spending only), or null."},
+                "basket": {"type": ["string", "null"], "enum": list(BASKETS) + [None],
+                           "description": "Only this basket: regular = mandatory & regular, irregular = mandatory & "
+                                          "irregular, everyday = slips through your fingers. Or null."},
+                "merchant_type": {"type": ["string", "null"], "enum": EXPLORE_MERCHANT_TYPES + [None],
+                                  "description": "Only this kind of place, from the card's merchant code: a word like "
+                                                 "taxi, fuel, parking, fast food, coffee, supermarket, or a 4-digit "
+                                                 "code. Same words as get_spending. Or null."},
+                "group_by": {"type": "string", "enum": EXPLORE_GROUP_BY},
+                "metric": {"type": "string", "enum": EXPLORE_METRICS,
+                           "description": "sum = euros, count = number of payments, average = average payment in euros."},
+                "period": {**PERIOD_PROP, "description": PERIOD_PROP["description"] + " Trends usually need last_12_months."},
+                "start": DATE_PROP,
+                "end": DATE_PROP,
+            },
+            "required": ["what", "group_by", "metric", "period"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "get_home_readiness",
         "description": "'Ready for my first home?': from the user's salary and S-Pankki's mortgage application data, the "
                        "loan and price range people with that income carried, the deposit and one-off costs typically "
@@ -231,6 +264,12 @@ TOOLS = [
             "required": ["price_eur"], "additionalProperties": False},
     },
 ]
+
+
+def explore_query(q: dict) -> str:
+    """explore() query -> the query string of /app/explore (defaults and empty values left out)."""
+    defaults = {"what": "spent", "group_by": "month", "metric": "sum", "period": "last_12_months"}
+    return urlencode({k: v for k, v in q.items() if v and defaults.get(k) != v})
 
 
 def public_url() -> str:
@@ -288,6 +327,14 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out = engine.portfolio()
     elif name == "get_money_guide":
         out = money_guide(args["topic"])
+    elif name == "explore_my_data":
+        out = engine.explore(**{k: args.get(k) for k in ("what", "category", "basket", "merchant_type", "group_by",
+                                                         "metric", "period", "start", "end") if args.get(k)})
+        url = f"{public_url()}/app/explore?{explore_query(out['query'])}".rstrip("?")
+        if not any(b["url"] == url for b in buttons):
+            buttons.append({"label": "Open chart", "url": url, "chart": out["chart"]})
+        out = {**out, "note": out["note"] + " A chart and an 'Open chart' button are attached to your message: do not "
+                                            "paste a link or a table, just say the one or two numbers that answer."}
     elif name == "get_home_readiness":
         price = args.get("price_eur")
         out = engine.home_readiness(float(price) if price else None)

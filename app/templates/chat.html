@@ -12,6 +12,8 @@
   .bot .btn{margin-top:10px;padding:11px;min-height:0;font-size:15px}
   .typing{color:var(--muted);font-size:14px;padding:6px 2px}
   .chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px;max-width:560px;width:100%;margin:0 auto;scrollbar-width:none}
+  .chips:not(.all) .more{display:none}
+  .chips button[data-more]{color:var(--brand);font-weight:600}
   .chips button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 12px;font:14px system-ui;cursor:pointer}
   form#f{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
   form#f input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px system-ui;background:var(--bg);color:var(--ink)}
@@ -22,7 +24,12 @@
   #sheet .top{display:flex;justify-content:flex-end;padding:6px 8px;background:var(--brand)}
   #sheet .top button{border:0;background:transparent;color:var(--brand-ink);font-size:22px;cursor:pointer;width:40px;height:40px}
   #sheet iframe{flex:1;border:0;width:100%}
+  .msg.has-chart{width:85%}
+  .chart{white-space:normal;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+  .chart b{display:block;font-size:14px}.chart small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
+  .chart .plot{width:100%}
 </style>
+<script src="/static/kchart.js"></script>
 {% endblock %}
 {% block body %}
 <div id="log" aria-live="polite">
@@ -31,20 +38,23 @@
 <div class="chips" id="chips">
   <button data-q="__start__">🐿️ Get started</button>
   <button data-q="__remind__">⏰ Rent reminder</button>
-  <button data-q="__alert__:renewal">🔁 Renewal alert</button>
-  <button data-q="__alert__:salary">💰 Salary landed</button>
-  <button data-q="__alert__:unusual">👀 Unusual spend</button>
   <button>What is safe for me to spend this week?</button>
+  <button>When do I spend most on restaurants?</button>
+  <button>Show my groceries by month</button>
   <button>How much did I spend on taxis last month?</button>
   <button>How much can I safely save?</button>
-  <button>Show my money across all my banks</button>
-  <button>Can I afford a 120€ jacket?</button>
   <button>Could I afford my first home?</button>
-  <button>What kind of spender am I?</button>
-  <button>What subscriptions am I paying for?</button>
-  <button>How much could I save if I cut dining out by 20%?</button>
-  <button>I want to save 1500 euros for a trip to Lapland by next summer</button>
-  <button>How much have I invested so far?</button>
+  <button class="more" data-q="__alert__:renewal">🔁 Renewal alert</button>
+  <button class="more" data-q="__alert__:salary">💰 Salary landed</button>
+  <button class="more" data-q="__alert__:unusual">👀 Unusual spend</button>
+  <button class="more">Show my money across all my banks</button>
+  <button class="more">Can I afford a 120€ jacket?</button>
+  <button class="more">What kind of spender am I?</button>
+  <button class="more">What subscriptions am I paying for?</button>
+  <button class="more">How much could I save if I cut dining out by 20%?</button>
+  <button class="more">I want to save 1500 euros for a trip to Lapland by next summer</button>
+  <button class="more">How much have I invested so far?</button>
+  <button data-more aria-expanded="false">More ideas ›</button>
 </div>
 <form id="f" autocomplete="off">
   <input id="q" placeholder="Ask about your money…" aria-label="Message">
@@ -92,6 +102,18 @@ async function send(text, shown) {
     const j = await r.json();
     t.remove();
     const d = add("bot", fmt(j.text || "…"));
+    for (const c of j.charts || []) {  // explore_my_data: the engine's numbers, drawn right in the bubble
+      d.classList.add("has-chart");
+      const box = document.createElement("div"), plot = document.createElement("div");
+      box.className = "chart"; plot.className = "plot";
+      box.innerHTML = "<b>" + esc(c.title) + "</b><small>" + esc(c.subtitle) + "</small>";
+      box.appendChild(plot); d.appendChild(box);
+      window.kurreChart(plot, c);
+      const a = document.createElement("button");
+      a.className = "btn ghost"; a.textContent = "Open in Explore";
+      a.onclick = () => openSheet(c.url + (c.url.includes("?") ? "&" : "?") + "web=1");
+      box.appendChild(a);
+    }
     for (const b of j.buttons || []) {
       const a = document.createElement("button");
       a.className = "btn"; a.textContent = b.label;
@@ -109,7 +131,14 @@ async function send(text, shown) {
 }
 
 document.getElementById("f").onsubmit = e => { e.preventDefault(); const v = q.value.trim(); q.value = ""; send(v); };
-document.querySelectorAll("#chips button").forEach(b => b.onclick = () =>
-  b.dataset.q ? send(b.dataset.q, null) : send(b.textContent));
+const chips = document.getElementById("chips");
+chips.querySelectorAll("button").forEach(b => b.onclick = () => {
+  if (b.hasAttribute("data-more")) {  // 8 ideas at first; the rest one tap away
+    const all = chips.classList.toggle("all");
+    b.textContent = all ? "Fewer ‹" : "More ideas ›"; b.setAttribute("aria-expanded", all);
+    return;
+  }
+  b.dataset.q ? send(b.dataset.q, null) : send(b.textContent);
+});
 </script>
 {% endblock %}
