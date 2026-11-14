@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bills, broker, enable_banking, guardrails, learn, onboarding, quiz, rules, voice
+from . import bills, broker, enable_banking, guardrails, learn, onboarding, quiz, receipts, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -1290,6 +1290,40 @@ def fi_date(iso: str) -> str:
     """2026-10-31 -> 31.10. (how S-mobiili writes a due date)."""
     d = date.fromisoformat(iso)
     return f"{d.day}.{d.month}."
+
+
+# S-Etukortti sub-screens: the digital card ("Käytössä") and Kassakuitti, the digital receipts. Registered before
+# /s-mobiili/{route}/{pid} so /s-mobiili/kuitit/<n> is not taken for a flow.
+def sm_keep(request: Request) -> str:
+    keep = urlencode({k: request.query_params[k] for k in ("persona", "web") if request.query_params.get(k)})
+    return "?" + keep if keep else ""
+
+
+def sm_sub(request: Request, persona: str, extra: str, title: str, back: str | None = None, **more):
+    """back: where the chevron goes (default: the S-Etukortti tab)."""
+    return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
+        request, persona, screen="extra", extra=extra, page_title=title, tab="etukortti", steps=[], ready=None,
+        keep=sm_keep(request), back_url=back, **more))
+
+
+@app.get("/s-mobiili/etukortti", response_class=HTMLResponse)
+def smobiili_etukortti_card(request: Request):
+    return sm_sub(request, sm_persona(request), "kortti", "S-Etukortti")
+
+
+@app.get("/s-mobiili/kuitit", response_class=HTMLResponse)
+def smobiili_receipts(request: Request):
+    persona = sm_persona(request)
+    return sm_sub(request, persona, "kuitit", "Kuitit", receipts=receipts.receipt_list(engine_for(persona)))
+
+
+@app.get("/s-mobiili/kuitit/{row_id}", response_class=HTMLResponse)
+def smobiili_receipt(request: Request, row_id: int):
+    persona = sm_persona(request)
+    r = receipts.build(engine_for(persona), row_id, persona)
+    if not r:
+        raise HTTPException(404)
+    return sm_sub(request, persona, "kuitti", "Kassakuitti", "/s-mobiili/kuitit" + sm_keep(request), r=r)
 
 
 @app.get("/s-mobiili/{route}/{pid}", response_class=HTMLResponse)
