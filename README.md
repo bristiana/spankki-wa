@@ -16,6 +16,7 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 | Rent reminder | "Your rent of 771.82 € is due tomorrow. After rent and your usual bills you have 68.60 € safe to spend until payday, about 7.62 € a day." [Pay rent now] [Remind me later] [How do I stretch it?] |
 | One-tap pay | Button → S-Pankki confirm page → 4-digit PIN → "✅ Rent paid, balance now …" back in the chat |
 | Ask anything | "How much did I spend on taxis last month?" · "What kind of spender am I?" (vs 535 S-Pankki peers aged 20-29 **and** Statistics Finland households aged 17-24) · "What is safe to spend this week?" |
+| Can I afford it? | "Can I afford a 120€ jacket?" → fits your usual fun budget, but it is 51.40 € more than safe to spend until payday; what is left per day, and how many days it pushes back your goal |
 | Subscriptions | Active, inactive and price rises ("StreamPlus went up from 11.99 € to 13.99 €"), renewal alert the day before, stop future card payments with PIN |
 | Save | Goals with deadlines ("1,500 € for Lapland by June"), honest monthly options, salary-day nudge "pay yourself first", savings pocket with PIN |
 | Invest | What-if cuts ("dining out −20% = 97.18 €/month") checked against **real ETF prices** over the last 2 years; your real deposits valued in each fund; one-off investments can place a real order on a Trading 212 Practice account |
@@ -40,7 +41,7 @@ Every answer uses the challenge's teaching model:
 **Simulated, and labelled as such:** the PIN pages (a stand-in for PSD2 payment initiation), the demo customer's subscriptions (the dataset has none, so a few are added outside the balance), and the "Demo Fund" names.
 
 ## Trust by design
-- **Numbers come from code, not the model.** Claude only calls tools over a deterministic, tested engine (`app/engine.py`); the system prompt forbids any figure that is not in a tool result.
+- **Numbers come from code, not the model.** Claude only calls tools over a deterministic, tested engine (`app/engine.py`); the system prompt forbids any figure that is not in a tool result. A number guard checks the reply: a figure that is in no tool result gets one rewrite.
 - **The AI never moves money.** It prepares a payment, saving, investment or subscription stop; the customer confirms with their PIN. Double confirms and overdrafts are refused.
 - **Informs, never advises.** Kurre explains risk and options; the customer chooses the fund.
 - **Opt-in channel.** WhatsApp is enabled per customer with explicit consent; the web chat keeps everything inside S-mobiili.
@@ -57,7 +58,7 @@ Trading 212 Practice API <─────────┘      (one-off investmen
 ```
 
 - `app/engine.py`: three baskets, recurring payments (rent day 7 and salary day 15 found from history), safe to spend, subscriptions, goals, what-if, real-price backtests, benchmarks.
-- `app/agent.py` + `app/tools.py`: Kurre's persona and 15 tools; Claude Opus 5.5 at low effort for fast chat replies.
+- `app/agent.py` + `app/tools.py`: Kurre's persona and 16 tools; `app/guard.py` checks every number in a reply against the tool results and asks for one rewrite if one is not there; Claude Opus 5.5 at low effort for fast chat replies.
 - `app/main.py`: WhatsApp webhook (signature checked), web chat API, confirm pages, dashboard, demo triggers.
 - `worker/index.ts` + `Dockerfile`: the same Python app as a Cloudflare Container behind a Worker.
 
@@ -72,7 +73,7 @@ uvicorn app.main:app --port 8000
 - Landing http://127.0.0.1:8000 · chat `/chat` · dashboard `/app`
 - From the terminal: `python -m app.agent "What is safe for me to spend this week?"`
 - End to end, every flow in a phone-sized browser: `python scripts/demo_walkthrough.py --url http://127.0.0.1:8000`
-- Tests: `python -m pytest` (44)
+- Tests: `python -m pytest` (57)
 - Refresh real data: `python scripts/fetch_market.py`, `python scripts/fetch_statfin.py`; rebuild the persona with `python scripts/extract_persona.py --data-dir <dataset>`
 - WhatsApp: set `<url>/webhook` and `WA_VERIFY_TOKEN` in the Meta app, subscribe to `messages`. Proactive messages: `POST /demo/remind`, `POST /demo/alert?kind=salary|unusual|renewal`
 - Deploy: `wrangler deploy` (bump `INSTANCE` in `wrangler.jsonc` for a fresh container)
