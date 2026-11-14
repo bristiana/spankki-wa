@@ -24,7 +24,6 @@
   const el = (n, a, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
   const pct = v => Math.round(v * 100) + NB + "%";
   const sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
-  const list = (a, and) => a.length > 1 ? a.slice(0, -1).join(", ") + " " + and + " " + a[a.length - 1] : a[0];
 
   // dates, all from the data: as_of is "today", month is the month shown
   const ymd = s => { const [y, m, d] = s.split("-").map(Number); return {y, m, d}; };
@@ -62,28 +61,12 @@
 
   // what the data says, and where it disagrees with itself (shown, not smoothed over)
   const P = rec.regular_payments, by = id => P.find(p => p.id === id);
-  const B = spend.budget_total_eur, catSet = budget.items.filter(i => i.limit_eur != null);
-  const catLim = sum(catSet, i => i.limit_eur);
-  const afterBills = by("salary").per_month_eur - rec.bills_per_month_eur - by("investing").per_month_eur;
-  const span = c => { const f0 = ymd(c.from), t0 = ymd(c.to);
-    return FI ? `${f0.m}/${f0.y}–${t0.m}/${t0.y}` : `${MON[f0.m - 1]}${f0.y !== t0.y ? " " + f0.y : ""}–${MON[t0.m - 1]} ${t0.y}`; };
-  const AFTER = T("Jäljellä laskujen ja sijoittamisen jälkeen", "Left after bills and investing");  // card 6's name, which cards 5 and 7 point to
+  const B = spend.budget_total_eur;
+  const AFTER = T("Jäljellä laskujen ja sijoittamisen jälkeen", "Left after bills and investing");  // card 6's name
   const PAYMENTS = T(`${FI_M[0].toUpperCase() + FI_M.slice(1)}n säännölliset maksut`, `${MONTH_NAME}'s regular payments`);  // card 7's name
-  function budgetRule() {  // the rule in budget.json, said from its own numbers
-    const hm = Object.keys(spend.categories[0].history_eur), a = ymd(hm[0] + "-01"), z = ymd(hm[hm.length - 1] + "-01");
-    const none = spend.categories.filter(c => c.budget_eur == null).map(lab);
-    if (FI) return `Jokaisen luokan budjetti on sen mediaanikuukausi edeltävältä ${hm.length} täydeltä kuukaudelta (${a.m}–${z.m}/${z.y}), pyöristettynä lähimpään 10${NB}euroon` +
-      (none.length ? `. ${none.length > 1 ? "Luokkien " + list(none, "ja") : "Luokan " + none[0]} mediaani oli 0${NB}€, joten ${none.length > 1 ? "niillä" : "sillä"} ei ole budjettia` : "") +
-      `. Kokonaisbudjetti on luokkabudjettien summa, ${eur(catLim, 0)}, eli vähemmän kuin laskujen ja sijoittamisen jälkeen jäävä ${eur(afterBills)}.`;
-    return `Each category's budget is its median month over the ${hm.length} full months before (${MON[a.m - 1]}–${MON[z.m - 1]} ${z.y}), rounded to the nearest 10${NB}€` +
-      (none.length ? `; ${list(none, "and")} had a median of 0${NB}€, so ${none.length > 1 ? "they have" : "it has"} none` : "") +
-      `. The overall budget is their sum, ${eur(catLim, 0)}, under the ${eur(afterBills)} left after bills and investing.`;
-  }
-  const C = compare.cohort, web = id => compare.web.find(w => w.id === id);
+  const C = compare.cohort;
   const AGE = C.age_band.replace("-", "–");
   const PLACE = FI ? C.city.replace(/^the (.+) area$/, "$1n alueella") : "in " + C.city;  // "the Vantaa area": Vantaan alueella
-  const asOfEl = document.getElementById("money-asof");
-  if (asOfEl) asOfEl.textContent = asOfEl.textContent.replace("{date}", FI ? `${TODAY}.${mon.m}.${asOf.y}` : `${TODAY}${NB}${MONTH_NAME} ${asOf.y}`).replace("{n}", compare.cohort.n);
 
   function render() {
   /* 1 · spending this month */
@@ -91,14 +74,13 @@
     const host = document.getElementById("trend");
     const daily = spend.daily, spent = spend.total_eur;
     const ahead = spend.pace.spent_by_today_eur - spend.pace.expected_by_today_eur;
-    const proj = spent / TODAY * DAYS, left = B - spent;
+    const proj = spent / TODAY * DAYS;
     const projCol = proj > B ? css("warn") : css("brand");
     const chip = spend.pace.status === "over" ? warnChip(T(`${eur(ahead)} yli tasaisen tahdin`, `${eur(ahead)} over an even pace`))
       : `<span class="chip ok">${T(`${eur(-ahead)} alle tasaisen tahdin`, `${eur(-ahead)} under an even pace`)}</span>`;
-    host.innerHTML = `<p class="k">${T(`Kulutus ${FI_M}ssa tähän mennessä, kaikki luokat`, `Spending in ${MONTH_NAME} so far, all categories`)}</p><p class="hero">${hero(spent)}</p>
+    host.innerHTML = `<p class="k">${T(`Kulutus ${FI_M}ssa`, `Spending in ${MONTH_NAME}`)}</p><p class="hero">${hero(spent)}</p>
       ${chip}
-      <p class="sub">${T(`<b>${eur(left)}</b> jäljellä ${eur(B, 0).replace("€", "euron")} budjetistasi (luokkabudjettien summa) · <b>${eur(left / LEFT_DAYS)}</b> päivässä ${LEFT_DAYS} päivän ajan`,
-        `<b>${eur(left)}</b> left of your ${eur(B, 0)} budget (the sum of the category budgets) · <b>${eur(left / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days`)}</p><div class="chart-gap"></div>`;
+      <div class="chart-gap"></div>`;
     const W = 318, H = 176, L = 2, R = 46, T0 = 22, Bm = 22, pw = W - L - R, ph = H - T0 - Bm;
     const top = Math.ceil(Math.max(proj, B) * 1.08 / 500) * 500, step = top > 2500 ? 1000 : 500;  // axis room above the higher of budget and projection
     const x = d => L + d / DAYS * pw, y = v => T0 + ph - v / top * ph;  // d = day, 0 = start of the month
@@ -161,21 +143,21 @@
   /* 2 · where it went */
   (function () {
     const host = document.getElementById("cats"), cats = spend.categories, total = sum(cats, c => c.spent_eur);
-    const used = cats.filter(c => c.spent_eur > 0), none = cats.filter(c => !(c.spent_eur > 0));
-    host.innerHTML = `<p class="h3">${T("Mihin rahat menivät", "Where it went")}</p><p class="k" style="margin-top:2px">${T(`${eur(total)}, ${used.length} luokkaa`, `${eur(total)} across ${used.length} categories`)}</p>
+    const used = cats.filter(c => c.spent_eur > 0);
+    host.innerHTML = `<p class="h3">${T("Mihin rahat menivät", "Where it went")}</p>
       <div class="seg" role="img" aria-label="${T("Kulutuksen jakautuminen luokittain", "Share of spending by category")}">${used.map(c =>
         `<i style="flex:${c.spent_eur};background:${css(COL[c.category])}" title="${lab(c)} ${eur(c.spent_eur)}"></i>`).join("")}</div>
       <div>${used.map(c => `<div class="row">${icon(c.category)}<div class="mid"><div class="nm">${lab(c)}</div>
         <div class="sm">${pct(c.spent_eur / total)} · ${T("viime kuussa", "last month")} ${eur(c.prev_eur, 0)}</div></div>
         <div class="amt">${eur(c.spent_eur)}</div></div>`).join("")}</div>
-      ${none.length ? `<p class="nob">${T(`Ei vielä kulutusta: ${list(none.map(lab), "sekä")}.`, `Nothing yet on ${list(none.map(lab), "or")}.`)}</p>` : ""}`;
+`;
   })();
 
   /* 3 · budgets and pace */
   (function () {
     const host = document.getElementById("budget"), items = budget.items, paceShare = TODAY / DAYS;
-    const set = items.filter(i => i.limit_eur != null), unset = items.filter(i => i.limit_eur == null);
-    const lim = sum(set, i => i.limit_eur), sp = sum(set, i => i.spent_eur), left = sum(set, i => i.left_eur);
+    const set = items.filter(i => i.limit_eur != null);
+    const left = sum(set, i => i.left_eur);
     // status is the data's own (over / on_track = not over); pace is computed: spent share vs share of the month gone
     const fast = i => i.limit_eur > 0 && i.spent_eur / i.limit_eur > paceShare;
     // one short line per bar: the data's "over" first, then the computed pace
@@ -183,9 +165,8 @@
       : fast(i) ? ["fast", T("Tasaista tahtia nopeammin", "Faster than even pace")] : ["ok", T("Tasaisen tahdin sisällä", "Within even pace")];
     const nWithin = set.filter(i => i.status !== "over").length;
     const nFast = set.filter(i => i.status !== "over" && fast(i)).length;
-    host.innerHTML = `<p class="k">${T(`Käytettävissä ${set.length} luokkabudjetissasi`, `Left to spend in your ${set.length} category budgets`)}</p><p class="hero">${hero(left)}</p>
-      <p class="sub">${T(`<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> päivässä ${LEFT_DAYS} päivän ajan · käytetty ${eur(sp)} / ${eur(lim, 0)}`,
-        `<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days · ${eur(sp)} of ${eur(lim, 0)} spent`)}</p>
+    host.innerHTML = `<p class="k">${T("Budjeteissa jäljellä", "Left in your budgets")}</p><p class="hero">${hero(left)}</p>
+      <p class="sub">${T(`<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> päivässä loppukuun ajan`, `<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> a day for the rest of the month`)}</p>
       <div class="chips"><span class="chip ok">${T(`${nWithin}/${set.length} budjetin sisällä`, `${nWithin} of ${set.length} within budget`)}</span>
       ${nFast ? warnChip(T(`${nFast}/${set.length} tasaista tahtia nopeammin`, `${nFast} of ${set.length} faster than an even pace`)) : ""}</div>
       <div style="margin-top:12px">${set.map(i => { const over = i.status === "over", f = Math.min(i.spent_eur / i.limit_eur, 1);
@@ -195,9 +176,8 @@
           <div class="track"><i style="width:${(f * 100).toFixed(1)}%;background:${fill}"></i><b style="left:${(paceShare * 100).toFixed(1)}%"></b></div>
           <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)"><span class="st ${word(i)[0]}">${word(i)[1]}</span><span style="white-space:nowrap">${eur(i.spent_eur)} ${T("/", "of")} ${eur(i.limit_eur, 0)}</span></div>
         </div></div>`; }).join("")}</div>
-      <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>${T("Tasainen tahti tähän päivään", "Even pace by today")}</span>${set.some(i => i.spent_eur > 0 && !fast(i)) ? `<span><i style="background:var(--bright)"></i>${T("Tasaisen tahdin sisällä", "Within even pace")}</span>` : ""}${set.some(fast) ? `<span><i style="background:var(--warn)"></i>${T("Tasaista tahtia nopeammin", "Faster than even pace")}</span>` : ""}</div>
-      ${unset.length ? `<p class="nob">${T("Ei budjettia", "No budget")}: ${unset.map(i => `${lab(i)} (${T("käytetty", "spent")} ${eur(i.spent_eur, 0)})`).join(" · ")}</p>` : ""}
-      <p class="sub">${T("Näin budjetit asetetaan", "How the budgets are set")}: ${budgetRule()}</p>`;
+      <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>${T("Tasainen tahti tähän päivään", "Even pace by today")}</span></div>
+`;
   })();
 
   /* 4 · where you sit */
@@ -224,11 +204,9 @@
     const yb = F.length * rowH + 18;
     [[0, T("alin", "lowest")], [50, T("tyypillinen", "typical")], [100, T("korkein", "highest")]].forEach(([p, t]) =>
       svg.appendChild(el("text", {x: px(p), y: yb, "text-anchor": p ? (p === 100 ? "end" : "middle") : "start"}, t)));
-    host.innerHTML = `<p class="h3">${T("Sinä ja kaltaisesi", "Where you sit")}</p><p class="k" style="margin-top:2px">${T(
-      `${AGE}-vuotiaat ${PLACE} (${C.n} henkeä), kuukausikeskiarvot <span style="white-space:nowrap">${span(C)}</span>`,
-      `Among ${C.n} people aged ${AGE} ${PLACE}, monthly averages <span style="white-space:nowrap">${span(C)}</span>`)}</p>`;
+    host.innerHTML = `<p class="h3">${T("Sinä ja kaltaisesi", "Where you sit")}</p><p class="k" style="margin-top:2px">${T(`${AGE}-vuotiaat ${PLACE}`, `People aged ${AGE} ${PLACE}`)}</p>`;
     host.appendChild(svg);
-    host.insertAdjacentHTML("beforeend", `<div class="key"><span><i style="background:var(--brand);width:10px;height:10px"></i>${T("Sinä", "You")}</span><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>${T("Tyypillinen", "Typical")}</span><span><i style="background:var(--brand);opacity:.4"></i>${T("Keskimmäinen puolikas", "Middle half")}</span>${F.some(worse) ? `<span><i style="background:var(--warn);width:10px;height:10px"></i>${T("Keskimmäisen puolikkaan ulkopuolella, huonommalla puolella", "Outside the middle half, on the worse side")}</span>` : ""}</div>`);
+    host.insertAdjacentHTML("beforeend", `<div class="key"><span><i style="background:var(--brand);width:10px;height:10px"></i>${T("Sinä", "You")}</span><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>${T("Tyypillinen", "Typical")}</span><span><i style="background:var(--brand);opacity:.4"></i>${T("Keskimmäinen puolikas", "Middle half")}</span>${F.some(worse) ? `<span><i style="background:var(--warn);width:10px;height:10px"></i>${T("Huonompi kuin useimmilla", "Worse than most")}</span>` : ""}</div>`);
   })();
 
   /* 5 · one figure: Income */
@@ -251,16 +229,9 @@
     svg.appendChild(el("text", {x: bx + bw / 2, y: yb - 38, "text-anchor": "middle", style: "font-size:12.5px;font-weight:700;fill:" + css("brand-ink")}, bubble));
     [[f.p25, eur(f.p25, 0)], [f.p75, eur(f.p75, 0)]].forEach(([v, t]) =>
       svg.appendChild(el("text", {x: px(v), y: yb + 24, "text-anchor": "middle"}, t)));
-    host.innerHTML = `<p class="h3">${T("Tulot", f.label)}</p><p class="k" style="margin-top:2px">${T(
-      `Palkka ja muut tulot kuukaudessa, ${span(C)}, verrattuna ${PLACE.replace(/n alueella$/, "n alueen")} ${AGE}-vuotiaisiin (${C.n} henkeä)`,
-      `Salary and other income a month, ${span(C)}, against ${C.n} people aged ${AGE} ${PLACE}`)}</p>`;
+    host.innerHTML = `<p class="h3">${T("Tulot", f.label)}</p>`;
     host.appendChild(svg);
-    const wv = web("income_vantaa_all_adults"), wf = web("income_finland_35_49"), sal = eur(by("salary").per_month_eur, 0);
-    host.insertAdjacentHTML("beforeend", FI
-      ? `<p class="sub">Tulosi ovat suuremmat kuin noin <b>${Math.round(f.percentile / 10)}:llä kymmenestä</b> ryhmän jäsenestä. Paksu palkki on keskimmäinen puolikas.</p>
-      <p class="sub">Tilastokeskus, eri mittari (kaikki käytettävissä olevat rahatulot henkeä kohden, ei vain tälle tilille tuleva): kaikkien aikuisten mediaani Vantaalla ${eur(wv.value_eur_year / 12, 0)} kuukaudessa (<a href="${wv.url}">taulukko 14ww</a>); 35–49-vuotiailla koko Suomessa ${eur(wf.value_eur_year / 12, 0)} kuukaudessa (<a href="${wf.url}">taulukko 11py</a>), molemmat vuodelta ${wf.year}, kahdestoistaosa vuoden luvusta. Mikään taulukko ei anna ikää ja aluetta yhdessä. Kortin ”${AFTER}” ${sal} on pelkkä palkka, kolmen viimeisen palkan keskiarvo.</p>`
-      : `<p class="sub">Higher than about <b>${Math.round(f.percentile / 10)} in 10</b> people in the group. The thick band is the middle half.</p>
-      <p class="sub">Statistics Finland, a different measure (all disposable cash income per person, not only what reaches this account): median for all adults in Vantaa ${eur(wv.value_eur_year / 12, 0)} a month (<a href="${wv.url}">table 14ww</a>); for ages 35–49 in all of Finland ${eur(wf.value_eur_year / 12, 0)} a month (<a href="${wf.url}">table 11py</a>), both ${wf.year}, a twelfth of the yearly figure. No table gives age and area together. The ${sal} in “${AFTER}” is salary only, the average of the last 3 payments.</p>`);
+    host.insertAdjacentHTML("beforeend", `<p class="sub">${T(`Tulosi ovat suuremmat kuin noin <b>${Math.round(f.percentile / 10)}:llä kymmenestä</b> kaltaisestasi`, `Higher than about <b>${Math.round(f.percentile / 10)} in 10</b> people like you`)}</p>`);
   })();
 
   /* 6 · where the salary goes */
@@ -270,18 +241,14 @@
     const inc = by("salary").per_month_eur, bills = rec.bills_per_month_eur, inv = by("investing").per_month_eur, rest = inc - bills - inv;
     // the bills are each one's average month (recurring.json's method), so they differ from this month's payments in card 7
     const billSub = T(`vuokra ${eur(rent.per_month_eur)} + asumislaskut ${eur(u.per_month_eur)}`, `rent ${eur(rent.per_month_eur)} + utility bills ${eur(u.per_month_eur)}`);
-    const parts = [[T("Laskut: vuokra ja asumislaskut", "Bills: rent and utility bills"), bills, css("c6"), billSub],
+    const parts = [[T("Laskut", "Bills"), bills, css("c6"), billSub],
       [T("Sijoittaminen", "Investing"), inv, css("c3")], [T("Jää kaikkeen muuhun", "Left for everything else"), rest, css("brand")]];
-    const paid = spend.bills.find(b => /rent/i.test(b.name) && dayOf(b.date));
     host.innerHTML = `<p class="h3">${AFTER}</p><p class="k" style="margin-top:2px">${T("Tavallinen kuukausi", "A typical month")}</p><p class="hero">${hero(rest)}</p>
-      <p class="sub">${T(`palkastasi <b>${eur(inc)}</b> kuukaudessa (kolmen viimeisen keskiarvo)`, `of your <b>${eur(inc)}</b> salary a month (average of the last 3)`)}</p>
+      <p class="sub">${T(`palkastasi <b>${eur(inc)}</b>`, `of your <b>${eur(inc)}</b> salary`)}</p>
       <div class="seg" style="height:18px" role="img" aria-label="${T("Palkan jakautuminen", "Salary split")}">${parts.map(p => `<i style="flex:${p[1]};background:${p[2]}"></i>`).join("")}</div>
       ${parts.map(p => `<div class="row" style="padding:7px 0"><span style="width:12px;height:12px;border-radius:3px;background:${p[2]};flex:none"></span>
         <div class="mid"><div class="nm">${p[0]}</div>${p[3] ? `<div class="sm">${p[3]}</div>` : ""}</div><div class="amt">${eur(p[1])}<small>${pct(p[1] / inc)}</small></div></div>`).join("")}
-      <p class="sub">${T(`Tavallinen kuukausi: palkka ja vuokra ovat kolmen viimeisen maksun keskiarvoja, asumislaskut kolmen viimeisen täyden kuukauden keskiarvo.`,
-        `A typical month: salary and rent are the average of their last 3 payments, utility bills of the last 3 full months.`)}${paid ? T(
-        ` ${FI_M[0].toUpperCase() + FI_M.slice(1)}n vuokra oli ${eur(paid.amount_eur)} (kortti ”${PAYMENTS}”).`,
-        ` ${MONTH_NAME}'s rent was ${eur(paid.amount_eur)} (see “${PAYMENTS}”).`) : ""}</p>`;
+`;
   })();
 
   /* 7 · the month's payments */
@@ -324,18 +291,8 @@
     svg.appendChild(marks);
     svg.appendChild(el("text", {x: x(TODAY), y: T0 - 12, "text-anchor": "middle", style: "font-size:11.5px;font-weight:600;fill:" + css("strong")}, T("Tänään", "Today")));
     for (let d = 1; d <= DAYS; d += 7) svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": "middle"}, String(d)));
-    const soon = lanes.filter(l => !l.from && l.day > TODAY).sort((a, b) => a.day - b.day).map(l => FI ? `${l.name.toLowerCase()} ${dm(l.day)}` : `${l.name.toLowerCase()} on ${dm(l.day)}`);
-    if (u.day_range.last > TODAY) soon.push(T(`asumislaskuja milloin tahansa ${dm(u.day_range.last)} asti`, `utility bills any day to ${dm(u.day_range.last)}`));
-    host.innerHTML = `<p class="h3">${PAYMENTS}</p><p class="k" style="margin-top:2px">${T("Tulossa", "Coming up")}: ${soon.join(", ")}</p>`;
+    host.innerHTML = `<p class="h3">${PAYMENTS}</p>`;
     host.appendChild(svg);
-    // why rent here differs from card 6: this is the payment itself, card 6 the average month (no figure changed, only said)
-    const avg = by("rent").per_month_eur;
-    if (rentPaid && Math.abs(rentPaid.amount_eur - avg) >= .005) {
-      const diff = rentPaid.amount_eur - avg, more = diff > 0;
-      host.insertAdjacentHTML("beforeend", `<p class="sub">${T(
-        `Vuokra on tässä ${dm(dayOf(rentPaid.date))} maksettu ${eur(rentPaid.amount_eur)}, ${eur(Math.abs(diff))} ${more ? "enemmän" : "vähemmän"} kuin kortin ”${AFTER}” käyttämä keskiarvo ${eur(avg)}. Asumislaskut näkyvät keskimääräisenä kuukautena.`,
-        `Rent here is the ${eur(rentPaid.amount_eur)} paid on ${dm(dayOf(rentPaid.date))}, ${eur(Math.abs(diff))} ${more ? "more" : "less"} than the ${eur(avg)} average used in “${AFTER}”. Utility bills show their average month.`)}</p>`);
-    }
   })();
   }
 
