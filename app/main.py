@@ -1005,20 +1005,28 @@ def smobiili_root(request: Request):
     return RedirectResponse("/s-mobiili/" + (f"?{request.url.query}" if request.url.query else ""), status_code=307)
 
 
+BASKETS_Q = "Where does my money go?"  # the S-mobiili baskets card and the 4th chat chip ask the same question
+
+
 @app.get("/s-mobiili/", response_class=HTMLResponse)
 def smobiili_home(request: Request):
     persona = sm_persona(request)
     e = engine_for(persona)
     a = accounts(e)
+    b = e.baskets("last_3_months")
     steps = [("acct-current", f"Your current account: {short_money(a['current'])}", "talk"),
+             ("baskets", "Everything you spend falls in 3 baskets. Tap it and I'll show you where it goes", "talk"),
              ("acct-pocket", "Your Savings pocket" if a["pocket_open"] else "Your Savings pocket, once you open one",
               "talk"),
              ("acct-funds", "Your funds. Only you choose where money goes", "talk"),
              ("recent", "Your latest payments, straight from your account", "talk"),
              ("ask", "Questions? I'm in WhatsApp and right here", "wave")]
     bill = next(iter(e.upcoming_bills(30)), None)
+    q = {"q": BASKETS_Q, **({"embed": "1"} if request.query_params.get("web") else {}),
+         **({"as": persona} if request.query_params.get("persona") else {})}
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
-        request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps),
+        request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps), baskets=b,
+        baskets_url="/chat?" + urlencode(q),
         bill={**bill, "due": nice_date(bill["due_date"])} if bill else None))
 
 
@@ -1333,7 +1341,8 @@ def landing(request: Request):
          "util_month": util.get("per_month_eur", 0), "util_count": round(util.get("bills_per_month", 0)),
          "odd": util.get("unusual_bill"), "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"],
          "fi_same_age": not off.get("group", "").endswith(" all")}  # Statistics Finland has age groups only up to 34
-    return templates.TemplateResponse(request, "landing.html", _ctx(L=L, who=PERSONAS[DEFAULT_PERSONA]))
+    return templates.TemplateResponse(request, "landing.html", _ctx(L=L, who=PERSONAS[DEFAULT_PERSONA],
+                                                                     baskets=engine.baskets("last_3_months")))
 
 
 def _chart(o: dict) -> dict:

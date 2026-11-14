@@ -22,17 +22,17 @@ ROOT = Path(__file__).resolve().parents[1]
 # The pedagogical frame from the challenge: every euro you spend lands in one of three baskets.
 BASKETS = {
     "regular": {
-        "label": "Mandatory & regular",
+        "label": "Mandatory & regular", "example": "rent",
         "hint": "Bills you know are coming: rent, utilities, groceries, getting to work.",
         "categories": ["Housing", "Utilities", "Groceries", "Transportation"],
     },
     "irregular": {
-        "label": "Mandatory & irregular",
+        "label": "Mandatory & irregular", "example": "a broken washing machine",
         "hint": "Needed, but you can't predict when: a doctor, a broken laptop, a trip home.",
         "categories": ["Health", "Home & Tech", "Travel"],
     },
     "everyday": {
-        "label": "Slips through your fingers",
+        "label": "Slips through your fingers", "example": "coffees",
         "hint": "Small choices that add up: dining out, entertainment, shopping.",
         "categories": ["Restaurants", "Entertainment", "Lifestyle"],
     },
@@ -383,7 +383,7 @@ class Engine:
             bs = spend[spend["category"].isin(b["categories"])]
             amt = -bs["tx_amount_eur"].sum()
             out["baskets"].append({
-                "basket": key, "label": b["label"], "explanation": b["hint"],
+                "basket": key, "label": b["label"], "example": b["example"], "explanation": b["hint"],
                 "total_eur": eur(amt), "per_month_eur": eur(amt / months),
                 "share_pct": round(amt / total * 100) if total else 0,
                 "by_category": {c: eur(-v) for c, v in bs.groupby("category")["tx_amount_eur"].sum().sort_values().items()},

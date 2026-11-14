@@ -188,10 +188,8 @@ def start(engine: Engine, user: str) -> Turn:
     engine.state.setdefault("onboarding", {})[user] = {"step": "goal", "paused": False, "skipped": [], "answers": {}}
     engine._save()
     b = engine.baskets("last_3_months")
-    per = {x["basket"]: x["per_month_eur"] for x in b["baskets"]}
-    labels = {x["basket"]: x["label"] for x in b["baskets"]}
-    lines = "\n".join(f"• {labels[k]}: {_money(v)} a month" for k, v in per.items())
-    lead = [f"Connected ✅ Here's where your money went over the last 3 months:\n{lines}",
+    lines = "\n".join(f"• {x['label']} (e.g. {x['example']}): {_money(x['per_month_eur'])} a month" for x in b["baskets"])
+    lead = [f"Connected ✅ Everything you spend falls in 3 baskets. Over the last 3 months, a month:\n{lines}",
             "A few short questions so I can help with *your* plan. Skip any of them."]
     t = _ask("goal")
     t.lead = lead

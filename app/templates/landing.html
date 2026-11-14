@@ -21,6 +21,10 @@
   .feat > b{display:block;font-size:17px;margin-bottom:4px}
   .feat .muted{font-size:15px}
   .bub{background:var(--soft);border-radius:14px 14px 14px 4px;padding:10px 12px;font-size:14px;margin-top:10px}
+  .baskets{margin:0 0 22px}.baskets > b{display:block;font-size:17px;margin-bottom:4px}.baskets .muted{font-size:15px}
+  .baskets .bk{display:flex;gap:10px;align-items:baseline;margin:10px 0 0;font-size:15px}
+  .baskets .bk i{flex:none;width:12px;height:12px;border-radius:4px;transform:translateY(1px)}
+  .k1{background:#00703c}.k2{background:#3d7ab8}.k3{background:#e07a2e}
   .trust{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 24px}
   @media (min-width:700px){.trust{grid-template-columns:repeat(3,1fr)}}
   .trust div{font-size:14px;color:var(--muted)}
@@ -41,6 +45,13 @@
       <p class="muted" style="font-size:13px;margin:4px 0 0">Demo customer {{ who.name }}, {{ who.age }}, on synthetic S-Pankki data.</p>
     </div>
     <img src="/static/birky.svg" alt="Birky the squirrel holding a euro coin">
+  </section>
+
+  <section class="card baskets" id="three-baskets">
+    <b>Three baskets: where {{ who.name }}'s money really goes</b>
+    <span class="muted">Every euro you spend lands in one of three baskets. A month, over the last 3 months:</span>
+    {% for k in baskets.baskets %}<p class="bk"><i class="k{{ loop.index }}"></i><span><b>{{ k.label }}</b> (e.g. {{ k.example }}): <b>{{ money(k.per_month_eur) }}</b> a month, {{ k.share_pct }}%{% if k.basket == "everyday" %}. The only basket you can change today.{% endif %}</span></p>
+    {% endfor %}
   </section>
 
   <section class="feats">
