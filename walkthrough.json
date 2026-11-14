@@ -1,0 +1,85 @@
+{
+  "video": null,
+  "scenes": [
+    {
+      "scene": "A rent reminder arrives before payday",
+      "seconds": 0.5,
+      "reply": "Hi Aino 👋 Your rent of 771.82 € is due tomorrow (Wed 07 Oct).\n\nAfter rent and your usual bills you have 68.60 € safe to spend until payday on Thu 15 Oct. That's about 7.62 € a day.\nPay rent now\nRemind me later\nHow do I stretch it?"
+    },
+    {
+      "scene": "One tap: pay rent",
+      "seconds": 0.4,
+      "reply": "Here's your rent payment of 771.82 €. Confirm it with your PIN in S-Pankki.\nPay 771.82 €"
+    },
+    {
+      "scene": "Confirm with your bank PIN",
+      "seconds": 3.0,
+      "reply": "✅ Rent paid: 771.82 €\nBalance now 230.12 €.\nSafe to spend until payday (Thu 15 Oct): 68.60 €, about 7.62 € a day."
+    },
+    {
+      "scene": "Plain questions, real numbers",
+      "seconds": 4.9,
+      "reply": "Hi Aino! You can safely spend €53.36 this week, or about €7.62 a day.\n\nYou have €230.12 now and payday is 15 October (in 9 days). Here's how I worked it out:\n• No bills are due before then\n• €34.56 for your usual utilities\n• €83.99 for groceries and transport\n• €42.96 set aside in case something unexpected comes up, like a doctor's visit\n\nThat leaves €68.60 for coffee, eating out and fun until pay"
+    },
+    {
+      "scene": "Where does my money go?",
+      "seconds": 4.9,
+      "reply": "You're an experience spender who's also a steady saver, Aino.\n\n• You invest about 22% of what comes in. That's a great habit.\n• 38% of your spending is \"slips through your fingers\" money, about €809.91 a month.\n• 61% of your restaurant money goes out Friday to Sunday.\n\nCompared with other S-Pankki customers aged 20–29:\n• Restaurants: €485.90/month, while the typical person your age spends €179.70\n"
+    },
+    {
+      "scene": "Subscriptions: active, inactive, price rises",
+      "seconds": 4.5,
+      "reply": "You have 4 active subscriptions. Together they cost €71.55 a month, or €858.55 a year:\n\n• FitHub Gym: €39.90/month (€478.80/year), next charge 20 Oct\n• StreamPlus: €13.99/month (€167.88/year), next charge tomorrow. ⚠️ The price went up from €11.99 in August.\n• MusicBox: €10.99/month (€131.88/year), next charge 3 Nov\n• LinguaPro: €79.99 a year, next charge 10 Feb 2027\n\nGamePass Plus and CloudDrive "
+    },
+    {
+      "scene": "A renewal alert",
+      "seconds": 0.4,
+      "reply": "🔁 StreamPlus renews tomorrow: 13.99 €.\nThe price went up from 11.99 € to 13.99 € on Fri 07 Aug.\nThat's 167.88 € a year. Keep it?\nKeep it\nStop payments"
+    },
+    {
+      "scene": "Stop a subscription with one tap",
+      "seconds": 0.4,
+      "reply": "Stop future card payments to StreamPlus (13.99 €/month)? Confirm with your PIN.\nStop StreamPlus"
+    },
+    {
+      "scene": "Confirm with PIN",
+      "seconds": 3.0,
+      "reply": "✅ StreamPlus stopped. No more charges of 13.99 €. That's 167.88 € a year back in your pocket.\nActive subscriptions now: 3, 57.56 € a month."
+    },
+    {
+      "scene": "What if I cut dining out?",
+      "seconds": 4.5,
+      "reply": "Cutting dining out by 20% would save you €97.18 a month, or €1,166.16 a year. You'd still have €388.72 a month for eating out.\n\nIf you invested that money every month for 5 years, you'd put in €5,830.80. Here's what it could grow to:\n• Prudent (low risk): €6,126.94\n• Balanced (medium risk): €6,525.20\n• Growth (high risk): €6,868.10\n\nThese are only scenarios, not promises. Funds can also lose value"
+    },
+    {
+      "scene": "Set a savings goal",
+      "seconds": 4.9,
+      "reply": "I set up your Lapland trip goal: €1,500 by 1 June 2027. That gives you 8 months, so you'd need to save €187.50 a month.\n\nTo be honest, the last 3 months left nothing over. After your €497.84 monthly investing, you came out €323.62 short each month. So this money has to come from a cut somewhere:\n• Saving the €97.18 from a 20% dining-out cut gets you there by Feb 2028\n• Saving €100 a month gets you"
+    },
+    {
+      "scene": "Salary lands: pay yourself first",
+      "seconds": 0.4,
+      "reply": "💰 Aino, your salary of 2 313.39 € just landed.\n\nPay yourself first: put 97.00 € aside now, before it slips through your fingers?\nSave 97 €\nInvest instead\nNot now"
+    },
+    {
+      "scene": "Save to the goal",
+      "seconds": 0.4,
+      "reply": "Move 97.00 € to your savings pocket for Lapland trip? Confirm with your PIN.\nSave 97.00 €"
+    },
+    {
+      "scene": "Confirm with PIN",
+      "seconds": 2.6,
+      "reply": "✅ Saved 97.00 € for Lapland trip.\n97.00 € of 1 500.00 € (6%). Balance now 133.12 €."
+    },
+    {
+      "scene": "Investing, explained not pushed",
+      "seconds": 5.1,
+      "reply": "I've prepared a one-off €50 investment into Demo Fund Balanced, which is medium risk. Tap the button and confirm with your PIN. Nothing moves until you do.\n\nJust so you know: you had €68.60 safe to spend until payday on 15 October. This investment would leave you €18.60 for the next 9 days. If that feels too tight, you could wait until payday.\nInvest 50 €"
+    },
+    {
+      "scene": "Confirm the investment",
+      "seconds": 2.6,
+      "reply": "✅ Invested 50.00 € in Demo Fund Balanced. Balance now 83.12 €."
+    }
+  ]
+}

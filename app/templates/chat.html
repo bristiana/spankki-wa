@@ -8,32 +8,47 @@
   .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
   .me{margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px}
   .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
-  .bot a.btn{margin-top:10px;padding:11px;min-height:0;font-size:15px}
+  .bot .btn{margin-top:10px;padding:11px;min-height:0;font-size:15px}
   .typing{color:var(--muted);font-size:14px;padding:6px 2px}
-  .chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px;max-width:560px;width:100%;margin:0 auto}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px;max-width:560px;width:100%;margin:0 auto;scrollbar-width:none}
   .chips button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 12px;font:14px system-ui;cursor:pointer}
-  form{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
-  form input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px system-ui;background:var(--bg);color:var(--ink)}
-  form button{border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 15px system-ui;padding:0 18px;cursor:pointer}
+  form#f{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
+  form#f input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px system-ui;background:var(--bg);color:var(--ink)}
+  form#f button{border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 15px system-ui;padding:0 18px;cursor:pointer}
+  #sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  #sheet.open{display:flex}
+  #sheet .panel{background:var(--bg);width:100%;max-width:480px;height:88dvh;border-radius:18px 18px 0 0;overflow:hidden;display:flex;flex-direction:column}
+  #sheet .top{display:flex;justify-content:flex-end;padding:6px 8px;background:var(--brand)}
+  #sheet .top button{border:0;background:transparent;color:var(--brand-ink);font-size:22px;cursor:pointer;width:40px;height:40px}
+  #sheet iframe{flex:1;border:0;width:100%}
 </style>
 {% endblock %}
 {% block body %}
 <div id="log" aria-live="polite">
-  <div class="msg bot">Hi {{ name }} 👋 I'm your S-Pankki money coach. Ask me anything about your spending.</div>
+  <div class="msg bot">Hi {{ name }} 👋 I'm your S-Pankki money coach. Ask me anything about your money.</div>
 </div>
 <div class="chips" id="chips">
-  <button data-q="__remind__">⏰ Bill reminder</button>
-  <button>How much did I spend on restaurants last month?</button>
+  <button data-q="__remind__">⏰ Rent reminder</button>
+  <button data-q="__alert__:renewal">🔁 Renewal alert</button>
+  <button data-q="__alert__:salary">💰 Salary landed</button>
+  <button data-q="__alert__:unusual">👀 Unusual spend</button>
   <button>What is safe for me to spend this week?</button>
   <button>What kind of spender am I?</button>
+  <button>What subscriptions am I paying for?</button>
   <button>How much could I save if I cut dining out by 20%?</button>
+  <button>I want to save 1500 euros for a trip to Lapland by next summer</button>
+  <button>How much have I invested so far?</button>
 </div>
 <form id="f" autocomplete="off">
   <input id="q" placeholder="Ask about your money…" aria-label="Message">
   <button>Send</button>
 </form>
+<div id="sheet" role="dialog" aria-modal="true">
+  <div class="panel"><div class="top"><button id="close" aria-label="Close">×</button></div><iframe id="frame" title="Confirm"></iframe></div>
+</div>
 <script>
 const log = document.getElementById("log"), q = document.getElementById("q");
+const sheet = document.getElementById("sheet"), frame = document.getElementById("frame");
 let sid = "s" + Math.random().toString(36).slice(2, 10);
 try { sid = sessionStorage.getItem("sid") || sid; sessionStorage.setItem("sid", sid); } catch (e) {}
 
@@ -46,6 +61,20 @@ function add(cls, html) {
   log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
 }
 
+function openSheet(url) { frame.src = url; sheet.classList.add("open"); }
+function closeSheet() { sheet.classList.remove("open"); frame.src = "about:blank"; checkInbox(); }
+document.getElementById("close").onclick = closeSheet;
+window.addEventListener("message", e => { if (e.data === "done") setTimeout(closeSheet, 1400); });
+
+async function checkInbox() {
+  try {
+    const r = await fetch("/api/inbox?session=" + encodeURIComponent(sid));
+    const j = await r.json();
+    for (const m of j.messages || []) add("bot", fmt(m));
+  } catch (e) {}
+}
+setInterval(checkInbox, 2500);
+
 async function send(text, shown) {
   if (!text) return;
   if (shown !== null) add("me", esc(shown || text));
@@ -55,15 +84,20 @@ async function send(text, shown) {
                                          body: JSON.stringify({session: sid, text})});
     const j = await r.json();
     t.remove();
-    let html = fmt(j.text || "…");
-    for (const b of j.buttons || []) html += `<a class="btn" href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.label)}</a>`;
-    add("bot", html);
+    const d = add("bot", fmt(j.text || "…"));
+    for (const b of j.buttons || []) {
+      const a = document.createElement("button");
+      a.className = "btn"; a.textContent = b.label;
+      a.onclick = () => openSheet(b.url + (b.url.includes("?") ? "" : "?web=1"));
+      d.appendChild(a);
+    }
     for (const b of j.quick || []) {
       const btn = document.createElement("button");
-      btn.textContent = b.label; btn.className = "btn ghost"; btn.style.marginTop = "8px";
+      btn.textContent = b.label; btn.className = "btn ghost";
       btn.onclick = () => send(b.send, b.label);
-      log.lastChild.appendChild(btn);
+      d.appendChild(btn);
     }
+    log.scrollTop = log.scrollHeight;
   } catch (e) { t.remove(); add("bot", "Connection problem, try again."); }
 }
 

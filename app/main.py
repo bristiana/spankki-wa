@@ -29,7 +29,8 @@ _coach: Coach | None = None
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 app = FastAPI(title="S-Pankki Chat")
 seen: set[str] = set()
-owner: dict[str, str] = {}  # pending_id -> WhatsApp number that asked for it
+owner: dict[str, str] = {}
+inbox: dict[str, list[str]] = {}  # web chat session -> confirmations waiting to be shown  # pending_id -> WhatsApp number that asked for it
 DEMO_NAME = "Aino"
 # Quick-reply buttons that turn into a question for the coach.
 ASK = {
@@ -103,6 +104,51 @@ def send_reply(to: str, reply):
         wa.send_text(to, reply.text)
 
 
+def button_reply(user: str, bid: str, web: bool = False) -> dict | None:
+    """Direct answers to quick-reply buttons (no AI needed). None = not a direct action."""
+    q = "?web=1" if web else ""
+    if bid.startswith("pay:"):
+        p = engine.create_payment(bid[4:])
+        owner[p["pending_id"]] = user
+        return {"text": f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*. "
+                        "Confirm it with your PIN in S-Pankki.",
+                "url": (f"Pay {money(p['amount'])}", f"{public_url()}/pay/{p['pending_id']}{q}")}
+    if bid.startswith("later:"):
+        return {"text": "Great, enjoy it 🙂 I'll keep an eye on your safe-to-spend." if bid == "later:unusual"
+                else "Sure ⏰ I'll remind you again tomorrow at 9:00."}
+    if bid.startswith("stop:"):
+        p = engine.create_stop_subscription(bid[5:])
+        owner[p["pending_id"]] = user
+        per = "month" if p["cadence"] == "monthly" else "year"
+        return {"text": f"Stop future card payments to *{p['name']}* ({money(p['amount'])}/{per})? Confirm with your PIN.",
+                "url": (f"Stop {p['name']}"[:20], f"{public_url()}/stop/{p['pending_id']}{q}")}
+    if bid.startswith("keep:"):
+        return {"text": f"Okay, {bid[5:]} stays on 👍 I'll tell you if the price changes again."}
+    if bid.startswith("save:"):
+        _, goal_id, amount = bid.split(":")
+        p = engine.create_saving(goal_id, float(amount))
+        owner[p["pending_id"]] = user
+        goal = p["name"].split(": ", 1)[1]
+        return {"text": f"Move *{money(p['amount'])}* to your savings pocket for *{goal}*? Confirm with your PIN.",
+                "url": (f"Save {money(p['amount'])}", f"{public_url()}/save/{p['pending_id']}{q}")}
+    return None
+
+
+def notify(pid: str, text: str):
+    """Tell whoever asked for this money move: a WhatsApp number or a web chat session."""
+    to = owner.get(pid) or os.environ.get("DEMO_PHONE")
+    if not to:
+        return
+    if to.startswith("web:"):
+        inbox.setdefault(to, []).append(text)
+    else:
+        wa.send_text(to, text)
+
+
+def wa_back(request: Request) -> str:
+    return "" if request.query_params.get("web") else os.environ.get("WA_DISPLAY_NUMBER", "")
+
+
 def handle_message(m: dict):
     to, name = m["from"], first_name(m["name"])
     names[to] = name
@@ -117,34 +163,12 @@ def handle_message(m: dict):
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
             return
         bid = m.get("button_id") or ""
-        if bid.startswith("pay:"):
-            p = engine.create_payment(bid[4:])
-            owner[p["pending_id"]] = to
-            wa.send_url_button(to, f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*. "
-                                   "Confirm it with your PIN in S-Pankki.",
-                               f"Pay {money(p['amount'])}", f"{public_url()}/pay/{p['pending_id']}")
-            return
-        if bid.startswith("later:"):
-            wa.send_text(to, "Sure ⏰ I'll remind you again tomorrow at 9:00." if bid != "later:unusual"
-                         else "Great, enjoy it 🙂 I'll keep an eye on your safe-to-spend.")
-            return
-        if bid.startswith("stop:"):
-            p = engine.create_stop_subscription(bid[5:])
-            owner[p["pending_id"]] = to
-            per = "month" if p["cadence"] == "monthly" else "year"
-            wa.send_url_button(to, f"Stop future card payments to *{p['name']}* ({money(p['amount'])}/{per})? "
-                                   "Confirm with your PIN.", f"Stop {p['name']}"[:20], f"{public_url()}/stop/{p['pending_id']}")
-            return
-        if bid.startswith("keep:"):
-            wa.send_text(to, f"Okay, {bid[5:]} stays on 👍 I'll tell you if the price changes again.")
-            return
-        if bid.startswith("save:"):
-            _, goal_id, amount = bid.split(":")
-            p = engine.create_saving(goal_id, float(amount))
-            owner[p["pending_id"]] = to
-            goal = p["name"].split(": ", 1)[1]
-            wa.send_url_button(to, f"Move *{money(p['amount'])}* to your savings pocket for *{goal}*? "
-                                   "Confirm with your PIN.", f"Save {money(p['amount'])}", f"{public_url()}/save/{p['pending_id']}")
+        direct = button_reply(to, bid)
+        if direct:
+            if direct.get("url"):
+                wa.send_url_button(to, direct["text"], direct["url"][0], direct["url"][1])
+            else:
+                wa.send_text(to, direct["text"])
             return
         if m["text"] is None:
             wa.send_text(to, "For now I can read text messages only. What would you like to know?")
@@ -173,7 +197,7 @@ def connect_submit(request: Request, bg: BackgroundTasks, u: str = Form(""), sco
         bg.add_task(welcome, u)
     return templates.TemplateResponse(request, "done.html", {
         "title": "Connected", "lines": ["Your S-Pankki account is connected.", "Go back to WhatsApp, your coach is ready."],
-        "wa": os.environ.get("WA_DISPLAY_NUMBER", "")})
+        "wa": wa_back(request)})
 
 
 def welcome(to: str):
@@ -209,14 +233,14 @@ def pay_confirm(request: Request, pid: str, pin: str = Form("")):
     first_time = p["status"] != "done"
     done = engine.confirm(pid)
     s = engine.safe_to_spend()
-    if first_time and (to := owner.get(pid) or os.environ.get("DEMO_PHONE")):
-        wa.send_text(to, f"✅ *{done['name']} paid*: {money(done['amount'])}\n"
+    if first_time:
+        notify(pid, f"✅ *{done['name']} paid*: {money(done['amount'])}\n"
                          f"Balance now {money(done['balance_eur'])}.\n"
                          f"Safe to spend until payday ({nice_date(s['next_payday']['date'])}): "
                          f"*{money(s['safe_to_spend_until_payday_eur'])}*, about {money(s['safe_per_day_eur'])} a day.")
     return templates.TemplateResponse(request, "done.html", {
         "title": "Payment sent", "lines": [f"{done['name']}: {money(done['amount'])}", f"Balance {money(done['balance_eur'])}"],
-        "wa": os.environ.get("WA_DISPLAY_NUMBER", "")})
+        "wa": wa_back(request)})
 
 
 @app.get("/invest/{pid}", response_class=HTMLResponse)
@@ -251,10 +275,10 @@ def invest_confirm(request: Request, pid: str, pin: str = Form("")):
                                                           "amount": done["amount"], **order})
             engine._save()
             msg += "\n\n" + order_text(order)
-    if first_time and (to := owner.get(pid) or os.environ.get("DEMO_PHONE")):
-        wa.send_text(to, msg)
+    if first_time:
+        notify(pid, msg)
     return templates.TemplateResponse(request, "done.html", {
-        "title": "Done", "lines": [msg.replace("✅ ", "").replace("*", "")], "wa": os.environ.get("WA_DISPLAY_NUMBER", "")})
+        "title": "Done", "lines": [msg.replace("✅ ", "").replace("*", "")], "wa": wa_back(request)})
 
 
 def order_text(order: dict) -> str:
@@ -289,11 +313,11 @@ def stop_confirm(request: Request, pid: str, pin: str = Form("")):
     msg = (f"✅ *{done['name']} stopped.* No more charges of {money(done['amount'])}. "
            f"That's {money(done['per_year_eur'])} a year back in your pocket.\n"
            f"Active subscriptions now: {subs['active_count']}, {money(subs['active_per_month_eur'])} a month.")
-    if first_time and (to := owner.get(pid) or os.environ.get("DEMO_PHONE")):
-        wa.send_text(to, msg)
+    if first_time:
+        notify(pid, msg)
     return templates.TemplateResponse(request, "done.html", {
         "title": "Payment stopped", "lines": [msg.replace("✅ ", "").replace("*", "")],
-        "wa": os.environ.get("WA_DISPLAY_NUMBER", "")})
+        "wa": wa_back(request)})
 
 
 @app.get("/save/{pid}", response_class=HTMLResponse)
@@ -318,10 +342,10 @@ def save_confirm(request: Request, pid: str, pin: str = Form("")):
     pct = round(g["saved"] / g["target"] * 100)
     msg = (f"✅ *Saved {money(done['amount'])}* for {g['name']}.\n"
            f"{money(g['saved'])} of {money(g['target'])} ({pct}%). Balance now {money(done['balance_eur'])}.")
-    if first_time and (to := owner.get(pid) or os.environ.get("DEMO_PHONE")):
-        wa.send_text(to, msg)
+    if first_time:
+        notify(pid, msg)
     return templates.TemplateResponse(request, "done.html", {
-        "title": "Saved", "lines": [msg.replace("✅ ", "").replace("*", "")], "wa": os.environ.get("WA_DISPLAY_NUMBER", "")})
+        "title": "Saved", "lines": [msg.replace("✅ ", "").replace("*", "")], "wa": wa_back(request)})
 
 
 # ---------------- Demo triggers (used while filming) ----------------
@@ -329,7 +353,7 @@ def alert_message(kind: str, name: str) -> tuple[str, list] | None:
     a = engine.alert(kind)
     if kind == "salary":
         goals = a["goals"]
-        text = (f"💰 {name}, your salary of *{money(a['salary_eur'])}* just landed.\n\n"
+        text = (f"💰 {name}, your salary of *{money(a['salary_eur'])}* just landed. Balance now {money(engine.balance())}.\n\n"
                 f"Pay yourself first: put *{money(a['suggest_save_eur'])}* aside now, before it slips through your fingers?")
         first = ([(f"save:{goals[0]['id']}:{a['suggest_save_eur']:.0f}", f"Save {a['suggest_save_eur']:.0f} €")] if goals
                  else [("ask:goal", "Set a savings goal")])
@@ -412,14 +436,28 @@ async def chat_api(request: Request):
     text = str(body.get("text", "")).strip()[:1000]
     if not text:
         raise HTTPException(400)
+
+    def quick(buttons):
+        return [{"label": t, "send": f"__btn__:{i}"} for i, t in buttons]
+
     if text == "__remind__":
-        t, rent = reminder_text()
-        return {"text": t, "buttons": [], "quick": [{"label": "Pay rent now", "send": f"__pay__:{rent['bill_id']}"},
-                                                   {"label": "How do I stretch it?", "send": "My budget is tight until payday. What can I do?"}]}
-    if text.startswith("__pay__:"):
-        p = engine.create_payment(text.split(":", 1)[1])
-        return {"text": f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*. Confirm it with your PIN.",
-                "buttons": [{"label": f"Pay {money(p['amount'])}", "url": f"/pay/{p['pending_id']}"}]}
+        t, rent = reminder_text(DEMO_NAME)
+        return {"text": t, "buttons": [], "quick": quick([(f"pay:{rent['bill_id']}", "Pay rent now"),
+                                                          (f"later:{rent['bill_id']}", "Remind me later"),
+                                                          ("ask:tight", "How do I stretch it?")])}
+    if text.startswith("__alert__:"):
+        m = alert_message(text.split(":", 1)[1], DEMO_NAME)
+        return {"text": m[0], "buttons": [], "quick": quick(m[1])} if m else {"text": "Nothing unusual right now.", "buttons": []}
+    if text.startswith("__btn__:"):
+        bid = text.split(":", 1)[1]
+        try:
+            direct = button_reply(sid, bid, web=True)
+        except ValueError as e:
+            return {"text": f"I can't do that: {e}", "buttons": []}
+        if direct:
+            url = direct.get("url")
+            return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else []}
+        text = ASK.get(bid, bid)
     import anyio
     try:
         reply = await anyio.to_thread.run_sync(lambda: coach().ask(sid, text, name=DEMO_NAME))
@@ -427,8 +465,16 @@ async def chat_api(request: Request):
         log.exception("coach failed")
         return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
                                      "Bill reminders and payments still work.", "buttons": []})
-    return JSONResponse({"text": reply.text, "tools": reply.tools_used,
-                         "buttons": [{"label": b["label"], "url": b["url"].replace(public_url(), "")} for b in reply.buttons]})
+    out = []
+    for b in reply.buttons:
+        owner[b["url"].rsplit("/", 1)[-1]] = sid
+        out.append({"label": b["label"], "url": b["url"].replace(public_url(), "") + "?web=1"})
+    return JSONResponse({"text": reply.text, "tools": reply.tools_used, "buttons": out})
+
+
+@app.get("/api/inbox")
+def chat_inbox(session: str = ""):
+    return {"messages": inbox.pop("web:" + session[:40], [])}
 
 
 @app.get("/health")

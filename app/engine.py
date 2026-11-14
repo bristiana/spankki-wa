@@ -619,9 +619,21 @@ class Engine:
                                "how": "orders are placed through its API only after you confirm with your PIN"}],
                 "note": "Market value today is not in the dataset; amounts are what was paid in."}
 
+    def receive_salary(self) -> dict:
+        """Demo: payday arrives now (adds the usual salary once per month)."""
+        got = any(a["transaction_type"] == "salary" and a["date"][:7] == self.today.isoformat()[:7]
+                  for a in self.state["actions"])
+        r = self._rec("salary")
+        if not got and r:
+            self.state["actions"].append({"date": self.today.isoformat(), "category": "Salary", "amount": r.avg_amount,
+                                          "transaction_type": "salary", "note": "Salary (demo payday)"})
+            self._save()
+        return {"salary_eur": r.avg_amount if r else 0.0, "balance_eur": self.balance()}
+
     # ---------- proactive alerts (F4) ----------
     def alert(self, kind: str) -> dict:
         if kind == "salary":
+            self.receive_salary()
             pay = self.next_payday()
             cut = self.simulate_cut("Restaurants", 20)["saving_per_month_eur"]
             return {"kind": kind, "salary_eur": pay["expected_eur"], "suggest_save_eur": float(round(cut)),

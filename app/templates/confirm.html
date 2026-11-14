@@ -2,7 +2,7 @@
 {% block title %}{{ title }}{% endblock %}
 {% block body %}
 <main>
-  <form class="card" method="post" action="{{ action }}">
+  <form class="card" method="post" action="{{ action }}{% if request.query_params.get('web') %}?web=1{% endif %}">
     <div class="muted">{{ title }}</div>
     <div class="amount">{{ amount }}</div>
     {% for k, v in rows %}<div class="row"><span>{{ k }}</span><span>{{ v }}</span></div>{% endfor %}
