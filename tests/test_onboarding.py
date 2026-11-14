@@ -118,7 +118,7 @@ class FakeCoach:
     def __init__(self):
         self.asked = []
 
-    def ask(self, user, text, name="there"):
+    def ask(self, user, text, name="there", context=None):
         self.asked.append(text)
         return Reply(text="You can spend 50 € this week.", tools_used=["get_safe_to_spend"])
 

@@ -29,7 +29,7 @@ class FakeCoach:
         self.asked = []
         self.script = lambda e, text, buttons: "You have 68.60 € safe to spend until payday."
 
-    def ask(self, user, text, name="there"):
+    def ask(self, user, text, name="there", context=None):
         self.asked.append(text)
         buttons = []
         return Reply(text=self.script(main.engine, text, buttons), buttons=buttons)

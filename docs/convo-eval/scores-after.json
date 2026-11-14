@@ -1,0 +1,513 @@
+{
+ "_note": "Human read of each AI reply after the fixes, same rubric as scores-before.json.",
+ "taxi#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "answer first, basket named, 50 words"
+ },
+ "taxi#1": {
+  "correct": 5,
+  "answers": 3,
+  "clarity": 5,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "short, but repeats August, already given"
+ },
+ "taxi#2": {
+  "correct": 4,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "honest \"can't tell why\""
+ },
+ "spender#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "80 words, basket named as \"easiest to change\""
+ },
+ "spender#1": {
+  "correct": 4,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "squirrel analogy; \"22 € of every 100 €\" restates 22%"
+ },
+ "safe_week#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "answer first; next step = pay rent (relevant)"
+ },
+ "safe_week#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "real ELI5, 56 words"
+ },
+ "dining_cut#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "no unasked fund scenarios"
+ },
+ "dining_cut#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "groceries named mandatory & regular"
+ },
+ "typo_food#0": {
+  "correct": 4,
+  "answers": 4,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "still reads \"food\" as eating out, says so"
+ },
+ "typo_safe#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "\"your account balance is the limit this time\" is unclear; 83 words"
+ },
+ "typo_safe#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": ""
+ },
+ "short#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 5,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "one line + example question"
+ },
+ "short#1": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 2,
+  "note": "re-introduces itself and asks twice"
+ },
+ "hmm#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": ""
+ },
+ "hmm#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "one-line simple version + one question"
+ },
+ "basket_confused#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": ""
+ },
+ "basket_confused#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "three jars, 53 words"
+ },
+ "onb_switch#2": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 5,
+  "note": "answer, then only the interview question"
+ },
+ "onb_confused#3": {
+  "correct": 4,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "explains prudent itself; \"bonds\" is generic, the demo fund is money market"
+ },
+ "game_switch#2": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "no competing question; speculates a little"
+ },
+ "pay_rent#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 5,
+  "note": ""
+ },
+ "bitcoin#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "one-line refusal + closest option; no mislabelled numbers"
+ },
+ "fund#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 2,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "still 125 words, 541-char bubble"
+ },
+ "fund#1": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": ""
+ },
+ "stressed#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "warm and calm; offer leans to checking subscriptions"
+ },
+ "stressed#1": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "informs, says the choice is hers"
+ },
+ "finnish#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "basket named in Finnish"
+ },
+ "finnish#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": ""
+ },
+ "swedish#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": ""
+ },
+ "etf#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "mixed bag of nuts, 82 words"
+ },
+ "asp#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "still 115 words with source link"
+ },
+ "asp#1": {
+  "correct": 4,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": ""
+ },
+ "compound#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": ""
+ },
+ "subs_then_all#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 3,
+  "note": "names the basket; weak next step"
+ },
+ "subs_then_all#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "one tool call, 4 PIN buttons"
+ },
+ "subs_all#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "one tool call, 4 PIN buttons, charge tomorrow flagged"
+ },
+ "goal_trip#0": {
+  "correct": 5,
+  "answers": 3,
+  "clarity": 4,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "asks one thing (the total) but still no goal yet"
+ },
+ "goal_trip#1": {
+  "correct": 5,
+  "answers": 3,
+  "clarity": 4,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "\"ok\" -> asks again"
+ },
+ "home#0": {
+  "correct": 4,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 2,
+  "tone": 4,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "118 words; \"4% of that\" was not checked by the guard (fixed after this run)"
+ },
+ "home#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": ""
+ },
+ "multibank#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": ""
+ },
+ "explore#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": ""
+ },
+ "explore#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": ""
+ },
+ "trend#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "highest/lowest/latest, running month called out"
+ },
+ "persona#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": ""
+ },
+ "persona#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "reserve explained in one bubble"
+ },
+ "who#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "90 words"
+ },
+ "who#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "3 bullets instead of 7, but two questions"
+ },
+ "afford#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "\"not before payday\" first; basket named"
+ },
+ "afford#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": ""
+ }
+}
