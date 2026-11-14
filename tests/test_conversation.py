@@ -1,5 +1,5 @@
 """Conversation quality: WhatsApp bubbles, the reply's date and money style, the coach knowing what the interview or
-the game just showed, and "stop all my subscriptions". A fake client plays the model; no real API calls."""
+the game just showed, and "deactivate all my subscriptions" (there are none). A fake client plays the model; no real API calls."""
 import json
 from datetime import date
 from types import SimpleNamespace as NS
@@ -12,7 +12,7 @@ from app import onboarding as ob
 from app import whatsapp as wa
 from app.agent import SYSTEM, Coach, Reply, date_style, euro_style
 from app.engine import Engine
-from app.tools import run_tool
+from app.tools import TOOLS, run_tool
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def test_iso_dates_read_like_people_say_them():
 
 def test_prompt_sets_phone_rules():
     for rule in ("Answer first", "never more than 100", "Never two questions", "never 2026-10-15",
-                 "explain your LAST message again", "name \"all\"", "Say who you are only when"):
+                 "explain your LAST message again", "never name or invent one", "Say who you are only when"):
         assert rule in SYSTEM, rule
 
 
@@ -110,16 +110,48 @@ def test_guard_checks_small_percentages_and_amounts():
 
 
 # ---------------- tools ----------------
-def test_stop_all_prepares_one_pin_link_per_active_subscription(e):
-    active = [s for s in e.subscriptions()["subscriptions"] if s["status"] == "active"]
+def test_deactivate_all_subscriptions_gets_an_honest_answer(e):
+    """There are no subscriptions in the data: the tool says so, names the real regular payments and offers to pause
+    the investing, and nothing is prepared until the person asks."""
     buttons = []
-    out = json.loads(run_tool(e, "create_stop_subscription_link", {"name": "all"}, buttons))
-    assert out["count"] == len(active) == len(buttons) > 1
-    assert [b["label"] for b in buttons] == [wa.short(f"Stop {s['name']}") for s in active]
-    assert all("/stop/" in b["url"] for b in buttons)
-    assert out["per_year_eur"] == round(sum(s["per_year_eur"] for s in active), 2)
-    assert all(s["status"] == "active" for s in e.subscriptions()["subscriptions"] if s in active)  # nothing stopped
-    assert not e.state.get("stopped")
+    out = json.loads(run_tool(e, "get_regular_payments", {}, buttons))
+    assert buttons == [] and not e.state["pending"]
+    assert out["subscriptions_found"] == 0 and out["card_subscriptions"] == []
+    answer = out["if_asked_to_cancel_subscriptions"]
+    assert answer.startswith("I don't see any subscriptions on your account.")
+    assert "rent (771.82 € a month)" in answer and "about 3 utility bills a month (122.65 € in total)" in answer
+    assert "your monthly investing (497.84 € a month)" in answer and answer.endswith("Want to pause the investing?")
+    from app.guard import ungrounded_numbers
+    assert ungrounded_numbers(answer, [json.dumps(out)]) == []
+    assert not any(t["name"] in ("get_subscriptions", "create_stop_subscription_link") for t in TOOLS)
+
+
+def test_deactivate_all_reply_through_the_coach(e):
+    """The fake model asks for the regular payments and repeats the honest line: no buttons, no stop links."""
+    class Honest:
+        def __init__(self):
+            self.beta = NS(messages=NS(create=self.create))
+
+        def create(self, messages, **kw):
+            last = messages[-1]["content"]
+            if isinstance(last, str):
+                return NS(stop_reason="tool_use",
+                          content=[NS(type="tool_use", id="t1", name="get_regular_payments", input={})])
+            said = json.loads(last[0]["content"])["if_asked_to_cancel_subscriptions"]
+            return NS(stop_reason="end_turn", content=[NS(type="text", text=said)])
+
+    r = Coach(e, client=Honest()).ask("u", "deactivate all my subscriptions")
+    assert r.text.startswith("I don't see any subscriptions") and r.buttons == []
+    assert r.tools_used == ["get_regular_payments"]
+
+
+def test_pause_investing_link_needs_the_pin(e):
+    buttons = []
+    out = json.loads(run_tool(e, "create_pause_investing_link", {}, buttons))
+    assert [b["label"] for b in buttons] == ["Pause investing"] and "/stop/" in buttons[0]["url"]
+    assert out["amount"] == 497.84 and out["next_charge"] == "2026-10-18" and out["kind"] == "pause_investing"
+    inv = next(x for x in e.commitments()["regular_payments"] if x["id"] == "investing")
+    assert inv["status"] == "active" and not e.state.get("paused")  # nothing paused before the PIN
 
 
 def test_explore_flags_a_running_month_and_names_the_lowest(e):

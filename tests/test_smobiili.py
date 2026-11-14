@@ -34,7 +34,7 @@ def test_widgets_shape(client):
     j = client.get("/api/widgets").json()
     assert j["version"] == 1 and j["as_of"] == "2026-10-06"
     w = {c["id"]: c for c in j["widgets"]}
-    assert list(w) == ["safe_to_spend", "next_bill", "baskets", "subscription"]  # no goal yet
+    assert list(w) == ["safe_to_spend", "next_bill", "baskets", "regular_payments"]  # no goal yet
     for c in j["widgets"]:
         assert {"title", "value", "subtitle", "deep_link"} <= set(c)
         assert question(c["deep_link"])
@@ -53,9 +53,10 @@ def test_widgets_match_engine(client):
     b = e.baskets(w["baskets"]["period"])
     assert w["baskets"]["total_eur"] == b["total_spent_eur"] > 0
     assert [x["share_pct"] for x in w["baskets"]["baskets"]] == [x["share_pct"] for x in b["baskets"]]
-    sub = next(x for x in e.subscriptions()["subscriptions"] if x["name"] == w["subscription"]["name"])
-    assert w["subscription"]["kind"] == "price_increase"
-    assert w["subscription"]["to_eur"] == sub["price_increase"]["to_eur"] == sub["price_eur"]
+    util = next(x for x in e.commitments()["regular_payments"] if x["id"] == "utilities")
+    assert w["regular_payments"]["kind"] == "unusual_bill"  # the real 75 € utility bill of 28 Aug
+    assert w["regular_payments"]["amount_eur"] == util["unusual_bill"]["amount_eur"] == 75.0
+    assert w["regular_payments"]["usual_high_eur"] == util["unusual_bill"]["usual_high_eur"]
 
 
 def test_goal_widget_after_a_goal(client):

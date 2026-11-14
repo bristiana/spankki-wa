@@ -93,12 +93,11 @@ def test_amounts_do_not_break_across_lines(client):
 
 
 def test_stop_page_survives_a_bank_refusal(client):
-    p = main.engine.create_stop_subscription("StreamPlus")
+    p = main.engine.create_pause_investing()
+    q = main.engine.create_pause_investing()  # two pause links, e.g. tapped twice
     client.post(f"/stop/{p['pending_id']}", data={"pin": "1234"})
-    q = main.engine.create_stop_subscription("StreamPlus") if any(
-        s["name"] == "StreamPlus" and s["status"] == "active" for s in main.engine.subscriptions()["subscriptions"]) else None
-    r = client.post(f"/stop/{(q or p)['pending_id']}", data={"pin": "1234"})
-    assert r.status_code == 200
+    r = client.post(f"/stop/{q['pending_id']}", data={"pin": "1234"})
+    assert r.status_code == 200 and "Not done" in r.text and "already paused" in r.text
 
 
 def test_pages_have_a_favicon_and_mark_the_current_tab(client):
