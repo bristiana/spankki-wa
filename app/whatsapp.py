@@ -321,11 +321,24 @@ def send_reaction(to: str, message_id: str, emoji: str):
 
 
 def bubbles(text: str, max_bubbles: int = 3) -> list[str]:
-    """Split a reply on blank lines into at most 3 chat bubbles (the last one takes the rest)."""
+    """Split a reply on blank lines into at most 3 chat bubbles, like a person typing.
+
+    A line that ends with ":" stays with the list under it. When there are more paragraphs than bubbles, the two
+    neighbours that make the shortest bubble together are joined (the later pair on a tie), so the length is shared
+    out instead of one long last bubble."""
     parts = [p.strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
-    if len(parts) <= max_bubbles:
-        return parts or [text]
-    return parts[: max_bubbles - 1] + ["\n\n".join(parts[max_bubbles - 1:])]
+    if not parts:
+        return [text]
+    glued: list[str] = []
+    for p in parts:
+        if glued and glued[-1].endswith(":"):
+            glued[-1] += "\n" + p
+        else:
+            glued.append(p)
+    while len(glued) > max_bubbles:
+        i = min(range(len(glued) - 1), key=lambda k: (len(glued[k]) + len(glued[k + 1]), -k))
+        glued[i:i + 2] = [glued[i] + "\n\n" + glued[i + 1]]
+    return glued
 
 
 def send_bubbles(to: str, parts: list[str]):

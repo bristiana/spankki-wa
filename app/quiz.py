@@ -217,6 +217,14 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
     return None
 
 
+def waiting_question(engine: Engine, user: str) -> str | None:
+    """The game question the person just stepped away from (the paused note is still to come), or None."""
+    r = _rec(engine, user)
+    if not r or not r.get("note") or r["done"]:
+        return None
+    return _question(r).text
+
+
 def paused_note(engine: Engine, user: str) -> str | None:
     """Once, after the coach answered a side question mid-game: how to get back."""
     r = _rec(engine, user)

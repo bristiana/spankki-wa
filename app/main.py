@@ -221,8 +221,8 @@ def send_reply(to: str, reply):
         wa.send_bubbles(to, parts[:-1])
         first, *rest = reply.buttons
         wa.send_url_button(to, parts[-1], first["label"], first["url"])
-        for b in rest:
-            wa.send_url_button(to, "One more:", b["label"], b["url"])
+        for k, b in enumerate(rest, start=2):  # e.g. one stop link per subscription, each with its own PIN
+            wa.send_url_button(to, f"{k}/{len(reply.buttons)}", b["label"], b["url"])
     else:
         wa.send_bubbles(to, parts)
 
@@ -278,6 +278,32 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         return {"text": "Your three baskets, balance and safe to spend, all in one place 📊",
                 "url": ("Open My money", f"{public_url()}/app{q}")}
     return None
+
+
+def flow_context(e: Engine, user: str) -> str | None:
+    """What the coach should know when a question comes in the middle of the interview or the basket game: the
+    waiting question is sent again right after the reply, so the reply must not end with a question of its own."""
+    waiting = onboarding.reask(e, user)
+    if waiting:
+        return ("The person is in the short first-chat interview (no AI). Right after your reply, the app asks them "
+                f"again: \"{waiting.text}\" Answer only their side question, in a few lines, and end without a "
+                "question or offer of your own.")
+    paused = quiz.waiting_question(e, user)
+    if paused:
+        return ("The person paused the basket game (no AI) at this question: \"" + paused + "\" Right after your "
+                "reply, the app tells them how to pick it up. Answer only their question, in a few lines, and end "
+                "without a question or offer of your own.")
+    return None
+
+
+def remember(persona: str | None, user: str, said: str, t: onboarding.Turn):
+    """Interview and game turns go into the coach's history, so a follow-up knows what the person just saw."""
+    try:
+        c = coach(persona)
+        if hasattr(c, "remember"):
+            c.remember(user, said, "\n\n".join(t.lead + [t.text]))
+    except Exception:  # the history is a nicety: the interview and the game work without it
+        log.exception("could not remember a flow turn")
 
 
 def send_turn(to: str, t: onboarding.Turn):
@@ -353,8 +379,9 @@ def handle_message(m: dict):
                 if stop:
                     t.text += "\n\nTo switch me off completely, write *STOP* again."
                 send_turn(to, t)
+                remember(None, to, m["text"] or text, t)
                 return
-        reply = coach().ask(to, text, name=name)
+        reply = coach().ask(to, text, name=name, context=flow_context(engine, to))
         for b in reply.buttons:
             if "chart" not in b:
                 owner[b["url"].rsplit("/", 1)[-1]] = to
@@ -416,6 +443,7 @@ def welcome(to: str):
     wa.send_bubbles(to, t.lead)
     wa.send_url_button(to, "Your whole money picture, any time 📊", "Open My money", f"{public_url()}/app")
     send_turn(to, onboarding.Turn(t.text, t.buttons))
+    remember(None, to, "[connected S-Pankki]", t)
 
 
 # ---------------- Confirm pages ----------------
@@ -1081,7 +1109,9 @@ async def chat_api(request: Request):
         return {"text": "\n\n".join(t.lead + [t.text]), "buttons": list(buttons), "quick": quick(t.buttons)}
 
     if text == "__start__":  # the web chat's stand-in for Connect S-Pankki
-        return interview(onboarding.start(e, sid), [{"label": "Open My money", "url": "/app"}])
+        t = onboarding.start(e, sid)
+        remember(persona, sid, "[connected S-Pankki]", t)
+        return interview(t, [{"label": "Open My money", "url": "/app"}])
     bid = ""
     if text.startswith("__btn__:"):
         bid = text.split(":", 1)[1]
@@ -1097,10 +1127,12 @@ async def chat_api(request: Request):
         typed = "" if bid else text
         t = quiz.turn(e, sid, typed, bid) or onboarding.turn(e, sid, typed, bid)
         if t:
+            remember(persona, sid, typed or f"[tapped {bid}]", t)
             return interview(t)
     import anyio
+    context = flow_context(e, sid)
     try:
-        reply = await anyio.to_thread.run_sync(lambda: coach(persona).ask(sid, text, name=name))
+        reply = await anyio.to_thread.run_sync(lambda: coach(persona).ask(sid, text, name=name, context=context))
     except Exception:
         log.exception("coach failed")
         return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
