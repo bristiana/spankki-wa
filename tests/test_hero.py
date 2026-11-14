@@ -76,14 +76,6 @@ def test_save_more_is_a_tool_with_a_trace_step(hero):
     assert "get_save_more_ideas" in SYSTEM and "What kind of spender am I?" in SYSTEM
 
 
-def test_the_three_questions_are_the_first_chips():
-    page = TestClient(main.app).get("/chat").text
-    start = page.index('id="top"')
-    assert start < page.index('id="chips"')  # above the scrolling ideas
-    top = page[start:page.index("</div>", start)]
-    assert [c.split(">", 1)[1].split("</button>")[0] for c in top.split("<button")[1:]] == THREE + ["Where does my money go?"]  # visible, not "More"
-
-
 class Script:
     """Fake API: asks for one tool, then says its headline numbers."""
     def __init__(self, tool):

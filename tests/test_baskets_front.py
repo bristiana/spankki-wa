@@ -75,14 +75,9 @@ def test_landing_shows_the_three_baskets_with_real_numbers(client):
     assert "The only basket you can change today" in sec
 
 
-def test_chat_has_the_baskets_chip_after_the_mentor_questions(client):
-    page = client.get("/chat").text
-    top = page[page.index('id="top"'):]
-    top = top[:top.index("</div>")]
-    assert re.findall(r"<button>([^<]+)</button>", top) == [
-        "What kind of spender am I?", "What can I safely spend this week?", "How could I save more?",
-        "Where does my money go?"]
-    assert "Play the basket game" in page
+def test_chat_has_no_suggestion_chips(client):
+    page = client.get("/chat").text  # a plain conversation: no chips of ready-made questions
+    assert 'id="top"' not in page and 'id="chips"' not in page and "Play the basket game" not in page
 
 
 def test_chat_deep_link_asks_q_once_on_load(client):
