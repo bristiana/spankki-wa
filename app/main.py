@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Red
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import broker, onboarding, rules, templates_wa
+from . import broker, onboarding, quiz, rules, templates_wa
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -49,6 +49,7 @@ ASK = {
     "ask:unusual": "Tell me more about that big payment and how it fits my month.",
     "ask:pace": "My savings goal is behind plan. How can I catch up?",
     "ask:week": "What did I spend on in the last 7 days?",
+    "ask:everyday": "Where does my 'slips through your fingers' money go? Explain that basket with my last month.",
 }
 names: dict[str, str] = {}  # WhatsApp number -> first name from the profile
 web_sessions: set[str] = set()  # web chat sessions that get proactive messages in their inbox
@@ -208,6 +209,7 @@ def switch_off(to: str):
     engine._save()
     coach().reset(to)
     onboarding.forget(engine, to)
+    quiz.forget(engine, to)
     names.pop(to, None)
     wa.send_text(to, "Done ✅ Kurre is switched off for this number and our chat history is deleted. "
                      "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
@@ -244,6 +246,9 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         goal = p["name"].split(": ", 1)[1]
         return {"text": f"Move *{money(p['amount'])}* to your savings pocket for *{goal}*? Confirm with your PIN.",
                 "url": (f"Save {money(p['amount'])}", f"{public_url()}/save/{p['pending_id']}{q}")}
+    if bid == "quiz:money":
+        return {"text": "Your three baskets, balance and safe to spend, all in one place 📊",
+                "url": ("Open My money", f"{public_url()}/app{q}")}
     return None
 
 
@@ -279,7 +284,9 @@ def handle_message(m: dict):
         emoji = wa.quick_reaction(m["text"])
         if emoji:
             wa.send_reaction(to, m["id"], emoji)
-        if (m["text"] or "").strip().lower().strip(".!") in STOP_WORDS:
+        word = (m["text"] or "").strip().lower().strip(".!")
+        stop = word in ("stop", "lopeta") and quiz.active(engine, to)  # mid-game, a bare "stop" pauses the game
+        if word in STOP_WORDS and not stop:
             switch_off(to)
             return
         if not connected(to):
@@ -317,8 +324,10 @@ def handle_message(m: dict):
                                    "calculated from it, as a file.", "Download my data", f"{public_url()}/app/export.json")
             return
         if bid not in ASK:
-            t = onboarding.turn(engine, to, text, bid)
+            t = quiz.turn(engine, to, text, bid) or onboarding.turn(engine, to, text, bid)
             if t:
+                if stop:
+                    t.text += "\n\nTo switch me off completely, write *STOP* again."
                 send_turn(to, t)
                 return
         reply = coach().ask(to, text, name=name)
@@ -326,6 +335,9 @@ def handle_message(m: dict):
             if "chart" not in b:
                 owner[b["url"].rsplit("/", 1)[-1]] = to
         send_reply(to, reply)
+        paused = quiz.paused_note(engine, to)  # a side question mid-game: how to get back to it
+        if paused:
+            wa.send_text(to, paused)
         again = onboarding.reask(engine, to)  # a side question mid-interview: the waiting question comes back
         if again:
             send_turn(to, again)
@@ -1034,7 +1046,8 @@ async def chat_api(request: Request):
             return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else []}
         text = ASK.get(bid, bid)
     if bid not in ASK:
-        t = onboarding.turn(e, sid, "" if bid else text, bid)
+        typed = "" if bid else text
+        t = quiz.turn(e, sid, typed, bid) or onboarding.turn(e, sid, typed, bid)
         if t:
             return interview(t)
     import anyio
@@ -1051,8 +1064,10 @@ async def chat_api(request: Request):
             continue
         owner[b["url"].rsplit("/", 1)[-1]] = sid
         out.append({"label": b["label"], "url": b["url"].replace(public_url(), "") + "?web=1"})
+    paused = quiz.paused_note(e, sid)
     again = onboarding.reask(e, sid)  # a side question mid-interview: the waiting question comes back
-    return JSONResponse({"text": reply.text + (f"\n\n{again.text}" if again else ""), "tools": reply.tools_used,
+    extra = "".join(f"\n\n{x}" for x in (paused, again and again.text) if x)
+    return JSONResponse({"text": reply.text + extra, "tools": reply.tools_used,
                          "buttons": out, "charts": charts, "quick": quick(again.buttons) if again else []})
 
 
