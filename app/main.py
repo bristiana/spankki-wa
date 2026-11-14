@@ -1155,6 +1155,9 @@ def sm_ctx(request: Request, persona: str, **extra) -> dict:
             "home_url": "/s-mobiili/" + (f"?{urlencode(keep)}" if keep else ""), "name": name_for(persona), **extra}
 
 
+from .smobiili_screens import router as smobiili_screens_router; app.include_router(smobiili_screens_router)  # noqa: E402,E702
+
+
 @app.get("/s-mobiili", include_in_schema=False)
 def smobiili_root(request: Request):
     return RedirectResponse("/s-mobiili/" + (f"?{request.url.query}" if request.url.query else ""), status_code=307)
