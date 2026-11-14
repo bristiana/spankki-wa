@@ -55,7 +55,7 @@ def confirm(client, route, pid, **body):
 def test_home_shows_accounts_and_recent_from_the_engine(client):
     page = client.get("/s-mobiili/").text
     assert LABEL in page and "Savings pocket" in page and "Funds" in page and "Not opened yet" in page
-    assert main.money_nb(main.engine.balance()) in page
+    assert main.fi_money(main.engine.balance()) in page  # S-mobiili writes money the Finnish way
     assert main.engine.recent(8)[0]["what"] in page
     assert [s["target"] for s in steps(page)] == ["acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
     for s in steps(page):
@@ -66,9 +66,9 @@ def test_home_shows_accounts_and_recent_from_the_engine(client):
 def test_persona_override_works_like_as(client):
     other = next(p for p in main.PERSONAS if p != main.DEFAULT_PERSONA)
     page = client.get(f"/s-mobiili/?persona={other}").text
-    assert f"Hi {main.PERSONAS[other]['name']}" in page
-    assert main.money_nb(main.engine_for(other).balance()) in page
-    assert f"Hi {main.PERSONAS[main.DEFAULT_PERSONA]['name']}" in client.get("/s-mobiili/?persona=nobody").text
+    assert f"Hei {main.PERSONAS[other]['name']}" in page
+    assert main.fi_money(main.engine_for(other).balance()) in page
+    assert f"Hei {main.PERSONAS[main.DEFAULT_PERSONA]['name']}" in client.get("/s-mobiili/?persona=nobody").text
 
 
 def test_pay_review_is_prefilled_and_guided(client):
@@ -77,7 +77,7 @@ def test_pay_review_is_prefilled_and_guided(client):
     r = rent()
     assert LABEL in page and "Pay a bill" in page and "Confirm with Face ID" in page and "no camera" in page
     for text in ("Landlord · Asunto Oy Demo", "FI00 0000 0000 0000 00 (demo)", main.nice_date(r["due_date"]),
-                 main.money_nb(r["amount_eur"])):
+                 main.fi_money(r["amount_eur"])):
         assert text in page
     ref = main.demo_reference(r["bill_id"])
     assert ref in page and len(ref.replace(" ", "")) == 10
@@ -100,7 +100,7 @@ def test_save_first_time_opens_the_pocket(client):
     assert main.engine.state["savings_pocket_opened"] == "2026-10-06"
     again = main.engine.create_saving(p["goal_id"], 10)
     assert 'id="step-pocket"' not in client.get(f"/s-mobiili/save/{again['pending_id']}").text  # only the first time
-    assert "97.00" in client.get("/s-mobiili/").text.replace(" ", " ")
+    assert main.fi_money(97) in client.get("/s-mobiili/").text
 
 
 def test_invest_shows_the_chosen_fund_and_risk_in_plain_words(client):
@@ -119,7 +119,7 @@ def test_pause_investing_flow(client):
     p = main.engine.create_pause_investing()
     page = client.get(f"/s-mobiili/stop/{p['pending_id']}").text
     assert "Pause monthly investing" in page and f"Day {p['usual_day']} of the month" in page
-    assert main.money_nb(p["amount"]) in page and "Stays invested" in page and main.nice_date(p["next_charge"]) in page
+    assert main.fi_money(p["amount"]) in page and "Stays invested" in page and main.nice_date(p["next_charge"]) in page
     assert "card payment" not in page.lower() and "merchant" not in page.lower()
     assert [s["target"] for s in steps(page)] == ["amount", "row-next", "row-invested", "faceid"]
     before = main.engine.balance()
@@ -148,7 +148,7 @@ def test_face_id_confirm_moves_money_once_and_tells_the_chat(client):
     assert r.status_code == 200 and r.json()["title"] == "Payment sent"
     assert main.engine.balance() == round(before - amount, 2) == r.json()["balance_eur"]
     msgs = client.get("/api/inbox?session=t").json()["messages"]
-    assert len(msgs) == 1 and msgs[0].startswith("✅ *Rent paid*")
+    assert len(msgs) == 1 and msgs[0].startswith("*Rent paid*")
     again = confirm(client, "pay", pid)
     assert again.status_code == 409 and "Already confirmed" in again.json()["detail"]
     assert main.engine.balance() == round(before - amount, 2)
@@ -221,7 +221,7 @@ def test_ready_card_shows_the_payment_and_links_to_the_flow(client):
     s = steps(page)
     assert s[0] == {"target": "ready", "say": "I've got it ready, tap to check and confirm", "mood": "happy"}
     assert [x["target"] for x in s[1:]] == ["acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
-    assert main.money_nb(main.engine.balance()) in page and 'id="baskets"' in page  # still the bank's home
+    assert main.fi_money(main.engine.balance()) in page and 'id="baskets"' in page  # still the bank's home
 
 
 def test_ready_card_for_save_invest_and_pause(client):
@@ -250,7 +250,7 @@ def test_ready_card_once_done_is_a_small_line(client):
     url, pid = chat_pay(client)
     assert confirm(client, "pay", pid).status_code == 200
     page = client.get(url).text
-    assert ready_card(page) is None and 'id="ready-done"' in page and "Already done ✅" in page
+    assert ready_card(page) is None and 'id="ready-done"' in page and "Already done" in page
     assert steps(page) == steps(client.get("/s-mobiili/").text)
 
 
@@ -269,7 +269,7 @@ def test_ready_card_shows_on_the_creators_home(client):
     bill = next(b for b in e.upcoming_bills(45) if b["category"] == "Housing")
     j = client.post("/api/chat", json={"session": "o", "text": f"__btn__:pay:{bill['bill_id']}", "as": other}).json()
     page = client.get(j["buttons"][0]["url"]).text  # no cookie: still the creator's home, with the card
-    assert ready_card(page) and f"Hi {main.PERSONAS[other]['name']}" in page
+    assert ready_card(page) and f"Hei {main.PERSONAS[other]['name']}" in page
     assert ready_card(client.get(j["buttons"][0]["url"] + f"&persona={main.DEFAULT_PERSONA}").text) is None
 
 

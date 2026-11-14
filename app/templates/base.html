@@ -41,7 +41,9 @@
   label.opt input{width:20px;height:20px;margin-top:2px;accent-color:var(--brand)}
   .ok{width:64px;height:64px;border-radius:50%;background:var(--soft);color:var(--brand);display:grid;place-items:center;font-size:32px;margin:8px auto 12px}
   footer{max-width:440px;margin:0 auto;padding:4px 16px 24px;color:var(--muted);font-size:12px;text-align:center}
-  @media (max-width:420px){.bar{gap:8px;padding:8px 12px}.bar nav{gap:0}.bar nav a{padding:0 7px}}
+  .bar b,.bar nav a,.bar .login{white-space:nowrap}
+  @media (max-width:420px){.bar{gap:6px;padding:8px 10px}.bar nav{gap:0}.bar nav a{padding:0 6px;font-size:13.5px}.bar b{font-size:16px}.bar small{display:none}.bar .login{font-size:12.5px;padding:4px 6px}}
+  @media (max-width:370px){.bar .home b{display:none}}
   /* charts drawn by /static/kchart.js */
   .kc{display:block;width:100%;height:auto;overflow:visible;font-family:var(--font)}
   .kc text{font-size:11px;fill:var(--muted)}

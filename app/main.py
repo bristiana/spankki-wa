@@ -192,8 +192,14 @@ def money_nb(x: float) -> str:
     return nb(money(x))
 
 
+def fi_money(x: float) -> str:
+    """S-mobiili writes money the Finnish way: 2 000,00 € (non-breaking spaces), -12,30 €."""
+    return f"{x:,.2f}".replace(",", " ").replace(".", ",") + " €"
+
+
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
+templates.env.filters["fimoney"] = fi_money
 templates.env.globals["wa_login"] = lambda request: enable_banking.mask(wa_phone(request))
 
 
@@ -255,7 +261,7 @@ def send_reply(to: str, reply, message_id: str | None = None):
             for b in reply.buttons:
                 wa.send_url_button(to, wa.OVERFLOW_BODY, b["label"], b["url"])
         elif not (reaction and message_id):
-            wa.send_text(to, "👍")
+            wa.send_text(to, "Okay.")
         return
     parts = wa.bubbles(reply.text)
     if reply.buttons:
@@ -281,7 +287,7 @@ def switch_off(to: str):
     quiz.forget(engine, to)
     learn.forget(engine, to)
     names.pop(to, None)
-    wa.send_text(to, "Done ✅ Birky is switched off for this number and our chat history is deleted. "
+    wa.send_text(to, "Done. Birky is switched off for this number and our chat history is deleted. "
                      "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
 
 
@@ -301,7 +307,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
     if bid.startswith("resume:") and bid != "resume:later":  # "Finish it" on a confirmation left open yesterday
         p = e.pending(bid[7:])
         if not p or p["status"] != "pending":
-            return {"text": "That one's already done ✅"}
+            return {"text": "That one's already done."}
         owner[p["pending_id"]] = user
         path = {"payment": "pay", "investment": "invest", "saving": "save", "pause_investing": "stop"}[p["kind"]]
         return {"text": f"Here it is again: *{p['name']}*, {money(p['amount'])}. It's ready in S-mobiili: "
@@ -310,12 +316,12 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
     if bid.startswith("later:"):
         note_later(e, user, bid)
         if bid == "later:unusual":
-            return {"text": "Great, enjoy it 🙂 I'll keep an eye on your safe-to-spend."}
+            return {"text": "Great, enjoy it! I'll keep an eye on your safe-to-spend."}
         if bid == "later:goal":
-            return {"text": "Okay 👍 I'll look at your pace again next week."}
+            return {"text": "Okay. I'll look at your pace again next week."}
         if bid == "later:bills":
-            return {"text": "Okay 👍 I'll keep an eye on your bills."}
-        return {"text": "Sure ⏰ I'll check back with you tomorrow."}
+            return {"text": "Okay. I'll keep an eye on your bills."}
+        return {"text": "Sure, I'll check back with you tomorrow."}
     if bid == "pause:investing":
         p = e.create_pause_investing()
         owner[p["pending_id"]] = user
@@ -324,11 +330,11 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
                         "so far stays invested. It's ready in S-mobiili: confirm with Face ID.",
                 "url": (OPEN_APP, confirm_url("stop", p["pending_id"], web))}
     if bid.startswith("keep:"):
-        return {"text": "Okay, your monthly investing stays on 👍 Paying yourself first, on autopilot."}
+        return {"text": "Okay, your monthly investing stays on. Paying yourself first, on autopilot."}
     if bid.startswith("remind:"):
         c = next((x for x in e.commitments()["regular_payments"] if x["id"] == bid[7:]), None)
         if c and c["next_expected"]:
-            return {"text": f"Okay ⏰ I'll message you the day before your {c['name'].lower()} is due "
+            return {"text": f"Okay, I'll message you the day before your {c['name'].lower()} is due "
                             f"({nice_date(c['next_expected'])})."}
         return {"text": "Your utility bills come on different days, so there's no date to remind you of. I'll tell "
                         "you when one is well above your usual range."}
@@ -336,7 +342,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         goal_id, amount = learn.goal_for(e, bid)
         if amount < 1:
             g = e.state["goals"][goal_id]
-            return {"text": f"Your *{g['name']}* goal of *{money(g['target'])}* is set 🌰 Nothing is free to move "
+            return {"text": f"Your *{g['name']}* goal of *{money(g['target'])}* is set. Nothing is free to move "
                             "before payday, so the first saving can wait for payday."}
         bid = f"save:{goal_id}:{amount:.0f}"
     if bid.startswith("save:"):
@@ -348,7 +354,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
                         "It's ready in S-mobiili: confirm with Face ID.",
                 "url": (OPEN_APP, confirm_url("save", p["pending_id"], web))}
     if bid == "quiz:money":
-        return {"text": "Your three baskets, balance and safe to spend, all in one place 📊",
+        return {"text": "Your three baskets, balance and safe to spend, all in one place.",
                 "url": ("Open My money", f"{public_url()}/app{q}")}
     return None
 
@@ -529,7 +535,7 @@ def handle_message(m: dict):
             except voice.VoiceError as e:
                 wa.send_text(to, str(e))
                 return
-            wa.send_text(to, f"🎙️ _{wa.short(m['text'].replace('_', ' '), 300)}_")  # what Birky heard, so a mishearing is visible
+            wa.send_text(to, f"Heard: _{wa.short(m['text'].replace('_', ' '), 300)}_")  # what Birky heard, so a mishearing is visible
         word = (m["text"] or "").strip().lower().strip(".!")
         # mid-game or mid-course, a bare "stop" pauses it
         stop = word in ("stop", "lopeta") and (quiz.active(engine, to) or learn.active(engine, to))
@@ -544,7 +550,7 @@ def handle_message(m: dict):
         if not connected(to):
             wa.send_url_button(
                 to,
-                f"Hi {name} 👋 I'm *Birky* 🐿️, your S-Pankki money coach. I answer questions about your spending, remind you "
+                f"Hi {name}! I'm *Birky*, your S-Pankki money coach. I answer questions about your spending, remind you "
                 "before bills and help you save.\n\nTo start, connect your S-Pankki account. You choose what I can see, "
                 "and you can switch me off any time.",
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
@@ -782,7 +788,7 @@ def real_bank_callback(request: Request, code: str = "", state: str = "", error:
                                                                  "account when your bank asks which ones to share."]})
     total = sum(a.get("balance_eur") or 0 for a in link["accounts"])
     n = sum(len(a.get("transactions") or []) for a in link["accounts"])
-    line = f"{bank} linked ✅ {len(link['accounts'])} account(s), {money(total)} in total, {n} transactions."
+    line = f"{bank} linked: {len(link['accounts'])} account(s), {money(total)} in total, {n} transactions."
     try:
         wa.send_text(phone, line + " Ask me: \"Show my money across all my banks\".")
     except Exception:
@@ -807,7 +813,7 @@ def welcome(to: str):
     """Right after Connect: the three baskets, the My money button, then the first interview question."""
     t = onboarding.start(engine, to)
     wa.send_bubbles(to, t.lead)
-    wa.send_url_button(to, "Your whole money picture, any time 📊", "Open My money", f"{public_url()}/app")
+    wa.send_url_button(to, "Your whole money picture, any time.", "Open My money", f"{public_url()}/app")
     send_turn(to, onboarding.Turn(t.text, t.buttons))
     remember(None, to, "[connected S-Pankki]", t)
 
@@ -877,7 +883,7 @@ def sentence(err: Exception) -> str:
 
 
 def plain(msg: str) -> str:
-    return msg.replace("✅ ", "").replace("*", "")
+    return msg.replace("*", "")
 
 
 # One confirm for every way in (the PIN page and S-mobiili's Face ID): the same engine call, the same double-confirm
@@ -887,7 +893,7 @@ def settle_payment(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
     done = e.confirm(pid)
     s = e.safe_to_spend()
     if done["first_time"]:
-        notify(pid, f"✅ *{done['name']} paid*: {money(done['amount'])}\n"
+        notify(pid, f"*{done['name']} paid*: {money(done['amount'])}\n"
                     f"Balance now {money(done['balance_eur'])}.\n"
                     f"Safe to spend until payday ({nice_date(s['next_payday']['date'])}): "
                     f"*{money(s['safe_to_spend_until_payday_eur'])}*, about {money(s['safe_per_day_eur'])} a day.")
@@ -897,10 +903,10 @@ def settle_payment(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
 def settle_investment(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
     done = e.confirm(pid)
     if done.get("monthly"):
-        msg = (f"✅ *Monthly saving started*: {money(done['amount'])} into {done['name']} every payday, "
+        msg = (f"*Monthly saving started*: {money(done['amount'])} into {done['name']} every payday, "
                f"first on {nice_date(done['starts'])}. You can change or stop it any time.")
     else:
-        msg = f"✅ *Invested* {money(done['amount'])} in {done['name']}. Balance now {money(done['balance_eur'])}."
+        msg = f"*Invested* {money(done['amount'])} in {done['name']}. Balance now {money(done['balance_eur'])}."
         if done["first_time"] and broker.configured():
             order = broker.place(done["fund_id"], done["amount"])
             e.state.setdefault("orders", []).append({"pending_id": pid, "fund": done["name"],
@@ -915,7 +921,7 @@ def settle_investment(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str
 def settle_pause_investing(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
     done = e.confirm(pid)
     when = f" on {nice_date(done['next_charge'])}" if done.get("next_charge") else ""
-    msg = (f"✅ *Monthly investing paused.* The deposit of about {money(done['amount'])} won't go out{when}. "
+    msg = (f"*Monthly investing paused.* The deposit of about {money(done['amount'])} won't go out{when}. "
            f"That's {money(done['per_year_eur'])} a year staying on your account.\n"
            "What you've invested so far stays invested. Start again any time.")
     if done["first_time"]:
@@ -927,7 +933,7 @@ def settle_saving(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
     done = e.confirm(pid)
     g = e.state["goals"][p["goal_id"]]
     pct = round(g["saved"] / g["target"] * 100)
-    msg = (f"✅ *Saved {money(done['amount'])}* for {g['name']}.\n"
+    msg = (f"*Saved {money(done['amount'])}* for {g['name']}.\n"
            f"{money(g['saved'])} of {money(g['target'])} ({pct}%). Balance now {money(done['balance_eur'])}.")
     if done["first_time"]:
         notify(pid, msg)
@@ -1013,9 +1019,9 @@ def order_text(order: dict) -> str:
     if order["status"] == "placed":
         lines = [f"• {leg['name']}: {leg['quantity']} shares" for leg in order["legs"]
                  if leg["status"] not in ("failed", "skipped")]
-        return ("📈 Order sent to *Trading 212 (Practice account)*:\n" + "\n".join(lines)
+        return ("Order sent to *Trading 212 (Practice account)*:\n" + "\n".join(lines)
                 + "\nIt fills at the next market price; if the exchange is closed, when it opens.")
-    return "⚠️ The broker order didn't go through yet. Your money is set aside and I'll retry."
+    return "The broker order didn't go through yet. Your money is set aside and I'll retry."
 
 
 @app.get("/stop/{pid}", response_class=HTMLResponse)
@@ -1098,7 +1104,7 @@ def sm_flow(route: str, e: Engine, p: dict) -> dict:
                           else demo_reference(p["bill_id"])),
                          ("due", "Due date", nice_date(p["due_date"]) if p.get("due_date") else "-"),
                          ("from", "From", "Current account")],
-                "button": f"Pay {money(p['amount'])}", "cheer": f"Paid! {p['name']} is sorted 🌰",
+                "button": f"Pay {money(p['amount'])}", "cheer": f"Paid! {p['name']} is sorted.",
                 "steps": [("amount", f"This is the amount we planned: {amt}", "talk"),
                           ("row-recipient", f"It goes to {to}{due}", "talk"),
                           ("row-reference", "IBAN and reference are copied from your bill. Nothing to type" if photo
@@ -1112,7 +1118,7 @@ def sm_flow(route: str, e: Engine, p: dict) -> dict:
                          ("so-far", "Saved so far", f"{money(g['saved'])} of {money(g['target'])}"),
                          ("after", "After this", f"{money(after)} ({pct}%)"),
                          ("from", "From", "Current account"), ("to", "To", "Savings pocket")],
-                "button": f"Save {money(p['amount'])}", "cheer": f"Saved! {amt} is in your pocket 🌰",
+                "button": f"Save {money(p['amount'])}", "cheer": f"Saved! {amt} is in your pocket.",
                 "first_pocket": not pocket_open(e),
                 "steps": [("amount", f"This is the amount we planned: {amt}", "talk"),
                           ("row-to", "Your Savings pocket. It keeps this apart from everyday money", "talk"),
@@ -1127,7 +1133,7 @@ def sm_flow(route: str, e: Engine, p: dict) -> dict:
                          ("holds", "Holds", f["what"]), ("when", "When", invest_when(e, p)),
                          ("from", "From", "Current account")],
                 "button": "Start monthly investing" if p["monthly"] else f"Invest {money(p['amount'])}",
-                "cheer": "Done! It starts on payday 🌱" if p["monthly"] else "Invested 🌱",
+                "cheer": "Done! It starts on payday." if p["monthly"] else "Invested.",
                 "steps": [("amount", f"This is the amount we planned: {amt}{per}", "talk"),
                           ("row-fund", "The fund you picked. I explain, you choose", "talk"),
                           ("row-risk", "Risk in plain words: " + RISK_WORDS[f["risk"]].split(": ", 1)[1], "think")]}
@@ -1137,7 +1143,7 @@ def sm_flow(route: str, e: Engine, p: dict) -> dict:
                      ("usual", "Usually on", f"Day {p['usual_day']} of the month"),
                      ("next", "Next one", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
                      ("invested", "Already invested", "Stays invested"), ("from", "From", "Current account")],
-            "cheer": f"Paused. {short_money(p['per_year_eur'])} a year stays with you 🌰",
+            "cheer": f"Paused. {short_money(p['per_year_eur'])} a year stays with you.",
             "steps": [("amount", f"Your monthly investing: about {amt} a month", "talk"),
                       ("row-next", "Only new deposits stop. " + (f"The next one was due {nice_date(p['next_charge'])}"
                                                                 if p["next_charge"] else "Nothing else changes"), "talk"),
@@ -1151,8 +1157,26 @@ def guide_steps(steps) -> list[dict]:
 def sm_ctx(request: Request, persona: str, **extra) -> dict:
     q = request.query_params
     keep = {k: q[k] for k in ("persona", "web", "autoplay") if q.get(k)}
+    tab_url = lambda t: "/s-mobiili/" + (f"?{urlencode({**keep, **({'tab': t} if t else {})})}"  # noqa: E731
+                                         if keep or t else "")
     return {"wa": wa_back(request), "web": bool(q.get("web")), "autoplay": q.get("autoplay") == "1",
-            "home_url": "/s-mobiili/" + (f"?{urlencode(keep)}" if keep else ""), "name": name_for(persona), **extra}
+            "home_url": tab_url(None), "tab_urls": {t: tab_url(t) for t in SM_TABS if t != "koti"},
+            "name": name_for(persona), "tab": "koti", **extra}
+
+
+# The real app's bottom bar: Koti · S-Etukortti · (+) Maksu · Pankki · Minä. "kortti" is the card page under Pankki.
+SM_TABS = ("koti", "etukortti", "pankki", "mina", "kortti")
+FI_MONTH_FROM = ("tammikuulta", "helmikuulta", "maaliskuulta", "huhtikuulta", "toukokuulta", "kesäkuulta",
+                 "heinäkuulta", "elokuulta", "syyskuulta", "lokakuulta", "marraskuulta", "joulukuulta")
+
+
+def demo_bonus(persona: str, today: date) -> dict:
+    """The S-Etukortti bonus on S-mobiili's home. Bonus is not in the challenge data, so this is a made-up, stable
+    figure per persona (labelled demo on the page), in the range a household's S-Group shopping earns."""
+    h = int(hashlib.sha1(persona.encode()).hexdigest(), 16)
+    pay_month = today.month if today.day < 10 else today.month % 12 + 1
+    return {"coming": 18 + h % 4000 / 100, "last": 20 + (h >> 16) % 4000 / 100, "to_next": 5.0,
+            "from_month": FI_MONTH_FROM[(today.month - 2) % 12], "pay_day": f"10.{pay_month}."}
 
 
 @app.get("/s-mobiili", include_in_schema=False)
@@ -1217,6 +1241,15 @@ def smobiili_home(request: Request):
     persona = home_persona(request)
     e = engine_for(persona)
     a = accounts(e)
+    tab = request.query_params.get("tab") or "koti"
+    if tab not in SM_TABS:
+        tab = "koti"
+    if tab != "koti":  # the other tabs: the bank's own screens, no guide walk
+        bills_due = e.upcoming_bills(30)
+        return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
+            request, persona, screen="tab", tab=tab, a=a, steps=[], ready=None, bills_due=bills_due,
+            personas=[{"id": k, "name": v["name"], "label": v["label"]} for k, v in PERSONAS.items()],
+            persona_id=persona))
     b = e.baskets("last_3_months")
     ready = sm_ready(request, e)
     first = [("ready", "I've got it ready, tap to check and confirm", "happy")] if ready and not ready["done"] else []
@@ -1228,13 +1261,20 @@ def smobiili_home(request: Request):
              ("recent", "Your latest payments, straight from your account", "talk"),
              ("ask", "Questions? I'm in WhatsApp and right here", "wave")]
     steps = first + steps
-    bill = next(iter(e.upcoming_bills(30)), None)
+    bills_due = e.upcoming_bills(30)
+    bill = next(iter(bills_due), None)
     q = {"q": BASKETS_Q, **({"embed": "1"} if request.query_params.get("web") else {}),
          **({"as": persona} if request.query_params.get("persona") else {})}
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
         request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps), baskets=b, ready=ready,
-        baskets_url="/chat?" + urlencode(q),
-        bill={**bill, "due": nice_date(bill["due_date"])} if bill else None))
+        baskets_url="/chat?" + urlencode(q), bonus=demo_bonus(persona, e.today), bills_due=bills_due,
+        bill={**bill, "due": fi_date(bill["due_date"])} if bill else None))
+
+
+def fi_date(iso: str) -> str:
+    """2026-10-31 -> 31.10. (how S-mobiili writes a due date)."""
+    d = date.fromisoformat(iso)
+    return f"{d.day}.{d.month}."
 
 
 @app.get("/s-mobiili/{route}/{pid}", response_class=HTMLResponse)
@@ -1296,13 +1336,13 @@ def alert_text(kind: str, a: dict, name: str) -> tuple[str, list]:
     """Text and quick replies for an engine alert (or a proactive signal carrying the same data)."""
     if kind == "salary":
         goals = a["goals"]
-        text = (f"💰 {name}, your salary of *{money(a['salary_eur'])}* just landed. Balance now {money(a['balance_eur'])}.\n\n"
+        text = (f"{name}, your salary of *{money(a['salary_eur'])}* just landed. Balance now {money(a['balance_eur'])}.\n\n"
                 f"Pay yourself first: put *{money(a['suggest_save_eur'])}* aside now, before it slips through your fingers?")
         first = ([(f"save:{goals[0]['id']}:{a['suggest_save_eur']:.0f}", f"Save {a['suggest_save_eur']:.0f} €")] if goals
                  else [("ask:goal", "Set a savings goal")])
         return text, first + [("ask:invest", "Invest instead"), ("later:salary", "Not now")]
     if kind == "unusual":
-        text =(f"👀 Heads-up: *{money(a['amount_eur'])}* at {a['where']} on {nice_date(a['date'])}. "
+        text =(f"Heads-up: *{money(a['amount_eur'])}* at {a['where']} on {nice_date(a['date'])}. "
                 f"That's *{a['times_usual']}x* your usual {a['category'].lower()} payment ({money(a['usual_eur'])}).\n\n"
                 "It sits in your *slips through your fingers* basket. Was that planned?")
         return text, [("later:unusual", "Yes, all good"), ("ask:unusual", "Tell me more")]
@@ -1315,7 +1355,7 @@ def bills_text(a: dict) -> tuple[str, list]:
     what = a["name"].lower()
     if a["type"] == "increase":
         tr = a["trend"]
-        text = (f"📈 Your *{what}* went up: *{money(tr['last_per_month_eur'])} a month* in {tr['last_months']}, "
+        text = (f"Your *{what}* went up: *{money(tr['last_per_month_eur'])} a month* in {tr['last_months']}, "
                 f"from {money(tr['previous_per_month_eur'])} a month in {tr['previous_months']}.")
         if a.get("extra_per_year_eur"):
             text += f" That's {money(a['extra_per_year_eur'])} more a year."
@@ -1326,16 +1366,16 @@ def bills_text(a: dict) -> tuple[str, list]:
             ("ask:bills", "My regular payments"), ("ask:tight", "How do I stretch it?")]
     if a["type"] == "unusual_bill":
         odd = a["unusual_bill"]
-        return (f"🧾 Heads-up: a *{money(odd['amount_eur'])}* utility bill on {nice_date(odd['date'])}. One bill is "
+        return (f"Heads-up: a *{money(odd['amount_eur'])}* utility bill on {nice_date(odd['date'])}. One bill is "
                 f"usually {money(odd['usual_low_eur'])} to {money(odd['usual_high_eur'])}.\n\n"
                 f"Your utilities come to {money(a['per_month_eur'])} a month, about {round(a['bills_per_month'])} "
                 "bills.", [("ask:bills", "My regular payments"), ("later:bills", "OK, thanks")])
     when = "tomorrow" if a["days_to_next"] == 1 else f"in {a['days_to_next']} days"
     day = nice_date(a["next_expected"])
     if a["id"] == "investing":
-        return (f"📈 Your *monthly investing* of about {money(a['per_month_eur'])} goes out {when} ({day}).\n\n"
+        return (f"Your *monthly investing* of about {money(a['per_month_eur'])} goes out {when} ({day}).\n\n"
                 "Keep it, or pause it for now?", [("keep:investing", "Keep it"), ("pause:investing", "Pause investing")])
-    return (f"🧾 Your *{what}* of about {money(a['per_month_eur'])} is due {when} ({day}).",
+    return (f"Your *{what}* of about {money(a['per_month_eur'])} is due {when} ({day}).",
             [("remind:" + a["id"], "Remind me before"), ("ask:bills", "My regular payments")])
 
 
@@ -1365,7 +1405,7 @@ def pay_label(name: str) -> str:
 def bill_text(bill: dict, s: dict, name: str) -> str:
     what = bill["name"].lower()
     when = "tomorrow" if bill["days_away"] == 1 else f"in {bill['days_away']} days"
-    return (f"Hi {name} 👋 Your *{what} of {money(bill['amount_eur'])}* is due *{when}* ({nice_date(bill['due_date'])}).\n\n"
+    return (f"Hi {name}, your *{what} of {money(bill['amount_eur'])}* is due *{when}* ({nice_date(bill['due_date'])}).\n\n"
             f"After {what} and your usual bills you have *{money(s['safe_to_spend_until_payday_eur'])}* safe to spend "
             f"until payday on {nice_date(s['next_payday']['date'])}. That's about *{money(s['safe_per_day_eur'])} a day*."
             + reserve_line(s.get("reserve_eur", 0)))
@@ -1410,13 +1450,13 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
     if kind == "OPEN_THREAD":
         return thread_message(d, name)
     if kind == "GOAL_DRIFT":
-        return (f"🎯 {name}, your *{d['name']}* goal is a bit behind plan: {money(d['saved_eur'])} saved, "
+        return (f"{name}, your *{d['name']}* goal is a bit behind plan: {money(d['saved_eur'])} saved, "
                 f"while {money(d['expected_by_now_eur'])} would be on track by today. To reach {money(d['target_eur'])} "
                 f"by {nice_date(d['deadline'])}, that's about *{money(d['needed_per_month_eur'])} a month*.\n\n"
                 f"Catch up with {money(d['catch_up_eur'])} now?",
                 [(f"save:{d['goal_id']}:{d['catch_up_eur']:.0f}", f"Save {d['catch_up_eur']:.0f} €"),
                  ("ask:pace", "How to catch up"), ("later:goal", "Not now")])
-    text = (f"📅 Your week, {name}: *{money(d['spent_7d_eur'])}* spent in the last 7 days "
+    text = (f"Your week, {name}: *{money(d['spent_7d_eur'])}* spent in the last 7 days "
             f"({money(d['spent_prev_7d_eur'])} the week before).\n"
             f"Safe to spend until payday ({nice_date(d['next_payday'])}): *{money(d['safe_eur'])}*, "
             f"about {money(d['safe_per_day_eur'])} a day." + reserve_line(d.get("reserve_eur", 0)))
@@ -1430,27 +1470,27 @@ def thread_message(d: dict, name: str) -> tuple[str, list]:
     """The "comes back a day later" message for an open thread: one short friendly line, one button to carry on."""
     t = d["thread"]
     if t == "learn":
-        done = f" ({d['done']} of {d['of']} done 🌰)" if d["done"] else ""
-        return (f"Hey {name} 📚 Lesson {d['lesson']}/{d['of']}, *{d['title'].lower()}*, is waiting{done}. 30 seconds?",
+        done = f" ({d['done']} of {d['of']} done)" if d["done"] else ""
+        return (f"Hey {name}! Lesson {d['lesson']}/{d['of']}, *{d['title'].lower()}*, is waiting{done}. 30 seconds?",
                 [("learn:start", "Continue lesson")])
     if t == "onboarding":
-        return (f"Hey {name} 👋 We stopped halfway through setting up your goal. Finish it? It takes a minute.",
+        return (f"Hey {name}, we stopped halfway through setting up your goal. Finish it? It takes a minute.",
                 [("ob:resume", "Let's finish")])
     if t == "quiz":
-        return (f"Hey {name} 🧺 Your basket game is paused at {d['round']}/{d['of']}. One more round?",
+        return (f"Hey {name}, your basket game is paused at {d['round']}/{d['of']}. One more round?",
                 [("quiz:resume", "Keep playing")])
     if t == "pin":
-        return (f"Hey {name} 🔐 *{d['name']}* ({money(d['amount_eur'])}) is still waiting for you to confirm it "
+        return (f"Hey {name}, *{d['name']}* ({money(d['amount_eur'])}) is still waiting for you to confirm it "
                 "with Face ID in S-mobiili. Want to finish it?", [(f"resume:{d['pending_id']}", "Finish it")])
     if t == "goal":
-        return (f"Hey {name} 🌰 Your *{d['name']}* goal is set, but nothing's in it yet. Start with "
+        return (f"Hey {name}, your *{d['name']}* goal is set, but nothing's in it yet. Start with "
                 f"{money(d['amount_eur'])}?",
                 [(f"save:{d['goal_id']}:{d['amount_eur']:.0f}", f"Save {d['amount_eur']:.0f} €")])
     if d["kind"] == "bill":
         b = d["bill"]
-        return (f"Hey {name} ⏰ You said later yesterday: *{b['name'].lower()}* of {money(b['amount_eur'])} is due "
+        return (f"Hey {name}, you said later yesterday: *{b['name'].lower()}* of {money(b['amount_eur'])} is due "
                 f"{nice_date(b['due_date'])}. Pay it now?", [(f"pay:{b['bill_id']}", pay_label(b["name"]))])
-    return (f"Hey {name} 🙂 Yesterday you said maybe later to this: \"{d['offer']}\" Still up for it?",
+    return (f"Hey {name}, yesterday you said maybe later to this: \"{d['offer']}\" Still up for it?",
             [("resume:later", "Yes, let's do it")])
 
 
@@ -1781,8 +1821,32 @@ def mobile_demo(request: Request):
 WEB_UPLOAD_MAX = bills.MAX_BYTES * 4 // 3 + 64_000  # a 5 MB photo as base64, plus the rest of the JSON
 
 
+def web_words(out):
+    """The web chat's reply as the page gets it: no emoji in the words (wa.strip_emoji) and no reaction. A reaction
+    on the person's message is a WhatsApp thing; on the web it is dropped."""
+    if isinstance(out, JSONResponse):
+        return JSONResponse(web_words(json.loads(out.body)), status_code=out.status_code)
+    if not isinstance(out, dict):
+        return out
+    out = {k: v for k, v in out.items() if k != "reaction"}
+    if isinstance(out.get("text"), str):
+        out["text"] = wa.strip_emoji(out["text"])
+    if isinstance(out.get("bubbles"), list):
+        out["bubbles"] = [b for b in (wa.strip_emoji(x) for x in out["bubbles"]) if b]
+    for key in ("buttons", "quick"):
+        if isinstance(out.get(key), list):
+            out[key] = [{**b, "label": wa.strip_emoji(b["label"])} if isinstance(b, dict) and "label" in b else b
+                        for b in out[key]]
+    return out
+
+
 @app.post("/api/chat")
 async def chat_api(request: Request):
+    """One turn of the web chat; its words carry no emoji and it has no reaction (web_words)."""
+    return web_words(await chat_turn(request))
+
+
+async def chat_turn(request: Request):
     if int(request.headers.get("content-length") or 0) > WEB_UPLOAD_MAX:  # before reading it
         raise HTTPException(413, "image too large (max 5 MB)")
     try:
@@ -1923,7 +1987,7 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=()):
 
 @app.get("/api/inbox")
 def chat_inbox(session: str = ""):
-    return {"messages": inbox.pop("web:" + session[:40], [])}
+    return {"messages": [m for m in (wa.strip_emoji(x) for x in inbox.pop("web:" + session[:40], [])) if m]}
 
 
 @app.get("/health")
