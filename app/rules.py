@@ -78,7 +78,7 @@ def bills(e: Engine) -> list[dict]:
     if not due:
         return []
     s = e.safe_to_spend()
-    safe = {k: s[k] for k in ("safe_to_spend_until_payday_eur", "safe_per_day_eur", "next_payday")}
+    safe = {k: s[k] for k in ("safe_to_spend_until_payday_eur", "safe_per_day_eur", "next_payday", "reserve_eur")}
     return [signal("RECURRING_CHARGE_UPCOMING", f"due:{b['bill_id']}", {"source": "bill", "bill": b, "safe": safe},
                    b["amount_eur"]) for b in due]
 
@@ -114,6 +114,7 @@ def weekly(e: Engine) -> list[dict]:
     return [signal("WEEKLY_CHECK_IN", "checkin", {
         "spent_7d_eur": w["total_eur"], "spent_prev_7d_eur": w["previous_period"]["total_eur"],
         "safe_eur": s["safe_to_spend_until_payday_eur"], "safe_per_day_eur": s["safe_per_day_eur"],
+        "reserve_eur": s["reserve_eur"],
         "next_payday": s["next_payday"]["date"], "bills_next_7d": coming})]
 
 

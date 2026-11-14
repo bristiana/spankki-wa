@@ -23,7 +23,7 @@ from . import broker, onboarding, rules, templates_wa
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
-                     SPEND_CATEGORIES, Engine, merchant_codes)
+                     RESERVE_NOTE_EUR, SPEND_CATEGORIES, Engine, merchant_codes)
 from .tools import explore_query, public_url
 
 load_dotenv()
@@ -599,7 +599,15 @@ def bill_text(bill: dict, s: dict, name: str) -> str:
     when = "tomorrow" if bill["days_away"] == 1 else f"in {bill['days_away']} days"
     return (f"Hi {name} 👋 Your *{what} of {money(bill['amount_eur'])}* is due *{when}* ({nice_date(bill['due_date'])}).\n\n"
             f"After {what} and your usual bills you have *{money(s['safe_to_spend_until_payday_eur'])}* safe to spend "
-            f"until payday on {nice_date(s['next_payday']['date'])}. That's about *{money(s['safe_per_day_eur'])} a day*.")
+            f"until payday on {nice_date(s['next_payday']['date'])}. That's about *{money(s['safe_per_day_eur'])} a day*."
+            + reserve_line(s.get("reserve_eur", 0)))
+
+
+def reserve_line(reserve: float) -> str:
+    """Money built up on the account beyond this pay cycle is not spending money: say what it is."""
+    if reserve < RESERVE_NOTE_EUR:
+        return ""
+    return f"\nThe other {money(reserve)} on your account is beyond this pay cycle, more like savings."
 
 
 @app.post("/demo/remind")
@@ -646,7 +654,7 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
     text = (f"📅 Your week, {name}: *{money(d['spent_7d_eur'])}* spent in the last 7 days "
             f"({money(d['spent_prev_7d_eur'])} the week before).\n"
             f"Safe to spend until payday ({nice_date(d['next_payday'])}): *{money(d['safe_eur'])}*, "
-            f"about {money(d['safe_per_day_eur'])} a day.")
+            f"about {money(d['safe_per_day_eur'])} a day." + reserve_line(d.get("reserve_eur", 0)))
     if d["bills_next_7d"]:
         text += "\nComing up: " + ", ".join(f"{b['name']} {money(b['amount_eur'])} on {nice_date(b['due_date'])}"
                                             for b in d["bills_next_7d"]) + "."
@@ -911,9 +919,11 @@ def widgets(e: Engine | None = None) -> dict:
     s = e.safe_to_spend()
     pay = s["next_payday"]
     cards = [{"id": "safe_to_spend", "title": "Safe to spend", "value": money(s["safe_to_spend_until_payday_eur"]),
-              "subtitle": f"until payday {nice_date(pay['date'])} · {money(s['safe_per_day_eur'])} a day",
+              "subtitle": (f"until payday {nice_date(pay['date'])}" if pay["date"] else f"next {s['horizon_days']} days")
+                          + f" · {money(s['safe_per_day_eur'])} a day",
               "amount_eur": s["safe_to_spend_until_payday_eur"], "per_day_eur": s["safe_per_day_eur"],
               "payday": pay["date"], "days_to_payday": pay["days_away"],
+              "cycle_budget_eur": s["cycle_budget_eur"], "reserve_eur": s["reserve_eur"],
               "deep_link": ask_link("What is safe for me to spend until payday?")}]
     bill = next((b for b in e.upcoming_bills(45) if b["bill_id"] and b["category"] != "Invest Deposit"), None)
     if bill:

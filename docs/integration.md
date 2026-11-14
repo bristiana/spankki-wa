@@ -25,6 +25,7 @@ Every number comes from the deterministic engine (`safe_to_spend`, `upcoming_bil
     {"id": "safe_to_spend", "title": "Safe to spend", "value": "68.60 €",
      "subtitle": "until payday Thu 15 Oct · 7.62 € a day",
      "amount_eur": 68.6, "per_day_eur": 7.62, "payday": "2026-10-15", "days_to_payday": 9,
+     "cycle_budget_eur": 288.82, "reserve_eur": 0.0,
      "deep_link": "/chat?q=What+is+safe+for+me+to+spend+until+payday%3F"},
     {"id": "next_bill", "title": "Next bill", "value": "771.82 €", "subtitle": "Rent · Wed 07 Oct (tomorrow)",
      "name": "Rent", "amount_eur": 771.82, "due_date": "2026-10-07", "days_away": 1,
@@ -51,7 +52,7 @@ Every card has `id`, `title`, `value`, `subtitle` and `deep_link`, so a client c
 
 | `id` | When it is there | Source |
 |---|---|---|
-| `safe_to_spend` | always | `Engine.safe_to_spend()` |
+| `safe_to_spend` | always; `cycle_budget_eur` is what the usual pay cycle leaves for flexible spending, `reserve_eur` the money on the account beyond it (likely savings, never counted as safe to spend) | `Engine.safe_to_spend()` |
 | `next_bill` | a known bill within 45 days (the regular investment deposit is not counted as a bill) | `Engine.upcoming_bills(45)` |
 | `baskets` | always; this month, or last month while this month has no spending yet (`period` says which) | `Engine.baskets()` |
 | `subscription` | an active subscription whose price went up (`kind: price_increase`), otherwise one that looks unused (`kind: inactive`) | `Engine.subscriptions()` |

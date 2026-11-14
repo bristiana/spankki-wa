@@ -45,9 +45,11 @@ def test_balance_is_last_dataset_balance(e):
 
 def test_safe_to_spend_formula(e):
     s = e.safe_to_spend()
-    expected = (s["balance_eur"] - s["bills_total_eur"] - s["utilities_estimate_eur"]
-                - s["groceries_and_transport_estimate_eur"] - s["surprise_buffer_eur"])
-    assert s["safe_to_spend_until_payday_eur"] == pytest.approx(expected, abs=0.05)
+    after = (s["balance_eur"] - s["bills_total_eur"] - s["utilities_estimate_eur"]
+             - s["groceries_and_transport_estimate_eur"] - s["surprise_buffer_eur"])
+    assert s["left_after_bills_eur"] == pytest.approx(after, abs=0.05)
+    # The smaller of what the balance leaves and what the pay cycle sustains; here the balance is the limit.
+    assert s["safe_to_spend_until_payday_eur"] == pytest.approx(min(after, s["cycle_budget_eur"]), abs=0.05)
     assert s["next_payday"]["date"] == "2026-10-15"
 
 
