@@ -11,6 +11,11 @@
     <p><button class="btn" data-u="/demo/alert?kind=renewal">🔁 Subscription renewal</button></p>
     <p><button class="btn" data-u="/demo/alert?kind=salary">💰 Salary landed + save</button></p>
     <p><button class="btn" data-u="/demo/alert?kind=unusual">👀 Unusual spend</button></p>
+    {% set wake = "/cron/wake?force=1&key=" ~ (key|urlencode) ~ "&to=" ~ (phone|urlencode) %}
+    <p><button class="btn" data-u="{{ wake }}">🔔 Run proactive check now</button></p>
+    <p><button class="btn ghost" data-u="{{ wake }}&dry_run=1">🔍 Dry run: only show what would be sent</button></p>
+    <p class="muted" style="font-size:13px">Proactive check: picks the most urgent signal (7-day cooldown each). Outside the 24-hour window it sends a template and holds the full message until the next reply.
+      {% if proactive %}DEMO_PROACTIVE=1: live, also on the cron (09/14/19 Helsinki).{% else %}DEMO_PROACTIVE is off: nothing is sent, the check is always a dry run.{% endif %}</p>
     <p><button class="btn ghost" data-u="/demo/reset">↺ Reset demo (balance, goals, connection)</button></p>
     <pre id="out" class="muted" style="white-space:pre-wrap;font-size:13px"></pre>
   </div>
@@ -22,7 +27,14 @@ document.querySelectorAll("button[data-u]").forEach(b => b.onclick = async () =>
   try {
     const r = await fetch(b.dataset.u, {method: "POST"});
     const j = await r.json();
-    out.textContent = r.ok ? (j.text || JSON.stringify(j)) : ("Error: " + JSON.stringify(j));
+    if (r.ok && j.results) {
+      out.textContent = (j.dry_run ? "DRY RUN, nothing sent.\n" : "") + (j.results.map(x => !x.signal
+        ? x.to + ": nothing to say (or cooling down)"
+        : `${x.to}: ${x.signal} via ${x.via || "nothing"}${x.reason ? " (" + x.reason + ")" : ""}`
+          + (x.template ? `\ntemplate ${x.template} [${x.params.join(" | ")}]` : "") + "\n\n" + x.text).join("\n\n") || "No recipients.");
+    } else {
+      out.textContent = r.ok ? (j.text || JSON.stringify(j)) : ("Error: " + JSON.stringify(j));
+    }
   } catch (e) { out.textContent = "Error: " + e; }
 });
 </script>
