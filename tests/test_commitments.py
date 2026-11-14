@@ -190,7 +190,7 @@ def test_pause_investing_button_then_pin(client):
     assert "Investing paused" in client.post(pin, data={"pin": "4321"}).text
     again = client.post("/api/chat", json={"text": "__btn__:pause:investing"}).json()["text"]
     assert again == "I can't do that: monthly investing is already paused by you"
-    assert "paused" in client.get("/app").text
+    assert main.engine.state["paused"]["investment_deposit"]
 
 
 def test_remind_buttons(client):
@@ -200,10 +200,6 @@ def test_remind_buttons(client):
     assert "different days" in util
 
 
-def test_pages_show_regular_payments_not_subscriptions(client):
-    app_page = client.get("/app").text
-    assert "Regular payments" in app_page and "No subscriptions in your account" in app_page
-    landing = client.get("/").text
-    for page in (app_page, landing, client.get("/chat").text):
+def test_pages_show_no_subscriptions(client):
+    for page in (client.get("/s-mobiili/").text, client.get("/chat").text):
         assert "StreamPlus" not in page and "Subscriptions" not in page
-    assert "75.00" in landing

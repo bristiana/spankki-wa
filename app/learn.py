@@ -2,7 +2,7 @@
 
 1 The three baskets · 2 Safe to spend vs. your balance · 3 The buffer · 4 Small things add up · 5 Pay yourself first.
 Each lesson is one short message (under 500 characters) with three reply buttons: the next lesson, "Ask Oiva" and
-one action that uses the existing handlers (the basket game, My money, a goal + savings pocket with PIN, the coach).
+one action that uses the existing handlers (the basket game, S-mobiili, a goal + savings pocket with PIN, the coach).
 Started with "learn", "teach me" or the web chip. "stop" pauses, any other question pauses too (the coach answers),
 "learn" picks it up where it was. Tapping a lesson's action steps away quietly; its "Next lesson" carries on.
 State: engine.state["learn"][user] = {"lesson", "paused", "note", "done", "seen"}; one per user in each persona's state.
@@ -144,7 +144,7 @@ def lesson(engine: Engine, i: int, n: dict | None = None) -> tuple[str, tuple[st
                      "not spending money.")
         else:
             text += " The balance is a snapshot; safe to spend is your real budget."
-        return text, ("quiz:money", "Open My money")
+        return text, ("quiz:money", "Open S-mobiili")
     if i == 2:
         src = (GUIDE.get("emergency-fund", {}).get("sources") or [""])[0]
         m = n["months_covered"]
@@ -215,7 +215,7 @@ def finish(engine: Engine, r: dict) -> Turn:
     engine._save()
     return Turn("That's all five, course done! The short version: plan for basket 1, keep a buffer for "
                 "basket 2, choose basket 3, and pay yourself first. Write *learn* any time to go again.",
-                [("quiz:start", "Play basket game"), ("quiz:money", "Open My money")],
+                [("quiz:start", "Play basket game"), ("quiz:money", "Open S-mobiili")],
                 lead=[f"{COUNT} of {COUNT} done!"], done=True)
 
 

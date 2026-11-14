@@ -142,7 +142,7 @@ def test_first_contact_gets_the_connect_button(chat):
 def test_connect_sends_welcome_and_no_question(chat):
     chat.connect()
     assert [t for t in chat.texts() if t.startswith("Connected. ")]
-    assert chat.url() == f"{BASE}/app"
+    assert chat.url() == f"{BASE}/s-mobiili/"
     assert chat.texts()[-1] == "Hi! Ask me anything about your money." and not chat.interactive("button")
 
 
@@ -192,7 +192,7 @@ def test_basket_game_full_run_replay_pause_and_resume(chat):
     ids = [i for i, _ in chat.buttons()]
     assert ids == ["ask:everyday", "quiz:again", "quiz:money"]
     chat.tap("quiz:money")
-    assert chat.url().endswith("/app")
+    assert chat.url().endswith("/s-mobiili/")
     chat.tap("ask:everyday")
     chat.tap("quiz:again").say("1").say("stop")
     assert "Paused" in chat.texts()[-1]
@@ -245,7 +245,7 @@ def test_invest_save_pause_from_the_coach(chat):
     assert any("Monthly investing paused" in t for t in done) and any("*Saved" in t for t in done)
 
 
-def test_explore_chart_reply_is_a_link_button(chat):
+def test_explore_chart_reply_is_words_only(chat):
     connected(chat)
 
     def script(e, text, buttons):
@@ -255,9 +255,8 @@ def test_explore_chart_reply_is_a_link_button(chat):
 
     main._coach.script = script
     chat.say("When do I spend most on restaurants?")
-    labels = [i["action"]["parameters"]["display_text"] for i in chat.interactive("cta_url")]
-    assert labels == ["Open chart", "Open chart"]
-    assert chat.url().startswith(f"{BASE}/app/explore?")
+    assert not chat.interactive("cta_url")  # the chart is drawn only in the web chat
+    assert chat.texts()[-1] == "You spend most on restaurants on Saturdays."
 
 
 def test_money_guide_and_home_readiness_replies(chat):
@@ -558,7 +557,7 @@ def test_list_reply_and_my_data(chat):
 
 def test_whatsapp_stays_on_the_default_persona(chat):
     other = next(p for p in main.PERSONAS if p != main.DEFAULT_PERSONA)
-    chat.client.get(f"/app?as={other}")  # a judge switched the web app
+    chat.client.get(f"/s-mobiili/?as={other}")  # a judge switched the web app
     connected(chat)
     r = chat.client.post("/demo/remind", params={"to": chat.phone}).json()
     assert "771.82 €" in r["text"]
@@ -616,8 +615,8 @@ def test_validate_payload_limits():
     assert v(buttons_body(["A", "B"], ids=["x", "x"]))
     assert v(buttons_body(["A"], ids=["x" * 257]))
     assert v(buttons_body(["A"], text="x" * 1025))
-    assert v(cta("Open My money", "https://x.fi/app")) == [] and v(cta("Open", "http://localhost:8000/app")) == []
-    assert v(cta("Open", "http://x.fi/app")) and v(cta("Open everything in my money", "https://x.fi"))
+    assert v(cta("Open S-mobiili", "https://x.fi/s-mobiili/")) == [] and v(cta("Open", "http://localhost:8000/s-mobiili/")) == []
+    assert v(cta("Open", "http://x.fi/s-mobiili/")) and v(cta("Open everything in my money", "https://x.fi"))
     rows = [{"id": f"r{n}", "title": "Row"} for n in range(11)]
     lst = {"to": "1", "type": "interactive", "interactive": {"type": "list", "body": {"text": "Hi"}, "action": {
         "button": "Choose", "sections": [{"rows": rows}]}}}
@@ -661,7 +660,7 @@ def test_post_repairs_instead_of_sending_something_meta_rejects(monkeypatch, cap
     assert sum(b["text"]["body"].count("Hi") for b in out[:2]) == 1500
     assert out[-1]["interactive"]["type"] == "list" and "WA payload invalid" in caplog.text
     out.clear()
-    wa.send_url_button("1", "Short", "Open My money", "https://x.fi/app")
+    wa.send_url_button("1", "Short", "Open S-mobiili", "https://x.fi/s-mobiili/")
     assert len(out) == 1 and out[0]["interactive"]["body"]["text"] == "Short"  # a valid body goes as it is
 
 

@@ -103,19 +103,21 @@ def test_abroad_bank_uses_its_country(monkeypatch):
     assert sent["aspsp"] == {"name": "Revolut", "country": "RO"}
 
 
-def test_login_with_whatsapp_and_dashboard(monkeypatch):
+def test_login_with_whatsapp(monkeypatch):
     from fastapi.testclient import TestClient
     monkeypatch.setenv("WA_DISPLAY_NUMBER", "15550001111")
     _link("358401111111")
     c = TestClient(main.app)
     r = c.get("/login")
-    assert "wa.me/15550001111?text=login" in r.text and "Log in" in c.get("/app").text
-    assert "Log in with WhatsApp" in c.get("/app").text
-    r = c.get("/login", params={"t": eb.sign("358401111111"), "next": "/app"}, follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/app"
+    assert "wa.me/15550001111?text=login" in r.text and "Log in with WhatsApp" in r.text
+    assert 'href="/login">Log in</a>' in c.get("/privacy").text
+    r = c.get("/login", params={"t": eb.sign("358401111111")}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/s-mobiili/"
+    r = c.get("/login", params={"t": eb.sign("358401111111"), "next": "/bank"}, follow_redirects=False)
+    assert r.headers["location"] == "/bank"
     c.cookies.set(eb.COOKIE, eb.sign("358401111111"))
-    page = c.get("/app").text
-    assert "•••1111" in page and "Revolut" in page and "Manage banks" in page
+    assert "•••1111" in c.get("/privacy").text and 'href="/s-mobiili/"' in c.get("/login").text
+    assert c.get("/logout", follow_redirects=False).headers["location"] == "/s-mobiili/"
     c.cookies.clear()
     assert c.get("/bank", follow_redirects=False).headers["location"] == "/login?next=/bank"
     assert "expired" in c.get("/login", params={"t": "junk"}).text
@@ -125,7 +127,7 @@ def test_login_next_cannot_leave_the_site():
     from fastapi.testclient import TestClient
     r = TestClient(main.app).get("/login", params={"t": eb.sign("358401111111"), "next": "//evil.com"},
                                  follow_redirects=False)
-    assert r.headers["location"] == "/app"
+    assert r.headers["location"] == "/s-mobiili/"
 
 
 def test_revolut_shown_without_country(monkeypatch):
@@ -201,16 +203,6 @@ def test_real_bank_hides_the_demo_bank():
     assert out["total_balances_eur"] == 1250.0 and out["net_position_eur"] == 1250.0 and "card_debt_eur" not in out
 
 
-def test_dashboard_shows_real_banks_not_demo_bank():
-    from fastapi.testclient import TestClient
-    _link("358401111111")
-    main.engine.link_bank(["accounts", "transactions"])
-    c = TestClient(main.app)
-    assert "Demo Bank" in c.get("/app").text
-    c.cookies.set(eb.COOKIE, eb.sign("358401111111"))
-    page = c.get("/app").text
-    assert "Demo Bank" not in page and "Revolut: your real accounts" in page
-    main.engine.state["linked_banks"].clear()
 def test_demo_login_for_the_jury():
     from fastapi.testclient import TestClient
     c = TestClient(main.app)
@@ -219,7 +211,7 @@ def test_demo_login_for_the_jury():
     assert r.headers["location"] == "/chat" and "oiva_demo=1" in r.headers["set-cookie"]
     c.cookies.set("oiva_demo", "1")
     assert c.get("/bank", follow_redirects=False).headers["location"] == "/connect/bank?demo=1"
-    assert ">Demo</a>" in c.get("/app").text
+    assert ">Demo</a>" in c.get("/privacy").text
 
 
 def test_duplicate_accounts_and_own_transfers_are_not_spending():

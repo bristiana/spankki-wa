@@ -54,8 +54,8 @@ def test_server_error_is_a_page_not_a_trace(tmp_path, monkeypatch):
 
     def boom():
         raise RuntimeError("secret internals")
-    monkeypatch.setattr(main.engine, "overview", boom)
-    r = TestClient(main.app, raise_server_exceptions=False).get("/app", headers=HTML)
+    monkeypatch.setattr(main.engine, "recent", boom)
+    r = TestClient(main.app, raise_server_exceptions=False).get("/s-mobiili/", headers=HTML)
     assert r.status_code == 500 and "Something went wrong on our side" in r.text
     assert "secret internals" not in r.text and "Traceback" not in r.text
 
@@ -69,7 +69,7 @@ def test_bad_pin_message_is_friendly(client):
 def test_confirm_page_in_chat_sheet_has_no_site_chrome_and_can_cancel(client):
     pid = rent_link(client)
     sheet = client.get(f"/pay/{pid}?web=1").text
-    assert 'class="bar"' not in sheet and "<footer>" not in sheet and "<summary>Viewing as" not in sheet
+    assert 'class="bar"' not in sheet and "<footer>" not in sheet
     assert "Cancel" in sheet and "data-back" in sheet
     page = client.get(f"/pay/{pid}").text  # the same link opened on its own keeps the site's header
     assert 'class="bar"' in page
@@ -89,7 +89,6 @@ def test_amounts_do_not_break_across_lines(client):
     pid = rent_link(client)
     page = client.get(f"/pay/{pid}").text
     assert f"771.82{NBSP}€" in page and "771.82 €" not in page
-    assert f"{NBSP}€" in client.get("/app").text and "771.82 €" not in client.get("/app").text
 
 
 def test_stop_page_survives_a_bank_refusal(client):
@@ -100,9 +99,9 @@ def test_stop_page_survives_a_bank_refusal(client):
     assert r.status_code == 200 and "Not done" in r.text and "already paused" in r.text
 
 
-def test_pages_have_a_favicon_and_mark_the_current_tab(client):
-    page = client.get("/app").text
-    assert 'rel="icon"' in page and '<a href="/app" aria-current="page">My money</a>' in page
+def test_pages_have_a_favicon_and_lead_home_to_s_mobiili(client):
+    page = client.get("/privacy").text
+    assert 'rel="icon"' in page and '<a class="home" href="/s-mobiili/"' in page and "<nav>" not in page
 
 
 @pytest.mark.parametrize("raw, shown", [

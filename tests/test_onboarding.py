@@ -145,8 +145,8 @@ def test_whatsapp_connect_says_hello_and_asks_nothing(client):
     main._coach = FakeCoach()
     client.post("/connect", data={"u": "358400000000", "scope": ["tx"]})
     kinds = [b["interactive"]["type"] if b["type"] == "interactive" else b["type"] for b in client.sent]
-    assert kinds == ["text", "cta_url", "text"]  # baskets, Open My money, hello: no question, no buttons
-    assert client.sent[1]["interactive"]["action"]["parameters"]["url"].endswith("/app")
+    assert kinds == ["text", "cta_url", "text"]  # baskets, Open S-mobiili, hello: no question, no buttons
+    assert client.sent[1]["interactive"]["action"]["parameters"]["url"].endswith("/s-mobiili/")
     assert client.sent[-1]["text"]["body"] == ob.HELLO
     assert main._coach.asked == []  # no AI in the welcome
     main.handle_message(wa_msg(text="What is safe to spend this week?", mid="m2"))
@@ -162,7 +162,7 @@ def test_web_chat_runs_the_same_interview_on_request(client):
     main._coach = FakeCoach()
     say = lambda text: client.post("/api/chat", json={"session": "t", "text": text}).json()
     r = say("__start__")
-    assert r["buttons"] == [{"label": "Open My money", "url": "/app"}] and r["quick"] == []
+    assert r["buttons"] == [] and r["quick"] == []
     assert r["bubbles"][-1] == ob.HELLO
     r = say("set a goal")
     assert [q["send"] for q in r["quick"]] == ["__btn__:ob:goal:trip", "__btn__:ob:goal:buffer", "__btn__:ob:goal:home"]

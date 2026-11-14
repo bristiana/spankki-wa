@@ -61,21 +61,21 @@ def test_demo_persona_env_picks_the_default():
 
 
 def test_each_persona_has_its_own_numbers(client):
-    base = client.get("/app").text
+    base = client.get("/s-mobiili/").text
     seen = {safe(client)}
     for pid in OTHERS:
         e = main.engine_for(pid)
         assert e.customer_id == pid and e is not main.engine
         assert safe(client, **{"as": pid}) == e.safe_to_spend()["safe_to_spend_until_payday_eur"]
-        page = client.get("/app", params={"as": pid}).text
-        assert page != base and f"Hi {main.name_for(pid)}" in page and main.money_nb(e.balance()) in page
+        page = client.get("/s-mobiili/", params={"as": pid}).text
+        assert page != base and main.fi_money(e.balance()) in page
         seen.add(safe(client, **{"as": pid}))
     assert len(seen) == len(INDEX) == 6
 
 
 @pytest.mark.parametrize("pid", [p["id"] for p in INDEX])
 def test_every_page_renders_for_every_persona(client, pid):
-    for path in ("/app", "/chat", "/app/explore", "/mobile-demo", "/app/explore.csv", "/app/export.json"):
+    for path in ("/s-mobiili/", "/chat", "/api/widgets", "/app/export.json"):
         assert client.get(path, params={"as": pid}).status_code == 200, path
 
 
@@ -86,7 +86,7 @@ def test_as_param_sets_the_cookie_and_the_cookie_sticks(client, monkeypatch):
     r = client.get("/chat", params={"as": pid})
     assert client.cookies.get(main.PERSONA_COOKIE) == pid
     assert f"Hei {main.name_for(pid)}" in r.text
-    assert f"Viewing as <b>{main.name_for(pid)}</b>" in client.get("/app/explore").text
+    assert f"Hei {main.name_for(pid)}" in client.get("/chat").text
     assert safe(client) == main.engine_for(pid).safe_to_spend()["safe_to_spend_until_payday_eur"]
 
 
@@ -95,7 +95,7 @@ def test_unknown_persona_falls_back_to_the_default(client, bad):
     aino = safe(client)
     assert safe(client, **{"as": bad}) == aino
     client.cookies.set(main.PERSONA_COOKIE, bad)
-    assert safe(client) == aino and f"Viewing as <b>{main.DEMO_NAME}</b>" in client.get("/app").text
+    assert safe(client) == aino and f"Hei {main.DEMO_NAME}" in client.get("/chat").text
     assert main.engine_for(bad) is main.engine
 
 

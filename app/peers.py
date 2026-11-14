@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -250,29 +249,3 @@ def new_life_budget(engine, area=None, age: int | None = None, starting_out: boo
         out["note"] = ("A what-if for another area or age: there is no personal comparison, only what a typical "
                        "month costs there.")
     return out
-
-
-CARD_ROWS = ["total", "regular", "irregular", "everyday", "Housing", "Groceries", "Restaurants"]
-
-
-def card(result: dict) -> dict:
-    """The /app card: one horizontal range bar per row (p25-p75 band, median tick, the person's dot), each on its own
-    0..max scale in a 300-wide SVG so a small category stays readable next to rent."""
-    rows = []
-    for r in (result.get("you") or {}).get("comparison", []):
-        if r["key"] not in CARD_ROWS:
-            continue
-        lo, hi = r["typical_range_eur"]
-        top = max(hi * 1.25, r["you_per_month_eur"] * 1.1, 1.0)
-
-        def x(v, top=top):
-            return round(max(0.0, min(v, top)) / top * 288 + 6, 1)
-        rows.append({**r, "x0": x(lo), "w": round(x(hi) - x(lo), 1), "xm": x(r["typical_median_eur"]),
-                     "xy": x(r["you_per_month_eur"]), "main": r["key"] == "total"})
-    g = result["group"]
-    band = "starting out" if g.get("starting_out") else g.get("age_band") or "all ages"
-    p = result["period"]
-    when = " to ".join(date.fromisoformat(m + "-01").strftime("%b %Y") for m in (p["from"], p["to"]))
-    return {"title": f"{g['area'] if g.get('area') else REGION.capitalize()} · {band}", "who": g["who"],
-            "n": g["customers"], "rows": rows, "fallback_reason": result.get("fallback_reason"),
-            "period": when, "min_group": MIN_GROUP}

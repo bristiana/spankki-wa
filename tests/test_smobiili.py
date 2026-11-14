@@ -91,15 +91,13 @@ def test_deep_link_question_is_escaped(client):
     assert "const deepQ = \"\"" in client.get("/chat").text
 
 
-def test_mobile_demo_page(client):
-    r = client.get("/mobile-demo")
-    assert r.status_code == 200
-    html = r.text
-    assert "Concept" not in html and "Not the real app" not in html
-    assert main.money_nb(main.engine.balance()) in html
-    assert main.engine.recent(6)[0]["what"] in html
-    assert "/api/widgets" in html and "embed=1" in html
-    assert 'href="/mobile-demo"' in client.get("/").text
+@pytest.mark.parametrize("path", ["/", "/app", "/app/explore", "/mobile-demo"])
+def test_old_web_pages_lead_to_s_mobiili(client, path):
+    r = client.get(path, follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/s-mobiili/"
+    assert client.get(path, params={"lang": "en"}, follow_redirects=False).headers["location"] == "/s-mobiili/?lang=en"
+    assert client.get(path).status_code == 200
+    assert client.get("/app/explore.csv").status_code == 404
 
 
 def test_your_money_screen(client):
