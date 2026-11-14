@@ -1,5 +1,6 @@
 /* Birky charts: draws an explore_my_data chart spec as inline SVG, no libraries.
-   spec = {type: "line"|"bar", title, subtitle, unit: "€"|"", labels: [...], values: [...]}
+   spec = {type: "line"|"bar"|"donut"|"pace", title, subtitle, unit: "€"|"", labels: [...], values: [...]}
+   "pace" also takes budget, days (in the month) and today (index into values).
    Colours come from the page's CSS variables (--brand, --ink, --muted, --line), so light and dark mode follow. */
 (function () {
   const NS = "http://www.w3.org/2000/svg";
@@ -96,6 +97,59 @@
     });
   }
 
+  function donut(svg, spec, W) {  // where the money went: a ring, the total in the middle, a legend with amounts
+    const v = spec.values, unit = spec.unit, sum = v.reduce((a, b) => a + Math.max(b, 0), 0) || 1;
+    const R = Math.min(78, W / 4), r = R * 0.62, cx = R + 4, cy = R + 4, row = 22;
+    const H = Math.max(2 * R + 8, v.length * row + 4);
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    let a0 = -Math.PI / 2;
+    v.forEach((val, i) => {
+      const part = Math.max(val, 0) / sum, a1 = a0 + part * 2 * Math.PI;
+      if (part >= 0.9999) {  // one category is everything: a full ring
+        svg.appendChild(el("circle", {cx, cy, r: (R + r) / 2, fill: "none", "stroke-width": R - r, class: "kc-arc kc-c" + (i % 6)}));
+      } else if (part > 0) {
+        const big = a1 - a0 > Math.PI ? 1 : 0, p = (rad, a) => `${(cx + rad * Math.cos(a)).toFixed(2)},${(cy + rad * Math.sin(a)).toFixed(2)}`;
+        svg.appendChild(el("path", {d: `M${p(R, a0)} A${R},${R} 0 ${big} 1 ${p(R, a1)} L${p(r, a1)} A${r},${r} 0 ${big} 0 ${p(r, a0)} Z`,
+                                    class: "kc-arc kc-c" + (i % 6)}));
+      } else svg.appendChild(el("path", {d: "", class: "kc-arc kc-c" + (i % 6)}));  // keeps one arc per label
+      a0 = a1;
+      const lx = 2 * R + 22, ly = i * row + (H - v.length * row) / 2 + 15;
+      svg.appendChild(el("rect", {x: lx, y: ly - 10, width: 11, height: 11, rx: 3, class: "kc-c" + (i % 6)}));
+      svg.appendChild(el("text", {x: lx + 17, y: ly, class: "kc-label"}, spec.labels[i]));
+      svg.appendChild(el("text", {x: W, y: ly, "text-anchor": "end", class: "kc-val"}, num(val, unit, 2)));
+    });
+    svg.appendChild(el("text", {x: cx, y: cy + 1, "text-anchor": "middle", class: "kc-total"}, num(sum, unit, 0)));
+    svg.appendChild(el("text", {x: cx, y: cy + 17, "text-anchor": "middle", class: "kc-axis"}, "in total"));
+  }
+
+  // spending so far this month (cumulative, one value per day so far) against an even pace up to the budget.
+  // spec adds: budget (number), days (in the month), today (index of today in values)
+  function pace(svg, spec, W) {
+    const v = spec.values, unit = spec.unit, days = spec.days || 31, budget = spec.budget || 0, H = 190;
+    const L = 46, R = 14, T = 18, B = 26, pw = W - L - R, ph = H - T - B;
+    const {top, step} = nice(Math.max(budget, ...v));
+    const x = d => L + (d / days) * pw, y = val => T + ph - val / top * ph;  // d = day number, 0 = start of month
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    for (let t = 0; t <= top + 1e-9; t += step) {
+      svg.appendChild(el("line", {x1: L, x2: W - R, y1: y(t), y2: y(t), class: t ? "kc-grid" : "kc-base"}));
+      svg.appendChild(el("text", {x: L - 6, y: y(t) + 4, "text-anchor": "end", class: "kc-axis"}, short(t, unit)));
+    }
+    [1, Math.round(days / 2), days].forEach(d => svg.appendChild(el("text", {x: x(d), y: H - 8, "text-anchor": "middle", class: "kc-axis"}, String(d))));
+    if (budget) {
+      svg.appendChild(el("line", {x1: x(0), y1: y(0), x2: x(days), y2: y(budget), class: "kc-pace"}));
+      svg.appendChild(el("text", {x: W - R, y: y(budget) - 6, "text-anchor": "end", class: "kc-axis"}, "budget " + num(budget, unit, 0)));
+    }
+    const today = Math.min(spec.today == null ? v.length - 1 : spec.today, v.length - 1);
+    const dayOf = i => Number(spec.labels[i]) || i + 1;
+    const over = budget > 0 && v[today] > budget * dayOf(today) / days;
+    const pts = [`${x(0)},${y(0)}`].concat(v.map((val, i) => `${x(dayOf(i)).toFixed(1)},${y(val).toFixed(1)}`)).join(" ");
+    svg.appendChild(el("polyline", {points: pts, class: "kc-line" + (over ? " kc-over" : "")}));
+    svg.appendChild(el("circle", {cx: x(dayOf(today)), cy: y(v[today]), r: 4.5, class: "kc-dot kc-today" + (over ? " kc-over" : "")}));
+    const anchor = x(dayOf(today)) > W - R - 60 ? "end" : "start";
+    svg.appendChild(el("text", {x: x(dayOf(today)) + (anchor === "start" ? 8 : -8), y: y(v[today]) - 8, "text-anchor": anchor,
+                                class: "kc-val kc-strong"}, num(v[today], unit, 0) + " so far"));
+  }
+
   window.birkyChart = function (host, spec) {
     host.innerHTML = "";
     const W = Math.max(220, Math.floor(host.clientWidth || 300));
@@ -106,6 +160,8 @@
       const p = document.createElement("p"); p.className = "kc-empty"; p.textContent = "Nothing in this view yet.";
       host.appendChild(p); return;
     }
+    if (spec.type === "donut") { donut(svg, spec, W); host.appendChild(svg); return; }
+    if (spec.type === "pace") { pace(svg, spec, W); host.appendChild(svg); return; }
     if (spec.type === "line" || (v.length > 13 && /^[A-Z][a-z]{2} \d{4}$/.test(spec.labels[0]))) line(svg, spec, W);
     else if (v.length <= 13 && spec.labels.every(l => tick(l, 0, spec.labels)[0].length <= 4)) columns(svg, spec, W);
     else rows(svg, spec, W);
