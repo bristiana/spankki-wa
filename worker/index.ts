@@ -6,7 +6,7 @@ const PORT = 8080;
 const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // keep the demo warm for an hour after the last request
 
 const SECRET_KEYS = ["ANTHROPIC_API_KEY", "WA_TOKEN", "WA_PHONE_NUMBER_ID", "WA_APP_SECRET", "WA_VERIFY_TOKEN",
-  "DEMO_PHONE", "WA_DISPLAY_NUMBER"] as const;
+  "DEMO_PHONE", "WA_DISPLAY_NUMBER", "DEMO_PROACTIVE"] as const;
 
 export class Coach extends DurableObject<any> {
   private starting: Promise<void> | undefined;
@@ -79,5 +79,15 @@ export default {
   async fetch(request: Request, env: any): Promise<Response> {
     // Bump INSTANCE (wrangler.jsonc) to start a fresh container with new secrets or a new image.
     return env.COACH.getByName(`main-${env.INSTANCE || "1"}`).fetch(request);
+  },
+
+  // Cron (wrangler.jsonc triggers, UTC): proactive messages. Off unless DEMO_PROACTIVE=1, so by default the cron
+  // does not even wake the container; the app checks the same flag again before sending anything.
+  async scheduled(_controller: unknown, env: any): Promise<void> {
+    if (env.DEMO_PROACTIVE !== "1" || !env.WA_VERIFY_TOKEN) return;
+    const url = `https://container/cron/wake?key=${encodeURIComponent(env.WA_VERIFY_TOKEN)}`;
+    const r = await env.COACH.getByName(`main-${env.INSTANCE || "1"}`).fetch(new Request(url, { method: "POST" }));
+    console.log("cron wake", r.status); // never the body: it quotes amounts
+    await r.body?.cancel();
   },
 };

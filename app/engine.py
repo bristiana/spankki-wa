@@ -816,13 +816,17 @@ class Engine:
         return {"salary_eur": r.avg_amount if r else 0.0, "balance_eur": self.balance()}
 
     # ---------- proactive alerts (F4) ----------
+    def salary_nudge(self) -> dict:
+        """What the "pay yourself first" message quotes (read only)."""
+        cut = self.simulate_cut("Restaurants", 20)["saving_per_month_eur"]
+        return {"salary_eur": self.next_payday()["expected_eur"], "suggest_save_eur": float(round(cut)),
+                "balance_eur": self.balance(),
+                "goals": [{"id": g["goal"]["id"], "name": g["goal"]["name"]} for g in self.goals()]}
+
     def alert(self, kind: str) -> dict:
         if kind == "salary":
             self.receive_salary()
-            pay = self.next_payday()
-            cut = self.simulate_cut("Restaurants", 20)["saving_per_month_eur"]
-            return {"kind": kind, "salary_eur": pay["expected_eur"], "suggest_save_eur": float(round(cut)),
-                    "goals": [{"id": g["goal"]["id"], "name": g["goal"]["name"]} for g in self.goals()]}
+            return {"kind": kind, **self.salary_nudge()}
         if kind == "unusual":
             t = self.tx
             s = t[(t["date"] >= self.today - timedelta(days=30)) & (t["tx_amount_eur"] < 0)

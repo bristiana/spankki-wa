@@ -73,9 +73,10 @@ uvicorn app.main:app --port 8000
 - Landing http://127.0.0.1:8000 · chat `/chat` · dashboard `/app`
 - From the terminal: `python -m app.agent "What is safe for me to spend this week?"`
 - End to end, every flow in a phone-sized browser: `python scripts/demo_walkthrough.py --url http://127.0.0.1:8000`
-- Tests: `python -m pytest` (67)
+- Tests: `python -m pytest` (78)
 - Refresh real data: `python scripts/fetch_market.py`, `python scripts/fetch_statfin.py`; rebuild the persona with `python scripts/extract_persona.py --data-dir <dataset>`
 - WhatsApp: set `<url>/webhook` and `WA_VERIFY_TOKEN` in the Meta app, subscribe to `messages`. Proactive messages: `POST /demo/remind`, `POST /demo/alert?kind=salary|unusual|renewal`
+- Proactive check: `POST /cron/wake?key=<WA_VERIFY_TOKEN>` (also on a Worker cron at 07, 12 and 17 UTC) picks the most urgent signal per person from `app/rules.py` and sends it, or a template from `docs/whatsapp-templates.md` outside the 24-hour window. It sends nothing unless `DEMO_PROACTIVE=1`; add `&dry_run=1` to only see what would go out
 - Deploy: `wrangler deploy` (bump `INSTANCE` in `wrangler.jsonc` for a fresh container)
 
 ## Honest limits

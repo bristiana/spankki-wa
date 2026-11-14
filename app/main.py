@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Red
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import broker, onboarding
+from . import broker, onboarding, rules, templates_wa
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import FUNDS_BY_ID, Engine
@@ -43,8 +43,12 @@ ASK = {
     "ask:goal": "Help me set up a savings goal.",
     "ask:invest": "I'd like to invest part of my salary. What are my options?",
     "ask:unusual": "Tell me more about that big payment and how it fits my month.",
+    "ask:pace": "My savings goal is behind plan. How can I catch up?",
+    "ask:week": "What did I spend on in the last 7 days?",
 }
 names: dict[str, str] = {}  # WhatsApp number -> first name from the profile
+web_sessions: set[str] = set()  # web chat sessions that get proactive messages in their inbox
+HELD_STALE_S = 3 * 24 * 3600  # a held proactive message older than this is dropped, not delivered
 
 
 def first_name(profile: str) -> str:
@@ -126,6 +130,7 @@ STOP_WORDS = {"stop", "unsubscribe", "delete my data", "switch off", "lopeta"}
 def switch_off(to: str):
     """Consent withdrawn: forget the connection, the chat history and the name."""
     engine.state.setdefault("connected", {}).pop(to, None)
+    engine.state.get("held", {}).pop(to, None)
     engine._save()
     coach().reset(to)
     onboarding.forget(engine, to)
@@ -144,8 +149,11 @@ def button_reply(user: str, bid: str, web: bool = False) -> dict | None:
                         "Confirm it with your PIN in S-Pankki.",
                 "url": (f"Pay {money(p['amount'])}", f"{public_url()}/pay/{p['pending_id']}{q}")}
     if bid.startswith("later:"):
-        return {"text": "Great, enjoy it 🙂 I'll keep an eye on your safe-to-spend." if bid == "later:unusual"
-                else "Sure ⏰ I'll remind you again tomorrow at 9:00."}
+        if bid == "later:unusual":
+            return {"text": "Great, enjoy it 🙂 I'll keep an eye on your safe-to-spend."}
+        if bid == "later:goal":
+            return {"text": "Okay 👍 I'll look at your pace again next week."}
+        return {"text": "Sure ⏰ I'll remind you again tomorrow at 9:00."}
     if bid.startswith("stop:"):
         p = engine.create_stop_subscription(bid[5:])
         owner[p["pending_id"]] = user
@@ -208,6 +216,13 @@ def handle_message(m: dict):
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
             return
         bid = m.get("button_id") or ""
+        held = take_held(to)
+        if held:  # a proactive message went out as a template: the full one comes first
+            wa.send_reply_buttons(to, *signal_message(held, name))
+        if bid == templates_wa.SHOW or m.get("kind") == "button":  # a tap on a template's button
+            if not held:
+                wa.send_text(to, "That update is no longer current 🙂 Ask me anything about your money.")
+            return
         try:
             direct = button_reply(to, bid)
         except ValueError as e:  # e.g. tapping "Pay rent now" again after paying
@@ -433,30 +448,32 @@ def alert_message(kind: str, name: str) -> tuple[str, list] | None:
     if kind not in ("salary", "unusual", "renewal"):
         raise HTTPException(400, "kind must be salary, unusual or renewal")
     a = engine.alert(kind)
+    if kind != "salary" and not a["found"]:
+        return None
+    return alert_text(kind, a, name)
+
+
+def alert_text(kind: str, a: dict, name: str) -> tuple[str, list]:
+    """Text and quick replies for an engine alert (or a proactive signal carrying the same data)."""
     if kind == "salary":
         goals = a["goals"]
-        text = (f"💰 {name}, your salary of *{money(a['salary_eur'])}* just landed. Balance now {money(engine.balance())}.\n\n"
+        text = (f"💰 {name}, your salary of *{money(a['salary_eur'])}* just landed. Balance now {money(a['balance_eur'])}.\n\n"
                 f"Pay yourself first: put *{money(a['suggest_save_eur'])}* aside now, before it slips through your fingers?")
         first = ([(f"save:{goals[0]['id']}:{a['suggest_save_eur']:.0f}", f"Save {a['suggest_save_eur']:.0f} €")] if goals
                  else [("ask:goal", "Set a savings goal")])
         return text, first + [("ask:invest", "Invest instead"), ("later:salary", "Not now")]
     if kind == "unusual":
-        if not a["found"]:
-            return None
-        text = (f"👀 Heads-up: *{money(a['amount_eur'])}* at {a['where']} on {nice_date(a['date'])}. "
+        text =(f"👀 Heads-up: *{money(a['amount_eur'])}* at {a['where']} on {nice_date(a['date'])}. "
                 f"That's *{a['times_usual']}x* your usual {a['category'].lower()} payment ({money(a['usual_eur'])}).\n\n"
                 "It sits in your *slips through your fingers* basket. Was that planned?")
         return text, [("later:unusual", "Yes, all good"), ("ask:unusual", "Tell me more")]
-    if kind == "renewal":
-        if not a["found"]:
-            return None
-        inc = a.get("price_increase")
-        when = "tomorrow" if a["days_to_next"] == 1 else f"in {a['days_to_next']} days"
-        text = f"🔁 *{a['name']}* renews {when}: {money(a['price_eur'])}."
-        if inc:
-            text += f"\nThe price went up from {money(inc['from_eur'])} to {money(inc['to_eur'])} on {nice_date(inc['since'])}."
-        text += f"\nThat's {money(a['per_year_eur'])} a year. Keep it?"
-        return text, [(f"keep:{a['name']}", "Keep it"), (f"stop:{a['name']}", "Stop payments")]
+    inc = a.get("price_increase")
+    when = "tomorrow" if a["days_to_next"] == 1 else f"in {a['days_to_next']} days"
+    text = f"🔁 *{a['name']}* renews {when}: {money(a['price_eur'])}."
+    if inc:
+        text += f"\nThe price went up from {money(inc['from_eur'])} to {money(inc['to_eur'])} on {nice_date(inc['since'])}."
+    text += f"\nThat's {money(a['per_year_eur'])} a year. Keep it?"
+    return text, [(f"keep:{a['name']}", "Keep it"), (f"stop:{a['name']}", "Stop payments")]
 
 
 @app.post("/demo/alert")
@@ -472,12 +489,15 @@ def demo_alert(kind: str, to: str | None = None):
 
 def reminder_text(name: str = DEMO_NAME) -> tuple[str, dict]:
     rent = next(b for b in engine.upcoming_bills(45) if b["category"] == "Housing")  # next month's once paid
-    s = engine.safe_to_spend()
-    when = "tomorrow" if rent["days_away"] == 1 else f"in {rent['days_away']} days"
-    text = (f"Hi {name} 👋 Your *rent of {money(rent['amount_eur'])}* is due *{when}* ({nice_date(rent['due_date'])}).\n\n"
-            f"After rent and your usual bills you have *{money(s['safe_to_spend_until_payday_eur'])}* safe to spend "
+    return bill_text(rent, engine.safe_to_spend(), name), rent
+
+
+def bill_text(bill: dict, s: dict, name: str) -> str:
+    what = bill["name"].lower()
+    when = "tomorrow" if bill["days_away"] == 1 else f"in {bill['days_away']} days"
+    return (f"Hi {name} 👋 Your *{what} of {money(bill['amount_eur'])}* is due *{when}* ({nice_date(bill['due_date'])}).\n\n"
+            f"After {what} and your usual bills you have *{money(s['safe_to_spend_until_payday_eur'])}* safe to spend "
             f"until payday on {nice_date(s['next_payday']['date'])}. That's about *{money(s['safe_per_day_eur'])} a day*.")
-    return text, rent
 
 
 @app.post("/demo/remind")
@@ -492,13 +512,119 @@ def demo_remind(to: str | None = None):
     return {"sent": True, "text": text}
 
 
+# ---------------- Proactive messages (cron) ----------------
+def signal_message(sig: dict, name: str) -> tuple[str, list]:
+    """The full message for a rules.py signal. Every number comes from sig["data"]."""
+    d, kind = sig["data"], sig["type"]
+    if kind == "SALARY_RECEIVED":
+        return alert_text("salary", d, name)
+    if kind == "UNUSUAL_TRANSACTION":
+        return alert_text("unusual", d, name)
+    if kind == "RECURRING_CHARGE_UPCOMING":
+        if d["source"] == "subscription":
+            return alert_text("renewal", d, name)
+        b = d["bill"]
+        return bill_text(b, d["safe"], name), [(f"pay:{b['bill_id']}", f"Pay {b['name'].lower()} now"),
+                                               (f"later:{b['bill_id']}", "Remind me later"),
+                                               ("ask:tight", "How do I stretch it?")]
+    if kind == "SUBSCRIPTION_PRICE_INCREASE":
+        inc = d["price_increase"]
+        per = "month" if d["cadence"] == "monthly" else "year"
+        return (f"📈 *{d['name']}* went up from {money(inc['from_eur'])} to *{money(inc['to_eur'])}* a {per} "
+                f"on {nice_date(inc['since'])}. That's {money(d['extra_per_year_eur'])} more a year, "
+                f"{money(d['per_year_eur'])} a year in total.\n\nStill worth it?",
+                [(f"keep:{d['name']}", "Keep it"), (f"stop:{d['name']}", "Stop payments")])
+    if kind == "GOAL_DRIFT":
+        return (f"🎯 {name}, your *{d['name']}* goal is a bit behind plan: {money(d['saved_eur'])} saved, "
+                f"while {money(d['expected_by_now_eur'])} would be on track by today. To reach {money(d['target_eur'])} "
+                f"by {nice_date(d['deadline'])}, that's about *{money(d['needed_per_month_eur'])} a month*.\n\n"
+                f"Catch up with {money(d['catch_up_eur'])} now?",
+                [(f"save:{d['goal_id']}:{d['catch_up_eur']:.0f}", f"Save {d['catch_up_eur']:.0f} €"),
+                 ("ask:pace", "How to catch up"), ("later:goal", "Not now")])
+    text = (f"📅 Your week, {name}: *{money(d['spent_7d_eur'])}* spent in the last 7 days "
+            f"({money(d['spent_prev_7d_eur'])} the week before).\n"
+            f"Safe to spend until payday ({nice_date(d['next_payday'])}): *{money(d['safe_eur'])}*, "
+            f"about {money(d['safe_per_day_eur'])} a day.")
+    if d["bills_next_7d"]:
+        text += "\nComing up: " + ", ".join(f"{b['name']} {money(b['amount_eur'])} on {nice_date(b['due_date'])}"
+                                            for b in d["bills_next_7d"]) + "."
+    return text, [("ask:week", "Where did it go?"), ("ask:tight", "How do I stretch it?")]
+
+
+def held_signal(to: str) -> dict | None:
+    """The proactive signal waiting for this person since a template went out, if still fresh."""
+    h = engine.state.get("held", {}).get(to)
+    return h["signal"] if h and time.time() - h["at"] < HELD_STALE_S else None
+
+
+def take_held(to: str) -> dict | None:
+    sig = held_signal(to)
+    if engine.state.get("held", {}).pop(to, None):
+        engine._save()
+    return sig
+
+
+def mask(to: str) -> str:
+    return to if to.startswith("web:") else "•••" + to[-4:]
+
+
+def wake_one(to: str, dry: bool, force: bool = False) -> dict:
+    """Pick this person's top signal and deliver it (or, when dry, only say how it would go)."""
+    sig = rules.pick(engine, to, force)
+    out = {"to": mask(to), "signal": sig and sig["type"], "via": None}
+    if not sig:
+        return out
+    web = to.startswith("web:")
+    text, buttons = signal_message(sig, DEMO_NAME if web else name_of(to))
+    out.update(dedup_key=sig["dedup_key"], text=text)
+    tpl = None
+    if web:
+        out["via"] = "inbox"
+    elif window_open(to):
+        out["via"] = "text"
+    else:
+        tpl = templates_wa.template_for(sig, engine.today)
+        held = held_signal(to)
+        if not tpl:
+            return {**out, "reason": "no safe template for this signal"}
+        if held and held["priority"] <= sig["priority"]:
+            return {**out, "reason": f"{held['type']} is already waiting for a reply"}
+        out.update(via="template", template=tpl[0], params=tpl[1])
+    if dry:
+        return out
+    if web:
+        inbox.setdefault(to, []).append(text)
+    elif tpl:
+        wa.send_template(to, tpl[0], tpl[1], templates_wa.LANG, payload=templates_wa.SHOW)
+        engine.state.setdefault("held", {})[to] = {"signal": sig, "at": time.time()}  # one at a time
+    else:
+        wa.send_reply_buttons(to, text, buttons)
+    engine.state.setdefault("sent", {}).setdefault(to, {})[sig["dedup_key"]] = engine.today.isoformat()
+    engine._save()
+    return out
+
+
+@app.post("/cron/wake")
+def cron_wake(key: str = "", to: str | None = None, dry_run: bool = False, force: bool = False):
+    """Run the rules for everyone connected (or one `to`) and deliver each top signal.
+    Sends nothing unless DEMO_PROACTIVE=1: otherwise it is always a dry run."""
+    if not key or key != os.environ.get("WA_VERIFY_TOKEN"):
+        raise HTTPException(403)
+    live = os.environ.get("DEMO_PROACTIVE") == "1"
+    targets = [to] if to else [p for p in engine.state.get("connected", {}) if p] + sorted(web_sessions)
+    results = [wake_one(t, dry=dry_run or not live, force=force) for t in targets]
+    log.info("wake: live=%s dry=%s %s", live, dry_run, [(r["to"], r["signal"], r["via"]) for r in results])
+    return {"live": live, "dry_run": dry_run or not live, "results": results}
+
+
 @app.get("/demo", response_class=HTMLResponse, include_in_schema=False)
 def demo_panel(request: Request, key: str = ""):
     """Filming helper: buttons that send each proactive message to the demo phone."""
     if not key or key != os.environ.get("WA_VERIFY_TOKEN"):
         raise HTTPException(404)
     phone = os.environ.get("DEMO_PHONE", "")
-    return templates.TemplateResponse(request, "demo.html", _ctx(phone=phone, open=window_open(phone)))
+    return templates.TemplateResponse(request, "demo.html", _ctx(
+        phone=phone, open=window_open(phone), key=key, proactive=os.environ.get("DEMO_PROACTIVE") == "1"))
 
 
 @app.post("/demo/reset")
@@ -508,6 +634,7 @@ def demo_reset():
     seen.clear()
     owner.clear()
     inbox.clear()
+    web_sessions.clear()
     return {"reset": True}
 
 
@@ -589,6 +716,7 @@ async def chat_api(request: Request):
     text = str(body.get("text", "")).strip()[:1000]
     if not text:
         raise HTTPException(400)
+    web_sessions.add(sid)
 
     def quick(buttons):
         return [{"label": t, "send": f"__btn__:{i}"} for i, t in buttons]
