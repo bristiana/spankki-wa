@@ -1,5 +1,6 @@
 """Bill photos: reading (fake model), explain-only vs pay, the 24 h memory, and the web upload limits. No real APIs."""
 import base64
+import io
 import json
 from datetime import date
 from pathlib import Path
@@ -107,8 +108,10 @@ def test_extract_sends_the_image_and_a_strict_schema(e):
     bill = bills.read(e, "u1", fake, PNG, "image/jpeg")  # the bytes decide the type, not the client's hint
     kw = fake.calls[0]
     img = kw["messages"][0]["content"][0]
-    assert img["type"] == "image" and img["source"]["media_type"] == "image/png"
-    assert base64.b64decode(img["source"]["data"]) == PNG
+    assert img["type"] == "image" and img["source"]["media_type"] == "image/jpeg"  # sniffed PNG, scaled to read size
+    from PIL import Image
+    sent = Image.open(io.BytesIO(base64.b64decode(img["source"]["data"])))
+    assert max(sent.size) == bills.READ_SIDE and len(fake.calls) == 1  # a good first read needs no second look
     fmt = kw["output_config"]["format"]
     assert fmt["type"] == "json_schema" and fmt["schema"]["additionalProperties"] is False
     assert set(fmt["schema"]["required"]) == set(fmt["schema"]["properties"])
@@ -323,3 +326,88 @@ def test_word_excel_and_csv_are_read_as_text(e):
         assert block["type"] == "document" and block["source"]["type"] == "text" and want in block["source"]["data"]
         assert bills.is_document(doc)
     assert bills.sniff(_zip({"other.txt": "x"})) is None and bills.sniff(b"hello") is None
+
+
+# ---------------- a legible bill is read, not turned away (the demo's "couldn't read that bill clearly") --------
+class SeqClient(FakeClient):
+    """Returns the given model outputs in turn (a dict as JSON, a str as raw text)."""
+
+    def __init__(self, *outs):
+        super().__init__(None)
+        self.outs = list(outs)
+
+    def create(self, **kw):
+        self.calls.append(kw)
+        out = self.outs.pop(0)
+        return NS(stop_reason="end_turn", content=[NS(type="text", text=out if isinstance(out, str) else json.dumps(out))])
+
+
+def _whatsapp_jpeg(data=PNG, rotate_exif=False):
+    """The demo bill as WhatsApp delivers it: recompressed to a smaller JPEG; optionally stored sideways with an EXIF
+    orientation tag, like a phone photo."""
+    from PIL import Image
+    im = Image.open(io.BytesIO(data)).convert("RGB")
+    im.thumbnail((1280, 1280))
+    exif = Image.Exif()
+    if rotate_exif:
+        im = im.rotate(90, expand=True)  # pixels sideways...
+        exif[0x0112] = 6                 # ...and the tag that says "turn me 90° clockwise"
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=60, exif=exif)
+    return buf.getvalue()
+
+
+def test_a_quick_read_that_gives_up_gets_a_second_closer_look(e):
+    """The first, low-effort read flagged the WhatsApp JPEG unreadable; a sharpened copy at more effort reads it."""
+    gave_up = {**VOLTTI, "readable": False, "amount_eur": None, "iban": None, "reference": None}
+    client = SeqClient(gave_up, VOLTTI)
+    bill = bills.read(e, "u1", client, _whatsapp_jpeg(), "image/jpeg")
+    assert len(client.calls) == 2
+    second = client.calls[1]
+    assert second["output_config"]["effort"] == "high"
+    assert second["messages"][0]["content"][0]["source"]["media_type"] == "image/png"  # the sharpened copy
+    assert bill["amount_eur"] == 57.08 and bills.reply_problem(bill) is None
+    assert bills.last(e, "u1")["amount_eur"] == 57.08  # stored: "pay it" can follow
+
+
+def test_a_partly_read_bill_is_explained_with_what_was_read(e):
+    """Even after the second look one field is unclear: Oiva still explains it and names what it couldn't read."""
+    partial = {**VOLTTI, "readable": False, "iban": None}
+    client = SeqClient(partial, partial)
+    bill = bills.read(e, "u1", client, _whatsapp_jpeg(), "image/jpeg")
+    assert bills.reply_problem(bill) is None and bill["amount_eur"] == 57.08
+    assert bills.unread(bill) == ["the account number"]
+    assert "could not make out the account number" in bills.coach_text(e, bill, "")
+    # a second look only when needed: a complete first read is one call
+    one = SeqClient(VOLTTI)
+    bills.read(e, "u2", one, _whatsapp_jpeg(), "image/jpeg")
+    assert len(one.calls) == 1
+
+
+def test_a_sideways_phone_photo_is_turned_upright_before_reading(e):
+    from PIL import Image
+    client = SeqClient(VOLTTI)
+    bills.read(e, "u1", client, _whatsapp_jpeg(rotate_exif=True), "image/jpeg")
+    sent = Image.open(io.BytesIO(base64.b64decode(client.calls[0]["messages"][0]["content"][0]["source"]["data"])))
+    assert sent.height > sent.width  # the bill is portrait again
+
+
+def test_a_follow_up_never_contradicts_the_photo(e):
+    """After an unreadable photo, 'explain me this bill' must not get 'I can't see a bill in our chat'."""
+    with pytest.raises(bills.BillError):
+        bills.read(e, "u1", SeqClient("not json", "still not json"), _whatsapp_jpeg(), "image/jpeg")
+    line = bills.context_line(e, "u1")
+    assert "could not read" in line and "Never say there is no bill" in line
+    # a photo that was read: a follow-up gets its fields, so "this bill" means that photo
+    bills.read(e, "u1", SeqClient(VOLTTI), _whatsapp_jpeg(), "image/jpeg")
+    line = bills.context_line(e, "u1")
+    assert "57.08" in line and "Voltti" in line and "'this bill'" in line
+
+
+def test_web_follow_up_text_refers_to_the_photo_just_sent(web, monkeypatch):
+    def unreadable(client, data, media_type):
+        raise bills.BillError(bills.UNREADABLE)
+    monkeypatch.setattr(bills, "extract", unreadable)
+    assert _photo(web, "").json()["text"] == bills.UNREADABLE
+    web.post("/api/chat", json={"session": "t1", "text": "Explain me this bill"})
+    assert "could not read" in main._coach.calls[-1][1]

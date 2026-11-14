@@ -26,46 +26,58 @@ def check_voice(t):
 
 
 def test_full_interview_creates_goal(e, tmp_path):
-    t = ob.start(e, "u")
-    assert "Mandatory & regular" in t.lead[0] or "mandatory" in t.lead[0].lower()
+    """Only on request ("set a goal"): what for, how much and by when, then the plan. No risk or check-in questions."""
+    t = ob.turn(e, "u", "set a goal")
+    assert t.text == ob.ASK["goal"][0] and not t.lead
     assert [b[0] for b in t.buttons] == ["ob:goal:trip", "ob:goal:buffer", "ob:goal:home"]
     check_voice(t)
     t = ob.turn(e, "u", "A trip to Lapland")
     assert t.text.startswith("Saving for a trip to Lapland.") and t.buttons == ob.BUTTONS["amount"]
     check_voice(t)
     t = ob.turn(e, "u", "1,500 € by June 2027")
-    assert t.text.startswith("1 500 € by June 2027.") and t.buttons == ob.BUTTONS["risk"]
-    check_voice(t)
-    t = ob.turn(e, "u", "", "ob:risk:prudent")
-    assert t.text.startswith("Prudent:") and t.buttons == ob.BUTTONS["checkin"]
-    check_voice(t)
-    t = ob.turn(e, "u", "", "ob:checkin:yes")
     assert t.done and not ob.active(e, "u")
+    assert "prudent" not in t.text.lower() and "check-in" not in t.text.lower()
     check_voice(t)
     plan = e.goal_plan("triptolapland")
     assert plan["goal"]["target"] == 1500 and plan["goal"]["deadline"] == "2027-06-30"
     assert f"{plan['needed_per_month_for_deadline_eur']:.2f} € a month" in t.text
-    assert t.buttons == [("save:triptolapland:188", "Save 188 €")]
+    assert t.buttons == [("save:triptolapland:188", "Save 188 €")]  # the one next step for the goal they asked for
     saved = json.loads((tmp_path / "s.json").read_text())["onboarding"]["u"]
-    assert saved["answers"] == {"goal_name": "Trip to Lapland", "amount": 1500.0, "deadline": "2027-06-30",
-                                "risk": "prudent", "weekly_checkin": True}
-    assert ob.risk_of(e, "u") == "prudent"
+    assert saved["answers"] == {"goal_name": "Trip to Lapland", "amount": 1500.0, "deadline": "2027-06-30"}
+    assert ob.risk_of(e, "u") is None
+
+
+def test_nothing_starts_by_itself(e):
+    assert ob.turn(e, "u", "How much did I spend on food?") is None
+    assert ob.turn(e, "u", "I want to invest 50 a month") is None
+    assert ob.turn(e, "u", "what is a goal anyway?") is None
+    assert "u" not in e.state.get("onboarding", {})
+    lead = ob.intro(e)
+    assert "3 baskets" in lead[0] and lead[-1] == ob.HELLO and all("?" not in x for x in lead)
+
+
+def test_risk_question_and_checkin_only_on_request(e):
+    t = ob.turn(e, "u", "set my risk profile")
+    assert t.text == ob.ASK["risk"][0] and t.buttons == ob.BUTTONS["risk"]
+    t = ob.turn(e, "u", "", "ob:risk:growth")
+    assert t.done and t.text.startswith(ob.RISK_LINE["growth"]) and "?" not in t.text  # nothing chained after it
+    assert ob.risk_of(e, "u") == "growth" and not ob.active(e, "u")
+    t = ob.turn(e, "u", "remind me weekly")
+    assert t.done and "once a week" in t.text and e.state["onboarding"]["u"]["answers"]["weekly_checkin"] is True
+    ob.turn(e, "u", "stop check-ins")
+    assert e.state["onboarding"]["u"]["answers"]["weekly_checkin"] is False
 
 
 def test_amount_in_first_answer_is_not_asked_again(e):
     ob.start(e, "u")
     t = ob.turn(e, "u", "I'm saving for a new laptop, 900 in 6 months")
-    assert t.text.startswith("Saving for a new laptop, 900 € by April 2027.") and t.buttons == ob.BUTTONS["risk"]
+    assert t.text.startswith("Saving for a new laptop, 900 € by April 2027.") and t.done
 
 
 def test_skip_gets_no_comment(e):
     ob.start(e, "u")
-    t = ob.turn(e, "u", "", "ob:goal:buffer")
+    ob.turn(e, "u", "", "ob:goal:buffer")
     t = ob.turn(e, "u", "", "ob:skip")
-    assert t.text == ob.ASK["risk"][0]  # no reflection line, no remark about the skip
-    t = ob.turn(e, "u", "skip")
-    assert t.text == ob.ASK["checkin"][0]
-    t = ob.turn(e, "u", "no")
     assert t.done and "tell me" in t.text.lower() and not e.goals()
 
 
@@ -74,18 +86,19 @@ def test_pause_and_resume(e):
     t = ob.turn(e, "u", "thanks")
     assert "continue" in t.text and "?" not in t.text and not ob.active(e, "u")
     assert ob.turn(e, "u", "How much did I spend on taxis?") is None  # paused: the coach answers
-    assert ob.reask(e, "u") is None
+    assert ob.waiting(e, "u", "How much did I spend on taxis?") is None
     t = ob.turn(e, "u", "continue")
     assert t.text == ob.ASK["goal"][1] and ob.active(e, "u")
     assert ob.turn(e, "u", "", "ob:goal:home").text.startswith("Saving for a home renovation.")
 
 
-def test_question_mid_interview_goes_to_coach_then_resumes(e):
+def test_question_mid_interview_goes_to_coach_and_pauses(e):
     ob.start(e, "u")
     ob.turn(e, "u", "", "ob:goal:trip")
     assert ob.turn(e, "u", "what is safe to spend this week?") is None
-    assert ob.turn(e, "u", "how much do I have left") is None
-    assert ob.reask(e, "u").text == ob.ASK["amount"][1]
+    assert ob.side_question(e, "u", "what is safe to spend this week?") is None  # nothing re-sent
+    assert not ob.active(e, "u")
+    assert ob.turn(e, "u", "continue").text == ob.ASK["amount"][1]
     assert ob.turn(e, "u", "2000 by summer?").text.startswith("2 000 € by June 2027.")  # an answer, not a question
 
 
@@ -93,12 +106,9 @@ def test_unclear_answers_are_asked_again(e):
     ob.start(e, "u")
     ob.turn(e, "u", "", "ob:goal:trip")
     assert ob.turn(e, "u", "by March").text == ob.ASK["amount"][1]
-    ob.turn(e, "u", "800")
-    assert e.state["onboarding"]["u"]["answers"]["deadline"] == "2027-03-31"
-    assert ob.turn(e, "u", "", "ob:goal:home").text == ob.ASK["risk"][1]  # a stale button from an earlier question
-    assert ob.turn(e, "u", "hmm").text == ob.ASK["risk"][1]
-    assert ob.turn(e, "u", "something in between").text.startswith("Balanced:")
-    assert ob.turn(e, "u", "ok").done  # "ok" to a yes/no question is a yes
+    assert ob.turn(e, "u", "", "ob:goal:home").text == "Got it, that one is already answered."  # stale: no re-ask
+    t = ob.turn(e, "u", "800")
+    assert t.done and e.state["onboarding"]["u"]["answers"]["deadline"] == "2027-03-31"
 
 
 @pytest.fixture
@@ -131,33 +141,36 @@ def wa_msg(text=None, button=None, mid="m1"):
     return m
 
 
-def test_whatsapp_connect_then_interview(client):
+def test_whatsapp_connect_says_hello_and_asks_nothing(client):
     main._coach = FakeCoach()
     client.post("/connect", data={"u": "358400000000", "scope": ["tx"]})
     kinds = [b["interactive"]["type"] if b["type"] == "interactive" else b["type"] for b in client.sent]
-    assert kinds == ["text", "text", "cta_url", "button"]  # baskets, intro, Open My money, first question
-    assert client.sent[2]["interactive"]["action"]["parameters"]["url"].endswith("/app")
-    assert main._coach.asked == []  # no AI in the welcome any more
-    main.handle_message(wa_msg(button="ob:goal:trip", text="A trip"))
-    assert client.sent[-1]["interactive"]["body"]["text"].startswith("Saving for a trip.")
+    assert kinds == ["text", "cta_url", "text"]  # baskets, Open My money, hello: no question, no buttons
+    assert client.sent[1]["interactive"]["action"]["parameters"]["url"].endswith("/app")
+    assert client.sent[-1]["text"]["body"] == ob.HELLO
+    assert main._coach.asked == []  # no AI in the welcome
     main.handle_message(wa_msg(text="What is safe to spend this week?", mid="m2"))
     assert main._coach.asked == ["What is safe to spend this week?"]
-    assert client.sent[-2]["text"]["body"] == "You can spend 50 € this week."
-    assert client.sent[-1]["interactive"]["body"]["text"] == ob.ASK["amount"][1]  # the interview resumes
+    assert client.sent[-1]["text"]["body"] == "You can spend 50 € this week."  # and nothing after it
+    main.handle_message(wa_msg(text="set a goal", mid="m3"))  # on request, the goal interview
+    assert client.sent[-1]["interactive"]["body"]["text"] == ob.ASK["goal"][0]
+    main.handle_message(wa_msg(button="ob:goal:trip", text="A trip", mid="m4"))
+    assert client.sent[-1]["interactive"]["body"]["text"].startswith("Saving for a trip.")
 
 
-def test_web_chat_runs_the_same_interview(client):
+def test_web_chat_runs_the_same_interview_on_request(client):
     main._coach = FakeCoach()
     say = lambda text: client.post("/api/chat", json={"session": "t", "text": text}).json()
     r = say("__start__")
-    assert r["buttons"] == [{"label": "Open My money", "url": "/app"}]
+    assert r["buttons"] == [{"label": "Open My money", "url": "/app"}] and r["quick"] == []
+    assert r["bubbles"][-1] == ob.HELLO
+    r = say("set a goal")
     assert [q["send"] for q in r["quick"]] == ["__btn__:ob:goal:trip", "__btn__:ob:goal:buffer", "__btn__:ob:goal:home"]
     assert say("__btn__:ob:goal:buffer")["text"].startswith("Saving for a buffer for surprises.")
     r = say("how much do I earn?")
-    assert r["text"].startswith("You can spend") and r["text"].endswith(ob.ASK["amount"][1]) and r["quick"]
-    say("3k by December 2027")
-    say("__btn__:ob:risk:growth")
-    r = say("__btn__:ob:checkin:no")
+    assert r["text"] == "You can spend 50 € this week." and r["quick"] == []  # answered, the question not re-sent
+    assert say("continue")["text"] == ob.ASK["amount"][1]
+    r = say("3k by December 2027")
     assert "Emergency buffer" in r["text"] and r["quick"][0]["send"].startswith("__btn__:save:emergencybuffer:")
     assert main.engine.goal_plan("emergencybuffer")["goal"]["target"] == 3000
     assert "Move" in say(r["quick"][0]["send"])["text"]  # the save button goes to the PIN page as before
@@ -182,19 +195,15 @@ def test_get_money_guide_tool(e):
         money_guide("crypto")
 
 
-def test_confused_answer_goes_to_coach_not_skip(tmp_path):
-    from datetime import date
-    from app import onboarding as ob
-    from app.engine import Engine
-    e = Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json")
-    ob.start(e, "u1")
-    ob.turn(e, "u1", "", "ob:goal:trip")
-    ob.turn(e, "u1", "2000")
+def test_confused_answer_goes_to_coach_not_skip(e):
+    ob.ask_risk(e, "u1")
     for text in ("i dont know what it means", "explain me prudent vs balanced", "what's the difference"):
         assert ob.turn(e, "u1", text) is None          # the coach explains...
         assert e.state["onboarding"]["u1"]["step"] == "risk"  # ...and the risk question is still waiting
-    again = ob.reask(e, "u1")
-    assert "prudent" in again.text.lower() and again.buttons == ob.BUTTONS["risk"]
+    assert "Which is closest to you?" in ob.waiting(e, "u1", "explain me prudent vs balanced")
+    ob.side_question(e, "u1", "explain me prudent vs balanced")
+    assert ob.active(e, "u1")  # open for their answer, nothing re-sent
+    assert ob.turn(e, "u1", "balanced I think").text.startswith(ob.RISK_LINE["balanced"])
 
 
 # ---------------- greetings and small talk are never answers ("Saving for hello") ----------------
@@ -229,3 +238,36 @@ def test_small_talk_words():
 def test_real_goals_still_parse(e):
     ob.start(e, "u")
     assert ob.turn(e, "u", "Hello Kitty plush collection").text.startswith("Saving for Hello Kitty plush")
+
+
+# ---------------- side questions: the waiting question is never re-sent ----------------
+def _at_risk(e, user="u"):
+    ob.ask_risk(e, user)
+    assert e.state["onboarding"][user]["step"] == "risk"
+
+
+def test_two_side_questions_never_resend_the_question(e):
+    _at_risk(e)
+    for q in ("How can I spend less?", "Do people my age save more than me?", "Can you explain how savings works?"):
+        assert ob.turn(e, "u", q) is None
+        assert ob.waiting(e, "u", q) is None  # the coach is not told a question is waiting
+        assert ob.side_question(e, "u", q) is None
+    assert not ob.active(e, "u") and e.state["onboarding"]["u"]["step"] == "risk"
+    t = ob.turn(e, "u", "continue")  # picks up where it was, on request
+    assert t.text == ob.ASK["risk"][1] and ob.active(e, "u")
+    assert ob.turn(e, "u", "", "ob:risk:balanced").text.startswith(ob.RISK_LINE["balanced"])
+
+
+def test_question_about_the_waiting_question_keeps_it_open(e):
+    _at_risk(e)
+    for q in ("what does prudent mean?", "and growth?", "what's the risk with balanced?"):
+        assert ob.turn(e, "u", q) is None
+        assert ob.side_question(e, "u", q) is None
+    assert ob.active(e, "u")
+
+
+def test_paused_interview_resumes_from_a_button(e):
+    _at_risk(e)
+    ob.side_question(e, "u", "a")
+    assert not ob.active(e, "u")
+    assert ob.turn(e, "u", "", "ob:risk:growth").text.startswith(ob.RISK_LINE["growth"])

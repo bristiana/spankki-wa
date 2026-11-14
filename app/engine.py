@@ -317,6 +317,13 @@ class Engine:
         s = self._slice(d0, d1)
         return eur(-s[s["category"] == category]["tx_amount_eur"].sum() / n) if n else 0.0
 
+    def _month_barely_started(self, min_payments: int = 3, early_days: int = 7) -> bool:
+        """True when the current month has no spending yet, or only a couple of payments in its first week, so a
+        'this month' figure would be a misleading near-zero (e.g. today is 6 Oct and the data ends 30 Sep)."""
+        s = self._slice(month_start(self.today), self.today)
+        n = int(((s["tx_amount_eur"] < 0) & s["category"].isin(SPEND_CATEGORIES)).sum())
+        return n == 0 or (n < min_payments and self.today.day <= early_days)
+
     def _month_after(self, n: int) -> str | None:
         """'YYYY-MM' n months from now; None past 50 years (a pace of cents a month never gets there)."""
         return add_months(month_start(self.today), n).isoformat()[:7] if n <= 600 else None
@@ -324,6 +331,12 @@ class Engine:
     # ---------- questions ----------
     def spending(self, category: str | None = None, period: str = "last_month",
                  start: str | None = None, end: str | None = None, merchant_type: str | None = None) -> dict:
+        requested = period
+        if start and not (end and end < self.today.isoformat()) and start == month_start(self.today).isoformat():
+            period, start, end = "this_month", None, None  # 'from the 1st of this month' is this month
+            requested = period
+        if period == "this_month" and not (start or end) and self._month_barely_started():
+            period = "last_month"  # no (or almost no) payments yet this month: answer with the last full month
         d0, d1 = self.period_range(period, start, end)
         codes = None
         if merchant_type:
@@ -361,6 +374,12 @@ class Engine:
             "top_merchants": [{"name": merchant_name(m), "total_eur": eur(-r["sum"]), "visits": int(r["count"])}
                               for m, r in top.iterrows()],
         }
+        if requested != period:
+            now, last = calendar.month_name[self.today.month], calendar.month_name[d0.month]
+            out |= {"requested_period": requested, "period_used": period,
+                    "note": f"{now} has only just started and has almost no payments yet, so these figures are for "
+                            f"{last} (the last full month). Say so in one short clause, e.g. '{now} has only just "
+                            f"started, so here is {last}: ...'. Never report {now} as 0."}
         if codes:
             parent = self.mcc_category.get(codes[0])
             out |= {"merchant_type": label, "mcc_codes": codes, "found": bool(len(s)), "within_category": parent}

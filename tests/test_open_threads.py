@@ -81,7 +81,7 @@ def test_every_kind_of_thread(e):
     e.create_goal("Trip", 900)  # a goal with nothing in it
     e.state["later"] = {"u": {"key": f"later:{bill['bill_id']}", "offer": None, "at": time.time()}}
     kinds = [s["data"]["thread"] for s in threads(quiet(e, "u", 20))]
-    assert kinds == ["learn", "onboarding", "quiz", "pin", "goal", "later"]  # most useful first
+    assert kinds == ["learn", "quiz", "pin", "goal", "later"]  # most useful first; a paused interview never nags
     pin = next(s for s in threads(e) if s["data"]["thread"] == "pin")
     assert pin["data"]["pending_id"] == p["pending_id"] and pin["dedup_key"] == f"thread:pin:{p['pending_id']}"
     goal = next(s for s in threads(e) if s["data"]["thread"] == "goal")["data"]

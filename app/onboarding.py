@@ -1,10 +1,16 @@
-"""The first-chat interview after Connect S-Pankki: a resumable state machine, no AI.
+"""Scripted no-AI flows, only when the person asks for them: a resumable state machine.
 
+Oiva follows the person's lead. Nothing here starts by itself: Connect S-Pankki (and "start over") only says hello
+(intro, HELLO). On request: "set a goal" runs the short goal interview (what for, how much and by when, then the
+plan); "my risk profile" asks the prudent / balanced / growth question alone (it only labels later investment info,
+never picks a fund); "remind me weekly" / "stop check-ins" turns the weekly check-in on or off.
 Voice rules: one question per message, opened by one short line that reflects the previous answer in the person's
 words (never grades it), one "?" per message, under 240 characters. A skip gets no comment. "ok", "thanks" or
-"later" pauses the interview. A money question mid-interview goes to the coach and the waiting question comes back
-after. The risk answer only labels later investment info, it never picks a fund.
-State: engine.state["onboarding"][user] = {"step", "paused", "skipped", "answers"} in data/state.json.
+"later" pauses the interview. A question is never sent twice: a question about the waiting one ("what does prudent
+mean?") goes to the coach and the interview stays open for their answer; any other topic quietly pauses it
+("continue" or one of its buttons picks it up).
+State: engine.state["onboarding"][user] = {"step", "paused", "skipped", "answers", "only"} in data/state.json
+("only": the lone risk question, not the whole interview).
 """
 from __future__ import annotations
 
@@ -14,7 +20,7 @@ from datetime import date, timedelta
 
 from .engine import Engine, add_months, month_start
 
-ORDER = ["goal", "amount", "risk", "checkin"]
+ORDER = ["goal", "amount"]  # the risk question and the weekly check-in only on request (requested)
 ASK = {  # first wording, then the one used when the question comes back
     "goal": ["What are you saving for: a buffer for surprises, a home renovation, the kids, a trip or something else?",
              "What would you like to put money aside for?"],
@@ -183,23 +189,97 @@ def _is_question(text: str, step: str) -> bool:
     return asked and not (step == "amount" and parse_amount(text))
 
 
-def start(engine: Engine, user: str) -> Turn:
-    """Called right after the person connects S-Pankki. Starts (or restarts) the interview."""
-    engine.state.setdefault("onboarding", {})[user] = {"step": "goal", "paused": False, "skipped": [], "answers": {}}
-    engine._save()
+def intro(engine: Engine) -> list[str]:
+    """Right after Connect S-Pankki: the three baskets in one bubble, and an open door. No questions pushed."""
     b = engine.baskets("last_3_months")
     lines = "\n".join(f"• {x['label']} (e.g. {x['example']}): {_money(x['per_month_eur'])} a month" for x in b["baskets"])
-    lead = [f"Connected. Everything you spend falls in 3 baskets. Over the last 3 months, a month:\n{lines}",
-            "A few short questions so I can help with *your* plan. Skip any of them."]
-    t = _ask("goal")
-    t.lead = lead
-    return t
+    return [f"Connected. Everything you spend falls in 3 baskets. Over the last 3 months, a month:\n{lines}",
+            HELLO]
 
 
-def reask(engine: Engine, user: str) -> Turn | None:
-    """After the coach answered a side question: the waiting question again, in new words."""
+HELLO = "Hi! Ask me anything about your money."
+
+
+def start(engine: Engine, user: str) -> Turn:
+    """The goal interview, only when the person asks for it ("set a goal", "help me set up a savings goal")."""
+    engine.state.setdefault("onboarding", {})[user] = {"step": "goal", "paused": False, "skipped": [], "answers": {}}
+    engine._save()
+    return _ask("goal")
+
+
+def ask_risk(engine: Engine, user: str) -> Turn:
+    """The comfort-with-ups-and-downs question alone, only when the person asks for it ("my risk profile")."""
     r = _rec(engine, user)
-    return _ask(r["step"], again=True) if active(engine, user) else None
+    if r:
+        r.update(step="risk", paused=False, only=True)
+    else:
+        engine.state.setdefault("onboarding", {})[user] = {"step": "risk", "paused": False, "skipped": [],
+                                                           "answers": {}, "only": True}
+    engine._save()
+    return _ask("risk")
+
+
+def set_checkin(engine: Engine, user: str, on: bool) -> Turn:
+    """The weekly check-in, only on request ("remind me weekly", "stop check-ins")."""
+    r = engine.state.setdefault("onboarding", {}).setdefault(
+        user, {"step": "done", "paused": False, "skipped": [], "answers": {}})
+    r["answers"]["weekly_checkin"] = on
+    engine._save()
+    return Turn("Done: a short check-in from me once a week. Write *stop check-ins* any time." if on
+                else "Okay, no more weekly check-ins.", done=True)
+
+
+def requested(engine: Engine, user: str, text: str) -> Turn | None:
+    """A flow the person explicitly asked for: the goal interview, the risk question, the weekly check-in."""
+    if CHECKIN_OFF.search(text):
+        return set_checkin(engine, user, False)
+    if CHECKIN_ON.search(text):
+        return set_checkin(engine, user, True)
+    if GOAL_REQUEST.search(text):
+        return start(engine, user)
+    if RISK_REQUEST.search(text):
+        return ask_risk(engine, user)
+    return None
+
+
+GOAL_REQUEST = re.compile(r"^\W*(?:(?:can you |could you |please |help me |i want to |i'?d like to |let'?s )*)"
+                          r"(?:set|make|create|start|set up)(?: up)? (?:a |my |me a )?(?:new )?(?:savings? )?goal\W*$",
+                          re.I)
+RISK_REQUEST = re.compile(r"\b(?:(?:set|ask|do|choose|update|change)\s+(?:me\s+)?(?:my\s+)?(?:risk|investor|investment)"
+                          r"\s+(?:profile|level|style)|what(?:'s| is) my (?:risk|investor|investment) "
+                          r"(?:profile|level|style))\b", re.I)
+CHECKIN_ON = re.compile(r"\b(?:remind me (?:every )?week(?:ly)?|weekly check.?ins?(?: please| on)?|check in (?:with me )?"
+                        r"(?:every|once a) week)\b", re.I)
+CHECKIN_OFF = re.compile(r"\b(?:stop|no more|turn off|cancel)\s+(?:the\s+)?(?:weekly\s+)?check.?ins?\b", re.I)
+ABOUT_STEP = {"risk": re.compile(r"\b(prudent|balanced|growth|risk\w*|swings?)\b", re.I),
+              "amount": re.compile(r"\b(amount|how much (?:should|do) i (?:need|save))\b", re.I)}
+
+
+def _about_step(step: str, text: str) -> bool:
+    """A question about the waiting question itself ('what does prudent mean?'), not a different topic."""
+    rx = ABOUT_STEP.get(step)
+    return bool(rx and text and rx.search(text))
+
+
+def waiting(engine: Engine, user: str, text: str = "") -> str | None:
+    """For the coach's context: the interview question this message is about, when it is about it (the interview
+    then stays open for their answer). None when there is none or the message is about something else."""
+    r = _rec(engine, user)
+    if active(engine, user) and _about_step(r["step"], text):
+        return ASK[r["step"]][0].split("\n")[-1] if r["step"] == "risk" else ASK[r["step"]][0]
+    return None
+
+
+def side_question(engine: Engine, user: str, text: str = "") -> None:
+    """After the coach answered a question mid-interview. The question is never sent again (the person leads): a
+    question about it ('what does prudent mean?') leaves the interview open so their next words can answer it; any
+    other topic quietly pauses the interview (*continue* or one of its buttons picks it up)."""
+    r = _rec(engine, user)
+    if not active(engine, user) or _about_step(r["step"], text):
+        return None
+    r["paused"] = True
+    engine._save()
+    return None
 
 
 def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | None:
@@ -207,6 +287,10 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
     r = _rec(engine, user)
     text = (text or "").strip()
     ob = button_id.startswith("ob:")
+    if not ob and not button_id and text and (not r or r["step"] == "done" or r["paused"]):
+        asked = requested(engine, user, text)
+        if asked:
+            return asked
     if not r or r["step"] == "done":
         if not ob:
             return None
@@ -222,7 +306,7 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
             return _ask(r["step"], again=True)
     step, a = r["step"], r["answers"]
     if ob and button_id.split(":")[1] not in (step, "skip"):
-        return _ask(step, again=True)  # a button from an earlier question
+        return Turn("Got it, that one is already answered.")  # a button from an earlier question: never re-ask
     if not ob and step == "checkin" and YES.search(text) and not NO.search(text):
         button_id, ob = "ob:checkin:yes", True  # "ok" here means yes, not "later"
     if not ob and WIND_DOWN.match(text):
@@ -279,8 +363,14 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
 def _advance(engine: Engine, r: dict, reflect: str) -> Turn:
     """Next unanswered, unskipped question, or the end with the goal plan."""
     a = r["answers"]
+    if r.pop("only", False):  # the lone risk question asked when they talked about investing: nothing follows
+        r["step"] = "done"
+        engine._save()
+        return Turn(f"{reflect} I'll use it only to label investment info, never to choose for you." if reflect
+                    else "No problem. Ask me anything about investing.", done=True)
     done = {"goal": "goal_name" in a, "amount": "amount" in a, "risk": "risk" in a, "checkin": "weekly_checkin" in a}
-    nxt = next((s for s in ORDER[ORDER.index(r["step"]) + 1:] if not done[s] and s not in r["skipped"]), None)
+    after = ORDER[ORDER.index(r["step"]) + 1:] if r["step"] in ORDER else ORDER
+    nxt = next((s for s in after if not done[s] and s not in r["skipped"]), None)
     if nxt:
         r["step"] = nxt
         engine._save()

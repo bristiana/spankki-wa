@@ -139,15 +139,15 @@ def test_first_contact_gets_the_connect_button(chat):
     assert chat.interactive("cta_url")[-1]["action"]["parameters"]["display_text"] == "Connect S-Pankki"
 
 
-def test_connect_sends_welcome_and_first_question(chat):
+def test_connect_sends_welcome_and_no_question(chat):
     chat.connect()
     assert [t for t in chat.texts() if t.startswith("Connected. ")]
     assert chat.url() == f"{BASE}/app"
-    assert [i for i, _ in chat.buttons()] == ["ob:goal:trip", "ob:goal:buffer", "ob:goal:home"]
+    assert chat.texts()[-1] == "Hi! Ask me anything about your money." and not chat.interactive("button")
 
 
 def test_onboarding_all_buttons_then_save(chat):
-    chat.connect().tap("ob:goal:trip").say("1,500 € by June").tap("ob:risk:balanced").tap("ob:checkin:yes")
+    chat.connect().say("set a goal").tap("ob:goal:trip").say("1,500 € by June")
     (bid, title), = chat.buttons()
     assert bid.startswith("save:trip:") and len(title) <= 20
     chat.tap(bid)
@@ -157,28 +157,28 @@ def test_onboarding_all_buttons_then_save(chat):
 
 
 def test_onboarding_typed_answers(chat):
-    chat.connect().say("I want 3000 for a trip to Lapland by December 2027").say("growth please").say("no thanks")
+    chat.connect().say("set a goal").say("I want 3000 for a trip to Lapland by December 2027")
     assert chat.buttons()[0][0].startswith("save:")
 
 
 def test_onboarding_typed_long_goal_name(chat):
-    chat.connect().say("I'm saving for a brand new electric cargo bicycle for the whole family, 4 200 € in 14 months")
-    chat.tap("ob:risk:prudent").say("ok")
+    chat.connect().say("set a goal")
+    chat.say("I'm saving for a brand new electric cargo bicycle for the whole family, 4 200 € in 14 months")
     assert chat.buttons()[0][0].startswith("save:")
 
 
 def test_onboarding_skip_everything(chat):
-    chat.connect().say("skip").tap("ob:skip").say("rather not").say("dunno")
+    chat.connect().say("set a goal").say("skip").tap("ob:skip")
     assert "When you have an amount in mind" in chat.texts()[-1]
     chat.tap("ob:goal:trip")  # an old button after the end
     assert "already set up" in chat.texts()[-1]
 
 
 def test_onboarding_pause_resume_side_question_and_stale_button(chat):
-    chat.connect().tap("ob:goal:buffer").say("lots of money")  # no amount: asked again
+    chat.connect().say("set a goal").tap("ob:goal:buffer").say("lots of money")  # no amount: asked again
     chat.say("later").say("continue").say("How much did I spend on taxis?")
     assert main._coach.asked == ["How much did I spend on taxis?"]
-    chat.tap("ob:goal:home").say("2k in 6 months").tap("ob:risk:growth").tap("ob:checkin:no")
+    chat.tap("ob:goal:home").say("2k in 6 months")
     assert chat.buttons()[0][0].startswith("save:")
 
 
@@ -426,12 +426,12 @@ def test_fraud_hands_off_to_s_pankki(chat):
 
 def test_fresh_start_clears_the_chat(chat):
     connected(chat).say("learn").say("/new")
-    assert chat.texts()[-1] == "Fresh slate. What's on your mind?" and main._coach.resets == [chat.phone]
+    assert chat.texts()[-1] == "Hi! Ask me anything about your money." and main._coach.resets == [chat.phone]
     assert main.engine.state["learn"][chat.phone]["paused"]
 
 
 def test_hello_at_the_goal_question_is_not_a_goal(chat):
-    chat.connect().say("hello")
+    chat.connect().say("set a goal").say("hello")
     body = chat.interactive("button")[-1]["body"]["text"]
     assert "Saving for" not in body and body.startswith("Hey, good to see you.") and body.endswith("What would you like to put money aside for?")
     assert [i for i, _ in chat.buttons()] == ["ob:goal:trip", "ob:goal:buffer", "ob:goal:home"]
@@ -575,14 +575,14 @@ def test_demo_phone_hi_after_restart_goes_to_the_coach(chat, monkeypatch):
 
 
 @pytest.mark.parametrize("words", ["start over", "Get started!", "restart"])
-def test_demo_phone_start_over_runs_onboarding(chat, monkeypatch, words):
+def test_demo_phone_start_over_is_a_clean_hello(chat, monkeypatch, words):
+    """'start over' clears the chat and says hello: no interview, no buttons, no questions pushed."""
     monkeypatch.setenv("DEMO_PHONE", chat.phone)
-    chat.say(words)
-    assert main._coach.asked == []
-    assert any(t.startswith("Connected. ") for t in chat.texts())
-    assert [i for i, _ in chat.buttons()] == ["ob:goal:trip", "ob:goal:buffer", "ob:goal:home"]
-    chat.tap("ob:goal:trip").say("800 € by March")
-    assert chat.buttons()[0][0] == "ob:risk:prudent"
+    chat.say("how much did I spend?").say(words)
+    assert main._coach.asked == ["how much did I spend?"] and main._coach.resets == [chat.phone]
+    assert chat.texts()[-1] == "Hi! Ask me anything about your money."
+    assert not chat.interactive("button") and "u" not in main.engine.state.get("onboarding", {})
+    assert chat.phone not in main.engine.state.get("onboarding", {})
 
 
 def test_start_over_when_not_connected_asks_to_connect(chat):
