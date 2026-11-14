@@ -755,6 +755,13 @@ def wa_phone(request: Request) -> str | None:
     return enable_banking.verify(request.query_params.get("t") or request.cookies.get(enable_banking.COOKIE))
 
 
+def mirror_viewer(request: Request) -> bool:
+    """The app's chat mirrors the owner's WhatsApp only for the owner, logged in with their WhatsApp link: their
+    conversation can hold real bank numbers, so the demo account and everyone else get their own chat."""
+    me = mirror.owner()
+    return bool(me) and re.sub(r"\D", "", wa_phone(request) or "") == me
+
+
 def _set_login(response, token: str):
     response.set_cookie(enable_banking.COOKIE, token, max_age=enable_banking.LINK_DAYS * 86400, httponly=True,
                         secure=True, samesite="lax")
@@ -1932,7 +1939,7 @@ def _peers_card(eng: Engine) -> dict | None:
 def chat_page(request: Request, q: str = "", embed: str = ""):
     """?q= asks a question once on load (deep link); ?embed=1 drops the site chrome for a WebView."""
     persona = persona_of(request)
-    mirrored = bool(mirror.owner())
+    mirrored = mirror_viewer(request)
     if mirrored:  # the app's chat is the owner's WhatsApp conversation, on the WhatsApp demo customer's data
         persona = DEFAULT_PERSONA
     return templates.TemplateResponse(request, "chat.html", {"name": name_for(persona), "q": q[:500],
@@ -2060,7 +2067,7 @@ async def chat_api(request: Request):
     (the app's chat) it is the owner's conversation: the same history as their WhatsApp, kept in the mirror log."""
     out = web_words(await chat_turn(request))
     body = await request.json()
-    if isinstance(body, dict) and body.get("mirror") and mirror.owner():
+    if isinstance(body, dict) and body.get("mirror") and mirror_viewer(request):
         said = str(body.get("shown") or body.get("text") or "").strip()
         if said and not said.startswith("__"):
             mirror.add("me", said[:1000], source="app")
@@ -2074,9 +2081,11 @@ async def chat_api(request: Request):
 
 
 @app.get("/api/mirror")
-def mirror_api(after: int = 0):
-    """The owner's conversation, WhatsApp and app, from message `after` on; the app's chat polls it."""
-    return {"on": bool(mirror.owner()), "messages": mirror.since(after)}
+def mirror_api(request: Request, after: int = 0):
+    """The owner's conversation, WhatsApp and app, from message `after` on; the app's chat polls it. Owner only."""
+    if not mirror_viewer(request):
+        return {"on": False, "messages": []}
+    return {"on": True, "messages": mirror.since(after)}
 
 
 async def chat_turn(request: Request):
@@ -2089,7 +2098,7 @@ async def chat_turn(request: Request):
     if not isinstance(body, dict):
         raise HTTPException(400, "send a JSON object")
     sid = "web:" + str(body.get("session", "default"))[:40]
-    if body.get("mirror") and mirror.owner():  # the app's chat: the owner's WhatsApp conversation, same history
+    if body.get("mirror") and mirror_viewer(request):  # the app's chat: the owner's WhatsApp conversation, same history
         sid = mirror.APP_KEY
         body["as"] = DEFAULT_PERSONA
         coach(None).alias[sid] = mirror.owner()
