@@ -3,8 +3,38 @@ from __future__ import annotations
 
 import json
 import os
+import re
+from pathlib import Path
 
 from .engine import FUNDS, PERIODS, SPEND_CATEGORIES, Engine
+
+GUIDE_PATH = Path(__file__).resolve().parent.parent / "content" / "finland-money-guide.md"
+
+
+def load_guide(path: Path = GUIDE_PATH) -> dict[str, dict]:
+    """content/finland-money-guide.md -> {topic: {text, sources, checked}}, one entry per '## topic' section."""
+    guide = {}
+    md = path.read_text(encoding="utf-8") if path.exists() else ""
+    for part in re.split(r"^## ", md, flags=re.M)[1:]:
+        topic, _, body = part.partition("\n")
+        src = re.search(r"^Source: (.+)$", body, re.M)
+        checked = re.search(r"^Checked: (.+)$", body, re.M)
+        text = re.sub(r"^(Source|Checked): .*$", "", body, flags=re.M).strip()
+        guide[topic.strip()] = {"text": text, "sources": src.group(1).split(" · ") if src else [],
+                                "checked": checked.group(1).strip() if checked else None}
+    return guide
+
+
+GUIDE = load_guide()
+
+
+def money_guide(topic: str) -> dict:
+    """The guide section for a topic id (or a word in it, like 'asp' or 'credit')."""
+    key = (topic or "").strip().lower().replace(" ", "-")
+    hit = key if key in GUIDE else next((t for t in GUIDE if key and (key in t or t in key)), None)
+    if not hit:
+        raise ValueError(f"no guide topic {topic!r}; topics: {list(GUIDE)}")
+    return {"topic": hit, **GUIDE[hit], "note": "General information, not personal advice. Cite the source link."}
 
 PERIOD_PROP = {"type": "string", "enum": PERIODS,
                "description": "Time window. last_month = previous calendar month. last_3_months = the 3 full months before this one."}
@@ -147,6 +177,14 @@ TOOLS = [
                        "linked investment platforms and orders placed through the coach.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
+    {
+        "name": "get_money_guide",
+        "description": "Checked facts about money in Finland, with the official source link: emergency fund, Kela housing "
+                       "allowance, student aid, ASP first-home saving, equity savings account (osakesäästötili), capital "
+                       "income tax, deposit guarantee, consumer credit and pay-later, S-Bank basics.",
+        "input_schema": {"type": "object", "properties": {"topic": {"type": "string", "enum": list(GUIDE)}},
+                         "required": ["topic"], "additionalProperties": False},
+    },
 ]
 
 
@@ -196,6 +234,8 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out = {**p, "note": "A 'Save' button is attached to your message. Do not paste a link."}
     elif name == "get_portfolio":
         out = engine.portfolio()
+    elif name == "get_money_guide":
+        out = money_guide(args["topic"])
     else:
         raise ValueError(f"unknown tool {name}")
     return json.dumps(out, default=str)
