@@ -34,7 +34,7 @@ def chat_pay(client, session="t"):
     """Pay rent from the web chat: the button the chat shows, and the pending id behind it."""
     j = client.post("/api/chat", json={"session": session, "text": f"__btn__:pay:{rent()['bill_id']}"}).json()
     url = j["buttons"][0]["url"]
-    return url, url.split("?")[0].rsplit("/", 1)[-1]
+    return url, tools.pending_id_of(url)
 
 
 def goal_saving(amount=97, name="Lapland trip"):
@@ -180,18 +180,97 @@ def test_confirm_needs_json_and_a_live_link(client):
 def test_whatsapp_and_chat_buttons_open_s_mobiili(client):
     d = main.button_reply("358401234567", f"pay:{rent()['bill_id']}")
     assert d["url"][0] == main.OPEN_APP == "Open in S-mobiili" and len(main.OPEN_APP) <= 20
-    assert d["url"][1].startswith("http://127.0.0.1:8806/s-mobiili/pay/") and "Face ID" in d["text"]
-    url, _ = chat_pay(client)
-    assert url.startswith("/s-mobiili/pay/") and url.endswith("?web=1")
+    assert d["url"][1].startswith("http://127.0.0.1:8806/s-mobiili/?ready=pay:") and "Face ID" in d["text"]
+    assert "web=1" not in d["url"][1]
+    url, pid = chat_pay(client)
+    assert url == f"/s-mobiili/?ready=pay:{pid}&web=1"
     buttons = []
     tools.run_tool(main.engine, "create_payment_link", {"bill_id": rent()["bill_id"]}, buttons)
     g = main.engine.create_goal("Trip", 500)["goal"]
     tools.run_tool(main.engine, "create_saving_link", {"goal_id": g["id"], "amount_eur": 20}, buttons)
     tools.run_tool(main.engine, "create_investment_link", {"amount_eur": 30, "fund_id": "growth", "monthly": True}, buttons)
     tools.run_tool(main.engine, "create_pause_investing_link", {}, buttons)
-    routes = [b["url"].split("/s-mobiili/")[1].split("/")[0] for b in buttons]
-    assert routes == ["pay", "save", "invest", "stop"]
-    assert all(b["url"].startswith("http://127.0.0.1:8806/s-mobiili/") for b in buttons)
+    assert [tools.ready_of(b["url"])[0] for b in buttons] == ["pay", "save", "invest", "stop"]
+    assert all(b["url"].startswith("http://127.0.0.1:8806/s-mobiili/?ready=") for b in buttons)
+    assert all(main.engine.pending(tools.pending_id_of(b["url"])) for b in buttons)
+
+
+def test_resume_and_pause_buttons_land_on_home_too(client):
+    p = main.engine.create_payment(rent()["bill_id"])
+    d = main.button_reply("358401234567", f"resume:{p['pending_id']}")
+    assert d["url"][1] == f"http://127.0.0.1:8806/s-mobiili/?ready=pay:{p['pending_id']}"
+    d = main.button_reply("358401234567", "pause:investing", web=True)
+    assert d["url"][1].startswith("http://127.0.0.1:8806/s-mobiili/?ready=stop:") and d["url"][1].endswith("&web=1")
+
+
+# ---------------- home: the "Ready for you" card ----------------
+def ready_card(page: str) -> str | None:
+    m = re.search(r'<a class="card ready" id="ready" href="([^"]*)">(.*?)</a>', page, re.S)
+    return m and (m.group(1).replace("&amp;", "&"), m.group(2))
+
+
+def test_ready_card_shows_the_payment_and_links_to_the_flow(client):
+    url, pid = chat_pay(client)
+    page = client.get(url).text
+    href, card = ready_card(page)
+    r = rent()
+    assert f"Pay rent · {main.money_nb(r['amount_eur'])}" in card and "Landlord · Asunto Oy Demo" in card
+    assert page.index('id="ready"') < page.index('id="baskets"')  # first thing on home, above the 3 baskets
+    assert href == f"/s-mobiili/pay/{pid}?web=1"
+    assert "Pay a bill" in client.get(href).text  # the card opens the existing prefilled flow
+    s = steps(page)
+    assert s[0] == {"target": "ready", "say": "I've got it ready, tap to check and confirm", "mood": "happy"}
+    assert [x["target"] for x in s[1:]] == ["acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
+    assert main.money_nb(main.engine.balance()) in page and 'id="baskets"' in page  # still the bank's home
+
+
+def test_ready_card_for_save_invest_and_pause(client):
+    g = main.engine.create_goal("Trip", 500)["goal"]
+    save = main.engine.create_saving(g["id"], 200)
+    _, card = ready_card(client.get(f"/s-mobiili/?ready=save:{save['pending_id']}").text)
+    assert main.nb("Save 200 € into Savings pocket") in card and "For Trip" in card
+    inv = main.engine.create_investment(30, "growth", True)
+    _, card = ready_card(client.get(f"/s-mobiili/?ready=invest:{inv['pending_id']}").text)
+    assert main.nb("Invest 30 € a month") in card
+    stop = main.engine.create_pause_investing()
+    href, card = ready_card(client.get(f"/s-mobiili/?ready=stop:{stop['pending_id']}").text)
+    assert "Pause monthly investing" in card and href == f"/s-mobiili/stop/{stop['pending_id']}"
+
+
+@pytest.mark.parametrize("ready", ["", "nope", "pay:", ":abc", "pay:nope", "nope:{pid}", "save:{pid}", "pay:{pid}x"])
+def test_invalid_ready_leaves_home_as_it_was(client, ready):
+    _, pid = chat_pay(client)
+    plain = client.get("/s-mobiili/").text
+    page = client.get(f"/s-mobiili/?ready={ready.format(pid=pid)}")
+    assert page.status_code == 200 and ready_card(page.text) is None and "Already done" not in page.text
+    assert steps(page.text) == steps(plain)
+
+
+def test_ready_card_once_done_is_a_small_line(client):
+    url, pid = chat_pay(client)
+    assert confirm(client, "pay", pid).status_code == 200
+    page = client.get(url).text
+    assert ready_card(page) is None and 'id="ready-done"' in page and "Already done ✅" in page
+    assert steps(page) == steps(client.get("/s-mobiili/").text)
+
+
+def test_ready_card_keeps_pin_and_autoplay_for_the_flow(client):
+    _, pid = chat_pay(client)
+    href, _ = ready_card(client.get(f"/s-mobiili/?ready=pay:{pid}&pin=1").text)
+    assert href == f"/s-mobiili/pay/{pid}?pin=1"
+    assert client.get(href, follow_redirects=False).headers["location"] == f"/pay/{pid}"  # the old PIN page
+    href, _ = ready_card(client.get(f"/s-mobiili/?ready=pay:{pid}&autoplay=1").text)
+    assert href == f"/s-mobiili/pay/{pid}?autoplay=1"
+
+
+def test_ready_card_shows_on_the_creators_home(client):
+    other = next(p for p in main.PERSONAS if p != main.DEFAULT_PERSONA)
+    e = main.engine_for(other)
+    bill = next(b for b in e.upcoming_bills(45) if b["category"] == "Housing")
+    j = client.post("/api/chat", json={"session": "o", "text": f"__btn__:pay:{bill['bill_id']}", "as": other}).json()
+    page = client.get(j["buttons"][0]["url"]).text  # no cookie: still the creator's home, with the card
+    assert ready_card(page) and f"Hi {main.PERSONAS[other]['name']}" in page
+    assert ready_card(client.get(j["buttons"][0]["url"] + f"&persona={main.DEFAULT_PERSONA}").text) is None
 
 
 def test_pin_page_still_works_as_a_fallback(client):

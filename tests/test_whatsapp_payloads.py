@@ -14,7 +14,7 @@ from app import bills, main, rules, voice
 from app import whatsapp as wa
 from app.agent import Reply
 from app.engine import Engine
-from app.tools import run_tool
+from app.tools import ready_of, run_tool
 
 SECRET = "test-app-secret"
 BASE = "https://birky.example"
@@ -89,9 +89,13 @@ class Chat:
         return [b["text"]["body"] for b in self.sent if b.get("type") == "text"]
 
     def confirm(self, url=None):
-        """The S-mobiili review behind a cta_url button, confirmed with (simulated) Face ID."""
-        path = (url or self.url()).replace(BASE, "")
-        assert path.startswith("/s-mobiili/") and self.client.get(path).status_code == 200
+        """A cta_url button lands on S-mobiili home; its "Ready for you" card opens the review, confirmed with
+        (simulated) Face ID."""
+        home = (url or self.url()).replace(BASE, "")
+        route, pid = ready_of(home)
+        path = f"/s-mobiili/{route}/{pid}"
+        assert home.startswith("/s-mobiili/?ready=") and f'href="{path}"' in self.client.get(home).text
+        assert self.client.get(path).status_code == 200
         page = self.client.post(path + "/confirm", json={})
         assert page.status_code == 200 and page.json()["ok"]
         return page
@@ -146,7 +150,7 @@ def test_onboarding_all_buttons_then_save(chat):
     (bid, title), = chat.buttons()
     assert bid.startswith("save:trip:") and len(title) <= 20
     chat.tap(bid)
-    assert "/save/" in chat.url()
+    assert "?ready=save:" in chat.url()
     chat.confirm()
     assert any(t.startswith("✅ *Saved") for t in chat.texts())
 
@@ -205,7 +209,7 @@ def test_rent_reminder_pay_and_confirmation(chat):
     ids = [i for i, _ in chat.buttons()]
     assert ids[0].startswith("pay:") and ids[1].startswith("later:") and ids[2] == "ask:tight"
     chat.tap(ids[1]).tap(ids[2]).tap(ids[0])
-    assert "/pay/" in chat.url()
+    assert "?ready=pay:" in chat.url()
     chat.confirm()
     assert "Rent paid" in chat.texts()[-1]
     chat.tap(ids[0])  # paying again: refused, in words
@@ -232,7 +236,7 @@ def test_invest_save_pause_from_the_coach(chat):
     for question in ("I want to invest", "help me save", "pause the monthly deposits"):
         chat.say(question)
     urls = [i["action"]["parameters"]["url"] for i in chat.interactive("cta_url")]
-    assert any("/invest/" in u for u in urls) and any("/save/" in u for u in urls) and any("/stop/" in u for u in urls)
+    assert any("?ready=invest:" in u for u in urls) and any("?ready=save:" in u for u in urls) and any("?ready=stop:" in u for u in urls)
     for u in urls:
         chat.confirm(u)
     done = chat.texts()
@@ -462,7 +466,7 @@ def test_pin_link_left_open_comes_back_as_its_link(chat):
     text, buttons = main.signal_message(sig, "Aino")
     wa.send_reply_buttons(chat.phone, text, buttons)
     chat.tap(*buttons[0])
-    assert chat.url().endswith(f"/pay/{p['pending_id']}")
+    assert chat.url().endswith(f"/s-mobiili/?ready=pay:{p['pending_id']}")
     chat.confirm()
 
 
@@ -501,7 +505,7 @@ def test_bill_photo_explain_then_pay(chat, monkeypatch):
     assert not chat.interactive("cta_url") and "only asked to understand" in errors[-1]
     chat.say("ok let's pay it")
     [(pid, p)] = main.engine.state["pending"].items()
-    assert chat.url() == f"{BASE}/s-mobiili/pay/{pid}" and p["iban"] == "FI5979900020451187"
+    assert chat.url() == f"{BASE}/s-mobiili/?ready=pay:{pid}" and p["iban"] == "FI5979900020451187"
     chat.confirm()
     assert any("Voltti Energia Oy (demo) paid" in t for t in chat.texts())
 

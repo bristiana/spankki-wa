@@ -199,7 +199,7 @@ async function send(text, shown, image) {
     for (const b of j.buttons || []) {
       const a = document.createElement("button");
       a.className = "btn"; a.textContent = b.label;
-      a.onclick = () => openSheet(b.url + (b.url.includes("?") ? "" : "?web=1"));
+      a.onclick = () => openSheet(/[?&]web=1/.test(b.url) ? b.url : b.url + (b.url.includes("?") ? "&" : "?") + "web=1");
       d.appendChild(a);
     }
     for (const b of j.quick || []) {

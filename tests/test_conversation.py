@@ -153,7 +153,7 @@ def test_deactivate_all_reply_through_the_coach(e):
 def test_pause_investing_link_needs_the_pin(e):
     buttons = []
     out = json.loads(run_tool(e, "create_pause_investing_link", {}, buttons))
-    assert [b["label"] for b in buttons] == ["Pause investing"] and "/stop/" in buttons[0]["url"]
+    assert [b["label"] for b in buttons] == ["Pause investing"] and "/s-mobiili/?ready=stop:" in buttons[0]["url"]
     assert out["amount"] == 497.84 and out["next_charge"] == "2026-10-18" and out["kind"] == "pause_investing"
     inv = next(x for x in e.commitments()["regular_payments"] if x["id"] == "investing")
     assert inv["status"] == "active" and not e.state.get("paused")  # nothing paused before the PIN

@@ -28,7 +28,7 @@ from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
                      RESERVE_NOTE_EUR, SPEND_CATEGORIES, Engine, merchant_codes)
-from .tools import confirm_url, explore_query, public_url
+from .tools import confirm_url, explore_query, pending_id_of, public_url, with_web
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -297,7 +297,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         owner[p["pending_id"]] = user
         return {"text": f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*, filled in and ready "
                         "in S-mobiili. Check it and confirm with Face ID.",
-                "url": (OPEN_APP, confirm_url("pay", p["pending_id"]) + q)}
+                "url": (OPEN_APP, confirm_url("pay", p["pending_id"], web))}
     if bid.startswith("resume:") and bid != "resume:later":  # "Finish it" on a confirmation left open yesterday
         p = e.pending(bid[7:])
         if not p or p["status"] != "pending":
@@ -306,7 +306,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         path = {"payment": "pay", "investment": "invest", "saving": "save", "pause_investing": "stop"}[p["kind"]]
         return {"text": f"Here it is again: *{p['name']}*, {money(p['amount'])}. It's ready in S-mobiili: "
                         "confirm with Face ID.",
-                "url": (OPEN_APP, confirm_url(path, p["pending_id"]) + q)}
+                "url": (OPEN_APP, confirm_url(path, p["pending_id"], web))}
     if bid.startswith("later:"):
         note_later(e, user, bid)
         if bid == "later:unusual":
@@ -322,7 +322,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         nxt = f" The next one would go out on {nice_date(p['next_charge'])}." if p["next_charge"] else ""
         return {"text": f"Pause your *monthly investing* of about *{money(p['amount'])}*?{nxt} What you've invested "
                         "so far stays invested. It's ready in S-mobiili: confirm with Face ID.",
-                "url": (OPEN_APP, confirm_url("stop", p["pending_id"]) + q)}
+                "url": (OPEN_APP, confirm_url("stop", p["pending_id"], web))}
     if bid.startswith("keep:"):
         return {"text": "Okay, your monthly investing stays on 👍 Paying yourself first, on autopilot."}
     if bid.startswith("remind:"):
@@ -346,7 +346,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         goal = p["name"].split(": ", 1)[1]
         return {"text": f"Move *{money(p['amount'])}* to your savings pocket for *{goal}*? "
                         "It's ready in S-mobiili: confirm with Face ID.",
-                "url": (OPEN_APP, confirm_url("save", p["pending_id"]) + q)}
+                "url": (OPEN_APP, confirm_url("save", p["pending_id"], web))}
     if bid == "quiz:money":
         return {"text": "Your three baskets, balance and safe to spend, all in one place 📊",
                 "url": ("Open My money", f"{public_url()}/app{q}")}
@@ -514,7 +514,7 @@ def bill_photo(to: str, name: str, m: dict):
         return
     reply = ask_about_bill(None, to, bill, m["text"] and wa.redact(m["text"]), name)
     for b in reply.buttons:
-        owner[b["url"].rsplit("/", 1)[-1]] = to
+        owner[pending_id_of(b["url"])] = to
     send_reply(to, reply, m["id"])
 
 
@@ -608,7 +608,7 @@ def handle_message(m: dict):
         reply = ask(None, to, text, name, coach_context(engine, to, text, extra))
         for b in reply.buttons:
             if "chart" not in b:
-                owner[b["url"].rsplit("/", 1)[-1]] = to
+                owner[pending_id_of(b["url"])] = to
         send_reply(to, reply, None if secret else m["id"])
         for note in (quiz.paused_note(engine, to), learn.paused_note(engine, to)):  # how to get back to it
             if note:
@@ -1163,12 +1163,63 @@ def smobiili_root(request: Request):
 BASKETS_Q = "Where does my money go?"  # the S-mobiili baskets card and the 4th chat chip ask the same question
 
 
+def ready_param(request: Request) -> tuple[str, str] | tuple[None, None]:
+    route, _, pid = (request.query_params.get("ready") or "").partition(":")
+    return (route, pid) if route in SM_ROUTES and pid else (None, None)
+
+
+def home_persona(request: Request) -> str:
+    """Whose home to draw. A ready move is shown on its creator's home (like the flow, which acts on the creator, not
+    the cookie), unless ?persona= picks one explicitly."""
+    persona = sm_persona(request)
+    route, pid = ready_param(request)
+    if not route or request.query_params.get("persona"):
+        return persona
+    for other in [persona] + [x for x in PERSONAS if x != persona]:
+        p = engine_for(other).pending(pid)
+        if p and p["kind"] == SM_ROUTES[route]:
+            return other
+    return persona
+
+
+def sm_ready(request: Request, e: Engine) -> dict | None:
+    """The "Ready for you" card on S-mobiili home: the move behind ?ready=<route>:<pending id> (what a money-move
+    button opens). None when it is missing, malformed or not this persona's; {"done": True} once it is confirmed."""
+    route, pid = ready_param(request)
+    p = e.pending(pid) if route else None
+    if not p or p["kind"] != SM_ROUTES[route]:
+        return None
+    if p["status"] != "pending":
+        return {"done": True}
+    amt = short_money(p["amount"])
+    if route == "pay":
+        to = p["name"] if p.get("source") == "photo" else recipient(p)
+        due = f" · due {nice_date(p['due_date'])}" if p.get("due_date") else ""
+        what, sub = f"Pay {p['name'].lower()} · {money(p['amount'])}", f"To {to}{due}"
+    elif route == "save":
+        g = e.state["goals"].get(p.get("goal_id"), {})
+        what, sub = f"Save {amt} into Savings pocket", f"For {g.get('name') or 'your goal'}"
+    elif route == "invest":
+        per = " a month" if p["monthly"] else ""
+        what, sub = f"Invest {amt}{per}", f"Into {FUNDS_BY_ID[p['fund_id']]['name']}"
+    else:
+        what = f"Pause monthly investing · {amt}"
+        sub = (f"Next one was due {nice_date(p['next_charge'])}. " if p.get("next_charge") else "") + \
+            "What's invested stays invested"
+    q = request.query_params
+    keep = {k: q[k] for k in ("persona", "web", "autoplay", "pin") if q.get(k)}
+    return {"done": False, "what": what, "sub": sub,
+            "url": f"/s-mobiili/{route}/{pid}" + (f"?{urlencode(keep)}" if keep else "")}
+
+
 @app.get("/s-mobiili/", response_class=HTMLResponse)
 def smobiili_home(request: Request):
-    persona = sm_persona(request)
+    persona = home_persona(request)
     e = engine_for(persona)
     a = accounts(e)
     b = e.baskets("last_3_months")
+    ready = sm_ready(request, e)
+    first = [("ready", "I've got it ready, tap to check and confirm", "happy")] if ready and not ready["done"] else []
     steps = [("acct-current", f"Your current account: {short_money(a['current'])}", "talk"),
              ("baskets", "Everything you spend falls in 3 baskets. Tap it and I'll show you where it goes", "talk"),
              ("acct-pocket", "Your Savings pocket" if a["pocket_open"] else "Your Savings pocket, once you open one",
@@ -1176,11 +1227,12 @@ def smobiili_home(request: Request):
              ("acct-funds", "Your funds. Only you choose where money goes", "talk"),
              ("recent", "Your latest payments, straight from your account", "talk"),
              ("ask", "Questions? I'm in WhatsApp and right here", "wave")]
+    steps = first + steps
     bill = next(iter(e.upcoming_bills(30)), None)
     q = {"q": BASKETS_Q, **({"embed": "1"} if request.query_params.get("web") else {}),
          **({"as": persona} if request.query_params.get("persona") else {})}
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
-        request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps), baskets=b,
+        request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps), baskets=b, ready=ready,
         baskets_url="/chat?" + urlencode(q),
         bill={**bill, "due": nice_date(bill["due_date"])} if bill else None))
 
@@ -1854,8 +1906,8 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=()):
         if "chart" in b:  # drawn inside the bubble; its link opens the same view on the Explore page
             charts.append({**b["chart"], "url": b["url"].replace(public_url(), "")})
             continue
-        owner[b["url"].rsplit("/", 1)[-1]] = sid
-        out.append({"label": b["label"], "url": b["url"].replace(public_url(), "") + "?web=1"})
+        owner[pending_id_of(b["url"])] = sid
+        out.append({"label": b["label"], "url": with_web(b["url"].replace(public_url(), ""))})
     paused = quiz.paused_note(e, sid)
     waiting = learn.paused_note(e, sid)
     again = onboarding.reask(e, sid)  # a side question mid-interview: the waiting question comes back

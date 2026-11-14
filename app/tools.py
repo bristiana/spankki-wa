@@ -5,7 +5,7 @@ import json
 import os
 import re
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_MERCHANT_TYPES, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS, PERIODS,
                      SPEND_CATEGORIES, Engine)
@@ -344,9 +344,28 @@ def public_url() -> str:
     return os.environ.get("PUBLIC_URL", "http://localhost:8000").rstrip("/")
 
 
-def confirm_url(route: str, pid: str) -> str:
-    """Where a money-move button goes: the S-mobiili mock (review, then Face ID). Add ?pin=1 for the PIN page."""
-    return f"{public_url()}/s-mobiili/{route}/{pid}"
+def confirm_url(route: str, pid: str, web: bool = False) -> str:
+    """Where a money-move button goes: the S-mobiili home, with the prepared move on a "Ready for you" card at the
+    top. The card opens the review (/s-mobiili/{route}/{pid}), then Face ID. Add &pin=1 for the PIN page."""
+    return f"{public_url()}/s-mobiili/?ready={route}:{pid}" + ("&web=1" if web else "")
+
+
+def ready_of(url: str) -> tuple[str, str] | None:
+    """(route, pending id) from a confirm_url link, or None when it has no ?ready=route:pid."""
+    q = parse_qs(urlsplit(url).query).get("ready")
+    route, _, pid = (q[0] if q else "").partition(":")
+    return (route, pid) if route and pid else None
+
+
+def pending_id_of(url: str) -> str:
+    """The pending id behind a money-move button (a confirm_url link, or an old direct flow link)."""
+    r = ready_of(url)
+    return r[1] if r else url.split("?")[0].rstrip("/").rsplit("/", 1)[-1]
+
+
+def with_web(url: str) -> str:
+    """The web chat's copy of a button link: ?web=1 (or &web=1) so S-mobiili knows it is inside the chat's sheet."""
+    return url + ("&" if "?" in url else "?") + "web=1"
 
 
 def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
@@ -428,7 +447,7 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out["say"] = ("Compare only to reassure or help a choice, never to judge. Say it is averages of at least 30 "
                       "S-Pankki customers, never one person.")
     elif name == "create_bill_payment_link":
-        out = bills.run_tool(engine, buttons, confirm_url("pay", "").rstrip("/"))
+        out = bills.run_tool(engine, buttons, lambda pid: confirm_url("pay", pid))
     else:
         raise ValueError(f"unknown tool {name}")
     lesson = lesson_for(name, out)

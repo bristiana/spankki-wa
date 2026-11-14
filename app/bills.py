@@ -422,8 +422,8 @@ def create_payment(engine: Engine, user: str) -> dict:
                          "transaction_type": "utilities_payment" if category == "Utilities" else "bill_payment"})
 
 
-def run_tool(engine: Engine, buttons: list, url: str) -> dict:
-    """create_bill_payment_link: `url` is the confirm page base (the same one create_payment_link uses)."""
+def run_tool(engine: Engine, buttons: list, link) -> dict:
+    """create_bill_payment_link: `link(pending_id)` is the button's URL (the same one create_payment_link uses)."""
     user, allowed = turn.get() or (None, False)
     if not user:
         raise ValueError("no bill photo in this conversation")
@@ -431,7 +431,7 @@ def run_tool(engine: Engine, buttons: list, url: str) -> dict:
         raise ValueError("the person only asked to understand the bill. Don't prepare a payment now; explain it "
                          "and offer to prepare the payment")
     p = create_payment(engine, user)
-    buttons.append({"label": f"Pay {p['amount']:.2f} €", "url": f"{url}/{p['pending_id']}"})
+    buttons.append({"label": f"Pay {p['amount']:.2f} €", "url": link(p["pending_id"])})
     return {**p, "note": "A 'Pay' button is attached to your message. Do not paste a link. The recipient, account, "
                          "reference and amount are filled in from the photo."}
 

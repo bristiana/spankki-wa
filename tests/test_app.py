@@ -64,7 +64,7 @@ def test_reminder_then_pay_flow(client):
     bill_id = next(b for b in main.engine.upcoming_bills() if b["name"] == "Rent")["bill_id"]
     post_signed(client, wa_payload(mid="m2", button=f"pay:{bill_id}"))
     url = client.sent[-1]["interactive"]["action"]["parameters"]["url"]
-    pid = url.rsplit("/", 1)[-1]
+    pid = url.rsplit(":", 1)[-1]  # ...?ready=pay:<pid>
     assert "Confirm payment" in client.get(f"/pay/{pid}").text
     before = main.engine.balance()
     page = client.post(f"/pay/{pid}", data={"pin": "1234"})

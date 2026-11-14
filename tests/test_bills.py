@@ -236,7 +236,7 @@ def test_pay_it_creates_exactly_one_payment_with_the_bill_fields(web):
     assert "create_bill_payment_link" in main._coach.calls[-1][1]  # the stored bill is mentioned to the coach
     [button] = r.json()["buttons"]
     [(pid, p)] = main.engine.state["pending"].items()
-    assert button == {"label": "Pay 57.08 €", "url": f"/s-mobiili/pay/{pid}?web=1"}
+    assert button == {"label": "Pay 57.08 €", "url": f"/s-mobiili/?ready=pay:{pid}&web=1"}
     assert {k: p[k] for k in ("kind", "name", "amount", "iban", "reference", "due_date", "category", "status")} == {
         "kind": "payment", "name": "Voltti Energia Oy (demo)", "amount": 57.08, "iban": "FI5979900020451187",
         "reference": "20261005837", "due_date": "2026-10-20", "category": "Utilities", "status": "pending"}

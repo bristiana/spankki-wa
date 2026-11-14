@@ -191,7 +191,7 @@ def test_whatsapp_course_end_to_end(chat):
     chat.tap("quiz:money")
     assert chat.url() == f"{BASE}/app"
     chat.tap("learn:next:1").tap("learn:buffer")  # lesson 3: a buffer goal, then the PIN page
-    assert "/save/" in chat.url()
+    assert "?ready=save:" in chat.url()
     chat.confirm()
     assert any(t.startswith("✅ *Saved") for t in chat.texts())
     chat.tap("learn:next:2")
@@ -207,7 +207,7 @@ def test_whatsapp_course_end_to_end(chat):
     chat.tap("learn:next:3")
     (save_id, title), = [b for b in chat.buttons() if b[0].startswith("learn:save:")]
     chat.tap(save_id)
-    assert "/save/" in chat.url()
+    assert "?ready=save:" in chat.url()
     chat.tap("learn:finish")
     assert chat.interactive("button")[-1]["body"]["text"].startswith("🎓")
 
@@ -249,7 +249,8 @@ def test_web_chip_runs_the_course_with_quick_replies(client):
     r = say("__btn__:learn:next:3")
     save = next(q["send"] for q in r["quick"] if "learn:save:" in q["send"])
     out = say(save)
-    assert out["buttons"][0]["url"].startswith("/s-mobiili/save/") and out["buttons"][0]["url"].endswith("?web=1")
+    url = out["buttons"][0]["url"]
+    assert url.startswith("/s-mobiili/?ready=save:") and url.endswith("&web=1")
     assert "Pay yourself first" in out["text"]
     assert len(main._coach.asked) == 1  # only the one real question went to the AI
 
