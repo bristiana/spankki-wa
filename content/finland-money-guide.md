@@ -1,4 +1,4 @@
-# Finland money guide (for Birky, ages 20-30)
+# Finland money guide (for Oiva, ages 20-30)
 
 Short, factual notes on money topics a 20-30-year-old in Finland runs into. Checked on 2026-11-14. Each section has its official source. If a figure could not be verified on the official source, it is left out. Rules change: always point the person to the source for their own case.
 

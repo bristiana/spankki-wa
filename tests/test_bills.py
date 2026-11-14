@@ -207,7 +207,7 @@ class EagerCoach:
 
 @pytest.fixture
 def web(tmp_path, monkeypatch):
-    monkeypatch.setenv("PUBLIC_URL", "https://birky.example")
+    monkeypatch.setenv("PUBLIC_URL", "https://oiva.example")
     main.engine = Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json")
     main._coach = EagerCoach()
     monkeypatch.setattr(bills, "extract", lambda client, data, media_type: bills.clean(VOLTTI))

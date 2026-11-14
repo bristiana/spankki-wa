@@ -55,7 +55,7 @@ def test_defang_tool_text_that_poses_as_instructions():
 # ---------------- the reply linter ----------------
 @pytest.mark.parametrize("bad", ["Done, I've paid your rent.", "I transferred 50 € to your trip goal.",
                                  "Act now before it's too late!", "This fund has guaranteed returns."])
-def test_reply_problems_catch_what_birky_never_says(bad):
+def test_reply_problems_catch_what_oiva_never_says(bad):
     assert guardrails.reply_problems(bad)
 
 

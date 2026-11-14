@@ -208,7 +208,7 @@ def test_demo_login_for_the_jury():
     c = TestClient(main.app)
     assert "Use the demo account" in c.get("/login").text
     r = c.get("/login", params={"demo": 1, "next": "/chat"}, follow_redirects=False)
-    assert r.headers["location"] == "/chat" and "birky_demo=1" in r.headers["set-cookie"]
-    c.cookies.set("birky_demo", "1")
+    assert r.headers["location"] == "/chat" and "oiva_demo=1" in r.headers["set-cookie"]
+    c.cookies.set("oiva_demo", "1")
     assert c.get("/bank", follow_redirects=False).headers["location"] == "/connect/bank?demo=1"
-    assert ">Demo</a>" in c.get("/chat").text
+    assert ">Demo</a>" in c.get("/app").text

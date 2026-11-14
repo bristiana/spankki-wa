@@ -23,13 +23,13 @@ def clean_env(monkeypatch):
 
 def test_behind_the_worker_uses_the_stt_route(monkeypatch):
     monkeypatch.setenv("STATE_REMOTE", "1")
-    monkeypatch.setenv("PUBLIC_URL", "https://birky.example/")
+    monkeypatch.setenv("PUBLIC_URL", "https://oiva.example/")
     monkeypatch.setenv("WA_VERIFY_TOKEN", "vt")
     calls = []
     monkeypatch.setattr(httpx, "post", lambda url, **kw: calls.append((url, kw)) or Resp({"text": " Hi Oiva "}))
     assert voice.transcribe(b"ogg") == "Hi Oiva"
     url, kw = calls[0]
-    assert url == "https://birky.example/__stt" and kw["params"] == {"key": "vt"}
+    assert url == "https://oiva.example/__stt" and kw["params"] == {"key": "vt"}
     assert kw["json"]["audio"] == "b2dn" and "Oiva" in kw["json"]["initial_prompt"]
 
 

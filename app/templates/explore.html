@@ -34,7 +34,7 @@
 {% endblock %}
 {% block body %}
 <main>
-  <div class="hello"><img src="/static/birky/penny.png" alt=""><div><b>Explore your data</b><div class="muted">Your transactions, your questions. Pick what to see; no bank-picked charts.</div></div></div>
+  <div class="hello"><img src="/static/oiva/oiva.png" alt=""><div><b>Explore your data</b><div class="muted">Your transactions, your questions. Pick what to see; no bank-picked charts.</div></div></div>
   {% if error %}<div class="note" role="alert">Couldn't build that view ({{ error }}), so here is the default one.</div>{% endif %}
   <div class="grid">
     <div class="card side">
@@ -88,9 +88,9 @@
 </main>
 <script>
 const spec = {{ v.chart|tojson }}, plot = document.getElementById("plot");
-window.birkyChart(plot, spec);
+window.oivaChart(plot, spec);
 let w = plot.clientWidth;
-window.addEventListener("resize", () => { if (plot.clientWidth !== w) { w = plot.clientWidth; window.birkyChart(plot, spec); } });
+window.addEventListener("resize", () => { if (plot.clientWidth !== w) { w = plot.clientWidth; window.oivaChart(plot, spec); } });
 const form = document.getElementById("q");
 form.querySelectorAll("select").forEach(s => s.addEventListener("change", () => {
   if (s.name === "what" && s.value === "income") form.filter.value = "";  // filters are for spending
