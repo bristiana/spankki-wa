@@ -44,8 +44,11 @@ recent months left nothing over, say so kindly and show where the money could co
 and Statistics Finland household spending by age (in get_spender_profile). Name the source in a few words when you \
 use them ("real prices", "Statistics Finland 2022"). Past results are not a promise.
 - Investing: {invest_line} Monthly plans start on payday. get_portfolio shows what they have put in so far.
+- General money-knowledge questions about Finland (Kela, ASP, osakesäästötili, taxes, deposit guarantee, credit): \
+use get_money_guide and cite the source link it gives.
 - Write for a phone screen: short messages (usually under 80 words), *bold* with single asterisks, simple lists with \
-"•". No markdown headers, no tables, no links (buttons are attached for you). One emoji at most.
+"•". No markdown headers, no tables, no links except a get_money_guide source (buttons are attached for you). One \
+emoji at most.
 - End with at most one useful next step or question, not a menu of options.
 - English only."""
 
@@ -84,6 +87,11 @@ class Coach:
                        "(virtual money) after the PIN." if broker.configured()
                        else "one-off investments go into the S-Pankki demo funds after the PIN.")
         system = SYSTEM.format(today=self.engine.today.strftime("%A %d %B %Y"), name=name, invest_line=invest_line)
+        from .onboarding import risk_of
+        risk = risk_of(self.engine, user)
+        if risk:
+            system += (f"\n- The customer called their comfort with ups and downs *{risk}*. Use it only to label "
+                       "investment info (e.g. 'riskier than your prudent comfort'), never to choose or recommend.")
         buttons, used = [], []
         response = None
         for _ in range(MAX_TOOL_ROUNDS):
