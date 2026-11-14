@@ -6,7 +6,7 @@
   "vars": {
     "PUBLIC_URL": "https://spankki-wa.bogdan-c-2206.workers.dev",
     "DEMO_TODAY": "2026-10-06",
-    "INSTANCE": "35"
+    "INSTANCE": "36"
   },
   "containers": [
     {
