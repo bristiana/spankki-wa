@@ -143,3 +143,16 @@ def redact(text: str) -> str:
     t = re.sub(r"\b\d{6}[-+AaBCDEFYXWVU]\d{3}[0-9A-Ya-y]\b", "[personal ID removed]", t)
     return re.sub(r"\b\d(?:[ -]?\d){12,18}\b",
                   lambda m: "[card number removed]" if _luhn(re.sub(r"\D", "", m.group())) else m.group(), t)
+
+
+def failed_statuses(payload: dict) -> list[dict]:
+    """Meta accepts a send with 200 and reports a failed delivery later, as a status: {to, code, title}."""
+    out = []
+    for entry in payload.get("entry", []):
+        for ch in entry.get("changes", []):
+            for st in ch.get("value", {}).get("statuses", []):
+                if st.get("status") == "failed":
+                    err = (st.get("errors") or [{}])[0]
+                    out.append({"to": st.get("recipient_id", ""), "code": err.get("code"),
+                                "title": str(err.get("title") or err.get("message") or "")[:120]})
+    return out

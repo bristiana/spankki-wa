@@ -135,3 +135,16 @@ def test_my_data_command(client):
     main.engine.state["connected"]["40700000000"] = {}
     post_signed(client, wa_payload(text="my data", mid="m10"))
     assert client.sent[-1]["interactive"]["action"]["parameters"]["url"].endswith("/app/export.json")
+
+
+def test_window_and_failed_status(client, monkeypatch):
+    monkeypatch.setenv("DEMO_PHONE", "40700000000")
+    main.last_seen.clear()
+    assert not main.window_open("40700000000")
+    post_signed(client, wa_payload(text="Hi", mid="m11"))
+    assert main.window_open("40700000000")
+    assert "window open" in client.get("/demo", params={"key": "vt"}).text
+    from app.whatsapp import failed_statuses
+    st = {"entry": [{"changes": [{"value": {"statuses": [{"status": "failed", "recipient_id": "4070",
+                                                           "errors": [{"code": 131047, "title": "Re-engagement"}]}]}}]}]}
+    assert failed_statuses(st) == [{"to": "4070", "code": 131047, "title": "Re-engagement"}]
