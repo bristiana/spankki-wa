@@ -76,3 +76,15 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .cp-sent{margin:10px 0 4px;font-size:14.5px}
 .cp-target{margin:6px 0 0;font-size:13.5px;color:var(--muted);border-left:3px solid var(--brand);padding-left:8px}
 .cp-src{margin:4px 4px 0}
+
+/* Bills */
+.bl-head .amount{margin:0}.bl-head .muted{margin:2px 0 8px}
+.bl-split{border-top:1px solid var(--line);padding-top:10px}.bl-split small{display:block;font-size:12.5px;color:var(--muted)}
+.bl-row{padding:10px 0 0;border-top:1px solid var(--line)}.sc-h+.bl-row{border-top:0}
+.bl-row small{display:block;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.bl-row .sp-row b small{display:inline;font-weight:400}
+.bl-ub{color:var(--over) !important}
+.bl-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.bl-chip{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--soft);color:var(--ink)}
+.bl-chip.bl-warn{background:var(--warn-bg);color:var(--warn)}
+.bl-method{margin:4px 4px 0}.bl-method summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
