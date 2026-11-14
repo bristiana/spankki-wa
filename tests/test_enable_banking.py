@@ -28,7 +28,12 @@ def test_simplify_signs_and_categories():
     inc = eb.simplify({"transaction_amount": {"amount": "100", "currency": "EUR"}, "credit_debit_indicator": "CRDT",
                        "booking_date": "2026-11-02", "debtor": {"name": "Friend"}})
     assert inc["amount_eur"] == 100 and inc["category"] == "Income"
-    assert eb.simplify({"transaction_amount": {"amount": "5", "currency": "USD"}, "booking_date": "2026-11-02"}) is None
+    eb._fx_cache = (9e18, {"EUR": 1.0, "USD": 1.25})
+    usd = eb.simplify({"transaction_amount": {"amount": "5", "currency": "USD"}, "credit_debit_indicator": "DBIT",
+                       "booking_date": "2026-11-02"})
+    assert usd["amount_eur"] == -4.0 and usd["original"] == "-5.00 USD"
+    assert eb.simplify({"transaction_amount": {"amount": "5", "currency": "XYZ"}, "booking_date": "2026-11-02"}) is None
+    eb._fx_cache = None
     mcc = eb.simplify({"transaction_amount": {"amount": "3", "currency": "EUR"}, "credit_debit_indicator": "DBIT",
                        "booking_date": "2026-11-03", "merchant_category_code": "4121"})
     assert mcc["category"] == "Transportation"
@@ -37,7 +42,10 @@ def test_simplify_signs_and_categories():
 def test_balance_prefers_available_eur():
     assert eb.pick_balance([{"balance_type": "CLBD", "balance_amount": {"amount": "10", "currency": "EUR"}},
                             {"balance_type": "ITAV", "balance_amount": {"amount": "12.3", "currency": "EUR"}}]) == 12.3
-    assert eb.pick_balance([{"balance_type": "ITAV", "balance_amount": {"amount": "1", "currency": "USD"}}]) is None
+    eb._fx_cache = (9e18, {"EUR": 1.0, "RON": 5.0})
+    assert eb.pick_balance([{"balance_type": "ITAV", "balance_amount": {"amount": "50", "currency": "RON"}}]) == 10.0
+    assert eb.pick_balance([{"balance_type": "ITAV", "balance_amount": {"amount": "1", "currency": "XYZ"}}]) is None
+    eb._fx_cache = None
 
 
 def _link(phone):
@@ -225,3 +233,19 @@ def test_duplicate_accounts_and_own_transfers_are_not_spending():
     b = eb.picture("358401111111")[0]
     assert len(b["accounts"]) == 2
     assert b["spending_per_month_by_category_eur"] == {"Restaurants": round(30 / (90 / 30.4), 2)}
+
+
+def test_refresh_pulls_accounts_again(monkeypatch):
+    eb.save("358401111111", {"Revolut": {"bank": "Revolut", "accounts": [{"uid": "u1", "currency": "RON"}]}})
+    monkeypatch.setattr(eb, "_fx_cache", (9e18, {"EUR": 1.0, "RON": 5.0}))
+    def call(path, method="GET", body=None):
+        if path.endswith("/balances"):
+            return {"balances": [{"balance_type": "ITAV", "balance_amount": {"amount": "500", "currency": "RON"}}]}
+        return {"transactions": [{"transaction_amount": {"amount": "50", "currency": "RON"},
+                                  "credit_debit_indicator": "DBIT", "booking_date": "2026-11-10",
+                                  "creditor": {"name": "Lidl"}}]}
+    monkeypatch.setattr(eb, "call", call)
+    assert eb.refresh("358401111111") == 1
+    acc = eb.load("358401111111")["Revolut"]["accounts"][0]
+    assert acc["balance_eur"] == 100.0 and acc["transactions"][0]["amount_eur"] == -10.0
+    assert main.REFRESH_BANK.match("refresh bank") and not main.REFRESH_BANK.match("how is my bank")
