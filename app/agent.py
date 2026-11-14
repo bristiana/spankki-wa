@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 
@@ -29,6 +30,8 @@ connected their S-Pankki account. Today is {today}. The customer's first name is
 How you work:
 - Every number you say (euros, percentages, counts, dates) must come from a tool result in this conversation. Never \
 estimate, round up a story, or invent a figure. If no tool gives it, say you can't see that yet.
+- Write amounts the way the app shows them: a space between thousands and the euro sign after the number, \
+"1 313.89 €", never "€1,313.89".
 - Teach with the three baskets: "mandatory & regular" (rent, bills), "mandatory & irregular" (a doctor, a broken \
 laptop) and "slips through your fingers" (dining out, fun, shopping). Name the basket when it helps the person \
 understand where their money goes.
@@ -76,6 +79,17 @@ they write in it. Keep amounts, dates and sources exactly as the tools give them
 
 FIX = ("Check your numbers: {numbers} did not come from a tool result. Rewrite your reply using only numbers from "
        "the tool results (call a tool if you need one), or leave the figure out. Reply with the message only.")
+
+
+_EURO = re.compile(r"€\s?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?!\d)|(?<![\d.,])(\d{1,3}(?:,\d{3})+)(\.\d+)?\s?€")
+
+
+def euro_style(text: str) -> str:
+    """One currency style on every screen: "€1,313.89" or "1,313.89€" from the model becomes "1 313.89 €"."""
+    def fix(m):
+        whole, dec = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
+        return f"{whole.replace(',', ' ')}{dec or ''} €"
+    return _EURO.sub(fix, text)
 
 
 def _text(response) -> str:
@@ -153,7 +167,7 @@ class Coach:
         self.histories[user] = msgs
         if not text_out:
             text_out = "Sorry, I couldn't put that together just now. Could you ask again in a moment?"
-        return Reply(text=text_out, buttons=buttons, tools_used=used)
+        return Reply(text=euro_style(text_out), buttons=buttons, tools_used=used)
 
     def _loop(self, msgs: list, system: str, buttons: list, used: list):
         """Call Claude and run the tools it asks for until it answers. Appends to msgs; returns the last response."""
