@@ -275,15 +275,19 @@ class Coach:
         self.client = client or anthropic.Anthropic()
         self.histories: dict[str, list] = {}
         self.reacted: dict[str, list] = {}  # the reactions that went out per person (None = none), newest last
+        self.alias: dict[str, str] = {}  # another key for the same conversation (the app chat -> the owner's WhatsApp)
         self.roll = random.random  # the pace's dice; tests pin it
 
     def reset(self, user: str | None = None):
         if user:
-            self.histories.pop(user, None)
-            self.reacted.pop(user, None)
+            self.histories.pop(self._k(user), None)
+            self.reacted.pop(self._k(user), None)
         else:
             self.histories.clear()
             self.reacted.clear()
+
+    def _k(self, user: str) -> str:
+        return self.alias.get(user, user)
 
     def _trimmed(self, msgs: list) -> list:
         """Keep the last HISTORY_TURNS user turns; cut only at a plain user text message so tool pairs stay intact."""
@@ -295,14 +299,14 @@ class Coach:
     def remember(self, user: str, said: str, shown: str):
         """A turn the interview or the basket game answered without AI: kept in the history, so a follow-up
         ("why so much?", "what does prudent mean") knows what the person just saw."""
-        msgs = self.histories.setdefault(user, [])
+        msgs = self.histories.setdefault(self._k(user), [])
         if msgs and msgs[-1]["role"] == "user":  # never two user turns in a row
             return
         msgs += [{"role": "user", "content": said or "(tapped a button)"}, {"role": "assistant", "content": shown}]
 
     def last_said(self, user: str) -> str:
         """Oiva's last message to this person, without its reaction ("" if none)."""
-        for m in reversed(self.histories.get(user, [])):
+        for m in reversed(self.histories.get(self._k(user), [])):
             if m["role"] != "assistant":
                 continue
             c = m["content"]
@@ -314,7 +318,7 @@ class Coach:
 
     def ask(self, user: str, text: str, name: str = "there", context: str | None = None) -> Reply:
         """`context`: what is waiting in the chat after this reply (an interview question, a paused game)."""
-        msgs = self._trimmed(self.histories.get(user, []))
+        msgs = self._trimmed(self.histories.get(self._k(user), []))
         msgs.append({"role": "user", "content": text})
         from . import broker
         invest_line = ("one-off investments are placed for real on the linked Trading 212 Practice account "
@@ -355,11 +359,11 @@ class Coach:
             if trace:
                 trace.append({"check": check_line(len(checked), len(bad), rewritten), "checked": len(checked),
                               "matched": len(checked) - len(bad), "rewritten": rewritten})
-        self.histories[user] = msgs
+        self.histories[self._k(user)] = msgs
         if not text_out and not (emoji and response is not None and response.stop_reason != "refusal"):
             trace, emoji = [], None
             text_out = "Sorry, I couldn't put that together just now. Could you ask again in a moment?"
-        past = self.reacted.setdefault(user, [])
+        past = self.reacted.setdefault(self._k(user), [])
         reaction = reactions.pace(emoji or reactions.quick_reaction(text), past, bool(text_out), self.roll())
         past.append(reaction)
         del past[:-reactions.PAST]

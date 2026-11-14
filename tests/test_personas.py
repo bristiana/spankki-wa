@@ -40,13 +40,15 @@ def test_index_lists_the_hero_first_then_aino_and_four_real_customers():
         assert p["file"] is None or (main.PERSONA_DIR / p["file"]).exists()
 
 
-def test_the_hero_is_the_default_and_aino_stays_switchable(client):
+def test_the_hero_is_the_default_and_aino_stays_switchable(client, monkeypatch):
+    monkeypatch.delenv("MIRROR_PHONE", raising=False)
+    monkeypatch.delenv("DEMO_PHONE", raising=False)  # not mirroring WhatsApp: the chat follows the chosen customer
     assert main.engine.customer_id == main.HERO
-    assert f"Viewing as <b>{main.DEMO_NAME}</b>" in client.get("/chat").text
+    assert f"Hi {main.DEMO_NAME}!" in client.get("/chat").text
     aino = main.engine_for(main.AINO)
     assert aino is not main.engine and aino.customer_id == main.AINO
     assert aino.safe_to_spend()["safe_to_spend_until_payday_eur"] == 68.60  # the engine's own default, unchanged
-    assert "Viewing as <b>Aino</b>" in client.get("/chat", params={"as": main.AINO}).text
+    assert "Hi Aino!" in client.get("/chat", params={"as": main.AINO}).text
 
 
 def test_demo_persona_env_picks_the_default():
@@ -77,11 +79,13 @@ def test_every_page_renders_for_every_persona(client, pid):
         assert client.get(path, params={"as": pid}).status_code == 200, path
 
 
-def test_as_param_sets_the_cookie_and_the_cookie_sticks(client):
+def test_as_param_sets_the_cookie_and_the_cookie_sticks(client, monkeypatch):
+    monkeypatch.delenv("MIRROR_PHONE", raising=False)
+    monkeypatch.delenv("DEMO_PHONE", raising=False)
     pid = OTHERS[0]
     r = client.get("/chat", params={"as": pid})
     assert client.cookies.get(main.PERSONA_COOKIE) == pid
-    assert f"Viewing as <b>{main.name_for(pid)}</b>" in r.text and f"Hi {main.name_for(pid)}" in r.text
+    assert f"Hi {main.name_for(pid)}" in r.text
     assert f"Viewing as <b>{main.name_for(pid)}</b>" in client.get("/app/explore").text
     assert safe(client) == main.engine_for(pid).safe_to_spend()["safe_to_spend_until_payday_eur"]
 

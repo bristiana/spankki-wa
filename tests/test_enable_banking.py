@@ -181,3 +181,34 @@ def test_new_number_lands_in_the_demo(monkeypatch):
     main.handle_message({"from": "40700000002", "name": "Jury", "id": "m2", "text": "Hi"})
     assert calls == [("welcome", "40700000002")] and main.connected("40700000002")
     main.engine.state["connected"].pop("40700000002", None)
+
+
+def test_real_bank_hides_the_demo_bank():
+    _link("358401111111")
+    full = {"linked": True, "banks": [{"bank": "S-Pankki", "accounts": [{"type": "current account", "balance_eur": 1000.0}]},
+                                      {"bank": "Demo Bank (synthetic demo bank)", "accounts": [{"balance_eur": 2450.0}]}],
+            "total_balances_eur": 3450.0, "card_debt_eur": 65.4, "net_position_eur": 3384.6, "next_card_bill": {}}
+    out = eb.merge(full, "358401111111")
+    assert [b["bank"].split(" (")[0] for b in out["banks"]] == ["S-Pankki", "Revolut"]
+    assert out["total_balances_eur"] == 1250.0 and out["net_position_eur"] == 1250.0 and "card_debt_eur" not in out
+
+
+def test_dashboard_shows_real_banks_not_demo_bank():
+    from fastapi.testclient import TestClient
+    _link("358401111111")
+    main.engine.link_bank(["accounts", "transactions"])
+    c = TestClient(main.app)
+    assert "Demo Bank" in c.get("/app").text
+    c.cookies.set(eb.COOKIE, eb.sign("358401111111"))
+    page = c.get("/app").text
+    assert "Demo Bank" not in page and "Revolut: your real accounts" in page
+    main.engine.state["linked_banks"].clear()
+def test_demo_login_for_the_jury():
+    from fastapi.testclient import TestClient
+    c = TestClient(main.app)
+    assert "Use the demo account" in c.get("/login").text
+    r = c.get("/login", params={"demo": 1, "next": "/chat"}, follow_redirects=False)
+    assert r.headers["location"] == "/chat" and "birky_demo=1" in r.headers["set-cookie"]
+    c.cookies.set("birky_demo", "1")
+    assert c.get("/bank", follow_redirects=False).headers["location"] == "/connect/bank?demo=1"
+    assert ">Demo</a>" in c.get("/chat").text

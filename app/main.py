@@ -23,10 +23,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bills, broker, enable_banking, guardrails, learn, onboarding, quiz, receipts, rules, voice
+from . import bills, broker, enable_banking, guardrails, learn, mirror, onboarding, quiz, receipts, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
-from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
+from .engine import (BASKETS, DEMO_BANK, HIDE_DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
                      RESERVE_NOTE_EUR, SPEND_CATEGORIES, Engine, merchant_codes)
 from .tools import confirm_url, explore_query, pending_id_of, public_url, with_web
 
@@ -159,6 +159,15 @@ def name_for(persona: str | None) -> str:
     return PERSONAS[valid_persona(persona)]["name"]
 
 
+# Family names for the app's own profile (Minä); the dataset has none. Chat and WhatsApp keep first names.
+SURNAMES = {HERO: "Virtanen"}  # the hero, Antti
+
+
+def full_name(persona: str | None) -> str:
+    p = valid_persona(persona)
+    return " ".join(x for x in (PERSONAS[p]["name"], SURNAMES.get(p, "")) if x)
+
+
 def persona_ctx(persona: str) -> dict:
     return {"persona": PERSONAS[persona], "personas": list(PERSONAS.values())}
 
@@ -200,7 +209,9 @@ def fi_money(x: float) -> str:
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
 templates.env.filters["fimoney"] = fi_money
-templates.env.globals["wa_login"] = lambda request: enable_banking.mask(wa_phone(request))
+DEMO_COOKIE = "birky_demo"
+templates.env.globals["wa_login"] = lambda request: (enable_banking.mask(wa_phone(request))
+                                                     or ("Demo" if request.cookies.get(DEMO_COOKIE) else ""))
 
 
 def connected(phone: str) -> bool:
@@ -484,12 +495,15 @@ def ask(persona: str | None, user: str, text: str, name: str, context: str | Non
     WhatsApp number whose real linked banks may be used (default: the WhatsApp sender; none for a web visitor)."""
     hint = None if photo else bills.context_line(engine_for(persona), user)
     token = bills.turn.set((user, may_pay))
-    vtoken = enable_banking.viewer.set(viewer or (None if user.startswith("web:") else user))
+    who = viewer or (None if user.startswith("web:") else user)
+    vtoken = enable_banking.viewer.set(who)
+    htoken = HIDE_DEMO_BANK.set(bool(enable_banking.load(who)) if who else False)
     try:
         return coach(persona).ask(user, text, name=name, context=" ".join(x for x in (context, hint) if x) or None)
     finally:
         bills.turn.reset(token)
         enable_banking.viewer.reset(vtoken)
+        HIDE_DEMO_BANK.reset(htoken)
 
 
 def ask_about_bill(persona: str | None, user: str, bill: dict, caption: str | None, name: str):
@@ -527,6 +541,7 @@ def bill_photo(to: str, name: str, m: dict):
 def handle_message(m: dict):
     to, name = m["from"], first_name(m["name"])
     names[to] = name
+    mirror.incoming(to, m)  # the owner's messages show in the app's chat too
     try:
         wa.mark_read_typing(m["id"])
         if m.get("kind") == "audio" and m.get("media_id") and not m["text"]:  # a voice note: handled like typed text
@@ -692,6 +707,11 @@ def login(request: Request, next: str = "/app"):
     """Login with WhatsApp: ?t= comes from the link Oiva sends when you write "login"; without it, the way there."""
     nxt = next if next.startswith("/") and not next.startswith("//") else "/app"
     t = request.query_params.get("t")
+    if request.query_params.get("demo"):  # the jury: the demo account, no WhatsApp needed
+        r = RedirectResponse(nxt, status_code=303)
+        r.set_cookie(DEMO_COOKIE, "1", max_age=enable_banking.LINK_DAYS * 86400, httponly=True, secure=True,
+                     samesite="lax")
+        return r
     if t and enable_banking.verify(t):
         r = RedirectResponse(nxt, status_code=303)
         _set_login(r, t)
@@ -732,12 +752,15 @@ def terms(request: Request):
 def logout():
     r = RedirectResponse("/", status_code=303)
     r.delete_cookie(enable_banking.COOKIE)
+    r.delete_cookie(DEMO_COOKIE)
     return r
 
 
 @app.get("/bank", response_class=HTMLResponse)
 def real_bank_page(request: Request):
     phone = wa_phone(request)
+    if not phone and request.cookies.get(DEMO_COOKIE):  # the demo account links the synthetic Demo Bank
+        return RedirectResponse("/connect/bank?demo=1", status_code=303)
     if not phone:
         return RedirectResponse("/login?next=/bank", status_code=303)
     if not enable_banking.configured():
@@ -1176,7 +1199,7 @@ def sm_ctx(request: Request, persona: str, **extra) -> dict:
                                          if keep or t else "")
     return {"wa": wa_back(request), "web": bool(q.get("web")), "autoplay": q.get("autoplay") == "1",
             "home_url": tab_url(None), "tab_urls": {t: tab_url(t) for t in SM_TABS if t != "koti"},
-            "name": name_for(persona), "tab": "koti", **extra}
+            "name": name_for(persona), "full_name": full_name(persona), "tab": "koti", **extra}
 
 
 # The real app's bottom bar: Koti · S-Etukortti · (+) Maksu · Pankki · Minä. "kortti" is the card page under Pankki.
@@ -1751,7 +1774,13 @@ def explore_csv(request: Request):
 @app.get("/app", response_class=HTMLResponse)
 def dashboard(request: Request):
     persona = persona_of(request)
-    o = engine_for(persona).overview()
+    me = wa_phone(request)
+    token = HIDE_DEMO_BANK.set(bool(me and enable_banking.load(me)))  # your real banks instead of the Demo Bank
+    try:
+        o = engine_for(persona).overview()
+    finally:
+        HIDE_DEMO_BANK.reset(token)
+    o["full"] = enable_banking.merge(o["full"], me)
     return templates.TemplateResponse(request, "dashboard.html", _ctx(
         o=o, name=name_for(persona), today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o),
         peers=_peers_card(engine_for(persona)), **persona_ctx(persona),
@@ -1771,8 +1800,12 @@ def _peers_card(eng: Engine) -> dict | None:
 def chat_page(request: Request, q: str = "", embed: str = ""):
     """?q= asks a question once on load (deep link); ?embed=1 drops the site chrome for a WebView."""
     persona = persona_of(request)
+    mirrored = bool(mirror.owner())
+    if mirrored:  # the app's chat is the owner's WhatsApp conversation, on the WhatsApp demo customer's data
+        persona = DEFAULT_PERSONA
     return templates.TemplateResponse(request, "chat.html", {"name": name_for(persona), "q": q[:500],
-                                                             "embed": embed == "1", **persona_ctx(persona)})
+                                                             "embed": True, "mirror": mirrored,
+                                                             "framed": embed != "1", **persona_ctx(persona)})
 
 
 # ---------------- S-mobiili integration: native home-screen cards, no AI ----------------
@@ -1891,8 +1924,27 @@ def web_words(out):
 
 @app.post("/api/chat")
 async def chat_api(request: Request):
-    """One turn of the web chat; its words carry no emoji and it has no reaction (web_words)."""
-    return web_words(await chat_turn(request))
+    """One turn of the web chat; its words carry no emoji and it has no reaction (web_words). With "mirror": true
+    (the app's chat) it is the owner's conversation: the same history as their WhatsApp, kept in the mirror log."""
+    out = web_words(await chat_turn(request))
+    body = await request.json()
+    if isinstance(body, dict) and body.get("mirror") and mirror.owner():
+        said = str(body.get("shown") or body.get("text") or "").strip()
+        if said and not said.startswith("__"):
+            mirror.add("me", said[:1000], source="app")
+        j = json.loads(out.body) if isinstance(out, JSONResponse) else out
+        if isinstance(j, dict):
+            parts = j.get("bubbles") or ([j["text"]] if j.get("text") else [])
+            links = [{"label": b["label"], "url": b["url"]} for b in j.get("buttons") or []]
+            for i, part in enumerate(parts):
+                mirror.add("oiva", part, links if i == len(parts) - 1 else None, source="app")
+    return out
+
+
+@app.get("/api/mirror")
+def mirror_api(after: int = 0):
+    """The owner's conversation, WhatsApp and app, from message `after` on; the app's chat polls it."""
+    return {"on": bool(mirror.owner()), "messages": mirror.since(after)}
 
 
 async def chat_turn(request: Request):
@@ -1905,6 +1957,10 @@ async def chat_turn(request: Request):
     if not isinstance(body, dict):
         raise HTTPException(400, "send a JSON object")
     sid = "web:" + str(body.get("session", "default"))[:40]
+    if body.get("mirror") and mirror.owner():  # the app's chat: the owner's WhatsApp conversation, same history
+        sid = mirror.APP_KEY
+        body["as"] = DEFAULT_PERSONA
+        coach(None).alias[sid] = mirror.owner()
     text = str(body.get("text", "")).strip()[:1000]
     if not text and not body.get("image"):
         raise HTTPException(400)

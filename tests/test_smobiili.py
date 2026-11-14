@@ -74,11 +74,12 @@ def test_pay_deep_link_prepares_payment_without_ai(client):
     assert main._coach is None  # no AI involved
 
 
-def test_embed_hides_site_chrome(client):
+def test_chat_is_an_s_mobiili_screen_and_embed_drops_the_phone(client):
     plain, embed = client.get("/chat").text, client.get("/chat?embed=1").text
-    assert 'class="bar"' in plain and "<footer>" in plain
-    assert 'class="bar"' not in embed and "<footer>" not in embed
-    assert '<body class="embed">' in embed and "safe-area-inset-top" in embed
+    for page in (plain, embed):  # never the demo site's own bar: the chat is a screen of the app
+        assert 'class="bar"' not in page and "<footer>" not in page and '<body class="embed">' in page
+    assert 'class="phone" id="phone"' in plain and 'class="tabs"' in plain and ">Viestit" in plain
+    assert 'class="phone bare" id="phone"' in embed and "safe-area-inset-top" in embed
 
 
 def test_deep_link_question_is_escaped(client):

@@ -366,7 +366,7 @@
       <span class="s">Sijoitustesi arvo</span><span class="v">{{ a.funds|fimoney }}</span></span>{{ icon("chevron", "i chev") }}</a>
     </div>
   {% elif screen == "tab" and tab == "mina" %}
-    <section class="me-head"><div class="avatar" aria-hidden="true">{{ name[:1] }}</div><b>{{ name }}</b></section>
+    <section class="me-head"><div class="avatar" aria-hidden="true">{{ name[:1] }}</div><b>{{ full_name or name }}</b></section>
     <div class="pad">
       <div class="card row-card">{{ icon("me") }}<span class="txt"><b>Omat tiedot</b><small>Yhteystiedot, asiakasomistajuus, viestintä, yksityisyys</small></span>{{ icon("chevron", "i chev") }}</div>
       <h2 class="sec">Tunnistaminen</h2>
