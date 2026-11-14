@@ -24,22 +24,12 @@ Niciun secret nu stă în acest fișier: token-urile și cheile sunt doar în `.
 - [x] Pus în `.env` și în Cloudflare (`wrangler secret bulk`), container repornit (`/admin/restart`).
 - [ ] Înainte de 13 ian 2027: generează un cod nou pentru Birky-bot (același loc) și repetă pasul de mai sus.
 
-## 4. Template-uri (mesaje după fereastra de 24h)
-WhatsApp permite mesaje libere doar în 24h de la ultimul mesaj al omului. După aceea, doar template-uri aprobate. Textele sunt în `docs/whatsapp-templates.md` și `app/templates_wa.py`.
-- [x] Toate 7 trimise la Meta pe 14 nov (`POST /<WABA_ID>/message_templates`), categoria cerută UTILITY.
-- [ ] Aprobare Meta. Starea pe 14 nov: toate **PENDING**. Meta a mutat 6 la MARKETING; doar `kurre_bill_due` a rămas UTILITY.
-
-| Template | Categorie Meta | Stare |
-|---|---|---|
-| `kurre_bill_due` | UTILITY | PENDING |
-| `kurre_subscription_renewal` | MARKETING | PENDING |
-| `kurre_subscription_price_up` | MARKETING | PENDING |
-| `kurre_unusual_payment` | MARKETING | PENDING |
-| `kurre_goal_pace` | MARKETING | PENDING |
-| `kurre_salary_in` | MARKETING | PENDING |
-| `kurre_weekly_checkin` | MARKETING | PENDING |
-
-Numele `kurre_*` rămân cum au fost trimise (le vede doar Meta); textele lor nu pomenesc numele coach-ului.
+## 4. Template-uri: renunțat (14 nov)
+Decizie: **fără template-uri**. Pe WhatsApp, în 24h de la ultimul mesaj al omului, Birky poate trimite orice mesaj liber (text, butoane, linkuri), fără aprobare. După 24h de tăcere, Birky nu scrie primul: așteaptă să-i scrie omul.
+- [x] Cele 7 template-uri trimise inițial la Meta au fost **șterse** (`DELETE /<WABA_ID>/message_templates?name=…`).
+- [x] Codul de template-uri scos din aplicație (`templates_wa.py`, `send_template`, mesajele „ținute”).
+- [x] Pentru demo: scrii „hi” botului, apoi din panoul demo pornești reminderul, alertele etc., toate în fereastra de 24h.
+- [x] Fereastra de 24h rezistă la redeploy (ora ultimului mesaj e salvată în starea persistentă).
 
 ## 5. Mesaje proactive
 - [x] Cron pe Worker la 07, 12 și 17 UTC (09, 14, 19 în Helsinki iarna) → `POST /cron/wake`.
@@ -53,7 +43,7 @@ Numele `kurre_*` rămân cum au fost trimise (le vede doar Meta); textele lor nu
 ## 7. Pentru producție (nu e în demo)
 - [ ] Număr WhatsApp Business propriu, verificat (nu numărul de test), cu nume afișat aprobat.
 - [ ] Business verification în Meta Business Settings.
-- [ ] Template-uri aprobate în categoriile finale; opt-in documentat.
+- [ ] Doar dacă Birky trebuie să scrie primul după 24h: template-uri aprobate de Meta; opt-in documentat.
 - [ ] Politica de confidențialitate și termenii pe un URL public, în setările aplicației.
 - [ ] App Review / modul Live pentru aplicație.
 - [ ] Autentificare reală în S-mobiili (SCA) în locul PIN-ului demo.

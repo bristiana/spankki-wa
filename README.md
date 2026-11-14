@@ -85,12 +85,12 @@ uvicorn app.main:app --port 8000
 - Tests: `python -m pytest` (211). Fleet check, every customer in the dataset: `python scripts/fleet_check.py --data-dir <dataset>` → `docs/fleet-check.md`
 - Refresh real data: `python scripts/fetch_market.py`, `python scripts/fetch_statfin.py`; rebuild the persona with `python scripts/extract_persona.py --data-dir <dataset>` and the mortgage benchmark with `python scripts/build_mortgage_benchmark.py --data-dir <dataset>`
 - WhatsApp: set `<url>/webhook` and `WA_VERIFY_TOKEN` in the Meta app, subscribe to `messages`. Proactive messages: `POST /demo/remind`, `POST /demo/alert?kind=salary|unusual|renewal`
-- Proactive check: `POST /cron/wake?key=<WA_VERIFY_TOKEN>` (also on a Worker cron at 07, 12 and 17 UTC) picks the most urgent signal per person from `app/rules.py` and sends it, or a template from `docs/whatsapp-templates.md` outside the 24-hour window. It sends nothing unless `DEMO_PROACTIVE=1`; add `&dry_run=1` to only see what would go out
+- Proactive check: `POST /cron/wake?key=<WA_VERIFY_TOKEN>` (also on a Worker cron at 07, 12 and 17 UTC) picks the most urgent signal per person from `app/rules.py` and sends it inside WhatsApp's 24-hour window (no templates: after 24 h of silence Birky waits for the person to write). It sends nothing unless `DEMO_PROACTIVE=1`; add `&dry_run=1` to only see what would go out
 - Deploy: `wrangler deploy` (bump `INSTANCE` in `wrangler.jsonc` for a fresh container)
 
 ## Honest limits
 - One demo customer on synthetic data; merchants are anonymous in the dataset ("Restaurant #22").
 - Payments and savings are simulated; investing uses demo fund names over real ETF prices; Trading 212 runs only on a Practice (virtual money) account.
-- Production needs S-Pankki's own APIs, a verified WhatsApp Business account, template messages for reminders outside the 24-hour window, and real PIN/strong customer authentication.
+- Production needs S-Pankki's own APIs, a verified WhatsApp Business account (and, if Birky should ever write first after 24 h of silence, approved template messages), and real PIN/strong customer authentication.
 
 Inspired by [Moni](https://github.com/Bogdan-ca/Moni) (NEXXT 2026); all code here was written from scratch for this challenge.
