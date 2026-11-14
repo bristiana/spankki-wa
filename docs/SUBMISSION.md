@@ -28,6 +28,6 @@
 
 Simulated, and labelled as such: the PIN pages (a stand-in for PSD2 payment initiation), the demo customer's subscriptions (the dataset has none) and the demo fund names.
 
-**Built with:** Claude (tool use over a deterministic pandas engine), FastAPI, WhatsApp Cloud API, Cloudflare Containers, Statistics Finland PxWeb API. 38 automated tests, plus an end-to-end browser walkthrough of every flow.
+**Built with:** Claude (tool use over a deterministic pandas engine), FastAPI, WhatsApp Cloud API, Cloudflare Containers, Statistics Finland PxWeb API. 44 automated tests, plus an end-to-end browser walkthrough of every flow.
 
 **S-mobiili fit:** the same API powers an in-app chat. Next steps are PSD2 payment initiation, a multi-bank view and real card subscriptions.
