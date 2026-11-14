@@ -49,3 +49,17 @@ def test_persona_carries_into_screen_links(client):
 
 def test_screens_have_no_face_id_overlay(client):
     assert 'id="fid"' not in client.get("/s-mobiili/budget").text
+
+
+def test_call_view_and_voice_scripts_on_home_and_screens(client):
+    for url in ("/s-mobiili/", "/s-mobiili/compare"):
+        html = client.get(url).text
+        assert 'id="oiva-call"' in html and 'id="call-end"' in html and 'id="call-mute"' in html
+        for js in ("oiva.js", "voice-stub.js", "call.js"):
+            assert f"/static/oiva/{js}" in html, (url, js)
+
+
+def test_voice_status_says_whether_voice_js_exists(client):
+    from pathlib import Path
+    exists = (Path(__file__).resolve().parent.parent / "app/static/oiva/voice.js").exists()
+    assert client.get("/s-mobiili/voice-status").json() == {"voice_js": exists}

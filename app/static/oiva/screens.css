@@ -88,3 +88,30 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .bl-chip{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--soft);color:var(--ink)}
 .bl-chip.bl-warn{background:var(--warn-bg);color:var(--warn)}
 .bl-method{margin:4px 4px 0}.bl-method summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+
+/* Talk to Oiva: the call sits over the lower part of the phone, so the screen Oiva shows stays visible above */
+.call{position:absolute;left:0;right:0;bottom:0;z-index:45;padding:0 10px 10px}
+.call-panel{background:#004628;color:#fff;border-radius:24px;padding:12px 16px 14px;box-shadow:0 -6px 30px rgba(0,0,0,.25)}
+.call-demo{margin:0 0 6px;font-size:12.5px;font-weight:600;color:#004628;background:#91fa9b;border-radius:99px;padding:3px 12px;display:inline-block}
+.call-top{display:flex;align-items:baseline;gap:10px;font-size:14px}.call-top b{font-size:17px}
+.call-top #call-state{flex:1;color:#d2fcd5}.call-top #call-timer{font-variant-numeric:tabular-nums;color:#d2fcd5}
+.call-oiva{width:150px;height:150px;margin:2px auto 0}.call-oiva svg{width:100%;height:100%}
+.call-provider{margin:0 0 6px;font-size:12.5px;color:#d2fcd5}
+.call-captions{min-height:64px;font-size:15px;line-height:1.4}.call-captions p{margin:4px 0}
+.call-captions p.you{color:#d2fcd5}.call-captions b{font-weight:700}
+.call-error{margin:6px 0;font-size:14.5px}.call-error a{color:#91fa9b;font-weight:700;display:inline-flex;min-height:44px;align-items:center}
+.call-summary{margin:6px 0;background:rgba(255,255,255,.1);border-radius:14px;padding:8px 12px;font-size:13.5px}
+.call-summary p{margin:3px 0}.call-summary .warn{color:#ffd88a}
+.call-btns{display:flex;gap:10px;margin-top:8px}
+.call-btns button{flex:1;min-height:48px;border-radius:99px;font:700 16px system-ui,-apple-system,sans-serif;cursor:pointer}
+#call-mute{background:transparent;color:#fff;border:2px solid #d2fcd5}#call-mute[aria-pressed="true"]{background:#d2fcd5;color:#004628}
+#call-end{background:#91fa9b;color:#004628;border:2px solid #91fa9b}
+.call-btns button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.talk-fab{position:absolute;right:14px;bottom:92px;z-index:30;display:flex;align-items:center;gap:6px;min-height:52px;padding:6px 16px 6px 8px;border-radius:99px;border:2px solid #91fa9b;background:#004628;color:#fff;font:700 15px system-ui,-apple-system,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);cursor:pointer}
+.talk-fab img{border-radius:50%;background:#91fa9b}
+.talk-fab:focus-visible{outline:3px solid #91fa9b;outline-offset:2px}
+#oiva-screen{padding-bottom:72px}
+.call-back{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:inherit}
+.phone:has(#oiva-call:not([hidden])) .guide{display:none}
+.call-captions:empty{min-height:0}
+@media (prefers-color-scheme:dark){.call-panel{box-shadow:0 0 0 1px #2f7a52,0 -6px 30px rgba(0,0,0,.5)}}
