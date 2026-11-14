@@ -6,7 +6,13 @@
   footer{display:none}
   #log{flex:1;overflow-y:auto;padding:16px;max-width:560px;width:100%;margin:0 auto}
   .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
-  .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px}
+  .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px;position:relative}
+  /* Birky's reaction on the person's message, like a WhatsApp reaction */
+  .me.reacted{margin-bottom:18px}
+  .react{position:absolute;right:8px;bottom:-15px;background:var(--card);border:1px solid var(--line);border-radius:99px;
+    padding:1px 6px;font-size:14px;line-height:20px;box-shadow:0 1px 2px rgba(0,0,0,.12);animation:pop .25s ease-out}
+  @keyframes pop{0%{transform:scale(.4);opacity:0}80%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+  @media (prefers-reduced-motion:reduce){.react{animation:none}}
   .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;margin-left:40px;position:relative}
   .bot::before{content:"";position:absolute;left:-40px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:#fff6e8 url(/static/birky.svg) center/120% no-repeat;border:1px solid var(--line)}
   .bot .btn{margin-top:10px;padding:11px;min-height:44px;font-size:15px}
@@ -136,9 +142,18 @@ async function checkInbox() {
 }
 setInterval(checkInbox, 2500);
 
+// The reaction Birky put on the person's message: a small badge on their bubble.
+function react(mine, emoji) {
+  if (!mine || !emoji) return;
+  const b = document.createElement("span");
+  b.className = "react"; b.textContent = emoji; b.setAttribute("aria-label", "Birky reacted " + emoji);
+  mine.classList.add("reacted"); mine.appendChild(b);
+}
+const pause = ms => new Promise(r => setTimeout(r, ms));
+
 async function send(text, shown) {
   if (!text) return;
-  if (shown !== null) add("me", esc(shown || text));
+  const mine = shown !== null ? add("me", esc(shown || text)) : null;
   const t = add("typing", 'Birky is thinking <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
   t.setAttribute("role", "status");
   try {
@@ -146,7 +161,16 @@ async function send(text, shown) {
                                          body: JSON.stringify({session: sid, text, as: {{ persona.id|tojson }}})});
     const j = r.ok ? await r.json() : {text: "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
     t.remove();
-    const d = add("bot", fmt(j.text || "…"));
+    react(mine, j.reaction);
+    // One bubble per part, a beat apart, like a person typing; buttons and charts ride on the last one.
+    const parts = (j.bubbles && j.bubbles.length) ? j.bubbles : (j.text ? [j.text] : []);
+    const extras = (j.charts || []).length || (j.buttons || []).length || (j.quick || []).length;
+    if (!parts.length && !extras) { if (mine) reveal(mine); return; }  // only a reaction ("thanks" -> 🙏)
+    let d = null;
+    for (const [i, p] of (parts.length ? parts : ["👇"]).entries()) {
+      if (i) await pause(450);
+      d = add("bot", fmt(p));
+    }
     for (const c of j.charts || []) {  // explore_my_data: the engine's numbers, drawn right in the bubble
       d.classList.add("has-chart");
       const box = document.createElement("div"), plot = document.createElement("div");

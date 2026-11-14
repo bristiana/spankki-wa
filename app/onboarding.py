@@ -52,6 +52,14 @@ SKIP = re.compile(r"\b(skip|pass|rather not|prefer not|no idea|don'?t know|dunno
 YES = re.compile(r"\b(yes|yep|yeah|sure|ok|okay|please|kyllä|joo)\b", re.I)
 NO = re.compile(r"\b(no|nope|nah|not really|ei)\b", re.I)
 RESTART = re.compile(r"^\W*(start over|get started|restart|start again|aloita alusta)\W*$", re.I)  # the welcome again
+# "hello" at the goal question is a hello, not a goal ("Saving for hello"): small talk gets a warm re-ask
+GREETING = re.compile(r"^\W*(hi+|hey+|hello+|helo|hiya|yo|heya|howdy|moi+|moikka|hei+|terve|hej|hejsan|tjena|"
+                      r"good (?:morning|afternoon|evening|day)|huomenta|morjens?|sup|wassup|what'?s up)"
+                      r"(?:\s+(?:there|birky|again|you))?\W*$", re.I)
+HOW_ARE_YOU = re.compile(r"^\W*(?:(?:hi|hey|hello|moi|hei)\W+)?(?:how are (?:you|u)|how'?s it going|how r u|"
+                         r"how are things|mitä kuuluu|hur mår du)\W*$", re.I)
+CHATTER = re.compile(r"^[^\w?]*(?:(?:lol|haha+|hehe+|xd|cool|nice|wow|test(?:ing)?)[^\w?]*)?$",
+                     re.I)  # also emoji-only messages; a lone "?" is confusion, not small talk
 QUESTION_START = re.compile(r"^\s*(what|how|why|where|when|which|who|can|could|should|is|are|do|does|am)\b", re.I)
 # "i don't know what it means", "explain prudent vs balanced": a question back, not a skip
 CONFUSED = re.compile(r"\b(explain|mean|means|meaning|difference|vs|versus|tell me (?:about|more)|what'?s|"
@@ -157,6 +165,19 @@ def _ask(step: str, reflect: str = "", again: bool = False) -> Turn:
     return Turn(text=f"{reflect}\n\n{q}" if reflect else q, buttons=BUTTONS[step])
 
 
+def small_talk(text: str) -> str | None:
+    """The warm line for a greeting or small talk ("hello", "how are you", "haha", "👋"), or None for a real answer."""
+    if not (text or "").strip():
+        return None
+    if HOW_ARE_YOU.match(text):
+        return "All good here, thanks for asking 🐿️"
+    if GREETING.match(text):
+        return "Hey 👋 Good to see you."
+    if CHATTER.match(text):
+        return "😄"
+    return None
+
+
 def _is_question(text: str, step: str) -> bool:
     asked = text.strip().endswith("?") or bool(QUESTION_START.match(text)) or bool(CONFUSED.search(text))
     return asked and not (step == "amount" and parse_amount(text))
@@ -210,6 +231,9 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
         r["paused"] = True
         engine._save()
         return Turn("👍 Later then. Write *continue* when you want to pick this up.")
+    hello = None if ob else small_talk(text)
+    if hello:  # never parsed as an answer: a warm word, then the same question in other words
+        return _ask(step, hello, again=True)
     if not ob and _is_question(text, step):
         return None  # a question back: the coach answers it, then the waiting question comes back
     if button_id == "ob:skip" or (not ob and SKIP.search(text)):

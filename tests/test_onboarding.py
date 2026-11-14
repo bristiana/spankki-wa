@@ -195,3 +195,37 @@ def test_confused_answer_goes_to_coach_not_skip(tmp_path):
         assert e.state["onboarding"]["u1"]["step"] == "risk"  # ...and the risk question is still waiting
     again = ob.reask(e, "u1")
     assert "prudent" in again.text.lower() and again.buttons == ob.BUTTONS["risk"]
+
+
+# ---------------- greetings and small talk are never answers ("Saving for hello") ----------------
+@pytest.mark.parametrize("hello", ["hello", "Hi!", "hey there", "moi", "how are you?", "haha", "👋", "good morning"])
+def test_small_talk_at_the_goal_question_is_never_the_goal(e, hello):
+    ob.start(e, "u")
+    t = ob.turn(e, "u", hello)
+    assert t is not None and "Saving for" not in t.text
+    assert t.text.endswith(ob.ASK["goal"][1]) and t.buttons == ob.BUTTONS["goal"]
+    check_voice(t)
+    r = e.state["onboarding"]["u"]
+    assert r["step"] == "goal" and "goal_name" not in r["answers"]
+    assert ob.turn(e, "u", "a trip to Rome").text.startswith("Saving for a trip to Rome.")
+
+
+@pytest.mark.parametrize("hello", ["hello", "hey"])
+def test_small_talk_at_later_questions_reasks_warmly(e, hello):
+    ob.start(e, "u")
+    ob.turn(e, "u", "", "ob:goal:trip")
+    t = ob.turn(e, "u", hello)
+    assert t.text.startswith("Hey 👋") and t.text.endswith(ob.ASK["amount"][1])
+    assert e.state["onboarding"]["u"]["step"] == "amount"
+
+
+def test_small_talk_words():
+    assert ob.small_talk("how are you") == "All good here, thanks for asking 🐿️"
+    assert ob.small_talk("hello") == "Hey 👋 Good to see you."
+    for real in ("a trip to Rome", "Hello Kitty plush collection", "?", "what does prudent mean", "1500 by june", ""):
+        assert ob.small_talk(real) is None, real
+
+
+def test_real_goals_still_parse(e):
+    ob.start(e, "u")
+    assert ob.turn(e, "u", "Hello Kitty plush collection").text.startswith("Saving for Hello Kitty plush")

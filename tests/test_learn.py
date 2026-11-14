@@ -242,7 +242,8 @@ def test_web_chip_runs_the_course_with_quick_replies(client):
     assert "The three baskets" in main._coach.asked[-1][1]
     say("learn")
     for i in range(1, 4):
-        assert say(f"__btn__:learn:next:{i - 1}")["text"].startswith(f"📚 *{i + 1}/5 ·")
+        r = say(f"__btn__:learn:next:{i - 1}")
+        assert r["text"].startswith(f"✅ {i} of 5 done 🌰") and f"\n\n📚 *{i + 1}/5 ·" in r["text"]
     r = say("__btn__:learn:next:3")
     save = next(q["send"] for q in r["quick"] if "learn:save:" in q["send"])
     out = say(save)
