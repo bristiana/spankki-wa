@@ -60,6 +60,8 @@ def spending(a, o):
     figs = _figs(o, [("Total", "total_eur", eur), ("Payments", "transactions", str),
                      ("Average payment", "average_per_transaction_eur", eur),
                      ("Period before", "previous_period.total_eur", eur)])
+    if o.get("period_used"):  # 'this month' had no payments yet, so the engine answered with the last full month
+        a = {**a, "period": o["period_used"]}
     return f"Added up {what} spending for {_period(a)}", figs, [TX]
 
 

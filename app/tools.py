@@ -51,7 +51,10 @@ TOOLS = [
         "description": "Total spent in a category, a merchant type (taxis, fast food, parking...) or all spending over a "
                        "period, with number of payments, top places, a split by merchant type and the previous period for "
                        "comparison. Use for any 'how much did I spend on X' question. If found is false, say there were "
-                       "no such payments and use category_by_merchant_type to say where that money went instead.",
+                       "no such payments and use category_by_merchant_type to say where that money went instead. For 'this "
+                       "month' use period this_month; if the result has period_used, the month has barely started and "
+                       "the figures are for the last full month: say so in one short clause as its note says, never "
+                       "answer with 0 for the new month.",
         "input_schema": {
             "type": "object",
             "properties": {

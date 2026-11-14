@@ -422,14 +422,14 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
     return None
 
 
-def flow_context(e: Engine, user: str) -> str | None:
+def flow_context(e: Engine, user: str, text: str = "") -> str | None:
     """What the coach should know when a question comes in the middle of the interview or the basket game: the
     waiting question is sent again right after the reply, so the reply must not end with a question of its own."""
-    waiting = onboarding.reask(e, user)
+    waiting = onboarding.waiting(e, user, text)
     if waiting:
-        return ("The person is in the short first-chat interview (no AI). Right after your reply, the app asks them "
-                f"again: \"{waiting.text}\" Answer only their side question, in a few lines, and end without a "
-                "question or offer of your own.")
+        return ("The person asked for the short goal interview (no AI) and their message is about its open question: "
+                f"\"{waiting}\" Explain what they asked in a few lines and stop: don't ask that question again or add "
+                "one of your own; they answer it by typing or with its buttons.")
     lesson = learn.waiting_lesson(e, user)
     if lesson:
         return ("The person paused the short money course (no AI) at this lesson: \"" + lesson + "\" Their "
@@ -479,7 +479,7 @@ def touch(e: Engine, user: str):
 def coach_context(e: Engine, user: str, text: str, extra: str | None = None) -> str | None:
     """What the coach should know right now: a waiting flow question, a hand-off to a person at S-Pankki."""
     kind = guardrails.escalation(text)
-    parts = [flow_context(e, user), guardrails.escalation_context(kind) if kind else None, extra]
+    parts = [flow_context(e, user, text), guardrails.escalation_context(kind) if kind else None, extra]
     return " ".join(p for p in parts if p) or None
 
 
@@ -578,6 +578,7 @@ def bill_photo(to: str, name: str, m: dict):
         return
     except Exception as e:  # no WA token, Meta or the AI down: say so plainly, keep the details in the log
         log.warning("bill photo %s failed: %s", m["media_id"], e)
+        bills.note_unreadable(engine, to)  # a follow-up "explain this bill" then refers to this photo
         wa.send_text(to, "Sorry, I couldn't open that photo. Could you send it again in a moment?")
         return
     problem = bills.reply_problem(bill)
@@ -647,8 +648,9 @@ def handle_message(m: dict):
                 "and you can switch me off any time.",
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
             return
-        if onboarding.RESTART.match(m["text"] or ""):  # the way back to the welcome, e.g. for the demo phone
-            welcome(to)
+        if onboarding.RESTART.match(m["text"] or ""):  # a clean slate and a hello; no flow starts by itself
+            fresh_start(engine, to)
+            wa.send_text(to, onboarding.HELLO)
             return
         if guardrails.FRESH.match(m["text"] or ""):
             wa.send_text(to, fresh_start(engine, to))
@@ -702,9 +704,7 @@ def handle_message(m: dict):
         for note in (quiz.paused_note(engine, to), learn.paused_note(engine, to)):  # how to get back to it
             if note:
                 wa.send_text(to, note)
-        again = onboarding.reask(engine, to)  # a side question mid-interview: the waiting question comes back
-        if again:
-            send_turn(to, again)
+        onboarding.side_question(engine, to, text)  # mid-interview: never re-sent; another topic pauses it
     except Exception:
         log.exception("handling message failed")
         wa.send_text(to, "Sorry, something went wrong on my side. Try again in a minute.")
@@ -913,12 +913,13 @@ def connect_submit(request: Request, bg: BackgroundTasks, u: str = Form(""), sco
 
 
 def welcome(to: str):
-    """Right after Connect: the three baskets, the My money button, then the first interview question."""
-    t = onboarding.start(engine, to)
-    wa.send_bubbles(to, t.lead)
+    """Right after Connect: the three baskets, the My money button and a hello. No questions pushed: Oiva follows
+    the person's lead (a goal interview, the risk question or check-ins only when they ask)."""
+    lead = onboarding.intro(engine)
+    wa.send_bubbles(to, lead[:-1])
     wa.send_url_button(to, "Your whole money picture, any time.", "Open My money", f"{public_url()}/app")
-    send_turn(to, onboarding.Turn(t.text, t.buttons))
-    remember(None, to, "[connected S-Pankki]", t)
+    wa.send_text(to, lead[-1])
+    remember(None, to, "[connected S-Pankki]", onboarding.Turn(lead[-1], lead=lead[:-1], done=True))
 
 
 # ---------------- Confirm pages ----------------
@@ -2136,7 +2137,8 @@ async def chat_turn(request: Request):
         return {"text": "\n\n".join(parts), "bubbles": parts, "reaction": reaction, "buttons": [], **more}
 
     if text == "__start__":  # the web chat's stand-in for Connect S-Pankki
-        t = onboarding.start(e, sid)
+        lead = onboarding.intro(e)
+        t = onboarding.Turn(lead[-1], lead=lead[:-1], done=True)
         remember(persona, sid, "[connected S-Pankki]", t)
         return interview(t, [{"label": "Open My money", "url": "/app"}])
     touch(e, sid)
@@ -2175,7 +2177,7 @@ async def chat_turn(request: Request):
         note_chat_later(e, sid, text, c.last_said(sid))
     context = coach_context(e, sid, text, extra)
     me = wa_phone(request)
-    return await web_answer(e, sid, lambda: ask(persona, sid, text, name, context, viewer=me), quick, secret)
+    return await web_answer(e, sid, lambda: ask(persona, sid, text, name, context, viewer=me), quick, secret, text)
 
 
 async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption: str, quick):
@@ -2202,7 +2204,7 @@ async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption:
     return await web_answer(e, sid, lambda: ask_about_bill(persona, sid, bill, caption, name), quick)
 
 
-async def web_answer(e: Engine, sid: str, run, quick, secret=()):
+async def web_answer(e: Engine, sid: str, run, quick, secret=(), asked: str = ""):
     """The coach's reply for the web chat: bubbles, buttons, charts, and any paused flow's note."""
     import anyio
     try:
@@ -2220,15 +2222,15 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=()):
         out.append({"label": b["label"], "url": with_web(b["url"].replace(public_url(), ""))})
     paused = quiz.paused_note(e, sid)
     waiting = learn.paused_note(e, sid)
-    again = onboarding.reask(e, sid)  # a side question mid-interview: the waiting question comes back
+    onboarding.side_question(e, sid, asked)  # mid-interview: never re-sent; another topic pauses it
     parts = wa.bubbles(reply.text) if reply.text.strip() else []
     if secret:
         parts = wa.bubbles(guardrails.secret_reply(secret)) + parts
-    notes = [x for x in (paused, waiting, again and again.text) if x]
+    notes = [x for x in (paused, waiting) if x]
     return JSONResponse({"text": "\n\n".join(parts + notes), "bubbles": parts + notes,
                          "reaction": "🔒" if secret else getattr(reply, "reaction", None),
                          "tools": reply.tools_used, "trace": reply.trace,
-                         "buttons": out, "charts": charts, "quick": quick(again.buttons) if again else []})
+                         "buttons": out, "charts": charts, "quick": []})
 
 
 @app.get("/api/inbox")

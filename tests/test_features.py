@@ -32,12 +32,13 @@ def test_goal_and_saving(e):
     assert plan["needed_per_month_for_deadline_eur"] == round(1500 / 8, 2)
     assert any(o["monthly_eur"] == 100 and o["months"] == 15 for o in plan["options"])
     before = e.balance()
+    spent_before = e.spending(None, "this_month")["total_eur"]
     s = e.create_saving("triptolapland", 97)
     e.confirm(s["pending_id"])
     assert e.balance() == round(before - 97, 2)
     assert e.goal_plan("triptolapland")["goal"]["saved"] == 97
     # saving is not spending
-    assert e.spending(None, "this_month")["total_eur"] == 0
+    assert e.spending(None, "this_month")["total_eur"] == spent_before
 
 
 def test_portfolio_matches_data(e):

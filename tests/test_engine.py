@@ -76,3 +76,25 @@ def test_rejects_bad_input(e):
         e.spending("Coffee")
     with pytest.raises(ValueError):
         e.create_investment(50, "crypto", False)
+
+
+def test_this_month_with_no_data_yet_answers_with_last_full_month(e):
+    """6 Oct, data ends 30 Sep: 'this month' must not be a 0.00 € answer; the engine gives September and says so."""
+    out = e.spending(None, "this_month")
+    sep = e.spending(None, "last_month")
+    assert out["total_eur"] == sep["total_eur"] > 0
+    assert (out["from"], out["to"]) == ("2026-09-01", "2026-09-30")
+    assert out["requested_period"] == "this_month" and out["period_used"] == "last_month"
+    assert "October has only just started" in out["note"] and "September" in out["note"]
+    # the model asking with dates from the 1st of this month gets the same answer
+    assert e.spending(None, "last_month", start="2026-10-01")["total_eur"] == sep["total_eur"]
+    # a category asked 'this month' falls back the same way
+    assert e.spending("Groceries", "this_month")["from"] == "2026-09-01"
+
+
+def test_this_month_with_data_stays_this_month(tmp_path):
+    e = Engine(today=date(2026, 9, 25), state_path=tmp_path / "state.json")
+    out = e.spending(None, "this_month")
+    assert out["from"] == "2026-09-01" and "period_used" not in out and out["total_eur"] > 0
+    # explicit past dates are never rewritten
+    assert e.spending(None, start="2026-09-01", end="2026-09-10")["to"] == "2026-09-10"

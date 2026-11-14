@@ -216,7 +216,7 @@ def test_web_secret_never_reaches_the_coach(client):
 def test_web_fresh_start(client):
     say(client, "learn")
     r = say(client, "/new")
-    assert r["bubbles"] == ["Fresh slate. What's on your mind?"] and main._coach.resets == ["web:v"]
+    assert r["bubbles"] == ["Hi! Ask me anything about your money."] and main._coach.resets == ["web:v"]
     assert main.engine.state["learn"]["web:v"]["paused"]
     assert rules.open_threads(main.engine, "web:v", force=True)  # the course is still unfinished...
     s = rules.pick(main.engine, "web:v", force=True)
@@ -235,7 +235,7 @@ def test_thread_messages_are_short_with_one_button(e):
     e.create_goal("Trip", 900)
     main.note_later(e, "u", "chat:abc", "Want me to set up a 50 € monthly saving for it?")
     sigs = rules.open_threads(e, "u", force=True)
-    assert len(sigs) == 6
+    assert len(sigs) == 5  # a paused goal interview never comes back by itself
     for s in sigs:
         text, buttons = main.signal_message(s, "Aino")
         own = text.replace(s["data"].get("offer") or "\0", "")  # the quoted offer is theirs, not a new question
