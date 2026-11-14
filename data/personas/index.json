@@ -1,0 +1,46 @@
+[
+  {
+    "id": "CUST04831",
+    "name": "Aino",
+    "file": null,
+    "age": 24,
+    "label": "Demo persona, 24",
+    "description": "The demo persona: steady salary, rent, a few subscriptions and dining out."
+  },
+  {
+    "id": "CUST01756",
+    "name": "Eetu",
+    "file": "CUST01756.csv",
+    "age": 18,
+    "label": "Student-age, 18",
+    "description": "Student-age, tight budget: little left over each month.",
+    "why": "age 18, 1,006 € income a month, the lowest of the 233 customers aged 22 or under with a regular salary; -24 € a month left after rent, bills and spending"
+  },
+  {
+    "id": "CUST00613",
+    "name": "Helena",
+    "file": "CUST00613.csv",
+    "age": 55,
+    "label": "High earner, 55",
+    "description": "High earner with a big balance.",
+    "why": "salary 7,161 € a month (top 2%) and the largest balance among them, 82,800 €"
+  },
+  {
+    "id": "CUST05042",
+    "name": "Mikko",
+    "file": "CUST05042.csv",
+    "age": 40,
+    "label": "Irregular income, 40, Helsinki",
+    "description": "No regular salary: income comes in irregularly.",
+    "why": "salary in only 6 of the last 12 months and the most uneven amounts of the 5 such customers who pay rent (varies 37%), plus 1,385 € a month of other income; the engine finds no regular payday"
+  },
+  {
+    "id": "CUST03804",
+    "name": "Pirkko",
+    "file": "CUST03804.csv",
+    "age": 60,
+    "label": "Homeowner, 60, Helsinki",
+    "description": "Older customer with a large, steady housing payment (mortgage-like).",
+    "why": "age 60, the largest steady housing payment among customers aged 60+, 2,144 € every month, like a mortgage"
+  }
+]
