@@ -8,7 +8,6 @@
 /* S-mobiili's .ok is the big tick circle on the payment receipt; inside .money it is only a colour state */
 .money .ok{width:auto;height:auto;border-radius:0;background:none;display:inline;font-size:inherit;margin:0}
 .money .ok svg{width:auto;height:auto}
-.money .asof{font-size:12.5px;color:var(--muted);margin:0 2px 14px;line-height:1.4}
 .money .card{padding:18px 16px 16px}
 .money .k{font-size:12.5px;color:var(--muted);margin:0}
 .money .hero{background:none;padding:0;text-align:left;font-weight:700;font-size:34px;letter-spacing:-.5px;color:var(--hero-ink);
@@ -38,8 +37,6 @@
 .money .track>b{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;background:var(--strong);border-radius:1px;box-shadow:0 0 0 1.5px var(--card)}
 .money .st{font-size:12px;font-weight:600}.money .st.ok{color:var(--brand)}.money .st.over,.money .st.fast{color:var(--warn)}
 .money .chips{display:flex;flex-wrap:wrap;column-gap:6px}
-.money .nob{font-size:12.5px;color:var(--muted);padding:10px 0 0;border-top:1px solid var(--line);margin-top:2px}
-.money .nob a,.money .sub a{color:var(--brand);font-weight:600;text-decoration:none}
 .money .key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:8px}
 .money .key span{display:inline-flex;align-items:center;gap:6px}
 .money .key i{display:inline-block;width:12px;height:8px;border-radius:99px}
