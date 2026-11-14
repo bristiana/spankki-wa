@@ -93,6 +93,43 @@ def merchant_name(mid) -> str | None:
     return f"{kinds.get(kind, 'Merchant')} #{int(num)}"
 
 
+# Merchant types from the card network's merchant category code (MCC, ISO 18245). The dataset has no label map,
+# so the raw codes it contains are grouped here; anything else is "Other card purchases".
+MERCHANT_TYPES = {
+    "restaurants_cafes": ("Restaurants, bars & cafés", ["5812", "5813", "5814"]),
+    "groceries": ("Grocery & food stores", ["5411", "5422", "5451", "5499"]),
+    "public_transport": ("Public transport", ["4111"]),
+    "taxis": ("Taxis", ["4121"]),
+    "parking": ("Parking", ["7523"]),
+    "fuel": ("Fuel stations", ["5541", "5542"]),
+    "cinema_shows": ("Cinema & shows", ["7832", "7922"]),
+    "sport_leisure": ("Sport & leisure", ["5941", "7991", "7996", "7999"]),
+    "pharmacy": ("Pharmacies", ["5912"]),
+    "doctors": ("Doctors & dentists", ["8011", "8021", "8099"]),
+    "home_electronics": ("Home, DIY & electronics", ["5200", "5712", "5732"]),
+    "shops": ("Other shops", ["5945", "5999"]),
+    "travel_hotels": ("Travel agencies & hotels", ["4722", "7011"]),
+    "other_card": ("Other card purchases", []),
+    "no_card": ("Bills & transfers (no card)", []),
+}
+MCC_TYPE = {code: key for key, (_, codes) in MERCHANT_TYPES.items() for code in codes}
+
+
+def merchant_type_of(mcc) -> str:
+    """MCC code -> MERCHANT_TYPES key."""
+    if not isinstance(mcc, str) or not mcc.strip():
+        return "no_card"
+    return MCC_TYPE.get(mcc.strip(), "other_card")
+
+
+# MyData explorer: the only knobs a query can turn. Every value is checked against these lists.
+EXPLORE_WHAT = ["spent", "income"]
+EXPLORE_GROUP_BY = ["month", "week", "weekday", "category", "basket", "merchant", "merchant_type"]
+EXPLORE_METRICS = ["sum", "count", "average"]
+WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+EXPLORE_TOP = 10  # merchants listed one by one; the rest become one "other places" row
+
+
 def eur(x: float) -> float:
     return round(float(x), 2) + 0.0  # no -0.0
 
@@ -127,7 +164,8 @@ class Engine:
         self.benchmark = json.loads(bp.read_text()) if bp.exists() else None
         base = pd.read_csv(self.csv_path, dtype={"merchant_id": "string", "mcc_code": "string"})
         base["date"] = pd.to_datetime(base["tx_date"]).dt.date
-        self.base = base[["date", "category", "tx_amount_eur", "transaction_type", "merchant_id", "balance_after_eur"]]
+        self.base = base[["date", "category", "tx_amount_eur", "transaction_type", "merchant_id", "balance_after_eur",
+                          "mcc_code"]]
         self.customer_id = str(base["customer_id"].iloc[0])
         sp = ROOT / "data" / "statfin_benchmark.json"
         self.statfin = json.loads(sp.read_text()) if sp.exists() else None
@@ -153,7 +191,8 @@ class Engine:
     def tx(self) -> pd.DataFrame:
         """All transactions: dataset plus confirmed demo actions."""
         extra = [{"date": date.fromisoformat(a["date"]), "category": a["category"], "tx_amount_eur": a["amount"],
-                  "transaction_type": a["transaction_type"], "merchant_id": pd.NA, "balance_after_eur": None}
+                  "transaction_type": a["transaction_type"], "merchant_id": pd.NA, "balance_after_eur": None,
+                  "mcc_code": pd.NA}
                  for a in self.state["actions"]]
         df = self.base if not extra else pd.concat([self.base, pd.DataFrame(extra)], ignore_index=True)
         return df[df["date"] <= self.today]
@@ -265,6 +304,126 @@ class Engine:
         out["invested_eur"] = eur(inv)
         out["left_over_eur"] = eur(inc - total - inv)
         return out
+
+    # ---------- MyData explorer ----------
+    def explore(self, what: str = "spent", category: str | None = None, basket: str | None = None,
+                merchant_type: str | None = None, group_by: str = "month", metric: str = "sum",
+                period: str = "last_12_months", start: str | None = None, end: str | None = None) -> dict:
+        """The customer's own view of their transactions: filter, group, measure. Only the enum values above are
+        accepted, so a query can never run code. Returns rows (every bucket, zeros included for time groups),
+        totals and a chart spec that the web chat and /app/explore draw."""
+        if what not in EXPLORE_WHAT:
+            raise ValueError(f"unknown what {what!r}; use one of {EXPLORE_WHAT}")
+        if group_by not in EXPLORE_GROUP_BY:
+            raise ValueError(f"unknown group_by {group_by!r}; use one of {EXPLORE_GROUP_BY}")
+        if metric not in EXPLORE_METRICS:
+            raise ValueError(f"unknown metric {metric!r}; use one of {EXPLORE_METRICS}")
+        if period not in PERIODS:
+            raise ValueError(f"unknown period {period!r}; use one of {PERIODS}")
+        category, basket, merchant_type = category or None, basket or None, merchant_type or None
+        if category and category not in SPEND_CATEGORIES:
+            raise ValueError(f"unknown category {category!r}; use one of {SPEND_CATEGORIES}")
+        if basket and basket not in BASKETS:
+            raise ValueError(f"unknown basket {basket!r}; use one of {list(BASKETS)}")
+        if merchant_type and merchant_type not in MERCHANT_TYPES:
+            raise ValueError(f"unknown merchant_type {merchant_type!r}; use one of {list(MERCHANT_TYPES)}")
+        if sum(bool(x) for x in (category, basket, merchant_type)) > 1:
+            raise ValueError("use one filter at a time: category, basket or merchant type")
+        if what == "income" and (category or basket or merchant_type):
+            raise ValueError("category, basket and merchant type filters apply to spending, not income")
+        try:
+            d0, d1 = self.period_range(period, start or None, end or None)
+        except ValueError:
+            raise ValueError("start and end must be dates like 2026-03-31") from None
+        if d0 > d1:
+            raise ValueError("start must be on or before end")
+
+        s = self._slice(d0, d1)
+        if what == "spent":
+            s = s[(s["tx_amount_eur"] < 0) & s["category"].isin(SPEND_CATEGORIES)]
+        else:
+            s = s[s["transaction_type"].isin(INCOME_TYPES) & (s["tx_amount_eur"] > 0)]
+        s = s.assign(amount=s["tx_amount_eur"].abs().astype(float),
+                     mtype=[merchant_type_of(m) for m in s["mcc_code"]])
+        if category:
+            s = s[s["category"] == category]
+        if basket:
+            s = s[s["category"].isin(BASKETS[basket]["categories"])]
+        if merchant_type:
+            s = s[s["mtype"] == merchant_type]
+
+        # Bucket of every transaction, and every bucket in display order (None = biggest first).
+        if group_by == "month":
+            keys = [d.strftime("%Y-%m") for d in s["date"]]
+            order, m = [], month_start(d0)
+            while m <= d1:
+                order.append((m.strftime("%Y-%m"), m.strftime("%b %Y")))
+                m = add_months(m, 1)
+        elif group_by == "week":
+            keys = [(d - timedelta(days=d.weekday())).isoformat() for d in s["date"]]
+            order, w = [], d0 - timedelta(days=d0.weekday())
+            while w <= d1:
+                order.append((w.isoformat(), f"Week of {w.day} {w.strftime('%b %Y')}"))
+                w += timedelta(weeks=1)
+        elif group_by == "weekday":
+            keys = [WEEKDAYS[d.weekday()] for d in s["date"]]
+            order = [(d, d) for d in WEEKDAYS]
+        elif group_by == "category":
+            keys, order = list(s["category"]), None
+        elif group_by == "basket":
+            keys = [CATEGORY_BASKET.get(c, "other") for c in s["category"]]
+            order = [(k, b["label"]) for k, b in BASKETS.items()] if what == "spent" else None
+        elif group_by == "merchant":
+            keys, order = [merchant_name(mid) or "Bills & transfers (no merchant)" for mid in s["merchant_id"]], None
+        else:  # merchant_type
+            keys, order = list(s["mtype"]), None
+        s = s.assign(bucket=keys)
+
+        def measure(amounts: pd.Series):
+            if metric == "count":
+                return int(len(amounts))
+            if metric == "average":
+                return eur(amounts.mean()) if len(amounts) else 0.0
+            return eur(amounts.sum())
+
+        stats = {k: (measure(v), int(len(v)), eur(v.sum())) for k, v in s.groupby("bucket")["amount"]}
+        if order is None:
+            name = (lambda k: MERCHANT_TYPES[k][0]) if group_by == "merchant_type" else (
+                lambda k: BASKETS[k]["label"] if k in BASKETS else "Not in a basket") if group_by == "basket" else (lambda k: k)
+            order = [(k, name(k)) for k in sorted(stats, key=lambda k: (-stats[k][0], k))]
+        empty = (0 if metric == "count" else 0.0, 0, 0.0)
+        rows = [{"key": k, "label": label, "value": stats.get(k, empty)[0], "transactions": stats.get(k, empty)[1],
+                 "total_eur": stats.get(k, empty)[2]} for k, label in order]
+        if group_by == "merchant" and len(rows) > EXPLORE_TOP + 1:
+            rest = s[s["bucket"].isin([r["key"] for r in rows[EXPLORE_TOP:]])]["amount"]
+            rows = rows[:EXPLORE_TOP] + [{"key": "other", "label": f"{len(rows) - EXPLORE_TOP} other places",
+                                          "value": measure(rest), "transactions": int(len(rest)),
+                                          "total_eur": eur(rest.sum())}]
+
+        total, n = eur(s["amount"].sum()), int(len(s))
+        ranked = [r for r in rows if r["key"] != "other"]  # the "other places" lump is not one place
+        top = max(ranked, key=lambda r: r["value"]) if any(r["value"] for r in ranked) else None
+        unit = "" if metric == "count" else "€"
+        subject = ("Income" if what == "income" else "Spending") + (
+            f" on {category}" if category else f" in {BASKETS[basket]['label']}" if basket else
+            f" at {MERCHANT_TYPES[merchant_type][0]}" if merchant_type else "")
+        prefix = {"sum": "", "count": "Number of payments · ", "average": "Average payment · "}[metric]
+        title = f"{prefix}{subject} by {group_by.replace('_', ' ')}"
+        span = f"{d0.day} {d0.strftime('%b %Y')} to {d1.day} {d1.strftime('%b %Y')}"
+        return {
+            "query": {"what": what, "category": category, "basket": basket, "merchant_type": merchant_type,
+                      "group_by": group_by, "metric": metric, "period": period,
+                      "start": start or None, "end": end or None},
+            "title": title, "from": d0.isoformat(), "to": d1.isoformat(), "unit": unit,
+            "rows": rows,
+            "totals": {"value": measure(s["amount"]), "total_eur": total, "transactions": n,
+                       "average_per_transaction_eur": eur(total / n) if n else 0.0,
+                       "highest": {"label": top["label"], "value": top["value"]} if top else None},
+            "chart": {"type": "line" if group_by == "week" else "bar", "title": title, "subtitle": span,
+                      "unit": unit, "labels": [r["label"] for r in rows], "values": [r["value"] for r in rows]},
+            "note": "Spending leaves out money moved to investments." if what == "spent" else
+                    "Income: salary, other income and investment withdrawals.",
+        }
 
     # ---------- recurring ----------
     def recurring(self) -> list[Recurring]:
