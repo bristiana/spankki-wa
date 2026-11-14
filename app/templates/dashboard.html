@@ -36,7 +36,7 @@
     <div class="card">
       <div class="k">Balance</div>
       <div class="big">{{ money(o.balance_eur) }}</div>
-      <svg viewBox="0 0 300 70" aria-label="Balance, last 90 days"><polyline points="{{ series_pts }}" fill="none" stroke="#00663d" stroke-width="2.2" stroke-linejoin="round"/><polygon points="{{ series_area }}" fill="#00663d" opacity=".08"/></svg>
+      <svg viewBox="0 0 300 70" aria-label="Balance, last 90 days"><polyline points="{{ series_pts }}" fill="none" style="stroke:var(--brand)" stroke-width="2.2" stroke-linejoin="round"/><polygon points="{{ series_area }}" style="fill:var(--brand)" opacity=".1"/></svg>
       <div class="src">Last 90 days</div>
     </div>
     <div class="card">
@@ -64,7 +64,7 @@
     <div class="card">
       <div class="k">Money in and out · 12 weeks</div>
       <svg viewBox="0 0 300 110" aria-label="Weekly in and out">
-        {% for w in flow_bars %}<rect x="{{ w.x }}" y="{{ w.yin }}" width="8" height="{{ w.hin }}" rx="2" fill="#00663d"/><rect x="{{ w.x + 9 }}" y="{{ w.yout }}" width="8" height="{{ w.hout }}" rx="2" fill="#e07a2e"/>{% endfor %}
+        {% for w in flow_bars %}<rect x="{{ w.x }}" y="{{ w.yin }}" width="8" height="{{ w.hin }}" rx="2" style="fill:var(--brand)"/><rect x="{{ w.x + 9 }}" y="{{ w.yout }}" width="8" height="{{ w.hout }}" rx="2" fill="#e07a2e"/>{% endfor %}
         <line x1="0" y1="100" x2="300" y2="100" stroke="currentColor" opacity=".15"/>
       </svg>
       <div class="src"><span style="color:#00663d">■</span> in &nbsp; <span style="color:#e07a2e">■</span> out</div>
