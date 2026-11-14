@@ -73,9 +73,10 @@ def test_parse_image_and_pdf_but_not_other_documents():
          "image": {"id": "m1", "mime_type": "image/jpeg", "caption": "explain it"}},
         {"from": "1", "id": "b", "timestamp": "2", "type": "document",
          "document": {"id": "m2", "mime_type": "application/pdf", "filename": "lasku.pdf"}},
-        {"from": "1", "id": "c", "timestamp": "3", "type": "document", "document": {"id": "m3", "mime_type": "text/plain"}}))
+        {"from": "1", "id": "c", "timestamp": "3", "type": "document", "document": {"id": "m3", "mime_type": "text/csv"}},
+        {"from": "1", "id": "d", "timestamp": "4", "type": "document", "document": {"id": "m4", "mime_type": "application/zip"}}))
     assert [(m["kind"], m["media_id"], m["text"]) for m in out] == [
-        ("image", "m1", "explain it"), ("document", "m2", None), ("document", None, None)]
+        ("image", "m1", "explain it"), ("document", "m2", None), ("document", "m3", None), ("document", None, None)]
 
 
 def test_download_like_voice_notes(monkeypatch):
@@ -288,3 +289,37 @@ def test_web_upload_size_limits(web):
 def test_chat_page_has_the_photo_button(web):
     page = web.get("/chat").text
     assert 'type="file" accept="image/*"' in page and "toDataURL" in page
+
+
+# ---------------- Word, Excel and CSV ----------------
+def _zip(files: dict) -> bytes:
+    import io, zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for name, body in files.items():
+            z.writestr(name, body)
+    return buf.getvalue()
+
+
+def test_word_excel_and_csv_are_read_as_text(e):
+    import io
+    import openpyxl
+    csv = "Date;Description;Amount\n2026-10-01;Rent;-950.00\n2026-10-02;Coffee;-4.20\n".encode()
+    docx = _zip({"word/document.xml": "<w:document><w:p><w:r><w:t>Lease &amp; rent 950 EUR</w:t></w:r></w:p>"
+                                      "<w:p><w:r><w:t>Due monthly</w:t></w:r></w:p></w:document>"})
+    wb = openpyxl.Workbook()
+    wb.active.append(["Date", "Amount"])
+    wb.active.append(["2026-10-01", -950])
+    buf = io.BytesIO()
+    wb.save(buf)
+    cases = {bills.TEXT: (csv, "Coffee;-4.20"), bills.DOCX: (docx, "Lease & rent 950 EUR\nDue monthly"),
+             bills.XLSX: (buf.getvalue(), "2026-10-01;-950")}
+    for kind, (data, want) in cases.items():
+        assert bills.sniff(data) == kind
+        assert want in bills.to_text(data, kind)
+        client = FakeClient(STATEMENT)
+        doc = bills.read(e, "u1", client, data, None)
+        block = client.calls[-1]["messages"][0]["content"][0]
+        assert block["type"] == "document" and block["source"]["type"] == "text" and want in block["source"]["data"]
+        assert bills.is_document(doc)
+    assert bills.sniff(_zip({"other.txt": "x"})) is None and bills.sniff(b"hello") is None
