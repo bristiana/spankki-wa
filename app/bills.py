@@ -17,6 +17,7 @@ import time
 import httpx
 
 from .engine import BASKETS, CATEGORY_BASKET, SPEND_CATEGORIES, Engine, eur
+from .guardrails import defang
 from .whatsapp import GRAPH, redact
 
 log = logging.getLogger("bills")
@@ -160,10 +161,10 @@ def valid_reference(ref: str) -> bool:
 
 
 def clean(raw: dict) -> dict:
-    """Checked fields: free text goes through redact() (card numbers, personal IDs); an IBAN or reference that fails
-    its check digits is dropped rather than paid to."""
+    """Checked fields: free text goes through redact() (card numbers, personal IDs) and defang() (text that reads
+    like an instruction); an IBAN or reference that fails its check digits is dropped rather than paid to."""
     def text(v, n=80):
-        return redact(str(v).strip())[:n] if v not in (None, "") else None
+        return defang(redact(str(v).strip()))[:n] if v not in (None, "") else None
 
     iban = re.sub(r"\s", "", str(raw.get("iban") or "")).upper()
     ref = re.sub(r"\s", "", str(raw.get("reference") or "")).upper()
