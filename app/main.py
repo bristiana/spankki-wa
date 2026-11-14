@@ -578,6 +578,7 @@ def bill_photo(to: str, name: str, m: dict):
         return
     except Exception as e:  # no WA token, Meta or the AI down: say so plainly, keep the details in the log
         log.warning("bill photo %s failed: %s", m["media_id"], e)
+        bills.note_unreadable(engine, to)  # a follow-up "explain this bill" then refers to this photo
         wa.send_text(to, "Sorry, I couldn't open that photo. Could you send it again in a moment?")
         return
     problem = bills.reply_problem(bill)
