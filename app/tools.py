@@ -43,14 +43,21 @@ DATE_PROP = {"type": ["string", "null"], "description": "Optional ISO date (YYYY
 TOOLS = [
     {
         "name": "get_spending",
-        "description": "Total spent in a category (or all spending) over a period, with number of payments, top places, "
-                       "and the previous period for comparison. Use for any 'how much did I spend on X' question.",
+        "description": "Total spent in a category, a merchant type (taxis, fast food, parking...) or all spending over a "
+                       "period, with number of payments, top places, a split by merchant type and the previous period for "
+                       "comparison. Use for any 'how much did I spend on X' question. If found is false, say there were "
+                       "no such payments and use category_by_merchant_type to say where that money went instead.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "category": {"type": ["string", "null"], "enum": SPEND_CATEGORIES + [None],
-                             "description": "Category, or null for all spending. Taxis, buses and fuel are Transportation; "
-                                            "coffee and dining out are Restaurants; shopping is Lifestyle."},
+                             "description": "Category, or null for all spending. Shopping is Lifestyle. Ignored when "
+                                            "merchant_type is set."},
+                "merchant_type": {"type": ["string", "null"],
+                                  "description": "A narrower kind of place, from the card's merchant code: e.g. taxi "
+                                                 "(also uber, bolt), public transport, fuel, parking, fast food, coffee, "
+                                                 "restaurant, bar, supermarket, cinema, events, recreation, pharmacy, "
+                                                 "doctor, dentist, hotel, electronics, furniture. Null for a whole category."},
                 "period": PERIOD_PROP,
                 "start": DATE_PROP,
                 "end": DATE_PROP,
@@ -77,6 +84,20 @@ TOOLS = [
         "name": "get_safe_to_spend",
         "description": "How much is safe to spend until next payday, per day and this week, after bills, usual needs and a "
                        "buffer for surprises. Also returns the current balance.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "get_safe_to_save",
+        "description": "How much can go to savings now without touching bills before payday or the buffer for irregular "
+                       "costs, and a sustainable monthly amount from the average monthly surplus. When there is no "
+                       "surplus, where a cut could come from. Includes goal ids for create_saving_link.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "get_full_picture",
+        "description": "All the customer's accounts across banks (S-Pankki plus any bank linked through PSD2): total "
+                       "balances, credit card debt, net position, the next card bill and how many months savings could "
+                       "cover the irregular basket. Tells you when no other bank is linked.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
@@ -209,13 +230,18 @@ def public_url() -> str:
 def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
     """Run one tool. Returns JSON text; appends a URL button when a money move was prepared."""
     if name == "get_spending":
-        out = engine.spending(args.get("category"), args.get("period") or "last_month", args.get("start"), args.get("end"))
+        out = engine.spending(args.get("category"), args.get("period") or "last_month", args.get("start"), args.get("end"),
+                              args.get("merchant_type"))
     elif name == "get_baskets":
         out = engine.baskets(args.get("period") or "last_3_months")
     elif name == "get_upcoming_bills":
         out = engine.upcoming_bills(int(args.get("days") or 14))
     elif name == "get_safe_to_spend":
         out = engine.safe_to_spend()
+    elif name == "get_safe_to_save":
+        out = engine.safe_to_save()
+    elif name == "get_full_picture":
+        out = engine.full_picture()
     elif name == "can_i_afford":
         out = engine.afford(float(args["amount_eur"]), args.get("what") or "")
     elif name == "simulate_cut":
