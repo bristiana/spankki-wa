@@ -40,6 +40,7 @@ def main():
     m = pd.concat(monthly).groupby(level=[0, 1, 2]).sum().unstack(fill_value=0.0)
     per_cust = m.groupby(level=0).mean()  # avg monthly amount per category, per customer
     bench = {
+        "persona_age": age,
         "age_band": f"{lo}-{hi}",
         "customers": int(per_cust.shape[0]),
         "median_monthly": {k: round(float(v), 2) for k, v in per_cust.median().items()},

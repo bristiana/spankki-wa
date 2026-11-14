@@ -95,3 +95,18 @@ def test_demo_alerts_send_buttons(client):
         r = client.post("/demo/alert", params={"kind": kind, "to": "40700000000"})
         assert r.json()["sent"], kind
         assert client.sent[-1]["interactive"]["type"] == "button"
+
+
+def test_real_price_backtest(e):
+    r = e.backtest([(date(2025, 1, 15), 100.0)], "growth")
+    closes = e.market["symbols"]["VWCE.DE"]["monthly_close"]
+    expected = 100 / closes["2025-01"] * e.market["symbols"]["VWCE.DE"]["last_price"]
+    assert r["value_today_eur"] == round(expected, 2)
+    past = e.simulate_cut("Restaurants", 20)["real_past_check"]
+    assert len(past["results"]) == 3 and past["results"][0]["paid_in_eur"] == round(24 * past["results"][0]["paid_in_eur"] / 24, 2)
+
+
+def test_official_benchmark(e):
+    b = e.official_benchmark()
+    rest = next(r for r in b["comparison"] if r["category"] == "Restaurants")
+    assert b["group"].endswith("17-24") and rest["finnish_households_eur"] == e.statfin["by_age"]["17-24"]["Restaurants"]

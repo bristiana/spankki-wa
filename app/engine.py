@@ -40,16 +40,18 @@ SPEND_CATEGORIES = list(CATEGORY_BASKET)
 # Demo funds. Clearly labelled as demo products; the assistant explains them but never picks one.
 FUNDS = [
     {"id": "prudent", "name": "Demo Fund Prudent", "risk": "low", "risk_level": 2,
-     "what": "Mostly bonds and money market. Small ups and downs, lower expected growth.",
+     "what": "Euro money market (tracks the XEON ETF). Very small ups and downs, lowest expected growth.",
      "scenario_return": 0.02},
     {"id": "balanced", "name": "Demo Fund Balanced", "risk": "medium", "risk_level": 4,
-     "what": "About half shares, half bonds. Can drop in a bad year, grows more over time.",
+     "what": "Half global shares, half euro money market (VWCE + XEON). Can drop in a bad year, grows more over time.",
      "scenario_return": 0.045},
     {"id": "growth", "name": "Demo Fund Growth", "risk": "high", "risk_level": 6,
-     "what": "Global shares. Can fall 20-30% in a bad year; highest expected growth over 10+ years.",
+     "what": "Global shares, about 3,700 companies (tracks the VWCE ETF). Can fall 20-30% in a bad year; highest expected growth over 10+ years.",
      "scenario_return": 0.065},
 ]
 FUNDS_BY_ID = {f["id"]: f for f in FUNDS}
+# Real instruments behind each demo fund (Yahoo symbols, prices in data/market.json), percent of each euro.
+FUND_SYMBOLS = {"prudent": {"XEON.DE": 100}, "balanced": {"VWCE.DE": 50, "XEON.DE": 50}, "growth": {"VWCE.DE": 100}}
 # What each fund buys at the linked broker (Trading 212 Practice). EUR instruments on Xetra.
 FUND_MIX = {
     "prudent": [{"name": "Xtrackers EUR Overnight Rate Swap (XEON)", "ticker": "DBXTd_EQ", "pct": 100}],
@@ -126,6 +128,10 @@ class Engine:
         base["date"] = pd.to_datetime(base["tx_date"]).dt.date
         self.base = base[["date", "category", "tx_amount_eur", "transaction_type", "merchant_id", "balance_after_eur"]]
         self.customer_id = str(base["customer_id"].iloc[0])
+        sp = ROOT / "data" / "statfin_benchmark.json"
+        self.statfin = json.loads(sp.read_text()) if sp.exists() else None
+        mp = ROOT / "data" / "market.json"
+        self.market = json.loads(mp.read_text()) if mp.exists() else None
         self.state = self._load_state()
 
     # ---------- state (demo actions) ----------
@@ -366,7 +372,45 @@ class Engine:
                                        "paid_in_eur": eur(save * n), "value_eur": eur(fv),
                                        "scenario_return_pct": f["scenario_return"] * 100})
         out["disclaimer"] = "Scenario, not a promise. Funds can lose value."
+        past = self.backtest_monthly(save, 24)
+        if past:
+            out["real_past_check"] = past
         return out
+
+    # ---------- real market prices (data/market.json) ----------
+    def _price(self, sym: str, month: str) -> float | None:
+        closes = self.market["symbols"][sym]["monthly_close"]
+        ok = [m for m in closes if m <= month]
+        return closes[max(ok)] if ok else None
+
+    def backtest(self, deposits: list[tuple[date, float]], fund_id: str) -> dict | None:
+        """What these deposits would be worth today if each had bought the fund at that month's real price."""
+        if not self.market or not deposits:
+            return None
+        units = {}
+        for d, amt in deposits:
+            for sym, pct in FUND_SYMBOLS[fund_id].items():
+                p = self._price(sym, d.isoformat()[:7])
+                if not p:
+                    return None
+                units[sym] = units.get(sym, 0) + amt * pct / 100 / p
+        value = sum(u * self.market["symbols"][s]["last_price"] for s, u in units.items())
+        paid = sum(a for _, a in deposits)
+        return {"fund": FUNDS_BY_ID[fund_id]["name"], "paid_in_eur": eur(paid), "value_today_eur": eur(value),
+                "gain_eur": eur(value - paid), "gain_pct": round((value - paid) / paid * 100, 1)}
+
+    def backtest_monthly(self, monthly: float, months: int) -> dict | None:
+        """The same monthly amount invested over the last `months` real months, valued at today's real price."""
+        if not self.market:
+            return None
+        last = max(self.market["symbols"]["VWCE.DE"]["monthly_close"])
+        y, m = map(int, last.split("-"))
+        start = add_months(date(y, m, 1), -months)
+        deps = [(add_months(start, i), monthly) for i in range(months)]
+        return {"what": f"{eur(monthly)} EUR invested every month for the last {months} months, real prices",
+                "as_of": self.market["symbols"]["VWCE.DE"]["last_date"],
+                "results": [self.backtest(deps, f["id"]) for f in FUNDS],
+                "source": self.market["source"]}
 
     def spender_profile(self) -> dict:
         b = self.baskets("last_3_months")
@@ -406,7 +450,25 @@ class Engine:
                       "customers": self.benchmark["customers"] if self.benchmark else None,
                       "biggest_differences": comparisons[:4]},
             "baskets": [{k: x[k] for k in ("label", "per_month_eur", "share_pct")} for x in b["baskets"]],
+            "finland_official": self.official_benchmark(),
         }
+
+    def official_benchmark(self) -> dict | None:
+        """Monthly spend vs Finnish households of the same age group (Statistics Finland, real open data)."""
+        if not self.statfin or not self.benchmark:
+            return None
+        age = self.benchmark.get("persona_age", 25)
+        band = "17-24" if age <= 24 else "25-34" if age <= 34 else "all"
+        ref = self.statfin["by_age"][band]
+        rows = []
+        for c in ("Restaurants", "Groceries", "Housing", "Transportation", "Entertainment", "Lifestyle"):
+            mine, theirs = self.monthly_avg(c, 3), ref[c]
+            rows.append({"category": c, "you_per_month_eur": mine, "finnish_households_eur": theirs,
+                         "times": round(mine / theirs, 1) if theirs else None})
+        rows.sort(key=lambda r: -(r["times"] or 0))
+        return {"group": f"Finnish households, reference person aged {band}", "year": self.statfin["year"],
+                "source": self.statfin["source"], "comparison": rows,
+                "note": "Household figures; a household can be more than one person."}
 
     # ---------- money moves (only after the user confirms) ----------
     def create_payment(self, bill_id: str) -> dict:
@@ -617,11 +679,28 @@ class Engine:
                 "platforms": [{"name": "S-Pankki funds", "status": "connected", "how": "your S-Pankki account"},
                               {"name": "Trading 212 (Practice account)", "status": "linked",
                                "how": "orders are placed through its API only after you confirm with your PIN"}],
-                "note": "Market value today is not in the dataset; amounts are what was paid in."}
+                "if_your_deposits_were_in_each_fund": {
+                    "what": "Each of your real deposit dates and amounts, bought at that month's real price, valued today",
+                    "as_of": self.market["symbols"]["VWCE.DE"]["last_date"] if self.market else None,
+                    "results": [self.backtest(list(zip(deps["date"], -deps["tx_amount_eur"])), f["id"]) for f in FUNDS],
+                } if self.market else None,
+                "note": "The dataset does not say which fund your deposits went into, so we show each one."}
+
+    def receive_salary(self) -> dict:
+        """Demo: payday arrives now (adds the usual salary once per month)."""
+        got = any(a["transaction_type"] == "salary" and a["date"][:7] == self.today.isoformat()[:7]
+                  for a in self.state["actions"])
+        r = self._rec("salary")
+        if not got and r:
+            self.state["actions"].append({"date": self.today.isoformat(), "category": "Salary", "amount": r.avg_amount,
+                                          "transaction_type": "salary", "note": "Salary (demo payday)"})
+            self._save()
+        return {"salary_eur": r.avg_amount if r else 0.0, "balance_eur": self.balance()}
 
     # ---------- proactive alerts (F4) ----------
     def alert(self, kind: str) -> dict:
         if kind == "salary":
+            self.receive_salary()
             pay = self.next_payday()
             cut = self.simulate_cut("Restaurants", 20)["saving_per_month_eur"]
             return {"kind": kind, "salary_eur": pay["expected_eur"], "suggest_save_eur": float(round(cut)),
