@@ -145,13 +145,7 @@ def finish(phone: str, bank: str, code: str) -> dict:
                "kind": a.get("cash_account_type") if isinstance(a, dict) else None,
                "currency": a.get("currency") if isinstance(a, dict) else None,
                "iban_end": ((a.get("account_id") or {}).get("iban") or "")[-4:] if isinstance(a, dict) else ""}
-        try:
-            acc["balance_eur"] = pick_balance(call(f"/accounts/{uid}/balances").get("balances") or [])
-            acc["transactions"] = [t for t in (simplify(x) for x in _transactions(uid)) if t]
-        except Exception as e:  # one account failing should not lose the others
-            log.warning("account %s: %s", uid[-6:], e)
-            acc["error"] = str(e)[:200]
-        accounts.append(acc)
+        accounts.append(_pull(acc))
     link = {"bank": bank, "session_id": session.get("session_id"), "linked": date.today().isoformat(),
             "valid_until": (session.get("access") or {}).get("valid_until"), "accounts": accounts}
     data = load(phone)
@@ -160,12 +154,63 @@ def finish(phone: str, bank: str, code: str) -> dict:
     return link
 
 
+_fx_cache: tuple[float, dict[str, float]] | None = None
+
+
+def fx() -> dict[str, float]:
+    """Units of each currency per 1 EUR (ECB reference rates via Frankfurter), cached for 12 hours."""
+    global _fx_cache
+    if _fx_cache and time.time() - _fx_cache[0] < 43200:
+        return _fx_cache[1]
+    try:
+        rates = httpx.get("https://api.frankfurter.dev/v1/latest", params={"base": "EUR"}, timeout=10,
+                          follow_redirects=True).json()["rates"]
+    except Exception as e:  # no rates: only EUR amounts are counted
+        log.warning("fx rates: %s", e)
+        rates = {}
+    rates["EUR"] = 1.0
+    _fx_cache = (time.time(), rates)
+    return rates
+
+
+def to_eur(amount: float, currency: str | None) -> float | None:
+    rate = fx().get(currency or "EUR")
+    return eur(amount / rate) if rate else None
+
+
+def _pull(acc: dict) -> dict:
+    """Balance and the last 90 days of one account, fresh from the bank."""
+    acc.pop("error", None)
+    try:
+        acc["balance_eur"] = pick_balance(call(f"/accounts/{acc['uid']}/balances").get("balances") or [])
+        acc["transactions"] = [t for t in (simplify(x) for x in _transactions(acc["uid"])) if t]
+    except Exception as e:  # one account failing should not lose the others
+        log.warning("account %s: %s", acc["uid"][-6:], e)
+        acc["error"] = str(e)[:200]
+    return acc
+
+
+def refresh(phone: str) -> int:
+    """Pull every linked account again (same consent, no new login). Returns how many accounts were read."""
+    data = load(phone)
+    n = 0
+    for link in data.values():
+        for acc in link.get("accounts", []):
+            _pull(acc)
+            n += "error" not in acc
+    save(phone, data)
+    return n
+
+
 def pick_balance(balances: list[dict]) -> float | None:
-    """The available balance when the bank gives it, else the booked one. EUR only."""
+    """The available balance when the bank gives it, else the booked one, in EUR (RON, USD... converted)."""
     order = ["ITAV", "CLAV", "XPCD", "ITBD", "CLBD", "OPBD"]
-    eur_bal = [b for b in balances if (b.get("balance_amount") or {}).get("currency") == "EUR"]
-    eur_bal.sort(key=lambda b: order.index(b.get("balance_type")) if b.get("balance_type") in order else 99)
-    return eur(float(eur_bal[0]["balance_amount"]["amount"])) if eur_bal else None
+    bal = [b for b in balances if (b.get("balance_amount") or {}).get("amount") is not None]
+    bal.sort(key=lambda b: order.index(b.get("balance_type")) if b.get("balance_type") in order else 99)
+    if not bal:
+        return None
+    a = bal[0]["balance_amount"]
+    return to_eur(float(a["amount"]), a.get("currency"))
 
 
 # Category from the merchant code, else from the name; the same names the S-Pankki data uses.
@@ -204,15 +249,21 @@ def category(t: dict) -> str:
 
 
 def simplify(x: dict) -> dict | None:
-    """An Enable Banking transaction -> {date, what, amount_eur, mcc, category}. Booked EUR only."""
+    """An Enable Banking transaction -> {date, what, amount_eur, mcc, category}. Booked only; RON, USD... converted
+    to EUR (the original amount is kept)."""
     amt = x.get("transaction_amount") or {}
-    if amt.get("currency") != "EUR" or (x.get("status") or "BOOK") != "BOOK":
+    if (x.get("status") or "BOOK") != "BOOK" or amt.get("amount") is None:
+        return None
+    cur = amt.get("currency") or "EUR"
+    if to_eur(1.0, cur) is None:
         return None
     sign = -1 if x.get("credit_debit_indicator") == "DBIT" else 1
     other = x.get("creditor") if sign < 0 else x.get("debtor")
     what = (other or {}).get("name") or " ".join(x.get("remittance_information") or [])[:60] or "Unknown"
     t = {"date": x.get("booking_date") or x.get("value_date") or x.get("transaction_date"), "what": what.strip(),
-         "amount_eur": eur(sign * abs(float(amt["amount"]))), "mcc": x.get("merchant_category_code")}
+         "amount_eur": to_eur(sign * abs(float(amt["amount"])), cur), "mcc": x.get("merchant_category_code")}
+    if cur != "EUR":
+        t["original"] = f"{sign * abs(float(amt['amount'])):.2f} {cur}"
     t["category"] = category(t)
     return t if t["date"] else None
 
@@ -276,16 +327,14 @@ def verify(token: str | None) -> str | None:
 def _drop_internal(tx: list[dict]) -> list[dict]:
     """Money moved between the person's own accounts (out of one, the same amount into another within a day) is not
     spending or income: leave both sides out."""
-    ins: dict[float, list[int]] = {}
-    for i, t in enumerate(tx):
-        if t["amount_eur"] > 0:
-            ins.setdefault(t["amount_eur"], []).append(i)
+    ins = [i for i, t in enumerate(tx) if t["amount_eur"] > 0]
     drop = set()
     for i, t in enumerate(tx):
         if t["amount_eur"] >= 0:
             continue
-        for j in ins.get(-t["amount_eur"], []):
-            if j in drop or tx[j]["_acc"] == t["_acc"]:
+        for j in ins:
+            # same amount, or within 3% when it was exchanged between currencies
+            if j in drop or tx[j]["_acc"] == t["_acc"] or abs(tx[j]["amount_eur"] + t["amount_eur"]) > 0.03 * -t["amount_eur"]:
                 continue
             if abs((date.fromisoformat(tx[j]["date"]) - date.fromisoformat(t["date"])).days) <= 1:
                 drop.update((i, j))
