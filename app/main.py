@@ -1124,7 +1124,7 @@ async def chat_api(request: Request):
     paused = quiz.paused_note(e, sid)
     again = onboarding.reask(e, sid)  # a side question mid-interview: the waiting question comes back
     extra = "".join(f"\n\n{x}" for x in (paused, again and again.text) if x)
-    return JSONResponse({"text": reply.text + extra, "tools": reply.tools_used,
+    return JSONResponse({"text": reply.text + extra, "tools": reply.tools_used, "trace": reply.trace,
                          "buttons": out, "charts": charts, "quick": quick(again.buttons) if again else []})
 
 

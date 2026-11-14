@@ -49,6 +49,7 @@ Every answer uses the challenge's teaching model:
 
 ## Trust by design
 - **Numbers come from code, not the model.** Claude only calls tools over a deterministic, tested engine (`app/engine.py`); the system prompt forbids any figure that is not in a tool result. A number guard checks the reply: a figure that is in no tool result gets one rewrite.
+- **Show the math.** Under each web chat answer, "🔍 How I worked this out" opens the steps Kurre took, the key figures each one returned, the data sources (your transactions, Statistics Finland, Yahoo Finance, the mortgage data, official guides) and the guard's verdict, e.g. "✓ 6 of 6 figures checked against the calculations" (`app/explain.py`, `app/static/trace.js`). WhatsApp stays short: no extra messages.
 - **The AI never moves money.** It prepares a payment, saving, investment or subscription stop; the customer confirms with their PIN. Double confirms and overdrafts are refused.
 - **Informs, never advises.** Kurre explains risk and options; the customer chooses the fund.
 - **Opt-in channel.** WhatsApp is enabled per customer with explicit consent; the web chat keeps everything inside S-mobiili.
