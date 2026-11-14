@@ -223,12 +223,10 @@ def test_explore_csv_is_exactly_the_view(client):
     assert client.get("/app/explore.csv", params={"metric": "median"}).status_code == 400
 
 
-def test_explore_is_linked_and_chips_exist(client):
+def test_explore_is_linked_and_charts_load(client):
     assert 'href="/app/explore"' in client.get("/app").text
     chat = client.get("/chat").text
-    assert "When do I spend most on restaurants?" in chat and "Show my groceries by month" in chat
     assert "/static/kchart.js" in chat and client.get("/static/kchart.js").status_code == 200
-    assert "data-more" in chat and chat.count('class="more"') == chat.count("<button") - 11 - 2  # 4 top + 6 shown + More
 
 
 def test_explore_page_kind_of_place_uses_the_mcc_labels(client):

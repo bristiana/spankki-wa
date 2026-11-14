@@ -65,10 +65,6 @@ def test_spending_tool_takes_merchant_type(e):
     assert out["merchant_type"] == "Taxis and ride-hailing"
 
 
-def test_taxi_chip_on_chat_page(client):
-    assert "How much did I spend on taxis last month?" in client.get("/chat").text
-
-
 # ---------- safe to save ----------
 def test_safe_to_save_honest_when_no_surplus(e):
     s = e.safe_to_save()

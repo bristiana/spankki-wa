@@ -123,34 +123,6 @@
   <div class="msg bot" id="hello">{% if ui_lang(request) == 'en' %}Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.{% else %}Hei {{ name }}! Olen <b>Oiva</b>, S-Pankin rahavalmentajasi. Kysy minulta mitä vain rahoistasi.{% endif %}</div>
 </div>
 <!-- The three questions S-Pankki's mentors say matter most: always in view, above the scrolling ideas -->
-<div class="chips top" id="top">
-  <button>What kind of spender am I?</button>
-  <button>What can I safely spend this week?</button>
-  <button>How could I save more?</button>
-  <button>Where does my money go?</button>
-</div>
-<div class="chips" id="chips">
-  <button data-q="__start__">Get started</button>
-  <button>Learn in 2 minutes</button>
-  <button>Play the basket game</button>
-  <button data-q="__remind__">Rent reminder</button>
-  <button>When do I spend most on restaurants?</button>
-  <button class="more">Show my groceries by month</button>
-  <button>How much do I need a month here?</button>
-  <button class="more">How much did I spend on taxis last month?</button>
-  <button class="more">How much can I safely save?</button>
-  <button class="more">Could I afford a home of my own?</button>
-  <button class="more" data-q="__alert__:bills">Bill alert</button>
-  <button class="more" data-q="__alert__:salary">Salary landed</button>
-  <button class="more" data-q="__alert__:unusual">Unusual spend</button>
-  <button class="more">Show my money across all my banks</button>
-  <button class="more">Can I afford a 120€ jacket?</button>
-  <button class="more">What are my regular payments?</button>
-  <button class="more">How much could I save if I cut dining out by 20%?</button>
-  <button class="more">I want to save 1500 euros for a trip to Lapland by next summer</button>
-  <button class="more">How much have I invested so far?</button>
-  <button data-more aria-expanded="false" aria-controls="chips">{{ t("Lisää ideoita", "More ideas") }} ›</button>
-</div>
 <form id="f" autocomplete="off">
   <label id="attach" title="{{ t('Lähetä kuva laskusta', 'Send a photo of a bill') }}" aria-label="{{ t('Lähetä kuva laskusta', 'Send a photo of a bill') }}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><input id="photo" type="file" accept="image/*" hidden></label>
   <input id="q" placeholder="{{ t('Kysy rahoistasi…', 'Ask about your money…') }}" aria-label="{{ t('Viesti', 'Message') }}" enterkeyhint="send">
@@ -337,14 +309,14 @@ photo.onchange = async () => {
     send(v, null, c.toDataURL("image/jpeg", 0.85));
   } catch (e) { add("bot", "I couldn't open that photo. Could you try another one?"); }
 };
-const chips = document.getElementById("chips");
+const chips = document.getElementById("chips");  // the suggestion chips are gone; kept null-safe
 document.querySelectorAll("#top button, #chips button").forEach(b => b.onclick = () => {
   if (b.hasAttribute("data-more")) {  // 9 ideas at first; the rest one tap away
     const all = chips.classList.toggle("all");
     b.textContent = all ? UI.fewer + " ‹" : UI.more + " ›"; b.setAttribute("aria-expanded", all);
     return;
   }
-  if (chips.classList.contains("all")) chips.querySelector("[data-more]").click();  // fold the ideas away again
+  if (chips && chips.classList.contains("all")) chips.querySelector("[data-more]").click();  // fold the ideas away again
   b.dataset.q ? send(b.dataset.q, null) : send(b.textContent);
 });
 

@@ -201,7 +201,6 @@ def client(tmp_path, monkeypatch):
 
 def test_web_chat_plays_the_whole_game(client):
     say = lambda text, **kw: client.post("/api/chat", json={"session": "t", "text": text, **kw}).json()
-    assert "Play the basket game" in client.get("/chat").text
     r = say("Play the basket game")
     assert "basket game" in r["text"] and r["text"].endswith("Which basket?")
     assert [q["send"] for q in r["quick"]] == ["__btn__:quiz:0:0:regular", "__btn__:quiz:0:0:irregular",

@@ -267,7 +267,3 @@ def test_card_for_other_persona_and_missing_benchmark(client, monkeypatch):
     monkeypatch.setattr(peers, "load", lambda path=Path("missing.json"): None)
     html = client.get("/app").text
     assert "People like you" not in html and "Where your money goes" in html
-
-
-def test_chat_chip(client):
-    assert "<button>How much do I need a month here?</button>" in client.get("/chat").text

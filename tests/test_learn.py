@@ -235,7 +235,6 @@ def client(tmp_path, monkeypatch):
 
 def test_web_chip_runs_the_course_with_quick_replies(client):
     say = lambda text, **kw: client.post("/api/chat", json={"session": "l", "text": text, **kw}).json()
-    assert "Learn in 2 minutes" in client.get("/chat").text
     r = say("Learn in 2 minutes")
     assert "*1/5 · The three baskets*" in r["text"]
     assert [q["send"] for q in r["quick"]] == ["__btn__:learn:next:0", "__btn__:quiz:start", "__btn__:learn:ask:0"]
