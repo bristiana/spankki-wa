@@ -512,7 +512,7 @@ def test_bill_pdf_that_is_not_a_bill_and_one_that_cannot_be_opened(chat, monkeyp
     monkeypatch.setattr(bills, "download", lambda media_id: b"%PDF-1.7 ...")
     monkeypatch.setattr(bills, "extract", lambda client, data, media_type: bills.clean(NOT_A_BILL))
     connected(chat).media("document", "application/pdf")
-    assert "doesn't look like a bill" in chat.texts()[-1] and main._coach.asked == []
+    assert "can't see anything about money" in chat.texts()[-1] and main._coach.asked == []
     monkeypatch.setattr(bills, "download", download)
     chat.media("image")  # no WA_TOKEN in tests: the download fails and Birky says so
     assert chat.texts()[-1].startswith("Sorry, I couldn't open that photo")
