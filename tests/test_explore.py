@@ -1,10 +1,7 @@
-"""MyData explorer: engine.explore(), the explore_my_data tool, the chart in the chats and the /app/explore page."""
-import csv
-import io
+"""MyData explorer: engine.explore(), the explore_my_data tool and the chart in the web chat."""
 import json
 from datetime import date
 from types import SimpleNamespace as NS
-from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
@@ -123,17 +120,12 @@ def test_tool_schema_only_takes_enums():
         assert "enum" in props[k], k
 
 
-def test_tool_attaches_chart_and_open_chart_button(engine, monkeypatch):
-    monkeypatch.setenv("PUBLIC_URL", "https://example.test")
+def test_tool_attaches_the_chart(engine):
     buttons = []
     args = {"what": "spent", "category": "Restaurants", "group_by": "weekday", "metric": "sum", "period": "last_12_months"}
     out = json.loads(run_tool(engine, "explore_my_data", args, buttons))
-    assert out["rows"] and out["chart"]["labels"] == WEEKDAYS and "attached" in out["note"]
-    (b,) = buttons
-    assert b["label"] == "Open chart" and b["chart"] == out["chart"]
-    url = urlparse(b["url"])
-    assert url.netloc == "example.test" and url.path == "/app/explore"
-    assert parse_qs(url.query) == {"category": ["Restaurants"], "group_by": ["weekday"]}
+    assert out["rows"] and out["chart"]["labels"] == WEEKDAYS and "chart is drawn" in out["note"]
+    assert buttons == [{"chart": out["chart"]}]
     run_tool(engine, "explore_my_data", args, buttons)
     assert len(buttons) == 1  # the same view twice is one chart
     with pytest.raises(ValueError):
@@ -165,7 +157,7 @@ def test_coach_reply_carries_the_chart_and_passes_the_number_guard(engine):
     assert ungrounded_numbers(r.text, [tool_result]) == []
 
 
-# ---------- web chat, WhatsApp, the Explore page ----------
+# ---------- web chat and WhatsApp ----------
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.delenv("WA_TOKEN", raising=False)
@@ -183,54 +175,14 @@ def client(tmp_path, monkeypatch):
 def test_web_chat_returns_the_chart_inline(client):
     j = client.post("/api/chat", json={"session": "x", "text": "When do I spend most on restaurants?"}).json()
     assert j["buttons"] == [] and len(j["charts"]) == 1
-    c = j["charts"][0]
-    assert c["labels"] == WEEKDAYS and c["url"].startswith("/app/explore?")
-    assert client.get(c["url"]).status_code == 200
+    assert j["charts"][0]["labels"] == WEEKDAYS and "url" not in j["charts"][0]
+    chat = client.get("/chat").text
+    assert "/static/kchart.js" in chat and "Open in Explore" not in chat
+    assert client.get("/static/kchart.js").status_code == 200
 
 
-def test_whatsapp_gets_an_open_chart_button(client):
+def test_whatsapp_gets_the_words_without_a_chart_link(client):
     main.engine.state["connected"]["40700000000"] = {}
     main.handle_message({"from": "40700000000", "name": "Aino", "id": "m1", "text": "When do I spend most on restaurants?"})
-    cta = [b for b in client.sent if b.get("type") == "interactive" and b["interactive"]["type"] == "cta_url"]
-    params = cta[-1]["interactive"]["action"]["parameters"]
-    assert params["display_text"] == "Open chart"
-    assert params["url"] == "https://example.test/app/explore?category=Restaurants&group_by=weekday"
-    assert "Saturday" in cta[-1]["interactive"]["body"]["text"]
-
-
-def test_explore_page_default_and_filtered(client):
-    page = client.get("/app/explore")
-    assert page.status_code == 200 and "Explore your data" in page.text and "Spending by month" in page.text
-    page = client.get("/app/explore", params={"filter": "category:Restaurants", "group_by": "weekday"})
-    assert "Spending on Restaurants by weekday" in page.text and 'value="category:Restaurants" selected' in page.text
-    assert "Saturday" in page.text and "/app/explore.csv?category=Restaurants&amp;group_by=weekday" in page.text
-    bad = client.get("/app/explore", params={"group_by": "hour"})
-    assert bad.status_code == 200 and "unknown group_by" in bad.text and "Spending by month" in bad.text
-
-
-def test_explore_csv_is_exactly_the_view(client):
-    q = {"category": "Groceries", "group_by": "month", "metric": "count"}
-    v = main.engine.explore(**q)
-    r = client.get("/app/explore.csv", params=q)
-    assert r.headers["content-type"].startswith("text/csv")
-    assert 'filename="my-s-pankki-spent-groceries-by-month-last-12-months.csv"' in r.headers["content-disposition"]
-    rows = list(csv.reader(io.StringIO(r.text)))
-    assert rows[0] == ["month", "payments", "payments", "total_eur"]
-    assert [x[0] for x in rows[1:-1]] == [x["label"] for x in v["rows"]]
-    assert [int(x[1]) for x in rows[1:-1]] == [x["value"] for x in v["rows"]]
-    assert rows[-1][0] == "Total" and int(rows[-1][1]) == v["totals"]["value"]
-    assert client.get("/app/explore.csv", params={"filter": "category:Groceries"}).text.count("\n") == 14
-    assert client.get("/app/explore.csv", params={"metric": "median"}).status_code == 400
-
-
-def test_explore_is_linked_and_charts_load(client):
-    assert 'href="/app/explore"' in client.get("/app").text
-    chat = client.get("/chat").text
-    assert "/static/kchart.js" in chat and client.get("/static/kchart.js").status_code == 200
-
-
-def test_explore_page_kind_of_place_uses_the_mcc_labels(client):
-    page = client.get("/app/explore", params={"merchant_type": "coffee", "group_by": "weekday"})
-    assert 'value="merchant_type:coffee" selected>Fast food and cafés and Restaurants</option>' in page.text
-    page = client.get("/app/explore", params={"filter": "merchant_type:4121"})
-    assert 'value="merchant_type:4121" selected>Taxis and ride-hailing</option>' in page.text
+    assert not [b for b in client.sent if b.get("type") == "interactive" and b["interactive"]["type"] == "cta_url"]
+    assert "Saturday" in client.sent[-1]["text"]["body"]

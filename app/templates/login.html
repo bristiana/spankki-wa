@@ -7,14 +7,14 @@
     <h1>Logged in</h1>
     <p class="muted">With WhatsApp {{ me }}.</p>
     <a class="btn" href="/bank">Add a bank</a>
-    <a class="btn ghost" href="/app" style="margin-top:8px">Open My money</a>
+    <a class="btn ghost" href="/s-mobiili/" style="margin-top:8px">Open S-mobiili</a>
     <a class="btn ghost" href="/logout" style="margin-top:8px">Log out</a>
     {% else %}
     <h1>Log in</h1>
     {% if expired %}<p class="err">That login link has expired. Ask Oiva for a new one.</p>{% endif %}
     <p class="muted">No password. Try Oiva with the demo account, or log in with WhatsApp to bring your own banks (Revolut, OP, Nordea...).</p>
     <a class="btn" href="/login?demo=1&next=/chat">Use the demo account</a>
-    <p class="muted" style="font-size:13px">Chat with Oiva, see My money, link the Demo Bank.</p>
+    <p class="muted" style="font-size:13px">Chat with Oiva, open S-mobiili, link the Demo Bank.</p>
     {% if wa %}<a class="btn ghost" href="https://wa.me/{{ wa }}?text=login" style="margin-top:8px">Log in with WhatsApp</a>{% endif %}
     {% endif %}
   </div>

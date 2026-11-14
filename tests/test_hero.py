@@ -54,13 +54,6 @@ def test_spender_profile_compares_the_hero_with_his_own_age_and_area(hero, tmp_p
     assert aino["group"] == "S-Pankki customers aged 20-29" and aino["customers"] == 535  # unchanged
 
 
-def test_landing_shows_the_hero_and_the_three_questions(tmp_path):
-    main.engine = main.persona_engine(main.DEFAULT_PERSONA, date(2026, 10, 6), tmp_path / "s.json")
-    page = TestClient(main.app).get("/").text
-    assert "synthetic" not in page and "Demo customer" not in page
-    assert all(q in page for q in THREE) and "the average Finnish household" in page and "any age" in page
-
-
 def test_save_more_on_aino_skips_what_she_does_not_have(tmp_path):
     out = Engine(today=date(2026, 10, 6), state_path=tmp_path / "a.json").save_more()
     assert [i["idea"] for i in out["ideas"]] == ["biggest_lever", "review_payment"]

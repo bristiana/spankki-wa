@@ -1,5 +1,5 @@
-"""'People like you': the peer benchmark builder (n >= 30 only), fallbacks, the engine numbers for the demo persona,
-the get_people_like_me tool and the /app card."""
+"""'People like you': the peer benchmark builder (n >= 30 only), fallbacks, the engine numbers for the demo persona and
+the get_people_like_me tool."""
 import copy
 import csv
 import importlib.util
@@ -8,9 +8,8 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
-from app import main, peers
+from app import peers
 from app.engine import BASKETS, Engine
 from app.explain import explain
 from app.tools import TOOLS, run_tool
@@ -233,37 +232,3 @@ def test_tool_explained(e):
 def test_prompt_rule():
     from app.agent import SYSTEM
     assert "get_people_like_me" in SYSTEM and "never to shame" in SYSTEM and "at least 30" in SYSTEM
-
-
-# ---------- /app card ----------
-@pytest.fixture
-def client(tmp_path, monkeypatch):
-    monkeypatch.delenv("WA_TOKEN", raising=False)
-    monkeypatch.setattr(main, "engine", Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json"))
-    return TestClient(main.app)
-
-
-def test_card_renders(client):
-    html = client.get("/app").text
-    assert "People like you · Espoo area · 18-24" in html
-    assert "A typical month for customers aged 18-24 in the Espoo area, next to yours." in html
-    assert "Averages of at least 30 S-Pankki customers (this group: 128), Oct 2025 to Sep 2026" in html
-    card = html.split('id="people-like-you"')[1].split("How much do I need a month here?</a>")[0]
-    assert card.count('class="py"') == len(peers.CARD_ROWS) and card.count('class="pb"') == len(peers.CARD_ROWS)
-    assert main.money_nb(1923.0) in card and ">a bit above<" in card and ">in line<" in card and ">below<" in card
-    assert "/chat?q=How%20much%20do%20I%20need%20a%20month%20here%3F" in card
-
-
-def test_card_geometry(e):
-    c = peers.card(e.new_life_budget())
-    assert [r["key"] for r in c["rows"]] == peers.CARD_ROWS and c["title"] == "Espoo area · 18-24"
-    for r in c["rows"]:
-        assert 6 <= r["x0"] <= r["xm"] <= r["x0"] + r["w"] <= 294 and 6 <= r["xy"] <= 294
-
-
-def test_card_for_other_persona_and_missing_benchmark(client, monkeypatch):
-    assert "People like you · Helsinki · 40-49" in client.get("/app?as=CUST05042").text
-    monkeypatch.setattr(peers, "BENCH_PATH", Path("missing.json"))
-    monkeypatch.setattr(peers, "load", lambda path=Path("missing.json"): None)
-    html = client.get("/app").text
-    assert "People like you" not in html and "Where your money goes" in html

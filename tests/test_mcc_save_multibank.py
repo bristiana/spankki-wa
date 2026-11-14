@@ -131,18 +131,15 @@ def test_card_bill_paid_with_pin(e):
     assert e.card_bill()["due_date"] == "2026-11-12"
 
 
-def test_link_flow_dashboard_and_reset(client):
+def test_link_flow_and_reset(client):
     assert 'href="/connect/bank' in client.get("/connect").text
     page = client.get("/connect/bank").text
     assert "Demo Bank" in page and "synthetic" not in page
-    assert "Add another bank" in client.get("/app").text
     r = client.post("/connect/bank", data={"u": "", "scope": ["accounts", "transactions"]})
     assert "Demo Bank linked" in r.text and main.engine.linked_bank()
-    dash = client.get("/app").text
-    assert "net, after card debt" in dash and "Card bill" in dash
     assert "Demo Bank" in client.get("/connect").text
     client.post("/demo/reset")
-    assert main.engine.linked_bank() is None and "Add another bank" in client.get("/app").text
+    assert main.engine.linked_bank() is None
 
 
 def test_link_needs_accounts_scope(client):

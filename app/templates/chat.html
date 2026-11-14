@@ -140,7 +140,7 @@
 </div>
 </div>
 <script>
-const UI = {{ {"thinking": t("Oiva miettii", "Oiva is thinking"), "more": t("Lisää ideoita", "More ideas"), "fewer": t("Vähemmän", "Fewer"), "explore": t("Avaa Explore-näkymässä", "Open in Explore"), "conn": t("Yhteysongelma, yritä uudelleen.", "Connection problem, try again.")}|tojson }};
+const UI = {{ {"thinking": t("Oiva miettii", "Oiva is thinking"), "more": t("Lisää ideoita", "More ideas"), "fewer": t("Vähemmän", "Fewer"), "conn": t("Yhteysongelma, yritä uudelleen.", "Connection problem, try again.")}|tojson }};
 const MIRROR = {{ mirror|tojson }};  // the app's chat: the owner's WhatsApp conversation, live (app/mirror.py)
 const log = document.getElementById("log"), q = document.getElementById("q");
 const sheet = document.getElementById("sheet"), frame = document.getElementById("frame");
@@ -265,10 +265,6 @@ async function send(text, shown, image) {
       box.innerHTML = "<b>" + esc(c.title) + "</b><small>" + esc(c.subtitle) + "</small>";
       box.appendChild(plot); d.appendChild(box);
       window.oivaChart(plot, c);
-      const a = document.createElement("button");
-      a.className = "btn ghost"; a.textContent = UI.explore;
-      a.onclick = () => openSheet(c.url + (c.url.includes("?") ? "&" : "?") + "web=1");
-      box.appendChild(a);
     }
     for (const b of j.buttons || []) {
       const a = document.createElement("button");

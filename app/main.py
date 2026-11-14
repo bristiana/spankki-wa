@@ -27,9 +27,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import bills, broker, enable_banking, guardrails, learn, mirror, onboarding, quiz, receipts, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
-from .engine import (BASKETS, DEMO_BANK, HIDE_DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
-                     RESERVE_NOTE_EUR, SPEND_CATEGORIES, Engine, merchant_codes)
-from .tools import confirm_url, explore_query, pending_id_of, public_url, with_web
+from .engine import BASKETS, DEMO_BANK, HIDE_DEMO_BANK, FUNDS_BY_ID, RESERVE_NOTE_EUR, Engine
+from .tools import confirm_url, pending_id_of, public_url, with_web
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -53,7 +52,7 @@ def load_personas(path: Path = PERSONA_DIR / "index.json") -> dict[str, dict]:
 
 PERSONAS = load_personas()
 # The hero (index.json "hero": true, picked by rule in scripts/extract_personas.py) is who people meet first: the web
-# chat, /app, the widgets, the landing page and the WhatsApp demo phone. DEMO_PERSONA=<CUSTID> picks another one.
+# chat, S-mobiili, the widgets and the WhatsApp demo phone. DEMO_PERSONA=<CUSTID> picks another one.
 HERO = next((p["id"] for p in PERSONAS.values() if p.get("hero")), AINO)
 
 
@@ -167,10 +166,6 @@ SURNAMES = {HERO: "Virtanen"}  # the hero, Antti
 def full_name(persona: str | None) -> str:
     p = valid_persona(persona)
     return " ".join(x for x in (PERSONAS[p]["name"], SURNAMES.get(p, "")) if x)
-
-
-def persona_ctx(persona: str) -> dict:
-    return {"persona": PERSONAS[persona], "personas": list(PERSONAS.values())}
 
 
 @app.middleware("http")
@@ -317,22 +312,23 @@ def send_reply(to: str, reply, message_id: str | None = None):
     ("---" or blank lines split them); a button rides on the last bubble. A reply that is only a reaction sends
     just the reaction."""
     reaction = getattr(reply, "reaction", None)
+    buttons = [b for b in reply.buttons if "chart" not in b]  # a chart is drawn only in the web chat
     if reaction and message_id:
         wa.send_reaction(to, message_id, reaction)
     if not (reply.text or "").strip():
-        if reply.buttons:  # nothing to say but something to tap
-            for b in reply.buttons:
+        if buttons:  # nothing to say but something to tap
+            for b in buttons:
                 wa.send_url_button(to, wa.OVERFLOW_BODY, b["label"], b["url"])
         elif not (reaction and message_id):
             wa.send_text(to, "Okay.")
         return
     parts = wa.bubbles(reply.text)
-    if reply.buttons:
+    if buttons:
         wa.send_bubbles(to, parts[:-1])
-        first, *rest = reply.buttons
+        first, *rest = buttons
         wa.send_url_button(to, parts[-1], first["label"], first["url"])
         for k, b in enumerate(rest, start=2):  # e.g. several links, each with its own PIN
-            wa.send_url_button(to, f"{k}/{len(reply.buttons)}", b["label"], b["url"])
+            wa.send_url_button(to, f"{k}/{len(buttons)}", b["label"], b["url"])
     else:
         wa.send_bubbles(to, parts)
 
@@ -417,8 +413,8 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
                         "It's ready in S-mobiili: confirm with Face ID.",
                 "url": (OPEN_APP, confirm_url("save", p["pending_id"], web))}
     if bid == "quiz:money":
-        return {"text": "Your three baskets, balance and safe to spend, all in one place.",
-                "url": ("Open My money", f"{public_url()}/app{q}")}
+        return {"text": "Your balance and your three baskets, on the S-mobiili home screen.",
+                "url": ("Open S-mobiili", f"{public_url()}/s-mobiili/{q}")}
     return None
 
 
@@ -587,7 +583,8 @@ def bill_photo(to: str, name: str, m: dict):
         return
     reply = ask_about_bill(None, to, bill, m["text"] and wa.redact(m["text"]), name)
     for b in reply.buttons:
-        owner[pending_id_of(b["url"])] = to
+        if "chart" not in b:
+            owner[pending_id_of(b["url"])] = to
     send_reply(to, reply, m["id"])
 
 
@@ -768,9 +765,9 @@ def _set_login(response, token: str):
 
 
 @app.get("/login", response_class=HTMLResponse)
-def login(request: Request, next: str = "/app"):
+def login(request: Request, next: str = "/s-mobiili/"):
     """Login with WhatsApp: ?t= comes from the link Oiva sends when you write "login"; without it, the way there."""
-    nxt = next if next.startswith("/") and not next.startswith("//") else "/app"
+    nxt = next if next.startswith("/") and not next.startswith("//") else "/s-mobiili/"
     t = request.query_params.get("t")
     if request.query_params.get("demo"):  # the jury: the demo account, no WhatsApp needed
         r = RedirectResponse(nxt, status_code=303)
@@ -815,7 +812,7 @@ def terms(request: Request):
 
 @app.get("/logout")
 def logout():
-    r = RedirectResponse("/", status_code=303)
+    r = RedirectResponse("/s-mobiili/", status_code=303)
     r.delete_cookie(enable_banking.COOKIE)
     r.delete_cookie(DEMO_COOKIE)
     return r
@@ -913,11 +910,11 @@ def connect_submit(request: Request, bg: BackgroundTasks, u: str = Form(""), sco
 
 
 def welcome(to: str):
-    """Right after Connect: the three baskets, the My money button and a hello. No questions pushed: Oiva follows
+    """Right after Connect: the three baskets, the S-mobiili button and a hello. No questions pushed: Oiva follows
     the person's lead (a goal interview, the risk question or check-ins only when they ask)."""
     lead = onboarding.intro(engine)
     wa.send_bubbles(to, lead[:-1])
-    wa.send_url_button(to, "Your whole money picture, any time.", "Open My money", f"{public_url()}/app")
+    wa.send_url_button(to, "Your whole money picture, any time.", "Open S-mobiili", f"{public_url()}/s-mobiili/")
     wa.send_text(to, lead[-1])
     remember(None, to, "[connected S-Pankki]", onboarding.Turn(lead[-1], lead=lead[:-1], done=True))
 
@@ -1313,11 +1310,6 @@ def demo_bonus(persona: str, today: date) -> dict:
     return {"coming": 18 + h % 4000 / 100, "last": 20 + (h >> 16) % 4000 / 100, "to_next": 5.0,
             "from_month": FI_MONTH_FROM[(today.month - 2) % 12],
             "month_en": date(2000, (today.month - 2) % 12 + 1, 1).strftime("%B"), "pay_day": f"10.{pay_month}."}
-
-
-@app.get("/s-mobiili", include_in_schema=False)
-def smobiili_root(request: Request):
-    return RedirectResponse("/s-mobiili/" + (f"?{request.url.query}" if request.url.query else ""), status_code=307)
 
 
 BASKETS_Q = "Where does my money go?"  # the S-mobiili baskets card and the 4th chat chip ask the same question
@@ -1785,155 +1777,19 @@ def _ctx(**extra) -> dict:
     return {"money": money_nb, "nice": nice_date, "wa": os.environ.get("WA_DISPLAY_NUMBER", ""), **extra}
 
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-def landing(request: Request):
-    off = engine.official_benchmark() or {"comparison": []}
-    rest = next((r for r in off["comparison"] if r["category"] == "Restaurants"), {"times": "-"})
-    rent = next((b for b in engine.upcoming_bills(45) if b["category"] == "Housing"), {"amount_eur": 0})
-    reg = engine.commitments()
-    util = next((x for x in reg["regular_payments"] if x["id"] == "utilities"), None) or {}
-    cut = engine.simulate_cut("Restaurants", 20)
-    growth = next((r for r in (cut.get("real_past_check") or {}).get("results", []) if r and "Growth" in r["fund"]),
-                  {"value_today_eur": 0})
-    L = {"rest": engine.monthly_avg("Restaurants", 3), "times": rest["times"], "rent": rent["amount_eur"],
-         "safe": engine.safe_to_spend()["safe_to_spend_until_payday_eur"], "bills_year": reg["bills_per_year_eur"],
-         "util_month": util.get("per_month_eur", 0), "util_count": round(util.get("bills_per_month", 0)),
-         "odd": util.get("unusual_bill"), "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"],
-         "fi_same_age": not off.get("group", "").endswith(" all")}  # Statistics Finland has age groups only up to 34
-    return templates.TemplateResponse(request, "landing.html", _ctx(L=L, who=PERSONAS[DEFAULT_PERSONA],
-                                                                     baskets=engine.baskets("last_3_months")))
-
-
-def _chart(o: dict) -> dict:
-    vals = [v for _, v in o["series"]]
-    lo, hi = min(vals), max(vals)
-    span = (hi - lo) or 1
-    pts = [(round(i * 300 / (len(vals) - 1), 1), round(64 - (v - lo) / span * 58, 1)) for i, v in enumerate(vals)]
-    line = " ".join(f"{x},{y}" for x, y in pts)
-    top = max(max(w["in"], w["out"]) for w in o["flow"]) or 1
-    bars = []
-    for i, w in enumerate(o["flow"]):
-        hin, hout = round(w["in"] / top * 95, 1), round(w["out"] / top * 95, 1)
-        bars.append({"x": round(i * 25 + 3, 1), "hin": hin, "yin": round(100 - hin, 1), "hout": hout, "yout": round(100 - hout, 1)})
-    return {"series_pts": line, "series_area": f"0,70 {line} 300,70", "flow_bars": bars}
+@app.get("/", include_in_schema=False)
+@app.get("/app", include_in_schema=False)
+@app.get("/app/explore", include_in_schema=False)
+@app.get("/mobile-demo", include_in_schema=False)
+@app.get("/s-mobiili", include_in_schema=False)
+def to_smobiili(request: Request):
+    """The web side is S-mobiili; the old pages (landing, My money, Explore, the concept mock) lead there."""
+    return RedirectResponse("/s-mobiili/" + (f"?{request.url.query}" if request.url.query else ""), status_code=307)
 
 
 @app.get("/app/export.json")
 def export_json(request: Request):
     return JSONResponse(engine_for(persona_of(request)).export(), headers={"content-disposition": 'attachment; filename="my-s-pankki-data.json"'})
-
-
-@app.get("/app/export.csv")
-def export_csv(request: Request):
-    import csv
-    import io
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(["date", "category", "basket", "amount_eur", "type", "merchant"])
-    for t in engine_for(persona_of(request)).export()["transactions"]:
-        w.writerow([t["date"], t["category"], t["basket"] or "", t["amount_eur"], t["type"], t["merchant"] or ""])
-    return PlainTextResponse(buf.getvalue(), media_type="text/csv",
-                             headers={"content-disposition": 'attachment; filename="my-s-pankki-transactions.csv"'})
-
-
-# ---------------- MyData explorer: the customer builds their own view, no AI ----------------
-EXPLORE_KEYS = ("what", "category", "basket", "merchant_type", "group_by", "metric", "period", "start", "end")
-EXPLORE_LABELS = {
-    "what": {"spent": "Spending", "income": "Income"},
-    "metric": {"sum": "Euros", "count": "Number of payments", "average": "Average payment"},
-    "group_by": {"month": "Month", "week": "Week", "weekday": "Day of the week", "category": "Category",
-                 "basket": "Basket", "merchant": "Place", "merchant_type": "Kind of place"},
-    "period": {"last_12_months": "Last 12 months", "last_3_months": "Last 3 months", "last_month": "Last month",
-               "this_month": "This month", "last_30_days": "Last 30 days", "last_7_days": "Last 7 days",
-               "all": "Everything"},
-}
-
-
-def explore_args(request: Request) -> dict:
-    """Query string -> explore() arguments. `filter=category:Restaurants` (the page's single filter dropdown) or the
-    separate category / basket / merchant_type parameters (links from the chat)."""
-    q = request.query_params
-    args = {k: q.get(k) for k in EXPLORE_KEYS}
-    kind, _, value = (q.get("filter") or "").partition(":")
-    if kind in ("category", "basket", "merchant_type") and value:
-        args[kind] = value
-    return {k: v[:40] for k, v in args.items() if v}
-
-
-def explore_filters(merchant_type: str | None = None) -> list[tuple[str, list[tuple[str, str]]]]:
-    """Dropdown groups. Kinds of place are the MCC labels get_spending uses; a word from a chat link ('coffee')
-    that is not one code gets its own option so the dropdown shows what is selected."""
-    places = sorted(((f"merchant_type:{c}", label) for c, label in MCC_LABELS.items()), key=lambda o: o[1])
-    if merchant_type and merchant_type not in MCC_LABELS:
-        places.insert(0, (f"merchant_type:{merchant_type}", merchant_codes(merchant_type)[0]))
-    return [("Category", [(f"category:{c}", c) for c in SPEND_CATEGORIES]),
-            ("Basket", [(f"basket:{k}", b["label"]) for k, b in BASKETS.items()]),
-            ("Kind of place", places)]
-
-
-@app.get("/app/explore", response_class=HTMLResponse)
-def explore_page(request: Request):
-    persona = persona_of(request)
-    eng = engine_for(persona)
-    try:
-        view, error = eng.explore(**explore_args(request)), None
-    except ValueError as e:  # a hand-edited link: show the default view and say why
-        view, error = eng.explore(), str(e)
-    q = view["query"]
-    current = next((f"{k}:{q[k]}" for k in ("category", "basket", "merchant_type") if q[k]), "")
-    return templates.TemplateResponse(request, "explore.html", _ctx(
-        **persona_ctx(persona),
-        v=view, error=error, current=current, filters=explore_filters(q["merchant_type"]), labels=EXPLORE_LABELS,
-        options={"what": EXPLORE_WHAT, "metric": EXPLORE_METRICS, "group_by": EXPLORE_GROUP_BY, "period": PERIODS},
-        csv_url="/app/explore.csv?" + explore_query(q)))
-
-
-@app.get("/app/explore.csv")
-def explore_csv(request: Request):
-    """Exactly the rows and the total shown on the Explore page for the same query."""
-    import csv
-    import io
-    try:
-        v = engine_for(persona_of(request)).explore(**explore_args(request))
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    q = v["query"]
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow([q["group_by"], {"sum": "amount_eur", "count": "payments", "average": "average_payment_eur"}[q["metric"]],
-                "payments", "total_eur"])
-    for r in v["rows"]:
-        w.writerow([r["label"], r["value"], r["transactions"], r["total_eur"]])
-    w.writerow(["Total", v["totals"]["value"], v["totals"]["transactions"], v["totals"]["total_eur"]])
-    parts = [q["what"], q["category"] or q["basket"] or q["merchant_type"], "by", q["group_by"], q["period"]]
-    name = "".join(ch if ch.isalnum() else "-" for ch in "-".join(p for p in parts if p).lower())
-    return PlainTextResponse(buf.getvalue(), media_type="text/csv",
-                             headers={"content-disposition": f'attachment; filename="my-s-pankki-{name}.csv"'})
-
-
-@app.get("/app", response_class=HTMLResponse)
-def dashboard(request: Request):
-    persona = persona_of(request)
-    me = wa_phone(request)
-    token = HIDE_DEMO_BANK.set(bool(me and enable_banking.load(me)))  # your real banks instead of the Demo Bank
-    try:
-        o = engine_for(persona).overview()
-    finally:
-        HIDE_DEMO_BANK.reset(token)
-    o["full"] = enable_banking.merge(o["full"], me)
-    return templates.TemplateResponse(request, "dashboard.html", _ctx(
-        o=o, name=name_for(persona), today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o),
-        peers=_peers_card(engine_for(persona)), **persona_ctx(persona),
-        me=enable_banking.mask(wa_phone(request)), real_banks=enable_banking.picture(wa_phone(request))))
-
-
-def _peers_card(eng: Engine) -> dict | None:
-    """'People like you' on /app: None (no card) when the benchmark file is missing."""
-    from . import peers
-    try:
-        return peers.card(eng.new_life_budget())
-    except ValueError:
-        return None
 
 
 @app.get("/chat", response_class=HTMLResponse)
@@ -1945,7 +1801,7 @@ def chat_page(request: Request, q: str = "", embed: str = ""):
         persona = DEFAULT_PERSONA
     return templates.TemplateResponse(request, "chat.html", {"name": name_for(persona), "q": q[:500],
                                                              "embed": True, "mirror": mirrored,
-                                                             "framed": embed != "1", **persona_ctx(persona)})
+                                                             "framed": embed != "1", "persona": PERSONAS[persona]})
 
 
 # ---------------- S-mobiili integration: native home-screen cards, no AI ----------------
@@ -2029,15 +1885,6 @@ def widgets(e: Engine | None = None) -> dict:
 def widgets_api(request: Request):
     return JSONResponse(widgets(engine_for(persona_of(request))),
                         headers={"cache-control": f"private, max-age={WIDGETS_MAX_AGE}", "vary": "cookie"})
-
-
-@app.get("/mobile-demo", response_class=HTMLResponse)
-def mobile_demo(request: Request):
-    """Concept mock: Oiva's cards and chat inside a generic banking app home screen."""
-    persona = persona_of(request)
-    e = engine_for(persona)
-    return templates.TemplateResponse(request, "mobile_demo.html", _ctx(
-        name=name_for(persona), balance=e.balance(), recent=e.recent(6)))
 
 
 WEB_UPLOAD_MAX = bills.MAX_BYTES * 4 // 3 + 64_000  # a 5 MB photo as base64, plus the rest of the JSON
@@ -2140,7 +1987,7 @@ async def chat_turn(request: Request):
         lead = onboarding.intro(e)
         t = onboarding.Turn(lead[-1], lead=lead[:-1], done=True)
         remember(persona, sid, "[connected S-Pankki]", t)
-        return interview(t, [{"label": "Open My money", "url": "/app"}])
+        return interview(t)
     touch(e, sid)
     bid, secret, extra = "", [], None
     if text.startswith("__btn__:"):
@@ -2215,8 +2062,8 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=(), asked: str = ""
                                      "Bill reminders and payments still work.", "buttons": []})
     out, charts = [], []
     for b in reply.buttons:
-        if "chart" in b:  # drawn inside the bubble; its link opens the same view on the Explore page
-            charts.append({**b["chart"], "url": b["url"].replace(public_url(), "")})
+        if "chart" in b:  # drawn inside the bubble
+            charts.append(b["chart"])
             continue
         owner[pending_id_of(b["url"])] = sid
         out.append({"label": b["label"], "url": with_web(b["url"].replace(public_url(), ""))})

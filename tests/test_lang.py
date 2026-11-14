@@ -38,7 +38,7 @@ def pages(client) -> list[str]:
     route, pid = tools.ready_of(url)
     return ["/s-mobiili/", url, "/s-mobiili/?tab=etukortti", "/s-mobiili/?tab=pankki", "/s-mobiili/?tab=mina",
             "/s-mobiili/?tab=kortti", "/s-mobiili/etukortti", "/s-mobiili/kuitit", f"/s-mobiili/kuitit/{first['id']}",
-            f"/s-mobiili/{route}/{pid}", "/chat", "/", "/app", "/login", "/connect"]
+            f"/s-mobiili/{route}/{pid}", "/chat", "/login", "/connect"]
 
 
 @pytest.mark.parametrize("lang", ["fi", "en"])

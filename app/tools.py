@@ -5,7 +5,7 @@ import json
 import os
 import re
 from pathlib import Path
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_MERCHANT_TYPES, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS, PERIODS,
                      SPEND_CATEGORIES, Engine)
@@ -249,7 +249,7 @@ TOOLS = [
     {
         "name": "explore_my_data",
         "description": "MyData explorer: the customer's own transactions filtered, grouped and measured, with a chart "
-                       "attached to your message (web chat: drawn in the chat; WhatsApp: an 'Open chart' button). Use for "
+                       "drawn under your message in the web chat (WhatsApp gets the words only). Use for "
                        "'show me…', 'chart…', 'when do I spend most on…' (group_by weekday), 'how did X change' "
                        "(month or week) and 'compare…' (category, basket, merchant or merchant_type) questions. "
                        "Use one filter at a time.",
@@ -307,12 +307,6 @@ TOOLS = [
     },
 ]
 TOOLS.append(bills.TOOL)  # bill photos (app/bills.py)
-
-
-def explore_query(q: dict) -> str:
-    """explore() query -> the query string of /app/explore (defaults and empty values left out)."""
-    defaults = {"what": "spent", "group_by": "month", "metric": "sum", "period": "last_12_months"}
-    return urlencode({k: v for k, v in q.items() if v and defaults.get(k) != v})
 
 
 def no_subscriptions_answer(c: dict) -> str:
@@ -431,11 +425,10 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
     elif name == "explore_my_data":
         out = engine.explore(**{k: args.get(k) for k in ("what", "category", "basket", "merchant_type", "group_by",
                                                          "metric", "period", "start", "end") if args.get(k)})
-        url = f"{public_url()}/app/explore?{explore_query(out['query'])}".rstrip("?")
-        if not any(b["url"] == url for b in buttons):
-            buttons.append({"label": "Open chart", "url": url, "chart": out["chart"]})
-        out = {**out, "note": out["note"] + " A chart and an 'Open chart' button are attached to your message: do not "
-                                            "paste a link or a table, just say the one or two numbers that answer."}
+        if not any(b.get("chart") == out["chart"] for b in buttons):
+            buttons.append({"chart": out["chart"]})
+        out = {**out, "note": out["note"] + " In the app a chart is drawn under your message: do not paste a link or "
+                                            "a table, just say the one or two numbers that answer."}
     elif name == "get_home_readiness":
         price = args.get("price_eur")
         out = engine.home_readiness(float(price) if price else None)
