@@ -249,3 +249,14 @@ def test_refresh_pulls_accounts_again(monkeypatch):
     acc = eb.load("358401111111")["Revolut"]["accounts"][0]
     assert acc["balance_eur"] == 100.0 and acc["transactions"][0]["amount_eur"] == -10.0
     assert main.REFRESH_BANK.match("refresh bank") and not main.REFRESH_BANK.match("how is my bank")
+
+
+def test_transfers_are_kept_apart_from_spending():
+    eb.save("358401111111", {"Revolut": {"bank": "Revolut", "accounts": [{"uid": "u1", "currency": "EUR", "transactions": [
+        {"date": "2026-11-10", "what": "Wolt", "amount_eur": -30.0, "category": "Restaurants", "mcc": "5814"},
+        {"date": "2026-11-11", "what": "Ana Pop", "amount_eur": -300.0, "category": "Other"},
+        {"date": "2026-11-12", "what": "Employer", "amount_eur": 1000.0, "category": "Income"}]}]}})
+    b = eb.picture("358401111111")[0]
+    m = 90 / 30.4
+    assert b["spending_per_month_by_category_eur"] == {"Restaurants": round(30 / m, 2)}
+    assert b["transfers_out_per_month_eur"] == round(300 / m, 2) and b["money_in_per_month_eur"] == round(1000 / m, 2)

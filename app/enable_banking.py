@@ -245,7 +245,12 @@ def category(t: dict) -> str:
     for rx, cat in NAME_CATEGORY:
         if re.search(rx, name):
             return cat
-    return "Other"
+    # No merchant code and no shop we know: money sent to a person or an account (rent to a landlord, a friend, a
+    # top-up elsewhere). Card payments always carry a merchant code.
+    return "Other" if t.get("mcc") else TRANSFERS
+
+
+TRANSFERS = "Transfers"
 
 
 def simplify(x: dict) -> dict | None:
@@ -359,16 +364,27 @@ def picture(phone: str | None) -> list[dict]:
             accs.append({"type": f"{a['currency']} account" if a.get("currency") else "account",
                          "ending": a.get("iban_end") or None, "balance_eur": a.get("balance_eur")})
             tx += [{**t, "_acc": n} for t in a.get("transactions") or []]
-        tx = _drop_internal(tx)
-        spent = [t for t in tx if t["amount_eur"] < 0]
+        tx = [{**t, "category": category(t)} for t in _drop_internal(tx)]  # categories as of today's rules
         months = max(1.0, HISTORY_DAYS / 30.4)
         by_cat: dict[str, float] = {}
-        for t in spent:
-            by_cat[t["category"]] = by_cat.get(t["category"], 0) - t["amount_eur"]
+        sent = 0.0
+        for t in tx:
+            if t["amount_eur"] >= 0:
+                continue
+            if t["category"] == TRANSFERS:
+                sent -= t["amount_eur"]
+            else:
+                by_cat[t["category"]] = by_cat.get(t["category"], 0) - t["amount_eur"]
+        received = sum(t["amount_eur"] for t in tx if t["amount_eur"] > 0)
         out.append({
             "bank": f"{link['bank']} (linked via Enable Banking, real data)", "linked_since": link.get("linked"),
             "accounts": accs, "real": True,
             "spending_per_month_eur": eur(sum(by_cat.values()) / months),
+            "transfers_out_per_month_eur": eur(sent / months),
+            "money_in_per_month_eur": eur(received / months),
+            "how_to_read": "spending = card payments and shops; transfers_out = money sent to people or other "
+                           "accounts (not spending on things); transfers between the customer's own accounts are "
+                           "left out entirely",
             "spending_per_month_by_category_eur": {k: eur(v / months) for k, v in
                                                    sorted(by_cat.items(), key=lambda kv: -kv[1])},
             "recent_transactions": [{k: v for k, v in t.items() if k != "_acc"}
