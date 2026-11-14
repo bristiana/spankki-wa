@@ -19,7 +19,7 @@ from fastapi.templating import Jinja2Templates
 from . import broker, onboarding, rules, templates_wa
 from . import whatsapp as wa
 from .agent import Coach
-from .engine import FUNDS_BY_ID, Engine
+from .engine import DEMO_BANK, FUNDS_BY_ID, Engine
 from .tools import public_url
 
 load_dotenv()
@@ -261,7 +261,29 @@ def handle_message(m: dict):
 # ---------------- Connect (consent) ----------------
 @app.get("/connect", response_class=HTMLResponse)
 def connect_page(request: Request, u: str = ""):
-    return templates.TemplateResponse(request, "connect.html", {"u": u, "done": connected(u) if u else False})
+    return templates.TemplateResponse(request, "connect.html", {"u": u, "done": connected(u) if u else False,
+                                                                 "linked": engine.linked_bank()})
+
+
+@app.get("/connect/bank", response_class=HTMLResponse)
+def bank_page(request: Request, u: str = ""):
+    """PSD2 account information consent for a second bank. Mock: the bank and its data are synthetic."""
+    return templates.TemplateResponse(request, "bank.html", {"u": u, "bank": DEMO_BANK, "linked": engine.linked_bank()})
+
+
+@app.post("/connect/bank", response_class=HTMLResponse)
+def bank_submit(request: Request, u: str = Form(""), scope: list[str] = Form([])):
+    if "accounts" not in scope:
+        return RedirectResponse(f"/connect/bank?u={u}&err=1", status_code=303)
+    f = engine.link_bank(scope)
+    bill = f["next_card_bill"]
+    return templates.TemplateResponse(request, "done.html", {
+        "title": f"{DEMO_BANK['name']} linked",
+        "lines": [f"Savings {money(f['banks'][1]['accounts'][0]['balance_eur'])} · card to repay "
+                  f"{money(bill['amount_eur'])} by {nice_date(bill['due_date'])}.",
+                  "Kurre now counts the card bill in safe to spend. Synthetic demo bank, no real data.",
+                  "Ask Kurre: \"Show my money across all my banks\"."],
+        "wa": wa_back(request) if u else ""})
 
 
 @app.post("/connect", response_class=HTMLResponse)
