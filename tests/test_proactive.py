@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main, rules, templates_wa
+from app import main, rules
 from app.engine import Engine
 from tests.test_app import post_signed, wa_payload
 
@@ -59,32 +59,6 @@ def test_rules_are_read_only(tmp_path):
     assert (e.balance(), dict(e.state)) == before and not Path(tmp_path / "s.json").exists()
 
 
-# ---------------- templates ----------------
-def test_template_params_are_cleaned():
-    assert templates_wa.clean("Restaurant #22") == "Restaurant 22"
-    assert templates_wa.clean("Stream\nPlus\t  Max") == "Stream Plus Max"
-    assert templates_wa.clean("see https://evil.example/x now") == "see now"
-    assert templates_wa.clean("www.netflix.com Netflix") == "Netflix"
-    assert templates_wa.clean("Ben & Jerry's — Café-Bar") == "Ben & Jerry's Café-Bar"
-    assert len(templates_wa.clean("A" * 100)) == 40
-    assert templates_wa.clean("https://x.io") is None and templates_wa.clean("🙂🙂") is None
-
-
-def test_template_for_signals(tmp_path):
-    e = engine(tmp_path)
-    rent, sub, week = rules.signals(e)
-    assert templates_wa.template_for(rent, e.today) == ("kurre_bill_due", ["rent", "tomorrow"])
-    assert templates_wa.template_for(sub, e.today) == ("kurre_subscription_renewal", ["StreamPlus", "tomorrow"])
-    assert templates_wa.template_for(week, e.today) == ("kurre_weekly_checkin", [])
-    sub["data"]["name"] = "http://bad.link"
-    assert templates_wa.template_for(sub, e.today) is None  # nothing safe left: no template
-    for name, body in templates_wa.TEMPLATES.items():
-        assert "\n" not in body and not body.startswith("{{") and not body.endswith("}}")
-    docs = (Path(__file__).parents[1] / "docs" / "whatsapp-templates.md").read_text(encoding="utf-8")
-    for name, body in templates_wa.TEMPLATES.items():
-        assert f"### {name}" in docs and f"> {body}" in docs
-
-
 # ---------------- wake endpoint ----------------
 @pytest.fixture
 def client(tmp_path, monkeypatch):
@@ -113,7 +87,7 @@ def test_wake_sends_nothing_without_demo_proactive(client):
     assert [x["signal"] for x in r["results"]] == ["RECURRING_CHARGE_UPCOMING"] * 2  # what it would send
     assert "rent of 771.82 €" in r["results"][0]["text"]
     assert client.sent == [] and main.inbox == {}
-    assert "sent" not in main.engine.state and "held" not in main.engine.state
+    assert "sent" not in main.engine.state
 
 
 def test_wake_inside_window_sends_full_message(client, monkeypatch):
@@ -129,28 +103,19 @@ def test_wake_inside_window_sends_full_message(client, monkeypatch):
     assert len(client.sent) == 1  # one a day
 
 
-def test_template_outside_window_then_held_message_on_tap(client, monkeypatch):
+def test_outside_window_sends_nothing_and_waits(client, monkeypatch):
+    """No templates: after 24 h of silence Birky does not write first; it waits for the person."""
     monkeypatch.setenv("DEMO_PROACTIVE", "1")
     r = client.post("/cron/wake?key=vt").json()["results"][0]
-    assert r["via"] == "template"
-    t = client.sent[0]["template"]
-    assert t["name"] == "kurre_bill_due"
-    assert [p["text"] for p in t["components"][0]["parameters"]] == ["rent", "tomorrow"]
-    assert t["components"][1]["parameters"][0]["payload"] == templates_wa.SHOW
-    assert main.engine.state["held"][PHONE]["signal"]["type"] == "RECURRING_CHARGE_UPCOMING"
+    assert r["via"] is None and "24-hour window" in r["reason"]
+    assert client.sent == [] and "sent" not in main.engine.state
 
-    # Same priority (StreamPlus renewal) does not replace the held rent message.
-    r = client.post("/cron/wake?key=vt&force=1").json()["results"][0]
-    assert r["via"] is None and "already waiting" in r["reason"] and len(client.sent) == 1
 
-    tap = wa_payload(mid="t1")
-    m = tap["entry"][0]["changes"][0]["value"]["messages"][0]
-    m.update(type="button", button={"text": "Show me", "payload": templates_wa.SHOW})
-    m.pop("text")
-    post_signed(client, tap)
-    full = [b for b in client.sent if b.get("type") == "interactive"]
-    assert len(full) == 1 and "rent of 771.82 €" in full[0]["interactive"]["body"]["text"]
-    assert PHONE not in main.engine.state["held"]
+def test_window_survives_a_restart(client, monkeypatch):
+    monkeypatch.setenv("DEMO_PROACTIVE", "1")
+    main.engine.state.setdefault("wa_last", {})[PHONE] = time.time()  # written by the webhook before a redeploy
+    main.last_seen.clear()
+    assert client.post("/cron/wake?key=vt").json()["results"][0]["via"] == "text"
 
 
 def test_web_session_gets_inbox_message(client, monkeypatch):
