@@ -20,9 +20,14 @@ ASK = {  # first wording, then the one used when the question comes back
              "What would you like to put money aside for?"],
     "amount": ["How much do you need, and by when, like 1,500 € by June?",
                "Roughly what amount, and is there a date, like 800 € by March?"],
-    "risk": ["If you ever invest for it, which sounds like you: prudent, balanced or growth? "
-             "I only use it to label info, never to choose for you.",
-             "Ups and downs in value: prudent, balanced or growth, which is closest to you?"],
+    "risk": ["If you ever invest for it, here is how much up and down each style means:\n"
+             "• *Prudent*: small swings, slow and steady\n"
+             "• *Balanced*: some swings, a mix of safe and growth\n"
+             "• *Growth*: big swings, more growth over 5+ years\n"
+             "I only use it to label info, never to choose for you. Which is closest to you?",
+             "In plain words: *prudent* means your money barely moves, *balanced* means it can dip for a while, "
+             "*growth* means it can drop a lot in a bad year but tends to grow more over many years. "
+             "Which feels closest to you?"],
     "checkin": ["Want a short check-in from me once a week on how it's going?",
                 "A weekly check-in on your goal, yes or no?"],
 }
@@ -47,6 +52,9 @@ SKIP = re.compile(r"\b(skip|pass|rather not|prefer not|no idea|don'?t know|dunno
 YES = re.compile(r"\b(yes|yep|yeah|sure|ok|okay|please|kyllä|joo)\b", re.I)
 NO = re.compile(r"\b(no|nope|nah|not really|ei)\b", re.I)
 QUESTION_START = re.compile(r"^\s*(what|how|why|where|when|which|who|can|could|should|is|are|do|does|am)\b", re.I)
+# "i don't know what it means", "explain prudent vs balanced": a question back, not a skip
+CONFUSED = re.compile(r"\b(explain|mean|means|meaning|difference|vs|versus|tell me (?:about|more)|what'?s|"
+                      r"what (?:is|are|does)|don'?t (?:get|understand)|confus\w*)\b", re.I)
 
 MONTHS = {m: i + 1 for i, names in enumerate(
     [("january", "jan"), ("february", "feb"), ("march", "mar"), ("april", "apr"), ("may",), ("june", "jun"),
@@ -149,7 +157,7 @@ def _ask(step: str, reflect: str = "", again: bool = False) -> Turn:
 
 
 def _is_question(text: str, step: str) -> bool:
-    asked = text.strip().endswith("?") or bool(QUESTION_START.match(text))
+    asked = text.strip().endswith("?") or bool(QUESTION_START.match(text)) or bool(CONFUSED.search(text))
     return asked and not (step == "amount" and parse_amount(text))
 
 
@@ -201,11 +209,11 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
         r["paused"] = True
         engine._save()
         return Turn("👍 Later then. Write *continue* when you want to pick this up.")
+    if not ob and _is_question(text, step):
+        return None  # a question back: the coach answers it, then the waiting question comes back
     if button_id == "ob:skip" or (not ob and SKIP.search(text)):
         r["skipped"].append(step)
         return _advance(engine, r, "")
-    if not ob and _is_question(text, step):
-        return None
 
     value = button_id.split(":", 2)[2] if ob and button_id.count(":") == 2 else ""
     if step == "goal":

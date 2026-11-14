@@ -17,10 +17,11 @@ def e(tmp_path):
 
 
 def check_voice(t):
-    """One question per message, under 240 characters (a final plan may be longer)."""
+    """One question per message, short (the risk question explains its three options, a final plan may be longer)."""
     assert t.text.count("?") <= 1
     if not t.done:
-        assert len(t.text) < 240 and t.text.count("?") == 1, t.text
+        limit = 420 if "prudent" in t.text.lower() else 240
+        assert len(t.text) < limit and t.text.count("?") == 1, t.text
     assert not any(w in t.text.lower() for w in ("great", "awesome", "perfect"))
 
 
@@ -179,3 +180,18 @@ def test_get_money_guide_tool(e):
     assert "30%" in money_guide("capital-income-tax")["text"] and "vero.fi" in money_guide("capital-income-tax")["sources"][0]
     with pytest.raises(ValueError):
         money_guide("crypto")
+
+
+def test_confused_answer_goes_to_coach_not_skip(tmp_path):
+    from datetime import date
+    from app import onboarding as ob
+    from app.engine import Engine
+    e = Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json")
+    ob.start(e, "u1")
+    ob.turn(e, "u1", "", "ob:goal:trip")
+    ob.turn(e, "u1", "2000")
+    for text in ("i dont know what it means", "explain me prudent vs balanced", "what's the difference"):
+        assert ob.turn(e, "u1", text) is None          # the coach explains...
+        assert e.state["onboarding"]["u1"]["step"] == "risk"  # ...and the risk question is still waiting
+    again = ob.reask(e, "u1")
+    assert "prudent" in again.text.lower() and again.buttons == ob.BUTTONS["risk"]
