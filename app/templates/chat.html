@@ -27,8 +27,10 @@
   .chips.all{flex-wrap:wrap;overflow-x:hidden;overflow-y:auto;max-height:40dvh;-webkit-mask-image:none;mask-image:none;padding-top:4px}
   .chips.all button{flex:0 1 auto;max-width:100%;white-space:normal;text-align:left}
   .chips:not(.all) .more{display:none}
-  .chips.top{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-bottom:6px}
-  .chips.top button{flex:1 1 auto;font-weight:600;border-color:var(--brand)}  .chips button[data-more]{color:var(--brand);font-weight:600}
+  /* the four main questions: a 2x2 grid, about half the height of four stacked rows on a phone */
+  .chips.top{display:grid;grid-template-columns:1fr 1fr;gap:6px;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-bottom:6px}
+  .chips.top button{font-weight:600;border-color:var(--brand);white-space:normal;line-height:1.2;border-radius:14px;
+    padding:6px 10px;font-size:13px;text-align:center}  .chips button[data-more]{color:var(--brand);font-weight:600}
   .chips button{flex:none;min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 14px;font:14px system-ui;cursor:pointer;white-space:nowrap}
   form#f{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
   form#f input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px system-ui;background:var(--bg);color:var(--ink)}
