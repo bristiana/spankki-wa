@@ -27,7 +27,7 @@
   .msg.has-chart{width:85%}
   .chart{white-space:normal;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
   .chart b{display:block;font-size:14px}.chart small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
-  .chart .plot{width:100%}
+  .chart .plot{width:100%}  .embed #sheet .panel{max-width:none;height:92%}
 </style>
 <script src="/static/kchart.js"></script>
 {% endblock %}
@@ -140,5 +140,12 @@ chips.querySelectorAll("button").forEach(b => b.onclick = () => {
   }
   b.dataset.q ? send(b.dataset.q, null) : send(b.textContent);
 });
+
+// Deep link /chat?q=...: ask once, then drop q from the address so a reload doesn't ask again.
+const deepQ = {{ q|tojson }};
+if (deepQ) {
+  history.replaceState(null, "", location.pathname + ({{ embed|tojson }} ? "?embed=1" : ""));
+  deepQ.startsWith("__") ? send(deepQ, null) : send(deepQ);
+}
 </script>
 {% endblock %}
