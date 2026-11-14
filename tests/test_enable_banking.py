@@ -212,3 +212,16 @@ def test_demo_login_for_the_jury():
     c.cookies.set("oiva_demo", "1")
     assert c.get("/bank", follow_redirects=False).headers["location"] == "/connect/bank?demo=1"
     assert ">Demo</a>" in c.get("/app").text
+
+
+def test_duplicate_accounts_and_own_transfers_are_not_spending():
+    acc = {"uid": "u1", "iban_end": "7573", "currency": "EUR", "product": "Current", "balance_eur": 90.0,
+           "transactions": [{"date": "2026-11-10", "what": "Wolt", "amount_eur": -30.0, "category": "Restaurants"},
+                            {"date": "2026-11-11", "what": "To pocket", "amount_eur": -200.0, "category": "Other"}]}
+    pocket = {"uid": "u2", "iban_end": "1111", "currency": "EUR", "product": "Pocket", "balance_eur": 200.0,
+              "transactions": [{"date": "2026-11-11", "what": "From main", "amount_eur": 200.0, "category": "Income"}]}
+    eb.save("358401111111", {"Revolut": {"bank": "Revolut", "linked": "2026-11-14",
+                                         "accounts": [acc, {**acc, "uid": "u1b"}, pocket]}})
+    b = eb.picture("358401111111")[0]
+    assert len(b["accounts"]) == 2
+    assert b["spending_per_month_by_category_eur"] == {"Restaurants": round(30 / (90 / 30.4), 2)}
