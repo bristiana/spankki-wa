@@ -1995,4 +1995,4 @@ def chat_inbox(session: str = ""):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "today": engine.today.isoformat(), "balance": engine.balance(), "whatsapp": wa.configured()}
+    return {"ok": True, "today": engine.today.isoformat(), "balance": engine.balance(), "whatsapp": wa.configured(), "banks": enable_banking.configured()}

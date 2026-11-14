@@ -69,7 +69,8 @@ export class Coach extends DurableObject<any> {
     if (!container.running) {
       const env: Record<string, string> = { PUBLIC_URL: this.env.PUBLIC_URL, DEMO_TODAY: this.env.DEMO_TODAY,
         STATE_REMOTE: "1" };
-      for (const k of SECRET_KEYS) if (this.env[k]) env[k] = this.env[k];
+      // Multi-line values (the Enable Banking PEM key) don't reach the container: send newlines as "\n".
+      for (const k of SECRET_KEYS) if (this.env[k]) env[k] = String(this.env[k]).replace(/\r?\n/g, "\\n");
       container.start({ image: container.images.base, instance: "basic", enableInternet: true, env });
     }
     this.observeExit();
