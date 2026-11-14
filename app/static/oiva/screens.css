@@ -3,7 +3,7 @@
 @media (prefers-color-scheme:dark){:root{--c0:#3cc47a;--c1:#f2b14a;--c2:#4cc4d4;--c3:#fb8a5c;--c4:#b9a2f0;--c5:#a7b3ad;--over:#f5a524}}
 
 /* charts (kchart.js); the main site has these in base.html */
-.kc{display:block;width:100%;height:auto;overflow:visible;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.kc{display:block;width:100%;height:auto;overflow:visible;font-family:var(--font)}
 .kc text{font-size:11px;fill:var(--muted)}
 .kc .kc-label{font-size:12.5px;fill:var(--ink)}
 .kc .kc-val{font-size:11.5px;fill:var(--ink)}
@@ -59,8 +59,8 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .bd-own div{display:flex;gap:8px;margin-top:4px}.bd-own input{flex:1;min-height:48px;border:1px solid var(--line);border-radius:12px;padding:0 12px;font:inherit;background:var(--card);color:var(--ink)}
 .bd-own .btn{width:auto;padding:0 20px;min-height:48px}
 .bd-err{color:var(--over);font-size:13px;margin:6px 0 0}
-.bd-toast{position:absolute;left:12px;right:12px;bottom:96px;z-index:41;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);color:var(--card);border-radius:12px;padding:6px 8px 6px 14px;font-size:14px}
-.bd-toast button{min-height:44px;min-width:64px;border:0;border-radius:10px;background:transparent;color:var(--card);font:700 15px system-ui;text-decoration:underline;cursor:pointer}
+.bd-toast{position:absolute;left:12px;right:12px;bottom:calc(82px + env(safe-area-inset-bottom));z-index:41;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);color:var(--card);border-radius:12px;padding:6px 8px 6px 14px;font-size:14px}
+.bd-toast button{min-height:44px;min-width:64px;border:0;border-radius:10px;background:transparent;color:var(--card);font:700 15px var(--font);text-decoration:underline;cursor:pointer}
 
 /* People like me */
 .cp-who{margin:0 0 2px;font-size:16px}.cp-head .muted{margin:0 0 6px}
@@ -90,7 +90,7 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .bl-method{margin:4px 4px 0}.bl-method summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--brand);font-weight:600;font-size:14px;text-decoration:underline}
 
 /* Talk to Oiva: the call sits over the lower part of the phone, so the screen Oiva shows stays visible above */
-.call{position:absolute;left:0;right:0;bottom:0;z-index:45;padding:0 10px 10px}
+.call{position:absolute;left:0;right:0;bottom:0;z-index:45;padding:0 10px calc(10px + env(safe-area-inset-bottom))}
 .call-panel{background:#004628;color:#fff;border-radius:24px;padding:12px 16px 14px;box-shadow:0 -6px 30px rgba(0,0,0,.25)}
 .call-demo{margin:0 0 6px;font-size:12.5px;font-weight:600;color:#004628;background:#91fa9b;border-radius:99px;padding:3px 12px;display:inline-block}
 .call-top{display:flex;align-items:baseline;gap:10px;font-size:14px}.call-top b{font-size:17px}
@@ -103,11 +103,11 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .call-summary{margin:6px 0;background:rgba(255,255,255,.1);border-radius:14px;padding:8px 12px;font-size:13.5px}
 .call-summary p{margin:3px 0}.call-summary .warn{color:#ffd88a}
 .call-btns{display:flex;gap:10px;margin-top:8px}
-.call-btns button{flex:1;min-height:48px;border-radius:99px;font:700 16px system-ui,-apple-system,sans-serif;cursor:pointer}
+.call-btns button{flex:1;min-height:48px;border-radius:99px;font:700 16px var(--font);cursor:pointer}
 #call-mute{background:transparent;color:#fff;border:2px solid #d2fcd5}#call-mute[aria-pressed="true"]{background:#d2fcd5;color:#004628}
 #call-end{background:#91fa9b;color:#004628;border:2px solid #91fa9b}
 .call-btns button:focus-visible{outline:3px solid #fff;outline-offset:2px}
-.talk-fab{position:absolute;right:14px;bottom:92px;z-index:30;display:flex;align-items:center;gap:6px;min-height:52px;padding:6px 16px 6px 8px;border-radius:99px;border:2px solid #91fa9b;background:#004628;color:#fff;font:700 15px system-ui,-apple-system,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);cursor:pointer}
+.talk-fab{position:absolute;right:14px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:30;display:flex;align-items:center;gap:6px;min-height:52px;padding:6px 16px 6px 8px;border-radius:99px;border:2px solid #91fa9b;background:#004628;color:#fff;font:700 15px var(--font);box-shadow:0 4px 16px rgba(0,0,0,.2);cursor:pointer}
 .talk-fab img{border-radius:50%;background:#91fa9b}
 .talk-fab:focus-visible{outline:3px solid #91fa9b;outline-offset:2px}
 #oiva-screen{padding-bottom:72px}
