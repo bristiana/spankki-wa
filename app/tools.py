@@ -175,9 +175,11 @@ TOOLS = [
     },
     {
         "name": "create_stop_subscription_link",
-        "description": "Prepare stopping future card payments to an active subscription. Does NOT stop it: the user "
-                       "confirms with PIN. Only call when the user asked to stop or cancel it.",
-        "input_schema": {"type": "object", "properties": {"name": {"type": "string", "description": "Subscription name"}},
+        "description": "Prepare stopping future card payments to an active subscription, or to every active one with "
+                       "name 'all' (one Stop button each). Does NOT stop anything: the user confirms each with PIN. "
+                       "Only call when the user asked to stop, cancel or deactivate it (or all of them).",
+        "input_schema": {"type": "object", "properties": {"name": {"type": "string", "description":
+                                                                   "Subscription name, or 'all' for every active one"}},
                          "required": ["name"], "additionalProperties": False},
     },
     {
@@ -315,9 +317,22 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
     elif name == "get_subscriptions":
         out = engine.subscriptions()
     elif name == "create_stop_subscription_link":
-        p = engine.create_stop_subscription(args["name"])
-        buttons.append({"label": short(f"Stop {p['name']}"), "url": f"{public_url()}/stop/{p['pending_id']}"})
-        out = {**p, "note": "A 'Stop' button is attached to your message. Do not paste a link."}
+        if (args.get("name") or "").strip().lower() in ("all", "every", "everything", "all of them"):
+            active = [s["name"] for s in engine.subscriptions()["subscriptions"] if s["status"] == "active"]
+            stops = [engine.create_stop_subscription(n) for n in active]
+            for p in stops:
+                buttons.append({"label": short(f"Stop {p['name']}"), "url": f"{public_url()}/stop/{p['pending_id']}"})
+            out = {"prepared": stops, "count": len(stops),
+                   "per_month_eur": round(sum(p["amount"] if p["cadence"] == "monthly" else p["per_year_eur"] / 12
+                                              for p in stops), 2),
+                   "per_year_eur": round(sum(p["per_year_eur"] for p in stops), 2),
+                   "note": (f"{len(stops)} 'Stop' buttons are attached to your message, one per subscription; each "
+                            "needs the PIN, nothing is stopped yet. Do not paste links." if stops else
+                            "There are no active subscriptions to stop.")}
+        else:
+            p = engine.create_stop_subscription(args["name"])
+            buttons.append({"label": short(f"Stop {p['name']}"), "url": f"{public_url()}/stop/{p['pending_id']}"})
+            out = {**p, "note": "A 'Stop' button is attached to your message. Do not paste a link."}
     elif name == "create_goal":
         out = engine.create_goal(args["name"], float(args["target_eur"]), args.get("deadline"))
     elif name == "get_goals":
