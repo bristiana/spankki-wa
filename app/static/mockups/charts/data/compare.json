@@ -1,0 +1,141 @@
+{
+ "fixture": true,
+ "as_of": "2026-09-14",
+ "source": "Computed from the hackathon data set (tx_junction_transactions.csv, tx_customers_junction.csv): Antti and every customer with a postal code starting 01 aged 30–39, monthly averages over Sep 2025–Aug 2026, as in scripts/build_peer_benchmark.py",
+ "cohort": {
+  "age_band": "30-39",
+  "city": "the Vantaa area",
+  "area": "01",
+  "n": 228,
+  "from": "2025-09-01",
+  "to": "2026-08-31",
+  "widened": false
+ },
+ "figures": [
+  {
+   "id": "income",
+   "label": "Income",
+   "unit": "eur",
+   "better": "none",
+   "you": 3301.63,
+   "median": 2695.05,
+   "p25": 2274.91,
+   "p75": 3346.78,
+   "percentile": 73,
+   "n_with_value": 228,
+   "sentence": "Income: yours is 3301.63 EUR a month; for people aged 30–39 in the Vantaa area it is typically 2695.05 EUR a month (middle half 2274.91 EUR a month to 3346.78 EUR a month).",
+   "definition": "salary and other income credited, a month (net, after tax)"
+  },
+  {
+   "id": "rent_share",
+   "label": "Housing as share of income",
+   "unit": "pct",
+   "better": "lower",
+   "you": 0.325,
+   "median": 0.33,
+   "p25": 0.276,
+   "p75": 0.406,
+   "percentile": 48,
+   "n_with_value": 228,
+   "sentence": "Housing as share of income: yours is 32.5 %; for people aged 30–39 in the Vantaa area it is typically 33.0 % (middle half 27.6 % to 40.6 %).",
+   "definition": "housing payments ÷ income"
+  },
+  {
+   "id": "savings_rate",
+   "label": "Kept of income",
+   "unit": "pct",
+   "better": "higher",
+   "you": -0.004,
+   "median": 0.071,
+   "p25": -0.002,
+   "p75": 0.182,
+   "percentile": 23,
+   "n_with_value": 228,
+   "sentence": "Kept of income: yours is -0.4 %; for people aged 30–39 in the Vantaa area it is typically 7.1 % (middle half -0.2 % to 18.2 %).",
+   "definition": "(income − spending in all 10 categories) ÷ income; investing counts as kept"
+  },
+  {
+   "id": "restaurants",
+   "label": "Restaurants",
+   "unit": "eur",
+   "better": "none",
+   "you": 291.37,
+   "median": 154.97,
+   "p25": 79.11,
+   "p75": 238.75,
+   "percentile": 84,
+   "n_with_value": 228,
+   "sentence": "Restaurants: yours is 291.37 EUR a month; for people aged 30–39 in the Vantaa area it is typically 154.97 EUR a month (middle half 79.11 EUR a month to 238.75 EUR a month).",
+   "definition": "net Restaurants spending a month"
+  },
+  {
+   "id": "shopping",
+   "label": "Shopping",
+   "unit": "eur",
+   "better": "none",
+   "you": 277.79,
+   "median": 170.19,
+   "p25": 102.63,
+   "p75": 247.72,
+   "percentile": 83,
+   "n_with_value": 228,
+   "sentence": "Shopping: yours is 277.79 EUR a month; for people aged 30–39 in the Vantaa area it is typically 170.19 EUR a month (middle half 102.63 EUR a month to 247.72 EUR a month).",
+   "definition": "net Lifestyle spending a month"
+  },
+  {
+   "id": "buffer_months",
+   "label": "Buffer",
+   "unit": "months",
+   "better": "higher",
+   "you": 2.6,
+   "median": 2.1,
+   "p25": 0.3,
+   "p75": 5.0,
+   "percentile": 55,
+   "n_with_value": 228,
+   "sentence": "Buffer: yours is 2.6 months; for people aged 30–39 in the Vantaa area it is typically 2.1 months (middle half 0.3 months to 5.0 months).",
+   "definition": "account balance on 2026-09-14 ÷ essentials a month (housing, utilities, groceries, transport)"
+  }
+ ],
+ "web": [
+  {
+   "id": "income_vantaa_all_adults",
+   "label": "Vantaa, all adults: median personal disposable cash income",
+   "value_eur_year": 28085,
+   "year": 2024,
+   "source": "Statistics Finland, Income distribution statistics, table 14ww",
+   "url": "https://pxdata.stat.fi/PxWeb/pxweb/en/StatFin/StatFin__tjt/statfin_tjt_pxt_14ww.px/"
+  },
+  {
+   "id": "income_finland_35_49",
+   "label": "Finland, aged 35–49: median personal disposable monetary income",
+   "value_eur_year": 33214,
+   "year": 2024,
+   "source": "Statistics Finland, Income distribution statistics, table 11py",
+   "url": "https://pxdata.stat.fi/PxWeb/pxweb/en/StatFin/StatFin__tjt/statfin_tjt_pxt_11py.px/"
+  },
+  {
+   "id": "consumption_35_44",
+   "label": "Finland, households with a reference person aged 35–44: consumption a month",
+   "per_household_eur": {
+    "Total": 3872,
+    "Food and non-alcoholic beverages": 575,
+    "Housing, water, energy": 1151,
+    "Transport": 545,
+    "Recreation, sport and culture": 240,
+    "Restaurants and accommodation": 189
+   },
+   "per_consumption_unit_eur": {
+    "Total": 2362,
+    "Food and non-alcoholic beverages": 332,
+    "Housing, water, energy": 713,
+    "Transport": 326,
+    "Recreation, sport and culture": 139,
+    "Restaurants and accommodation": 127
+   },
+   "year": 2022,
+   "source": "Statistics Finland, Household Budget Survey, table 14q4",
+   "url": "https://pxdata.stat.fi/PxWeb/pxweb/en/StatFin/StatFin__ktutk/statfin_ktutk_pxt_14q4.px/"
+  }
+ ]
+}

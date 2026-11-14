@@ -1,0 +1,139 @@
+{
+ "fixture": true,
+ "as_of": "2026-09-14",
+ "source": "Computed from Antti's transactions in the hackathon data set (data/personas/CUST01656.csv); limits by the median rule above",
+ "month": "2026-09",
+ "budget_rule": "Each category's budget is its median monthly spending over the 6 full months before (2026-03 to 2026-08), rounded to the nearest 10 EUR; a category with a median of 0 gets none. The overall budget is the sum of the category budgets (1650 EUR), and stays under what is left after bills and investing (1716.78 EUR).",
+ "items": [
+  {
+   "category": "Groceries",
+   "label": "Groceries",
+   "limit_eur": 560,
+   "source": "rule",
+   "spent_eur": 504.26,
+   "left_eur": 55.74,
+   "left_per_day_eur": 3.28,
+   "status": "on_track"
+  },
+  {
+   "category": "Restaurants",
+   "label": "Restaurants",
+   "limit_eur": 250,
+   "source": "rule",
+   "spent_eur": 227.31,
+   "left_eur": 22.69,
+   "left_per_day_eur": 1.33,
+   "status": "on_track"
+  },
+  {
+   "category": "Transportation",
+   "label": "Transportation",
+   "limit_eur": 80,
+   "source": "rule",
+   "spent_eur": 44.21,
+   "left_eur": 35.79,
+   "left_per_day_eur": 2.11,
+   "status": "on_track"
+  },
+  {
+   "category": "Health",
+   "label": "Health",
+   "limit_eur": 90,
+   "source": "rule",
+   "spent_eur": 36.83,
+   "left_eur": 53.17,
+   "left_per_day_eur": 3.13,
+   "status": "on_track"
+  },
+  {
+   "category": "Lifestyle",
+   "label": "Shopping",
+   "limit_eur": 370,
+   "source": "rule",
+   "spent_eur": 0.0,
+   "left_eur": 370.0,
+   "left_per_day_eur": 21.76,
+   "status": "on_track"
+  },
+  {
+   "category": "Travel",
+   "label": "Travel",
+   "limit_eur": null,
+   "source": null,
+   "spent_eur": 0.0,
+   "left_eur": null,
+   "left_per_day_eur": null,
+   "status": "none"
+  },
+  {
+   "category": "Home & Tech",
+   "label": "Home & Tech",
+   "limit_eur": 60,
+   "source": "rule",
+   "spent_eur": 0.0,
+   "left_eur": 60.0,
+   "left_per_day_eur": 3.53,
+   "status": "on_track"
+  },
+  {
+   "category": "Entertainment",
+   "label": "Entertainment",
+   "limit_eur": 240,
+   "source": "rule",
+   "spent_eur": 0.0,
+   "left_eur": 240.0,
+   "left_per_day_eur": 14.12,
+   "status": "on_track"
+  }
+ ],
+ "presets": {
+  "peers": {
+   "cohort": {
+    "age_band": "30-39",
+    "city": "the Vantaa area",
+    "n": 228
+   },
+   "source": "the data set's Vantaa-area 30–39 group, median a month Sep 2025–Aug 2026 (this script)",
+   "per_category": {
+    "Groceries": 462.27,
+    "Transportation": 190.68,
+    "Health": 85.17,
+    "Home & Tech": 116.91,
+    "Travel": 39.43,
+    "Restaurants": 154.97,
+    "Entertainment": 100.66,
+    "Lifestyle": 170.19
+   }
+  },
+  "helsinki": {
+   "n": 2557,
+   "source": "the data set's Helsinki customers (postal codes 00), median a month Sep 2025–Aug 2026",
+   "per_category": {
+    "Groceries": 468.17,
+    "Transportation": 195.69,
+    "Health": 88.74,
+    "Home & Tech": 153.0,
+    "Travel": 71.95,
+    "Restaurants": 188.9,
+    "Entertainment": 117.17,
+    "Lifestyle": 158.39
+   }
+  },
+  "finland": {
+   "year": 2022,
+   "per_person": false,
+   "source": "Statistics Finland, Household Budget Survey 2022, table 14q4 (household consumption expenditure per month, EUR, current prices), all ages, per household; Restaurants is sub-class 11.1 food and drink serving services, not all of division 11",
+   "url": "https://pxdata.stat.fi/PxWeb/pxweb/en/StatFin/StatFin__ktutk/statfin_ktutk_pxt_14q4.px/",
+   "per_category": {
+    "Restaurants": 111,
+    "Groceries": 471,
+    "Transportation": 459,
+    "Health": 118,
+    "Entertainment": 214,
+    "Lifestyle": 140,
+    "Home & Tech": 137
+   }
+  }
+ },
+ "undo": null
+}

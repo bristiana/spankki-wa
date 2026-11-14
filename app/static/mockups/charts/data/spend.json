@@ -1,0 +1,229 @@
+{
+ "fixture": true,
+ "as_of": "2026-09-14",
+ "source": "Computed from Antti's transactions in the hackathon data set (data/personas/CUST01656.csv)",
+ "month": "2026-09",
+ "total_eur": 812.61,
+ "prev_total_eur": 1931.5,
+ "income_eur": 3169.3,
+ "budget_total_eur": 1650.0,
+ "budget_rule": "Each category's budget is its median monthly spending over the 6 full months before (2026-03 to 2026-08), rounded to the nearest 10 EUR; a category with a median of 0 gets none. The overall budget is the sum of the category budgets (1650 EUR), and stays under what is left after bills and investing (1716.78 EUR).",
+ "pace": {
+  "expected_by_today_eur": 770.0,
+  "spent_by_today_eur": 812.61,
+  "status": "over"
+ },
+ "categories": [
+  {
+   "category": "Groceries",
+   "label": "Groceries",
+   "basket": "regular",
+   "spent_eur": 504.26,
+   "prev_eur": 447.8,
+   "budget_eur": 560,
+   "pct_of_budget": 90,
+   "history_eur": {
+    "2026-03": 674.65,
+    "2026-04": 228.03,
+    "2026-05": 1153.49,
+    "2026-06": 0.0,
+    "2026-07": 1103.68,
+    "2026-08": 447.8
+   }
+  },
+  {
+   "category": "Restaurants",
+   "label": "Restaurants",
+   "basket": "everyday",
+   "spent_eur": 227.31,
+   "prev_eur": 0.0,
+   "budget_eur": 250,
+   "pct_of_budget": 91,
+   "history_eur": {
+    "2026-03": 506.55,
+    "2026-04": 0.0,
+    "2026-05": 0.0,
+    "2026-06": 769.28,
+    "2026-07": 852.32,
+    "2026-08": 0.0
+   }
+  },
+  {
+   "category": "Transportation",
+   "label": "Transportation",
+   "basket": "regular",
+   "spent_eur": 44.21,
+   "prev_eur": 150.17,
+   "budget_eur": 80,
+   "pct_of_budget": 55,
+   "history_eur": {
+    "2026-03": 517.44,
+    "2026-04": 417.66,
+    "2026-05": 0.0,
+    "2026-06": 0.0,
+    "2026-07": 0.0,
+    "2026-08": 150.17
+   }
+  },
+  {
+   "category": "Health",
+   "label": "Health",
+   "basket": "irregular",
+   "spent_eur": 36.83,
+   "prev_eur": 0.0,
+   "budget_eur": 90,
+   "pct_of_budget": 41,
+   "history_eur": {
+    "2026-03": 193.64,
+    "2026-04": 0.0,
+    "2026-05": 332.96,
+    "2026-06": 0.0,
+    "2026-07": 189.24,
+    "2026-08": 0.0
+   }
+  },
+  {
+   "category": "Lifestyle",
+   "label": "Shopping",
+   "basket": "everyday",
+   "spent_eur": 0.0,
+   "prev_eur": 739.26,
+   "budget_eur": 370,
+   "pct_of_budget": 0,
+   "history_eur": {
+    "2026-03": 375.81,
+    "2026-04": 0.0,
+    "2026-05": 363.48,
+    "2026-06": 970.81,
+    "2026-07": 215.99,
+    "2026-08": 739.26
+   }
+  },
+  {
+   "category": "Travel",
+   "label": "Travel",
+   "basket": "irregular",
+   "spent_eur": 0.0,
+   "prev_eur": 594.27,
+   "budget_eur": null,
+   "pct_of_budget": null,
+   "history_eur": {
+    "2026-03": 432.16,
+    "2026-04": 0.0,
+    "2026-05": 0.0,
+    "2026-06": 0.0,
+    "2026-07": 0.0,
+    "2026-08": 594.27
+   }
+  },
+  {
+   "category": "Home & Tech",
+   "label": "Home & Tech",
+   "basket": "irregular",
+   "spent_eur": 0.0,
+   "prev_eur": 0.0,
+   "budget_eur": 60,
+   "pct_of_budget": 0,
+   "history_eur": {
+    "2026-03": 126.54,
+    "2026-04": 293.27,
+    "2026-05": 0.0,
+    "2026-06": 234.67,
+    "2026-07": 0.0,
+    "2026-08": 0.0
+   }
+  },
+  {
+   "category": "Entertainment",
+   "label": "Entertainment",
+   "basket": "everyday",
+   "spent_eur": 0.0,
+   "prev_eur": 0.0,
+   "budget_eur": 240,
+   "pct_of_budget": 0,
+   "history_eur": {
+    "2026-03": 263.04,
+    "2026-04": 0.0,
+    "2026-05": 1323.28,
+    "2026-06": 222.09,
+    "2026-07": 424.17,
+    "2026-08": 0.0
+   }
+  }
+ ],
+ "daily": [
+  {
+   "day": 1,
+   "cumulative_eur": 0.0
+  },
+  {
+   "day": 2,
+   "cumulative_eur": 0.0
+  },
+  {
+   "day": 3,
+   "cumulative_eur": 162.33
+  },
+  {
+   "day": 4,
+   "cumulative_eur": 221.3
+  },
+  {
+   "day": 5,
+   "cumulative_eur": 275.14
+  },
+  {
+   "day": 6,
+   "cumulative_eur": 275.14
+  },
+  {
+   "day": 7,
+   "cumulative_eur": 465.89
+  },
+  {
+   "day": 8,
+   "cumulative_eur": 465.89
+  },
+  {
+   "day": 9,
+   "cumulative_eur": 532.18
+  },
+  {
+   "day": 10,
+   "cumulative_eur": 532.18
+  },
+  {
+   "day": 11,
+   "cumulative_eur": 590.36
+  },
+  {
+   "day": 12,
+   "cumulative_eur": 760.73
+  },
+  {
+   "day": 13,
+   "cumulative_eur": 812.61
+  },
+  {
+   "day": 14,
+   "cumulative_eur": 812.61
+  }
+ ],
+ "bills": [
+  {
+   "name": "Utility bill",
+   "date": "2026-09-05",
+   "amount_eur": 74.33
+  },
+  {
+   "name": "Rent",
+   "date": "2026-09-06",
+   "amount_eur": 1095.6
+  },
+  {
+   "name": "Utility bill",
+   "date": "2026-09-13",
+   "amount_eur": 59.35
+  }
+ ]
+}
