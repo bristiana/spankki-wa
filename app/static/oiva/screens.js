@@ -104,8 +104,7 @@
         + (change != null && c.prev_eur > 0 ? '<small class="sp-prev-m">Last month ' + money(c.prev_eur) + '</small>' : "")
         + '</a>';
     }
-    h += '<p class="legend"><i class="dot b-regular"></i>' + BASKET.regular + ' <i class="dot b-irregular"></i>' + BASKET.irregular
-      + ' <i class="dot b-everyday"></i>' + BASKET.everyday + '</p></section>';
+    h += '<p class="legend">' + ["regular", "irregular", "everyday"].map(k => '<span><i class="dot b-' + k + '"></i>' + BASKET[k] + '</span>').join("") + '</p></section>';
 
     // bills this month
     const bills = (d.bills || []).filter(b => b && b.name);
