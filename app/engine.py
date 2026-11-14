@@ -506,6 +506,14 @@ class Engine:
         prefix = {"sum": "", "count": "Number of payments · ", "average": "Average payment · "}[metric]
         title = f"{prefix}{subject} by {group_by.replace('_', ' ')}"
         span = f"{d0.day} {d0.strftime('%b %Y')} to {d1.day} {d1.strftime('%b %Y')}"
+        note = ("Spending leaves out money moved to investments." if what == "spent" else
+                "Income: salary, other income and investment withdrawals.")
+        running = group_by in ("month", "week") and rows and d1 >= (
+            month_start(self.today) if group_by == "month" else self.today - timedelta(days=self.today.weekday()))
+        if running:  # the last bar is a period still going on: never read as a drop
+            note += f" The last row ({rows[-1]['label']}) is still running, so it is not comparable with full ones."
+        full = rows[:-1] if running else rows
+        low = min((r for r in full if r["key"] != "other"), key=lambda r: r["value"], default=None)
         return {
             "query": {"what": what, "category": category, "basket": basket, "merchant_type": merchant_type,
                       "group_by": group_by, "metric": metric, "period": period,
@@ -514,11 +522,11 @@ class Engine:
             "rows": rows,
             "totals": {"value": measure(s["amount"]), "total_eur": total, "transactions": n,
                        "average_per_transaction_eur": eur(total / n) if n else 0.0,
-                       "highest": {"label": top["label"], "value": top["value"]} if top else None},
+                       "highest": {"label": top["label"], "value": top["value"]} if top else None,
+                       "lowest": {"label": low["label"], "value": low["value"]} if low and len(full) > 1 else None},
             "chart": {"type": "line" if group_by == "week" else "bar", "title": title, "subtitle": span,
                       "unit": unit, "labels": [r["label"] for r in rows], "values": [r["value"] for r in rows]},
-            "note": "Spending leaves out money moved to investments." if what == "spent" else
-                    "Income: salary, other income and investment withdrawals.",
+            "note": note,
         }
 
     # ---------- recurring ----------

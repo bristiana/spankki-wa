@@ -1,0 +1,513 @@
+{
+ "_note": "Human read of each AI reply, 1-5. correct=numbers match tools, answers=answers the question, clarity=for a 20-30 y/o, phone=length and WhatsApp bubbles, tone, pedagogy=three baskets/teaching, next_step=one useful next step.",
+ "taxi#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "unasked 5-row merchant-type list; no basket"
+ },
+ "taxi#1": {
+  "correct": 3,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "repeats August 0 € already given; unverifiable \"no transport at all\" claim"
+ },
+ "taxi#2": {
+  "correct": 3,
+  "answers": 4,
+  "clarity": 3,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "honest \"can't see why\", but odd 4 297.90 € aside"
+ },
+ "spender#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 2,
+  "tone": 4,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "117 words, 377-char bubble"
+ },
+ "spender#1": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 2,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "good plain words, still 103 words; baskets not named when it was the moment"
+ },
+ "safe_week#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 3,
+  "note": "clear; next step unrelated"
+ },
+ "safe_week#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 3,
+  "note": "jar metaphor works; 96 words for ELI5"
+ },
+ "dining_cut#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 2,
+  "tone": 4,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "three fund scenarios nobody asked for"
+ },
+ "dining_cut#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 2,
+  "tone": 4,
+  "pedagogy": 4,
+  "next_step": 3,
+  "note": "121 words"
+ },
+ "typo_food#0": {
+  "correct": 4,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "read \"food\" as eating out only"
+ },
+ "typo_safe#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "re-introduces itself mid-task, ISO date 2026-10-15, extra 288.82 € figure"
+ },
+ "typo_safe#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": ""
+ },
+ "short#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "introduces itself on \"ok\""
+ },
+ "short#1": {
+  "correct": 5,
+  "answers": 3,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "\"?\" answered with an unasked safe-to-spend dump"
+ },
+ "hmm#0": {
+  "correct": 4,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "596.9 € (one decimal)"
+ },
+ "hmm#1": {
+  "correct": 4,
+  "answers": 3,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 2,
+  "note": "\"hmm\" -> unasked chart, no next step"
+ },
+ "basket_confused#0": {
+  "correct": 4,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "number-heavy"
+ },
+ "basket_confused#1": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 5,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 3,
+  "note": "good simplification"
+ },
+ "onb_switch#2": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 2,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 1,
+  "note": "answer ends with an offer AND the interview question: two questions in one turn"
+ },
+ "onb_confused#3": {
+  "correct": 4,
+  "answers": 2,
+  "clarity": 2,
+  "phone": 1,
+  "tone": 4,
+  "pedagogy": 3,
+  "next_step": 1,
+  "note": "asked what prudent means, got fund scenario %, then the re-ask; 134 words, two questions"
+ },
+ "game_switch#2": {
+  "correct": 4,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 2,
+  "note": "own offer + game-paused note"
+ },
+ "pay_rent#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 5,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 5,
+  "note": "good"
+ },
+ "bitcoin#0": {
+  "correct": 2,
+  "answers": 4,
+  "clarity": 3,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "labels 497.84 € (investing) as \"spending plus investing\"; ISO dates"
+ },
+ "fund#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "good refusal"
+ },
+ "fund#1": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "good refusal"
+ },
+ "stressed#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 3,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "\"Hey Aino, I'm Birky\" to a stressed person; \"here's the good news\""
+ },
+ "stressed#1": {
+  "correct": 4,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 2,
+  "tone": 3,
+  "pedagogy": 3,
+  "next_step": 3,
+  "note": "directive (\"Stick to\", \"lower your investment\"); 395-char bubble"
+ },
+ "finnish#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "good"
+ },
+ "finnish#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 2,
+  "note": "long, no next step"
+ },
+ "swedish#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "good"
+ },
+ "etf#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 2,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "128 words for a definition"
+ },
+ "asp#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 2,
+  "tone": 4,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "121 words + raw URL"
+ },
+ "asp#1": {
+  "correct": 3,
+  "answers": 3,
+  "clarity": 3,
+  "phone": 2,
+  "tone": 4,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "never says what ASP does for her; 4.2 years assumes redirecting investing she can't fund"
+ },
+ "compound#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "no concrete example"
+ },
+ "subs_then_all#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 2,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "96 words, 3 ISO dates; offer leans to \"dropping\""
+ },
+ "subs_then_all#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "correct, 4 PIN buttons"
+ },
+ "subs_all#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "correct, 4 PIN buttons"
+ },
+ "goal_trip#0": {
+  "correct": 5,
+  "answers": 3,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "asks cost and date in one go instead of making the goal"
+ },
+ "goal_trip#1": {
+  "correct": 5,
+  "answers": 3,
+  "clarity": 4,
+  "phone": 5,
+  "tone": 4,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "\"ok\" -> asks again"
+ },
+ "home#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 2,
+  "phone": 1,
+  "tone": 4,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "165 words, 13 figures"
+ },
+ "home#1": {
+  "correct": 4,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": ""
+ },
+ "multibank#0": {
+  "correct": 5,
+  "answers": 4,
+  "clarity": 4,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": ""
+ },
+ "explore#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": "good"
+ },
+ "explore#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "good"
+ },
+ "trend#0": {
+  "correct": 2,
+  "answers": 4,
+  "clarity": 2,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 4,
+  "note": "\"since then every month has cost more, from June up to the March high\"; \"October hasn't started\""
+ },
+ "persona#0": {
+  "correct": 4,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 2,
+  "tone": 4,
+  "pedagogy": 5,
+  "next_step": 4,
+  "note": "455-char bubble"
+ },
+ "persona#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 4,
+  "phone": 4,
+  "tone": 5,
+  "pedagogy": 3,
+  "next_step": 4,
+  "note": "good reserve explanation"
+ },
+ "who#0": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 5,
+  "phone": 3,
+  "tone": 5,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": ""
+ },
+ "who#1": {
+  "correct": 5,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 1,
+  "tone": 5,
+  "pedagogy": 2,
+  "next_step": 3,
+  "note": "one 574-char bubble, 7 bullets: a menu"
+ },
+ "afford#0": {
+  "correct": 4,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 3,
+  "tone": 4,
+  "pedagogy": 4,
+  "next_step": 3,
+  "note": "68.6 vs 68.60; two budgets in one breath"
+ },
+ "afford#1": {
+  "correct": 4,
+  "answers": 5,
+  "clarity": 3,
+  "phone": 4,
+  "tone": 4,
+  "pedagogy": 4,
+  "next_step": 4,
+  "note": ""
+ }
+}

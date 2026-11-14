@@ -30,14 +30,14 @@ def numbers(text: str) -> list[tuple[str, float, int]]:
 def check(reply: str, sources: list[str]) -> tuple[list[str], list[str]]:
     """(distinct numbers in `reply` that needed a source, those no source backs). A reply number may round a source
     number to its own decimals. Days and dates (up to 31), small counts and years need no source, unless written as
-    money or a percentage."""
+    money or a percentage: "4%" or "5 €" is checked like any other amount."""
     known = {v for src in sources for _, v, _ in numbers(src)}
     checked, bad = [], []
     for m in NUMBER.finditer(reply or ""):
         token = m.group(1)
         value, decimals = parse(token)
         money = bool(MONEY.match(reply[m.end():])) or reply[:m.start()].rstrip().endswith("€")
-        if decimals == 0 and (value <= 12 or (not money and (value <= 31 or 1990 <= value <= 2100))):
+        if decimals == 0 and not money and (value <= 31 or 1990 <= value <= 2100):
             continue
         if token in checked:
             continue

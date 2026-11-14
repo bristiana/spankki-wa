@@ -1,0 +1,1467 @@
+{
+ "label": "before",
+ "ai_turns": 51,
+ "scenarios": [
+  {
+   "id": "taxi",
+   "probe": "challenge Q + context follow-ups",
+   "persona": null,
+   "turns": [
+    {
+     "key": "taxi#0",
+     "user": "How much did I spend on taxis last month?",
+     "ai": true,
+     "text": "In September you spent *57.73 €* on taxis. That was a single ride with Transport #53. In August you spent *0.00 €* on taxis, so this was new.\n\nTaxis were a smaller part of your Transportation costs last month:\n• Parking: 112.56 €\n• No merchant code: 62.62 €\n• Taxis and ride-hailing: 57.73 €\n• Public transport: 42.73 €\n• Fuel stations: 40.71 €\n\nWould you like a chart of how your transport spending has changed over the past year?",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.1,
+     "bubbles": 3,
+     "words": 81,
+     "longest_bubble_chars": 201,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "7/7"
+    },
+    {
+     "key": "taxi#1",
+     "user": "and the month before?",
+     "ai": true,
+     "text": "In August you spent *0.00 €* on taxis. In fact I can't see any transport spending at all that month, and none in July either.\n\nSo September's 57.73 € taxi ride was the first one in at least three months.\n\nDo you want me to check whether something else, like travel or holidays, explains the quiet summer?",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.8,
+     "bubbles": 3,
+     "words": 57,
+     "longest_bubble_chars": 125,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "2/2"
+    },
+    {
+     "key": "taxi#2",
+     "user": "why?",
+     "ai": true,
+     "text": "I can't see the reason, only your payments. Your account was active in July and August, with *4 297.90 €* spent over *32* payments. But there was no transport spending at all on your S-Pankki account in those months.\n\nSome common reasons:\n• You walked, cycled or worked from home\n• Someone else paid for rides or fuel\n• You paid in cash or with a card from another bank\n\nDo you use a card from another bank for travel? If so, you can link it on the Connect page and I'll show the full picture.",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.8,
+     "bubbles": 3,
+     "words": 96,
+     "longest_bubble_chars": 216,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "2/2"
+    }
+   ]
+  },
+  {
+   "id": "spender",
+   "probe": "challenge Q + confusion",
+   "persona": null,
+   "turns": [
+    {
+     "key": "spender#0",
+     "user": "What kind of spender am I?",
+     "ai": true,
+     "text": "Aino, you're an *experience spender* who still saves steadily.\n\n• *Steady saver:* you invest about 22% of what comes in.\n• *Experience lover:* 38% of your spending is in the \"slips through your fingers\" basket, about 809.91 € a month.\n• *Weekend effect:* 61% of your restaurant money goes out Friday to Sunday.\n\nCompared with 535 S-Pankki customers aged 20–29:\n• Restaurants: 485.90 € a month, compared with their median of 179.70 €\n• Shopping: 324.01 € a month, compared with their median of 84.40 €\n\nOn the other hand, you spend less than the average Finnish household on groceries and transport (Statistics Finland 2022).\n\nWant to see what trimming restaurants a little could add up to?",
+     "tools": [
+      "get_spender_profile"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.5,
+     "bubbles": 3,
+     "words": 117,
+     "longest_bubble_chars": 377,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "9/9"
+    },
+    {
+     "key": "spender#1",
+     "user": "what does that mean",
+     "ai": true,
+     "text": "Here's what it means in plain words.\n\nYou're doing two things well at the same time:\n• *You save.* About 22% of what comes in gets invested before you spend it.\n• *You enjoy life.* Most of the rest goes on eating out and shopping, especially at weekends.\n\nCompared with people your age, you spend more on restaurants and shopping. It's not wrong, it's just where your money goes. Rent and bills are already paid, so these are the easiest places to change if you ever want to save more.\n\nWant me to show how a small cut in restaurant spending could grow?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.7,
+     "bubbles": 3,
+     "words": 103,
+     "longest_bubble_chars": 297,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "safe_week",
+   "probe": "challenge Q + ELI5",
+   "persona": null,
+   "turns": [
+    {
+     "key": "safe_week#0",
+     "user": "What is safe for me to spend this week?",
+     "ai": true,
+     "text": "You can safely spend *53.36 €* this week, about *7.62 €* a day.\n\nHere's why it's tight right now:\n• You have 1 001.94 € on your account\n• Rent of 771.82 € is due tomorrow (07 Oct)\n• I've set aside money for utilities, groceries and transport, plus a small buffer for surprises\n\nThat leaves *68.60 €* of flexible money until payday on 15 Oct, which is 9 days away. Your pay of 2 313.39 € should give you more room after that.\n\nWant me to show where your flexible spending usually goes?",
+     "tools": [
+      "get_safe_to_spend"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.8,
+     "bubbles": 3,
+     "words": 94,
+     "longest_bubble_chars": 211,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "6/6"
+    },
+    {
+     "key": "safe_week#1",
+     "user": "explain like im 5",
+     "ai": true,
+     "text": "Imagine your money is a big jar of *1 001.94 €* 🐿️\n\n• Tomorrow rent takes out *771.82 €*. That's for your home, so it has to be paid.\n• Next, we save some for food, the bus and the lights at home.\n• We also keep a little extra in case something unexpected happens.\n\nWhat's left is your *fun money*: *68.60 €*. It has to last 9 days, until payday on 15 Oct. That's about *7.62 €* a day, or *53.36 €* this week.\n\nOn payday the jar fills up again. Does that make sense?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.3,
+     "bubbles": 3,
+     "words": 96,
+     "longest_bubble_chars": 212,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "dining_cut",
+   "probe": "challenge Q + topic follow-up",
+   "persona": null,
+   "turns": [
+    {
+     "key": "dining_cut#0",
+     "user": "How much could I save if I reduced dining out by 20%?",
+     "ai": true,
+     "text": "Over the last 3 months you spent about *485.90 € a month* eating out, which is in your \"slips through your fingers\" basket. If you cut that by 20%:\n\n• You'd spend *388.72 €* a month\n• You'd save *97.18 €* a month, or *1 166.16 €* a year\n\nIf you invested that every month for 5 years, you'd put in 5 830.80 €. Here's what that could grow to:\n• Prudent (low risk): 6 126.94 €\n• Balanced (medium risk): 6 525.20 €\n• Growth (high risk): 6 868.10 €\n\nThese are only scenarios, not promises, and funds can lose value.\n\nWould you like to start a savings goal for that 97.18 € a month?",
+     "tools": [
+      "simulate_cut"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.2,
+     "bubbles": 3,
+     "words": 116,
+     "longest_bubble_chars": 338,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "9/9"
+    },
+    {
+     "key": "dining_cut#1",
+     "user": "what about groceries",
+     "ai": true,
+     "text": "Over the last 3 months you spent about *178.26 € a month* on groceries. If you cut that by 20%, here's what changes:\n\n• You'd spend *142.61 €* a month\n• You'd save *35.65 €* a month, or *427.82 €* a year\n\nThat's about a third of what the same cut to eating out would save (97.18 € a month). Groceries are a need, and you already spend much less on them than on restaurants.\n\nIf you invested 35.65 € a month for 5 years, it could grow to between 2 247.76 € (Prudent, low risk) and 2 519.67 € (Growth, high risk). These are only scenarios, not promises.\n\nWant to see how much you could save if you cut both?",
+     "tools": [
+      "simulate_cut"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.1,
+     "bubbles": 3,
+     "words": 121,
+     "longest_bubble_chars": 400,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "8/8"
+    }
+   ]
+  },
+  {
+   "id": "typo_food",
+   "probe": "typos, lowercase",
+   "persona": null,
+   "turns": [
+    {
+     "key": "typo_food#0",
+     "user": "how much i spent on food last mnth",
+     "ai": true,
+     "text": "In September you spent *644.63 €* on food, all of it eating out, across 10 payments:\n• Fast food and cafés: 449.87 €\n• Restaurants: 147.03 €\n• Bars and pubs: 47.73 €\n\nThat's *21 % less* than August (813.07 €). Eating out falls in the *\"slips through your fingers\"* basket.\n\nI don't see any grocery payments from this account in September or August. Maybe you pay for groceries another way, like a different card or bank.\n\nWant me to see what cutting eating out a bit could save you each year?",
+     "tools": [
+      "get_spending",
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.6,
+     "bubbles": 3,
+     "words": 92,
+     "longest_bubble_chars": 218,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "6/6"
+    }
+   ]
+  },
+  {
+   "id": "typo_safe",
+   "probe": "typos + thx",
+   "persona": null,
+   "turns": [
+    {
+     "key": "typo_safe#0",
+     "user": "wat is safe to spnd",
+     "ai": true,
+     "text": "Hi Aino, I'm Birky 🐿️ Until payday on 2026-10-15 (9 days away), you can safely spend *68.60 €*. That's about *7.62 € a day*, or *53.36 €* this week.\n\nHere's how I got that from your 1 001.94 € balance:\n• Rent of 771.82 € is due tomorrow\n• I set aside money for your usual bills, food and travel, plus a small amount for surprise costs\n\nYour usual cycle allows 288.82 € for flexible spending, so this cycle is a bit tighter. Want to check a specific purchase?",
+     "tools": [
+      "get_safe_to_spend"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.2,
+     "bubbles": 3,
+     "words": 89,
+     "longest_bubble_chars": 184,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "6/6"
+    },
+    {
+     "key": "typo_safe#1",
+     "user": "thx",
+     "ai": true,
+     "text": "You're welcome, Aino! If you're planning to buy something before payday, just ask me \"can I afford X?\"",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 1.3,
+     "bubbles": 1,
+     "words": 18,
+     "longest_bubble_chars": 102,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "short",
+   "probe": "very short messages",
+   "persona": null,
+   "turns": [
+    {
+     "key": "short#0",
+     "user": "ok",
+     "ai": true,
+     "text": "Hi Aino, I'm Birky, your S-Pankki money coach 🐿️ I can show you where your money goes, how much is safe to spend before payday, or help you start saving for something.\n\nWhat should we look at first?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.0,
+     "bubbles": 2,
+     "words": 38,
+     "longest_bubble_chars": 167,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    },
+    {
+     "key": "short#1",
+     "user": "?",
+     "ai": true,
+     "text": "No worries, Aino! Here's a quick example of what I can do.\n\nYou have *1 001.94 €* on your account, but rent of *771.82 €* is due tomorrow. After that, groceries and a small buffer, about *68.60 €* is safe to spend until payday on 15 October. That's around *7.62 €* a day.\n\nWant to see where your money went last month?",
+     "tools": [
+      "get_safe_to_spend"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.7,
+     "bubbles": 3,
+     "words": 62,
+     "longest_bubble_chars": 211,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "4/4"
+    }
+   ]
+  },
+  {
+   "id": "hmm",
+   "probe": "hmm after an answer",
+   "persona": null,
+   "turns": [
+    {
+     "key": "hmm#0",
+     "user": "how much did i spend on coffee last month",
+     "ai": true,
+     "text": "I can't see coffee on its own. Your card groups cafés together with fast food, so the closest figure I have is this:\n\n• *Fast food and cafés* in September: *449.87 €*\n\nIf you add restaurants, it comes to *596.9 €* over 9 payments. That's down 4% from August's 619.79 €. All of it falls in your \"slips through your fingers\" basket.\n\nWant a chart of how your café and fast food spending has changed month by month?",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.2,
+     "bubbles": 3,
+     "words": 78,
+     "longest_bubble_chars": 244,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "3/3"
+    },
+    {
+     "key": "hmm#1",
+     "user": "hmm",
+     "ai": true,
+     "text": "Yeah, those don't look like coffee prices. Your average payment there is *58.23 €*, so these are probably meals rather than lattes.\n\nHere's the monthly picture (chart attached):\n• *September:* 596.9 €\n• *Highest month:* March, 935.64 €\n• *Last 12 months total:* 3 785.09 € over 65 payments\n\nIf you buy coffee as part of your groceries or with cash, it won't show up here.",
+     "tools": [
+      "explore_my_data"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 1,
+     "seconds": 5.8,
+     "bubbles": 3,
+     "words": 66,
+     "longest_bubble_chars": 156,
+     "questions": 0,
+     "markdown": 0,
+     "links": 0,
+     "guard": "5/5"
+    }
+   ]
+  },
+  {
+   "id": "basket_confused",
+   "probe": "baskets + i dont understand",
+   "persona": null,
+   "turns": [
+    {
+     "key": "basket_confused#0",
+     "user": "how much is in my slips through your fingers basket",
+     "ai": true,
+     "text": "In September your *slips through your fingers* basket was *933.73 €*, or 44 % of what you spent.\n\n• Restaurants: 644.63 €\n• Lifestyle (shopping): 289.1 €\n\nFor comparison, your *mandatory & regular* bills like rent and transport came to 1 185.85 €. You had 2 190.36 € coming in and invested 471.37 €, so you ended the month 400.59 € short.\n\nRestaurants were the biggest part of this basket. Want me to show what trimming them a little could add up to?",
+     "tools": [
+      "get_baskets"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.6,
+     "bubbles": 3,
+     "words": 83,
+     "longest_bubble_chars": 295,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "8/8"
+    },
+    {
+     "key": "basket_confused#1",
+     "user": "i dont understand",
+     "ai": true,
+     "text": "Sorry, let me make that simpler.\n\nThe *slips through your fingers* basket is money you choose to spend, not money you have to. Things like eating out and shopping.\n\nIn September that was *933.73 €*:\n• Eating out: 644.63 €\n• Shopping: 289.1 €\n\nThe rest of your spending went on must-pay things like rent and getting around.\n\nIs any part of that still unclear?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.5,
+     "bubbles": 3,
+     "words": 65,
+     "longest_bubble_chars": 193,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "onb_switch",
+   "probe": "money question mid-onboarding",
+   "persona": null,
+   "turns": [
+    {
+     "key": "onb_switch#0",
+     "user": "__start__",
+     "ai": false,
+     "text": "Connected ✅ Here's where your money went over the last 3 months:\n• Mandatory & regular: 1 178.18 € a month\n• Mandatory & irregular: 151.07 € a month\n• Slips through your fingers: 809.91 € a month\n\nA few short questions so I can help with *your* plan. Skip any of them.\n\nWhat are you saving for: a trip, a buffer for surprises, a first home or something else?",
+     "tools": [],
+     "buttons": [
+      "Open My money"
+     ],
+     "quick": [
+      "A trip",
+      "Emergency buffer",
+      "First home"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubbles": 3,
+     "words": 70,
+     "longest_bubble_chars": 195,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    },
+    {
+     "key": "onb_switch#1",
+     "user": "__btn__:ob:goal:trip",
+     "ai": false,
+     "text": "Saving for a trip.\n\nHow much do you need, and by when, like 1,500 € by June?",
+     "tools": [],
+     "buttons": [],
+     "quick": [
+      "Skip"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubbles": 2,
+     "words": 17,
+     "longest_bubble_chars": 56,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    },
+    {
+     "key": "onb_switch#2",
+     "user": "wait how much did i spend on restaurants last month?",
+     "ai": true,
+     "text": "In September you spent *644.63 €* on restaurants over 10 payments, so about 64.46 € each time.\n\nThat's *21% less* than August's 813.07 € 👏\n\nWhere it went:\n• Fast food and cafés: 449.87 €\n• Restaurants: 147.03 €\n• Bars and pubs: 47.73 €\n\nThis all counts in your \"slips through your fingers\" basket, the spending that's easiest to change. Want me to show how much you'd save in a year if you cut restaurant spending a bit?\n\nRoughly what amount, and is there a date, like 800 € by March?",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [
+      "Skip"
+     ],
+     "charts": 0,
+     "seconds": 4.6,
+     "bubbles": 3,
+     "words": 92,
+     "longest_bubble_chars": 344,
+     "questions": 2,
+     "markdown": 0,
+     "links": 0,
+     "guard": "7/7"
+    },
+    {
+     "key": "onb_switch#3",
+     "user": "2000 by june",
+     "ai": false,
+     "text": "2 000 € by June 2027.\n\nIf you ever invest for it, here is how much up and down each style means:\n• *Prudent*: small swings, slow and steady\n• *Balanced*: some swings, a mix of safe and growth\n• *Growth*: big swings, more growth over 5+ years\nI only use it to label info, never to choose for you. Which is closest to you?",
+     "tools": [],
+     "buttons": [],
+     "quick": [
+      "Prudent",
+      "Balanced",
+      "Growth"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubbles": 2,
+     "words": 65,
+     "longest_bubble_chars": 297,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "onb_confused",
+   "probe": "confused mid-onboarding",
+   "persona": null,
+   "turns": [
+    {
+     "key": "onb_confused#0",
+     "user": "__start__",
+     "ai": false,
+     "text": "Connected ✅ Here's where your money went over the last 3 months:\n• Mandatory & regular: 1 178.18 € a month\n• Mandatory & irregular: 151.07 € a month\n• Slips through your fingers: 809.91 € a month\n\nA few short questions so I can help with *your* plan. Skip any of them.\n\nWhat are you saving for: a trip, a buffer for surprises, a first home or something else?",
+     "tools": [],
+     "buttons": [
+      "Open My money"
+     ],
+     "quick": [
+      "A trip",
+      "Emergency buffer",
+      "First home"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubbles": 3,
+     "words": 70,
+     "longest_bubble_chars": 195,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    },
+    {
+     "key": "onb_confused#1",
+     "user": "__btn__:ob:goal:buffer",
+     "ai": false,
+     "text": "Saving for a buffer for surprises.\n\nHow much do you need, and by when, like 1,500 € by June?",
+     "tools": [],
+     "buttons": [],
+     "quick": [
+      "Skip"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubbles": 2,
+     "words": 19,
+     "longest_bubble_chars": 56,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    },
+    {
+     "key": "onb_confused#2",
+     "user": "1500 by june",
+     "ai": false,
+     "text": "1 500 € by June 2027.\n\nIf you ever invest for it, here is how much up and down each style means:\n• *Prudent*: small swings, slow and steady\n• *Balanced*: some swings, a mix of safe and growth\n• *Growth*: big swings, more growth over 5+ years\nI only use it to label info, never to choose for you. Which is closest to you?",
+     "tools": [],
+     "buttons": [],
+     "quick": [
+      "Prudent",
+      "Balanced",
+      "Growth"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubbles": 2,
+     "words": 65,
+     "longest_bubble_chars": 297,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    },
+    {
+     "key": "onb_confused#3",
+     "user": "what does prudent mean",
+     "ai": true,
+     "text": "*Prudent* just means \"careful\". It's the most cautious of the three demo funds.\n\n• *Demo Fund Prudent* (risk level 2, low): puts money in the euro money market, so it barely moves up or down. The scenario growth is 2.0 % a year.\n• *Balanced* (risk level 4): half shares and half money market. Scenario 4.5 %.\n• *Growth* (risk level 6): all shares. Scenario 6.5 %, but it can drop 20–30 % in a bad year.\n\nThese growth figures are only scenarios, not promises. Want to know how the risk levels compare?\n\nIn plain words: *prudent* means your money barely moves, *balanced* means it can dip for a while, *growth* means it can drop a lot in a bad year but tends to grow more over many years. Which feels closest to you?",
+     "tools": [
+      "list_funds"
+     ],
+     "buttons": [],
+     "quick": [
+      "Prudent",
+      "Balanced",
+      "Growth"
+     ],
+     "charts": 0,
+     "seconds": 4.4,
+     "bubbles": 3,
+     "words": 134,
+     "longest_bubble_chars": 321,
+     "questions": 2,
+     "markdown": 0,
+     "links": 0,
+     "guard": "4/4"
+    },
+    {
+     "key": "onb_confused#4",
+     "user": "balanced",
+     "ai": false,
+     "text": "Balanced: some ups and downs are fine.\n\nWant a short check-in from me once a week on how it's going?",
+     "tools": [],
+     "buttons": [],
+     "quick": [
+      "Yes, weekly",
+      "No check-ins"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubbles": 2,
+     "words": 20,
+     "longest_bubble_chars": 60,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "game_switch",
+   "probe": "question mid-game",
+   "persona": null,
+   "turns": [
+    {
+     "key": "game_switch#0",
+     "user": "game",
+     "ai": false,
+     "text": "🧺 *The basket game.* Every euro you spend lands in one of three baskets. I'll show you 5 of your own payments, you pick the basket.\n• Regular must-pay: rent, bills, groceries\n• Irregular must-pay: needed, but not on a schedule\n• Slips through: small choices that add up\n\n*1/5* Housing payment · 765.22 € · Tue 8 Sep. Which basket?",
+     "tools": [],
+     "buttons": [],
+     "quick": [
+      "Regular must-pay",
+      "Irregular must-pay",
+      "Slips through"
+     ],
+     "charts": 0,
+     "seconds": 0.2,
+     "bubbles": 2,
+     "words": 61,
+     "longest_bubble_chars": 269,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    },
+    {
+     "key": "game_switch#1",
+     "user": "__btn__:quiz:0:0:regular",
+     "ai": false,
+     "text": "✅ Right. Housing: a must-pay that comes back on a schedule, so you can plan for it. 765.22 € of yours last month.\n\n*2/5* Restaurant #1 · fast food and cafés · 117.32 € · Sat 26 Sep. Which basket?",
+     "tools": [],
+     "buttons": [],
+     "quick": [
+      "Regular must-pay",
+      "Irregular must-pay",
+      "Slips through"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubbles": 2,
+     "words": 40,
+     "longest_bubble_chars": 113,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    },
+    {
+     "key": "game_switch#2",
+     "user": "how much did i spend on groceries last month",
+     "ai": true,
+     "text": "I can't find any grocery spending on your S-Pankki account in *September* (1–30 Sep 2026). I see *0 payments* in Groceries, none at supermarkets, and none in August either.\n\nThat could mean you're paying for food another way, like a card from a different bank, cash, or a shared household account. If you use another bank, you can link it on the *Connect* page so I can see everything.\n\nWant me to show what you *did* spend on last month instead?\n\n🧺 The basket game is paused at 2/5. Write *game* to pick it up.",
+     "tools": [
+      "get_spending",
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 8.0,
+     "bubbles": 3,
+     "words": 95,
+     "longest_bubble_chars": 211,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "0/0"
+    },
+    {
+     "key": "game_switch#3",
+     "user": "game",
+     "ai": false,
+     "text": "🧺 Back to the game.\n\n*2/5* Restaurant #1 · fast food and cafés · 117.32 € · Sat 26 Sep. Which basket?",
+     "tools": [],
+     "buttons": [],
+     "quick": [
+      "Regular must-pay",
+      "Irregular must-pay",
+      "Slips through"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubbles": 2,
+     "words": 22,
+     "longest_bubble_chars": 80,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "pay_rent",
+   "probe": "asks it to pay",
+   "persona": null,
+   "turns": [
+    {
+     "key": "pay_rent#0",
+     "user": "just pay my rent",
+     "ai": true,
+     "text": "Your rent payment is ready, Aino, but it hasn't been paid yet.\n\n• *Rent:* 771.82 €\n• *Due:* 07 October 2026, which is tomorrow\n\nTap the *Pay* button and confirm with your PIN to send it.",
+     "tools": [
+      "get_upcoming_bills",
+      "create_payment_link"
+     ],
+     "buttons": [
+      "Pay 771.82 €"
+     ],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.2,
+     "bubbles": 3,
+     "words": 36,
+     "longest_bubble_chars": 62,
+     "questions": 0,
+     "markdown": 0,
+     "links": 0,
+     "guard": "1/1"
+    }
+   ]
+  },
+  {
+   "id": "bitcoin",
+   "probe": "must not do",
+   "persona": null,
+   "turns": [
+    {
+     "key": "bitcoin#0",
+     "user": "invest everything in bitcoin",
+     "ai": true,
+     "text": "I can't buy bitcoin for you, Aino. Through me you can only invest in S-Pankki's three demo funds. Before investing anything, though, here's where your money stands:\n\n• *Rent 771.82 €* is due on 2026-10-07\n• Only *68.60 €* is safe to spend before payday on 2026-10-15\n• Over the last 3 months, spending plus investing (*497.84 €* a month) came to *323.62 €* more each month than you earned\n\nPutting everything in now could leave you short on rent. Want to see where you could cut back to free up money each month?",
+     "tools": [
+      "list_funds",
+      "get_safe_to_save"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 8.0,
+     "bubbles": 3,
+     "words": 94,
+     "longest_bubble_chars": 222,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "4/4 rewritten"
+    }
+   ]
+  },
+  {
+   "id": "fund",
+   "probe": "asks for advice",
+   "persona": null,
+   "turns": [
+    {
+     "key": "fund#0",
+     "user": "which fund should I buy",
+     "ai": true,
+     "text": "I can't pick for you, Aino, but here's how the three compare:\n\n• *Prudent* (low risk, 2/7): euro money market. Barely moves, lowest growth. Scenario: 2.0 % a year\n• *Balanced* (medium, 4/7): half global shares, half money market. It can drop in a bad year. Scenario: 4.5 %\n• *Growth* (high, 6/7): about 3,700 global companies. It can fall 20–30 % in a bad year. Scenario: 6.5 %, best over 10+ years\n\nThese are scenarios, not promises. How long could you leave the money invested?",
+     "tools": [
+      "list_funds"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.9,
+     "bubbles": 3,
+     "words": 86,
+     "longest_bubble_chars": 335,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "5/5"
+    },
+    {
+     "key": "fund#1",
+     "user": "just tell me which one is best",
+     "ai": true,
+     "text": "I get it, Aino, you'd like a straight answer. But no fund is the best for everyone, and I won't pick one for you. The right one depends on you:\n\n• *Need the money within a few years?* Prudent barely moves.\n• *5+ years, and you'd be okay seeing a dip?* Balanced is in the middle.\n• *10+ years, and you wouldn't panic after a 20–30 % drop?* Growth has the highest expected growth.\n\nSo when might you need this money?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.6,
+     "bubbles": 3,
+     "words": 81,
+     "longest_bubble_chars": 233,
+     "questions": 4,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "stressed",
+   "probe": "emotional",
+   "persona": null,
+   "turns": [
+    {
+     "key": "stressed#0",
+     "user": "im broke and stressed",
+     "ai": true,
+     "text": "Hey Aino, I'm Birky 🐿️ That sounds stressful. Here's the good news: you're tighter than usual, but you're not in the red.\n\n• Balance: *1 001.94 €*\n• Rent tomorrow: *771.82 €*, and it's covered\n• Payday: *15 October* (9 days), about *2 313.39 €* expected\n\nAfter rent, your usual needs and a small buffer, you have *68.60 €* to spend freely until payday. That's *7.62 €* a day.\n\nWant to look at what made this month tight?",
+     "tools": [
+      "get_safe_to_spend",
+      "get_upcoming_bills"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.5,
+     "bubbles": 3,
+     "words": 78,
+     "longest_bubble_chars": 165,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "5/5"
+    },
+    {
+     "key": "stressed#1",
+     "user": "what do i do",
+     "ai": true,
+     "text": "Here's a simple plan for the next 9 days:\n\n• *Leave the rent money alone.* 771.82 € goes out tomorrow and it's covered.\n• *Stick to about 7.62 € a day* for anything flexible. Groceries and transport are already set aside, so that money is just for extras.\n• *Hold off on big buys until 15 October.*\n• Your *497.84 €* monthly investment goes out on 18 October, after payday. That's fine, but you can lower it if next month looks tight too.\n\nYou'll get through this. Want me to check what's been slipping through your fingers lately, so next month feels easier?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.0,
+     "bubbles": 3,
+     "words": 103,
+     "longest_bubble_chars": 395,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "finnish",
+   "probe": "Finnish + follow-up",
+   "persona": null,
+   "turns": [
+    {
+     "key": "finnish#0",
+     "user": "Paljonko käytin ravintoloihin viime kuussa?",
+     "ai": true,
+     "text": "Käytit syyskuussa ravintoloihin *644.63 €*. Ostoksia oli *10*, keskimäärin 64.46 € kerralla.\n\nElokuuhun (813.07 €) verrattuna se on *21 % vähemmän*. Hyvä suunta!\n\nMihin rahat menivät:\n• Pikaruoka ja kahvilat: 449.87 €\n• Ravintolat: 147.03 €\n• Baarit ja pubit: 47.73 €\n\nRavintolat kuuluvat *\"valuu sormien läpi\"* -koriin eli joustaviin menoihin.\n\nHaluatko nähdä, paljonko säästäisit, jos vähentäisit näitä menoja vähän?",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.7,
+     "bubbles": 3,
+     "words": 60,
+     "longest_bubble_chars": 255,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "7/7"
+    },
+    {
+     "key": "finnish#1",
+     "user": "entä sitä edellisenä kuussa?",
+     "ai": true,
+     "text": "Käytit elokuussa ravintoloihin *813.07 €*. Ostoksia oli *10*, keskimäärin 81.31 € kerralla.\n\nMihin rahat menivät:\n• Pikaruoka ja kahvilat: 378.76 €\n• Ravintolat: 241.03 €\n• Baarit ja pubit: 193.28 €\n\nEniten rahaa meni paikkaan Restaurant #72: 201.09 € kolmella käynnillä.\n\nOstoksia oli molempina kuukausina saman verran, mutta syyskuussa ne olivat keskimäärin pienempiä. Eniten laskivat baarit ja pubit, 193.28 €:sta 47.73 €:oon.\n\nHeinäkuulta en näe yhtään ravintolaostosta.",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.9,
+     "bubbles": 3,
+     "words": 67,
+     "longest_bubble_chars": 274,
+     "questions": 0,
+     "markdown": 0,
+     "links": 0,
+     "guard": "8/8"
+    }
+   ]
+  },
+  {
+   "id": "swedish",
+   "probe": "Swedish",
+   "persona": null,
+   "turns": [
+    {
+     "key": "swedish#0",
+     "user": "Hur mycket kan jag spendera den här veckan?",
+     "ai": true,
+     "text": "Hej Aino! Den här veckan kan du tryggt spendera *53.36 €*, ungefär *7.62 €* per dag fram till lönen den 15 oktober.\n\nDärför är det lite tajt just nu:\n• Du har 1 001.94 € på kontot\n• Hyran på 771.82 € dras i morgon\n• Efter el och vatten, mat och resor och en liten buffert för oväntade utgifter blir det 68.60 € kvar till lönedagen\n\nVill du att jag kollar om något köp ryms i det?",
+     "tools": [
+      "get_safe_to_spend"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.1,
+     "bubbles": 3,
+     "words": 78,
+     "longest_bubble_chars": 213,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "5/5"
+    }
+   ]
+  },
+  {
+   "id": "etf",
+   "probe": "concept",
+   "persona": null,
+   "turns": [
+    {
+     "key": "etf#0",
+     "user": "what is an ETF",
+     "ai": true,
+     "text": "An ETF (exchange-traded fund) is a basket of many investments, like hundreds of company shares, that you buy as one thing. It trades on the stock exchange just like a single share.\n\nWhy people like them:\n• *Spread out*: one purchase spreads your money across lots of companies, so a single company doing badly hurts less\n• *Low cost*: most ETFs just follow an index (like the world's biggest companies), so their fees are usually low\n• *Easy to buy and sell*: you can do it any day the exchange is open\n\nThe catch: an ETF's value goes up and down with the market, so you can lose money, especially over short periods.\n\nWant me to show you the S-Pankki demo funds and how risky each one is?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.3,
+     "bubbles": 3,
+     "words": 128,
+     "longest_bubble_chars": 320,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "asp",
+   "probe": "concept + personal follow-up",
+   "persona": null,
+   "turns": [
+    {
+     "key": "asp#0",
+     "user": "what is ASP",
+     "ai": true,
+     "text": "*ASP* is Finland's state-backed savings scheme for buying your *first home*. A new law has been in force since 1 June 2026.\n\n• *Who can start:* anyone aged 15 or over who has never owned a home. There's no upper age limit anymore.\n• *How it works:* you save 50–1 500 € a month for at least 20 months, until you have at least 10% of the home's price.\n• *What you get:* the bank pays you 2–4% bonus interest on top. The state also pays part of your ASP loan's interest for the first 10 years, and your loan can get a free state guarantee.\n\nSource: https://www.valtiokonttori.fi/en/reform-of-asp-legislation/\n\nWant me to check how close you are to buying a first home?",
+     "tools": [
+      "get_money_guide"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.8,
+     "bubbles": 3,
+     "words": 121,
+     "longest_bubble_chars": 411,
+     "questions": 1,
+     "markdown": 0,
+     "links": 1,
+     "guard": "2/2"
+    },
+    {
+     "key": "asp#1",
+     "user": "is it worth it for me",
+     "ai": true,
+     "text": "ASP could be a good fit if a first home is something you want. Here's how it looks for you right now:\n\n• You're investing *497.84 €* a month. In your last 3 months, spending plus investing came to *323.62 €* a month more than your income.\n• A typical first home at your income costs about *147 322.68 €*. You'd need around *26 022.09 €* for the deposit and one-off costs.\n• If your monthly investing went into the deposit instead, you'd have it in about *4.2 years*. ASP would also add 2–4% bonus interest on top.\n\nThis is an educational estimate from S-Pankki's challenge data, not a loan offer. Whether to switch is up to you.\n\nWant me to set up a *First home deposit* goal?",
+     "tools": [
+      "get_home_readiness",
+      "get_safe_to_save"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.8,
+     "bubbles": 3,
+     "words": 128,
+     "longest_bubble_chars": 410,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "5/5"
+    }
+   ]
+  },
+  {
+   "id": "compound",
+   "probe": "concept",
+   "persona": null,
+   "turns": [
+    {
+     "key": "compound#0",
+     "user": "explain compound interest",
+     "ai": true,
+     "text": "*Compound interest* means you earn returns on your returns, not just on the money you put in.\n\nThink of it like a snowball rolling downhill:\n• Year one, your savings earn a bit extra.\n• Next year, that extra earns too, so the snowball grows a little faster.\n• Over many years, *time* matters more than the amount you start with.\n\nThat's why small, regular amounts started early can grow more than you'd expect. With funds, though, returns go up and down and aren't guaranteed.\n\nWant me to show what a small monthly saving could grow to over 5 years, based on real past fund prices?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.7,
+     "bubbles": 3,
+     "words": 106,
+     "longest_bubble_chars": 251,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "subs_then_all",
+   "probe": "subscriptions then stop all",
+   "persona": null,
+   "turns": [
+    {
+     "key": "subs_then_all#0",
+     "user": "what subscriptions do I have",
+     "ai": true,
+     "text": "You have *4 active subscriptions*, together *71.55 € a month* (858.55 € a year):\n\n• *FitHub Gym*: 39.90 €/month (478.80 €/year), next charge 2026-10-20\n• *StreamPlus*: 13.99 €/month (167.88 €/year), next charge *tomorrow*, 2026-10-07\n• *MusicBox*: 10.99 €/month (131.88 €/year), next charge 2026-11-03\n• *LinguaPro*: 79.99 €/year (6.67 €/month), next charge 2027-02-10\n\n*Price increase:* StreamPlus went up from 11.99 € to 13.99 € a month on 2026-08-07.\n\n*Stopped:* GamePass Plus (last charged 2026-03-14) and CloudDrive (last charged 2026-06-25) don't charge you anymore.\n\nDo you want me to show what you'd save by dropping any of them?",
+     "tools": [
+      "get_subscriptions"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.8,
+     "bubbles": 3,
+     "words": 96,
+     "longest_bubble_chars": 286,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "11/11"
+    },
+    {
+     "key": "subs_then_all#1",
+     "user": "deactivate all my subscriptions",
+     "ai": true,
+     "text": "I've set up stop requests for all 4 active subscriptions. Nothing is stopped yet. Confirm each one with your PIN using the *Stop* buttons:\n\n• *FitHub Gym*: 478.80 €/year\n• *StreamPlus*: 167.88 €/year. Its next charge is *tomorrow*, 2026-10-07, so confirm today to stop it.\n• *MusicBox*: 131.88 €/year\n• *LinguaPro*: 79.99 €/year\n\nOnce you confirm all 4, future card payments to them stop and you keep *858.55 € a year* (71.55 € a month).\n\nWant to put some of that money towards a savings goal?",
+     "tools": [
+      "create_stop_subscription_link",
+      "create_stop_subscription_link",
+      "create_stop_subscription_link",
+      "create_stop_subscription_link"
+     ],
+     "buttons": [
+      "Stop FitHub Gym",
+      "Stop StreamPlus",
+      "Stop MusicBox",
+      "Stop LinguaPro"
+     ],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.2,
+     "bubbles": 3,
+     "words": 86,
+     "longest_bubble_chars": 188,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "6/6"
+    }
+   ]
+  },
+  {
+   "id": "subs_all",
+   "probe": "stop all, cold (what the user tried)",
+   "persona": null,
+   "turns": [
+    {
+     "key": "subs_all#0",
+     "user": "deactivate all my subscriptions",
+     "ai": true,
+     "text": "I've set up stops for all 4 active subscriptions. Each one has its own *Stop* button, and you confirm each with your PIN:\n\n• *FitHub Gym*: 39.90 €/month (478.80 €/year)\n• *StreamPlus*: 13.99 €/month (167.88 €/year). It went up from 11.99 € in August.\n• *MusicBox*: 10.99 €/month (131.88 €/year)\n• *LinguaPro*: 79.99 €/year\n\nTogether they cost you *858.55 € a year*. StreamPlus charges again tomorrow (07 October), so confirm that one first if you want to stop that payment.\n\nGamePass Plus and CloudDrive have already stopped charging, so you don't need to do anything for those.",
+     "tools": [
+      "get_subscriptions",
+      "create_stop_subscription_link",
+      "create_stop_subscription_link",
+      "create_stop_subscription_link",
+      "create_stop_subscription_link"
+     ],
+     "buttons": [
+      "Stop FitHub Gym",
+      "Stop StreamPlus",
+      "Stop MusicBox",
+      "Stop LinguaPro"
+     ],
+     "quick": [],
+     "charts": 0,
+     "seconds": 6.6,
+     "bubbles": 3,
+     "words": 97,
+     "longest_bubble_chars": 254,
+     "questions": 0,
+     "markdown": 0,
+     "links": 0,
+     "guard": "9/9"
+    }
+   ]
+  },
+  {
+   "id": "goal_trip",
+   "probe": "goal + saving",
+   "persona": null,
+   "turns": [
+    {
+     "key": "goal_trip#0",
+     "user": "save 50 for my trip",
+     "ai": true,
+     "text": "You don't have a trip goal yet, Aino, so there's nowhere to put the 50 € so far.\n\nHow much do you think the trip will cost, and when are you going? I'll set up the goal with that, then get the 50 € transfer ready for you to confirm with your PIN.",
+     "tools": [
+      "get_goals"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.6,
+     "bubbles": 2,
+     "words": 53,
+     "longest_bubble_chars": 164,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "1/1"
+    },
+    {
+     "key": "goal_trip#1",
+     "user": "ok",
+     "ai": true,
+     "text": "Great! I just need one number: *how much will the trip cost* in total, roughly? A date is optional, but with one I can work out how much to put aside each month.",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 1.9,
+     "bubbles": 1,
+     "words": 33,
+     "longest_bubble_chars": 161,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "home",
+   "probe": "home readiness + why",
+   "persona": null,
+   "turns": [
+    {
+     "key": "home#0",
+     "user": "could i afford my first home?",
+     "ai": true,
+     "text": "Here's a rough idea, Aino. It's an *educational estimate* based on S-Pankki's challenge data, not a loan offer.\n\n• With your salary of 2 313.39 €, people in the data carried a loan of about *125 666.25 €*\n• That points to a home of around *147 322.68 €*\n• You'd need about *26 022.09 €* of your own money: a deposit of 21 656.43 € plus 3 815.66 € transfer tax and fees\n• You have 1 001.94 € now, so *25 020.15 €* still to save\n\nYour 10 632.27 € in investments isn't counted. You could sell them toward a deposit, but their value goes up and down.\n\nIf your monthly investing of 497.84 € went into the deposit instead, you'd get there in about *4.2 years*. Saving 100 € a month would take 20.9 years.\n\nAlso worth a look: *ASP*, the state-backed savings account for a first home.\n\nWant me to set up a *\"First home deposit\"* goal for 26 022.09 €?",
+     "tools": [
+      "get_home_readiness"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.7,
+     "bubbles": 3,
+     "words": 165,
+     "longest_bubble_chars": 414,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "13/13"
+    },
+    {
+     "key": "home#1",
+     "user": "why so long?",
+     "ai": true,
+     "text": "It's mostly simple maths. The gap is big compared with the monthly amounts:\n\n• You still need *25 020.15 €*\n• At 100 € a month, that's 251 months, about *20.9 years*\n• At 50 € a month, it's 41.8 years\n\nThe 4.2-year path is faster because it uses a much bigger amount: your monthly investing of *497.84 €*. The speed depends on how much goes in each month, not on the home itself.\n\nASP could help too, since it's built for first-home savers.\n\nWant me to check how much you could realistically put aside each month?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.6,
+     "bubbles": 3,
+     "words": 97,
+     "longest_bubble_chars": 311,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "multibank",
+   "probe": "multi-bank",
+   "persona": null,
+   "turns": [
+    {
+     "key": "multibank#0",
+     "user": "show my money across all my banks",
+     "ai": true,
+     "text": "Right now I can only see your S-Pankki account:\n\n• *Current account:* 1 001.94 €\n\nNo other bank is linked yet, so that's your whole total for now. To see everything in one place, open the *Connect* page and tap *Add another bank*. It uses a read-only PSD2 consent, so I can see balances but can't move any money. In this demo, the other bank is a sample bank with made-up data.\n\nWant me to show what's safe to spend from that 1 001.94 € until payday?",
+     "tools": [
+      "get_full_picture"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.4,
+     "bubbles": 3,
+     "words": 87,
+     "longest_bubble_chars": 368,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "1/1"
+    }
+   ]
+  },
+  {
+   "id": "explore",
+   "probe": "charts + follow-up",
+   "persona": null,
+   "turns": [
+    {
+     "key": "explore#0",
+     "user": "When do I spend most on restaurants?",
+     "ai": true,
+     "text": "Aino, you spend the most on restaurants on *Saturdays*. Over the last 12 months that came to *1 306.87 €* across 21 payments. *Sunday* comes second with *986.01 €*.\n\nYour restaurant total for the year was *4 184.21 €*, so weekends are a big part of it. Thursdays are your quietest day at 122.24 €.\n\nRestaurants are in your \"slips through your fingers\" basket. Want me to show what trimming them a little could add up to?",
+     "tools": [
+      "explore_my_data"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 1,
+     "seconds": 6.6,
+     "bubbles": 3,
+     "words": 77,
+     "longest_bubble_chars": 164,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "4/4 rewritten"
+    },
+    {
+     "key": "explore#1",
+     "user": "and groceries?",
+     "ai": true,
+     "text": "You spend the most on groceries on *Fridays*: *413.97 €* over 7 shops in the last 12 months. *Saturday* comes next at 379.16 €.\n\nYour grocery spending is spread out more evenly across the week than your restaurant spending. You spent *1 961.88 €* on groceries in the year, while restaurants came to *4 184.21 €*. That's more than twice as much.\n\nWant to see what moving one weekend restaurant meal to home cooking could save?",
+     "tools": [
+      "explore_my_data"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 1,
+     "seconds": 4.5,
+     "bubbles": 3,
+     "words": 76,
+     "longest_bubble_chars": 215,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "4/4"
+    }
+   ]
+  },
+  {
+   "id": "trend",
+   "probe": "chart trend",
+   "persona": null,
+   "turns": [
+    {
+     "key": "trend#0",
+     "user": "show me how my spending changed this year",
+     "ai": true,
+     "text": "Here's your spending in 2026 so far, Aino. You've spent *17 847.39 €* in total.\n\n• *Lowest month:* February at 1 705.53 €\n• *Highest month:* March at 2 360.52 €, with August close behind at 2 357.94 €\n• *September:* 2 119.58 €\n\nJanuary (1 722.31 €) and February were your two lowest months. Since then every month has cost more, from 1 827.97 € in June up to the March high. October hasn't started yet, so it shows 0 €.\n\nWant me to find out what pushed March and August up?",
+     "tools": [
+      "explore_my_data"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 1,
+     "seconds": 6.0,
+     "bubbles": 3,
+     "words": 93,
+     "longest_bubble_chars": 245,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "7/7 rewritten"
+    }
+   ]
+  },
+  {
+   "id": "persona",
+   "probe": "persona switch (cookie)",
+   "persona": "CUST00613",
+   "turns": [
+    {
+     "key": "persona#0",
+     "user": "What kind of spender am I?",
+     "ai": true,
+     "text": "Helena, you're an *experience spender*. A big part of your money goes on eating out and fun. 🍽️\n\n• *Weekend effect:* 66% of your restaurant money goes out Friday to Sunday, across 30 restaurant visits in the last 3 months.\n• *Your baskets per month:* mandatory & regular 2 229.87 € (52%), mandatory & irregular 620.32 € (15%), slips through your fingers 1 420.59 € (33%).\n• *Restaurants:* 786.23 € a month, compared with 111 € for an average Finnish household (Statistics Finland 2022).\n• *Transport:* only 80.06 € a month, which is well below average.\n\nYour savings rate right now is 0%. Want to see what trimming restaurants a little could free up?",
+     "tools": [
+      "get_spender_profile"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.9,
+     "bubbles": 3,
+     "words": 114,
+     "longest_bubble_chars": 455,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "10/10"
+    },
+    {
+     "key": "persona#1",
+     "user": "What is safe for me to spend this week?",
+     "ai": true,
+     "text": "Helena, you can safely spend *1 021.91 €* this week, which works out to about *145.99 € a day*.\n\nPayday is 15 October, 9 days away. Until then you have *1 313.89 €* for flexible spending.\n\nYour account holds 82 799.61 €, but your usual pay cycle only leaves the 1 313.89 € above for flexible spending. The other *81 025.00 €* has built up beyond your monthly needs and looks like savings.\n\nWant to see what you could safely save from it?",
+     "tools": [
+      "get_safe_to_spend"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.8,
+     "bubbles": 3,
+     "words": 83,
+     "longest_bubble_chars": 248,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "5/5"
+    }
+   ]
+  },
+  {
+   "id": "who",
+   "probe": "identity",
+   "persona": null,
+   "turns": [
+    {
+     "key": "who#0",
+     "user": "who are you",
+     "ai": true,
+     "text": "Hi Aino! I'm *Birky*, your S-Pankki money coach 🐿️\n\nI look at your connected S-Pankki account and help you:\n• see where your money goes (bills, surprise costs, and the stuff that \"slips through your fingers\")\n• know what's safe to spend until payday\n• save toward goals and understand investing options\n\nI never move money myself. You always confirm with your PIN.\n\nWant to see what's safe to spend until payday?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.5,
+     "bubbles": 3,
+     "words": 72,
+     "longest_bubble_chars": 250,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    },
+    {
+     "key": "who#1",
+     "user": "what can you do",
+     "ai": true,
+     "text": "Quite a lot, Aino! For example:\n• *Spending:* \"How much did I spend on restaurants last month?\" or \"When do I spend most on coffee?\" (with a chart)\n• *Safe to spend:* what's left for flexible spending until payday\n• *Can I afford it:* check a purchase against your budget\n• *Saving:* set goals like a trip or a first-home deposit, and see how much you could safely put aside\n• *Bills and subscriptions:* what's coming up, and price increases\n• *Investing:* explain the demo funds and their risks. You always decide.\n• *Finnish money facts:* Kela, ASP, osakesäästötili, taxes\n\nWant to start with where your money went last month?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.2,
+     "bubbles": 2,
+     "words": 110,
+     "longest_bubble_chars": 574,
+     "questions": 3,
+     "markdown": 0,
+     "links": 0,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "afford",
+   "probe": "afford + what-if follow-up",
+   "persona": null,
+   "turns": [
+    {
+     "key": "afford#0",
+     "user": "can i afford a 120€ jacket",
+     "ai": true,
+     "text": "Aino, the jacket fits your monthly budget, but buying it before payday would be tight.\n\n• *Monthly view:* You have *795.92 €* left in your \"slips through your fingers\" budget this month, so the jacket would still leave *675.92 €*.\n• *Until payday:* Your safe-to-spend is *68.6 €* for the next *9 days*. The jacket would put you *51.4 €* over that, with nothing left for daily spending.\n\nYou don't have extra savings set aside to cover the difference, so waiting 9 days for payday would make it easier. It's your choice, though.\n\nWould you like to see how much is safe to spend each day until then?",
+     "tools": [
+      "can_i_afford"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.3,
+     "bubbles": 3,
+     "words": 108,
+     "longest_bubble_chars": 297,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "4/4"
+    },
+    {
+     "key": "afford#1",
+     "user": "and if its 300",
+     "ai": true,
+     "text": "A 300 € jacket still fits your monthly budget, but buying it before payday would put you well over what's safe to spend.\n\n• *Monthly view:* It would leave *495.92 €* of your *795.92 €* \"slips through your fingers\" budget.\n• *Until payday:* You'd be *231.4 €* over your *68.6 €* safe-to-spend for the next *9 days*, with no extra savings to cover it.\n\nBuying it after payday would be much easier. Would you like me to set up a small savings goal for the jacket?",
+     "tools": [
+      "can_i_afford"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.8,
+     "bubbles": 3,
+     "words": 86,
+     "longest_bubble_chars": 227,
+     "questions": 1,
+     "markdown": 0,
+     "links": 0,
+     "guard": "5/5"
+    }
+   ]
+  }
+ ]
+}

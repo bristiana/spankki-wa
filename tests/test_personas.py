@@ -123,8 +123,8 @@ def test_coach_runs_on_the_session_persona(client):
     ask = {"session": "s3", "text": "What is safe for me to spend this week?"}
     mine = client.post("/api/chat", json={**ask, "as": pid}).json()
     theirs = client.post("/api/chat", json=ask).json()
-    assert mine["text"] == f"{main.engine_for(pid).safe_to_spend()['safe_to_spend_until_payday_eur']} €"
-    assert theirs["text"] == f"{main.engine.safe_to_spend()['safe_to_spend_until_payday_eur']} €"
+    assert mine["text"] == f"{main.engine_for(pid).safe_to_spend()['safe_to_spend_until_payday_eur']:.2f} €"
+    assert theirs["text"] == f"{main.engine.safe_to_spend()['safe_to_spend_until_payday_eur']:.2f} €"
     assert f"first name is {main.name_for(pid)}." in fake.systems[0] and "first name is Aino." in fake.systems[-1]
     assert main.coach(pid).engine is main.engine_for(pid) and main.coach(pid).client is fake
     # one history per persona for the same web session
