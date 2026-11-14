@@ -195,10 +195,15 @@ async def incoming(request: Request, bg: BackgroundTasks):
     payload = await request.json()
     for f in wa.failed_statuses(payload):
         log.warning("delivery failed to %s: %s %s", str(f["to"])[-4:], f["code"], f["title"])
-    new = [m for m in wa.parse(payload) if m["id"] not in seen]
+    done = engine.state.setdefault("wa_seen", [])  # survives a redeploy, so Meta's redeliveries are not answered twice
+    new = [m for m in wa.parse(payload) if m["id"] not in seen and m["id"] not in done]
     for m in new:
         seen.add(m["id"])
+        done.append(m["id"])
         last_seen[m["from"]] = time.time()
+    if new:
+        del done[:-300]
+        engine._save()
     if new:
         bg.add_task(lambda: [handle_message(m) for m in new])  # one delivery, answered in order
     return {"ok": True}
