@@ -2,7 +2,7 @@
 
 **Project name (max 30):** Birky · S-Pankki Chat
 
-**Punchline (max 200):** Birky, the S-Pankki savings squirrel: an AI money coach in WhatsApp and S-mobiili that answers with your real numbers, warns before bills and saves with one PIN tap.
+**Punchline (max 200):** S-Pankki doesn't need another app. It needs a friend in WhatsApp: Birky answers with your real numbers, teaches the three baskets and saves with one PIN tap.
 
 **Challenge:** Personal Economic Trainer (S-Pankki)
 
@@ -12,7 +12,7 @@
 
 ## Description (markdown)
 
-**Why another app?** One in three Finnish adults opens S-mobiili every week; almost everyone opens a chat app every day. **Birky**, the S-Pankki savings squirrel, lives in both: WhatsApp (Meta Cloud API) and an S-mobiili web chat, on one backend.
+**S-Pankki doesn't need another app. It needs a friend in WhatsApp.** In a banking app you are a "customer": menus, forms, the feeling of being judged. WhatsApp is where people talk to their friends, so that's where they ask, without embarrassment, "I'm out of money, what do I do?". **Birky**, the S-Pankki savings squirrel, is that friend: short, warm messages with your real numbers, and the same Birky inside S-mobiili, on one backend.
 
 **What Birky does**
 - **Answers with real numbers.** "How much did I spend on taxis last month?", "What kind of spender am I?", "What is safe to spend this week?". Every figure is computed by a tested engine; the AI only explains.

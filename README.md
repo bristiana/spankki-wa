@@ -6,7 +6,10 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 
 <img src="app/static/birky.svg" width="120" align="right" alt="Birky the squirrel">
 
-**Why another app?** One in three Finnish adults opens S-mobiili every week, and almost everyone opens a chat app every day. Birky, the S-Pankki savings squirrel, lives in both: **WhatsApp** and an **S-mobiili web chat** run on the same backend. You ask about your own money in plain words, get a heads-up before rent with what is *safe to spend* until payday, catch forgotten subscriptions, and put small savings away with one tap and your PIN.
+> **S-Pankki doesn't need another app. It needs a friend in WhatsApp.**
+> In a banking app you are a "customer": menus, forms, the feeling of being judged. WhatsApp is where you talk to your friends, so that's where you ask, without embarrassment, "I'm out of money, what do I do?"
+
+**Birky**, the S-Pankki savings squirrel, is that friend. It writes like one: short messages, a reaction to yours, your own words back. It answers with your real numbers, nudges you to finish what you started, and moves money only when you confirm with your PIN. The same Birky also lives inside S-mobiili (web chat, home-screen cards), on one backend.
 
 ## What it does
 
