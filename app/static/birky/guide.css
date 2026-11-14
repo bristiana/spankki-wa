@@ -14,7 +14,7 @@
 .guide .g-say{margin:0}
 .guide .g-btns{display:flex;justify-content:space-between;gap:6px;margin-top:6px}
 .guide .g-btns[hidden]{display:none}
-.guide .g-btns button{border:0;background:transparent;font:600 13px system-ui,sans-serif;color:var(--g-brand,#00663d);
+.guide .g-btns button{border:0;background:transparent;font:600 13px var(--font);color:var(--g-brand,#00663d);
   min-height:32px;padding:0 6px;border-radius:8px;cursor:pointer}
 .guide .g-btns .g-next{background:var(--g-brand,#00663d);color:var(--g-brand-ink,#fff);padding:0 12px}
 .guide .g-btns .g-skip{color:var(--g-muted,#5d6b65);font-weight:500}
