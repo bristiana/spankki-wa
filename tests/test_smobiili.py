@@ -79,6 +79,7 @@ def test_embed_hides_site_chrome(client):
     assert 'class="bar"' in plain and "<footer>" in plain
     assert 'class="bar"' not in embed and "<footer>" not in embed
     assert '<body class="embed smobiili">' in embed and "safe-area-inset-top" in embed
+    assert f"I'm <b>{main.templates.env.globals['sm_coach']}</b>" in embed and "I'm <b>Birky</b>" in plain
     # S-mobiili's mint and green only in the real embed, not on PIN pages opened from Birky's own web chat
     assert "body.smobiili{--bg:#ebf7ec" in embed
     assert '<body class="embed">' in client.get("/connect?web=1").text
@@ -97,7 +98,10 @@ def test_mobile_demo_page(client):
     r = client.get("/mobile-demo")
     assert r.status_code == 200
     html = r.text
-    assert "Concept: how Birky could sit inside S-mobiili. Not the real app." in html
+    coach = main.templates.env.globals["sm_coach"]
+    assert f"Concept: how {coach} could sit inside S-mobiili. Not the real app." in html
+    # the S-mobiili squirrel, not Birky: its avatars, and a mood per card
+    assert 'src="/static/birky.svg"' not in html and 'src="/static/oiva/idle.svg"' in html and "const MOOD" in html
     assert main.money_nb(main.engine.balance()) in html
     assert main.engine.recent(6)[0]["what"] in html
     assert "/api/widgets" in html and "embed=1" in html

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Birky in a banking app · concept{% endblock %}
+{% block title %}{{ sm_coach }} in a banking app · concept{% endblock %}
 {% block head %}
 <style>
   .concept{max-width:980px;margin:16px auto 0;padding:0 16px;text-align:center}
@@ -40,7 +40,9 @@
   .kcard{flex:none;width:200px;min-height:132px;scroll-snap-align:start;text-align:left;font:inherit;color:inherit;cursor:pointer;
          background:var(--sm-card);border:0;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 2px rgba(0,60,30,.06)}
   .kcard:hover{box-shadow:0 0 0 2px var(--sm)}
-  .kcard .t{font-size:14px;font-weight:650;color:var(--sm-text)}
+  .kcard{position:relative}
+  .kcard .mood{position:absolute;right:8px;top:8px;width:38px;height:38px;border-radius:50%;background:var(--sm-bg)}
+  .kcard .t{font-size:14px;font-weight:650;color:var(--sm-text);padding-right:42px}
   .kcard .v{font-size:22px;font-weight:700;letter-spacing:-.3px}
   .kcard .s{font-size:12.5px;color:var(--sm-muted);line-height:1.35}
   .kcard .pay{margin-top:auto;align-self:flex-start;border:0;border-radius:99px;background:var(--sm-text);color:var(--sm-on);font:600 14px system-ui;min-height:44px;padding:0 20px;cursor:pointer}
@@ -91,13 +93,13 @@
 </style>
 {% endblock %}
 {% block body %}
-<div class="concept"><b>Concept: how Birky could sit inside S-mobiili. Not the real app.</b></div>
+<div class="concept"><b>Concept: how {{ sm_coach }} could sit inside S-mobiili. Not the real app.</b></div>
 <div class="stage">
   <div class="phone" id="phone">
     <div class="status"><span>9:41</span><i></i><span>5G ▮</span></div>
     <div class="top">
       <span></span><b>Home</b>
-      <button class="help" id="help" aria-label="Ask Birky"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg><img src="/static/birky.svg" alt=""></button>
+      <button class="help" id="help" aria-label="Ask {{ sm_coach }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg><img src="/static/oiva/idle.svg" alt=""></button>
     </div>
     <div class="screen">
       <div class="acct"><small>Good morning, {{ name }} · current account (demo)</small><div class="big">{{ money(balance) }}</div><small>Available balance</small></div>
@@ -107,7 +109,7 @@
         <span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></i>Cards</span>
         <span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor"/></svg></i>Säästäjä</span>
       </div>
-      <h2><img src="/static/birky.svg" alt="">Birky for you</h2>
+      <h2><img src="/static/oiva/teaching.svg" alt="">{{ sm_coach }} for you</h2>
       <div class="cards" id="cards" aria-live="polite"><div class="kcard"><span class="t">Loading…</span></div></div>
       <h2>Recent</h2>
       <div class="tx">
@@ -116,7 +118,7 @@
         {% endfor %}
       </div>
     </div>
-    <button class="ask" id="ask"><img src="/static/birky.svg" alt=""><span>Ask Birky about your money…</span><b>Ask</b></button>
+    <button class="ask" id="ask"><img src="/static/oiva/idle.svg" alt=""><span>Ask {{ sm_coach }} about your money…</span><b>Ask</b></button>
     <div class="tabs" aria-hidden="true">
       <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Home</span>
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h5"/></svg>S-Etukortti</span>
@@ -124,15 +126,16 @@
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Me</span>
     </div>
     <div class="scrim" id="scrim"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="Birky chat">
-      <div class="grab"><b><img src="/static/birky.svg" alt="">Birky</b><button id="close" aria-label="Close">×</button></div>
-      <iframe id="chat" title="Birky chat"></iframe>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="{{ sm_coach }} chat">
+      <div class="grab"><b><img src="/static/oiva/idle.svg" alt="">{{ sm_coach }}</b><button id="close" aria-label="Close">×</button></div>
+      <iframe id="chat" title="{{ sm_coach }} chat"></iframe>
     </div>
   </div>
   <div class="notes">
-    <b>Native cards</b>The row of Birky cards is drawn from <code>/api/widgets</code>: engine numbers, no AI call, cacheable.
+    <b>Native cards</b>The row of {{ sm_coach }}'s cards is drawn from <code>/api/widgets</code>: engine numbers, no AI call, cacheable.
     <b>Deep links</b>Tapping a card opens the chat with its question: <code>/chat?q=…</code>
     <b>Embedded chat</b>The sheet is the same web chat in a WebView: <code>/chat?embed=1</code>. It opens from the Ask bar or from the help bubble in the top-right corner, where S-mobiili already has one.
+    <b>The squirrel</b>Inside S-mobiili the coach is the vault-keeper squirrel, {{ sm_coach }}, with a mood on each card. Birky's own site and WhatsApp keep Birky for now.
     <b>S-mobiili look</b>Mint background, white rows with green titles and the four tabs (Home, S-Etukortti, Bank, Me), after the app&#39;s public App Store screenshots.
     <b>One coach</b>The same backend answers on WhatsApp. <a href="https://github.com/bristiana/spankki-wa/blob/main/docs/integration.md">Integration notes</a>
   </div>
@@ -154,6 +157,8 @@ document.getElementById("close").onclick = closeSheet;
 document.getElementById("scrim").onclick = closeSheet;
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
 
+// the squirrel's mood on each card (app/static/oiva/<mood>.svg)
+const MOOD = {safe_to_spend: "safe_to_spend", next_bill: "caution", baskets: "teaching", regular_payments: "spent", goal: "saving"};
 function extra(w) {
   if (w.id === "baskets")
     return '<div class="stack">' + w.baskets.map((b, i) => '<i class="c' + i + '" style="width:' + b.share_pct + '%"></i>').join("") + "</div>"
@@ -168,7 +173,8 @@ fetch("/api/widgets").then(r => r.json()).then(j => {
   for (const w of j.widgets) {
     const c = document.createElement("div");
     c.className = "kcard"; c.tabIndex = 0; c.setAttribute("role", "button");
-    c.innerHTML = '<span class="t">' + esc(w.title) + '</span><span class="v">' + esc(w.value) + "</span>"
+    c.innerHTML = '<img class="mood" src="/static/oiva/' + (MOOD[w.id] || "idle") + '.svg" alt="">'
+      + '<span class="t">' + esc(w.title) + '</span><span class="v">' + esc(w.value) + "</span>"
       + (w.id === "baskets" ? "" : '<span class="s">' + esc(w.subtitle) + "</span>") + extra(w);
     for (const a of w.actions || []) {
       const b = document.createElement("button");
@@ -180,6 +186,6 @@ fetch("/api/widgets").then(r => r.json()).then(j => {
     c.onkeydown = e => { if (e.key === "Enter") openSheet(w.deep_link); };
     box.appendChild(c);
   }
-}).catch(() => { document.getElementById("cards").innerHTML = '<div class="kcard"><span class="t">Birky\'s cards could not load</span><span class="s">Tap Ask below to chat instead.</span></div>'; });
+}).catch(() => { document.getElementById("cards").innerHTML = '<div class="kcard"><span class="t">{{ sm_coach }}\'s cards could not load</span><span class="s">Tap Ask below to chat instead.</span></div>'; });
 </script>
 {% endblock %}
