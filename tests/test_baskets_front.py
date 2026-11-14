@@ -45,7 +45,7 @@ def test_smobiili_home_shows_the_baskets_card_with_engine_numbers(client):
         assert main.fi_money(b["per_month_eur"]) in row and f"{b['share_pct']}%" in row
         assert ("the only basket you can change today" in row) == (b["basket"] == "everyday")
     assert page.index('id="acct-current"') < page.index('id="baskets"') < page.index('id="recent"')
-    assert "Concept prototype · not the real S-mobiili" in page
+    assert "Concept prototype" not in page
 
 
 def test_baskets_card_opens_the_chat_with_the_question(client):

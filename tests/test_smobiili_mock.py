@@ -54,7 +54,7 @@ def confirm(client, route, pid, **body):
 # ---------------- screens ----------------
 def test_home_shows_accounts_and_recent_from_the_engine(client):
     page = client.get("/s-mobiili/").text
-    assert LABEL in page and "Savings pocket" in page and "Funds" in page and "Not opened yet" in page
+    assert LABEL not in page and "Savings pocket" in page and "Funds" in page and "Not opened yet" in page
     assert main.fi_money(main.engine.balance()) in page  # S-mobiili writes money the Finnish way
     assert main.engine.recent(8)[0]["what"] in page
     assert [s["target"] for s in steps(page)] == ["acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
@@ -75,7 +75,7 @@ def test_pay_review_is_prefilled_and_guided(client):
     _, pid = chat_pay(client)
     page = client.get(f"/s-mobiili/pay/{pid}").text
     r = rent()
-    assert LABEL in page and "Pay a bill" in page and "Confirm with Face ID" in page and "no camera" in page
+    assert LABEL not in page and "Pay a bill" in page and "Confirm with Face ID" in page and "no camera" in page
     for text in ("Landlord · Asunto Oy Demo", "FI00 0000 0000 0000 00 (demo)", main.nice_date(r["due_date"]),
                  main.fi_money(r["amount_eur"])):
         assert text in page
