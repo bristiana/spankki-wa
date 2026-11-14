@@ -134,7 +134,8 @@ def sanity(out: dict, age: int | None = None) -> list[str]:
     if sp and sp["savings_rate_pct"] is not None and sp["savings_rate_pct"] > 1000:
         bad.append("spender_profile: savings rate above 1000%")
     if sp and age is not None and sp["peers"]["group"]:
-        lo, hi = map(int, sp["peers"]["group"].rsplit(" ", 1)[1].split("-"))
+        band = sp["peers"]["age_band"]
+        lo, hi = (int(band[:-1]), 200) if band.endswith("+") else map(int, band.split("-"))
         if not lo <= age <= hi:
             bad.append("spender_profile: peers from another age band")
     return bad

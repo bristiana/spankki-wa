@@ -77,7 +77,7 @@ def test_pause_and_resume(e):
     assert ob.reask(e, "u") is None
     t = ob.turn(e, "u", "continue")
     assert t.text == ob.ASK["goal"][1] and ob.active(e, "u")
-    assert ob.turn(e, "u", "", "ob:goal:home").text.startswith("Saving for a first home.")
+    assert ob.turn(e, "u", "", "ob:goal:home").text.startswith("Saving for a home renovation.")
 
 
 def test_question_mid_interview_goes_to_coach_then_resumes(e):

@@ -46,6 +46,21 @@ def test_save_more_gives_three_ideas_with_one_number_each(hero):
     assert "Emergency buffer" in out["next_step"] and "note" in out  # spending ran above income lately
 
 
+def test_spender_profile_compares_the_hero_with_his_own_age_and_area(hero, tmp_path):
+    p = hero.spender_profile()["peers"]
+    assert p["group"] == "S-Pankki customers aged 30-39 in the Vantaa area" and p["customers"] >= 30
+    assert p["biggest_differences"] and "12 full months" in p["compared_over"]
+    aino = Engine(today=date(2026, 10, 6), state_path=tmp_path / "a.json").spender_profile()["peers"]
+    assert aino["group"] == "S-Pankki customers aged 20-29" and aino["customers"] == 535  # unchanged
+
+
+def test_landing_shows_the_hero_and_the_three_questions(tmp_path):
+    main.engine = main.persona_engine(main.DEFAULT_PERSONA, date(2026, 10, 6), tmp_path / "s.json")
+    page = TestClient(main.app).get("/").text
+    assert f"Demo customer {main.DEMO_NAME}, {main.PERSONAS[main.HERO]['age']}" in page
+    assert all(q in page for q in THREE) and "the average Finnish household" in page and "any age" in page
+
+
 def test_save_more_on_aino_skips_what_she_does_not_have(tmp_path):
     out = Engine(today=date(2026, 10, 6), state_path=tmp_path / "a.json").save_more()
     assert [i["idea"] for i in out["ideas"]] == ["biggest_lever", "review_payment"]

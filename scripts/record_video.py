@@ -4,8 +4,8 @@ Steps: narration WAVs (Windows SAPI) -> drive the stage with Playwright and capt
 AI replies 4x -> mix the narration in -> docs/demo/Kurre-demo.mp4.
 
 Usage (server with WhatsApp disabled, fresh state):
-  rm -f data/state.json
-  WA_TOKEN= DEMO_PHONE= PUBLIC_URL=http://127.0.0.1:8103 python -m uvicorn app.main:app --port 8103
+  rm -rf data/state.json data/state
+  DEMO_PERSONA=CUST04831 WA_TOKEN= DEMO_PHONE= PUBLIC_URL=http://127.0.0.1:8103 python -m uvicorn app.main:app --port 8103  # captions quote Aino
   python scripts/record_video.py --url http://127.0.0.1:8103
 Options: --no-voice (captions only), --work DIR (raw recording, logs, WAVs; default out/video).
 Needs: playwright with Microsoft Edge (channel="msedge"), ffmpeg on PATH, Windows (System.Speech) for the voice.

@@ -160,7 +160,8 @@ def test_no_income_has_no_savings_rate(tmp_path):
 def test_peers_only_for_the_same_age_band(tmp_path):
     e = engine(history(), tmp_path, age=61)
     out = run_all(e)
-    assert out["spender_profile"]["peers"]["group"] is None
+    peers = out["spender_profile"]["peers"]  # not benchmark.json's band: the "people like you" group of their age
+    assert peers["group"] is None or peers["age_band"] in ("50-64", "50+")
     assert out["spender_profile"]["finland_official"]["group"].endswith("aged all")
     young = engine(history(), tmp_path, age=24).spender_profile()
     assert young["peers"]["group"] == "S-Pankki customers aged 20-29"

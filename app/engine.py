@@ -983,6 +983,27 @@ class Engine:
                                         "vs_peers_pct": round((mine - m) / m * 100),
                                         "in_top_quarter_of_spenders": mine > -p25.get(c, 0.0)})
             comparisons.sort(key=lambda x: -x["vs_peers_pct"])
+        over, band = "the last 3 full months", self.benchmark["age_band"] if self.benchmark else None
+        group, customers = ((f"S-Pankki customers aged {band}", self.benchmark["customers"])
+                            if self.benchmark else (None, None))
+        if not self.benchmark:  # another age band than benchmark.json: the same area and age from "people like you"
+            try:
+                nl = self.new_life_budget()
+            except (ValueError, KeyError, TypeError):
+                nl = None
+            rows = [r for r in ((nl or {}).get("you") or {}).get("comparison", []) if r["key"] in SPEND_CATEGORIES
+                    and r["typical_median_eur"] > 5]
+            if rows and nl["group"].get("age_band") and not nl["group"].get("starting_out"):  # always an age group
+                band, over = nl["group"]["age_band"], "the last 12 full months, for you and for them"
+                group, customers = f"S-Pankki customers {nl['group']['who'].removeprefix('customers ')}", \
+                    nl["group"]["customers"]
+                comparisons = sorted(
+                    ({"category": r["key"], "you_per_month_eur": r["you_per_month_eur"],
+                      "peers_median_eur": r["typical_median_eur"],
+                      "vs_peers_pct": round((r["you_per_month_eur"] - r["typical_median_eur"]) / r["typical_median_eur"] * 100),
+                      "in_top_quarter_of_spenders": r["you_per_month_eur"] > r["typical_range_eur"][1],
+                      "where_you_are": r["where_you_are"]} for r in rows),
+                    key=lambda x: -x["vs_peers_pct"])
         # No income in the window: a savings rate would be invented (or divide by zero).
         save_rate = round(b["invested_eur"] / b["income_eur"] * 100) if b["income_eur"] > 0 else None
         r = self.spending("Restaurants", "last_3_months")
@@ -1002,8 +1023,8 @@ class Engine:
             "restaurant_visits_last_3_months": r["transactions"],
             "weekend_restaurant_share_pct": wk_share,
             "traits": traits,
-            "peers": {"group": f"S-Pankki customers aged {self.benchmark['age_band']}" if self.benchmark else None,
-                      "customers": self.benchmark["customers"] if self.benchmark else None,
+            "peers": {"group": group, "age_band": band if group else None, "customers": customers,
+                      "compared_over": over if group else None,
                       "biggest_differences": comparisons[:4]},
             "baskets": [{k: x[k] for k in ("label", "per_month_eur", "share_pct")} for x in b["baskets"]],
             "finland_official": self.official_benchmark(),

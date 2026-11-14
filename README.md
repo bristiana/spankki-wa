@@ -11,6 +11,14 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 
 **Birky**, the S-Pankki savings squirrel, is that friend. It writes like one: short messages, a reaction to yours, your own words back. It answers with your real numbers, nudges you to finish what you started, and moves money only when you confirm with your PIN. The same Birky also lives inside S-mobiili (web chat, home-screen cards), on one backend.
 
+Birky is for everyday money at any age: the median S-Pankki customer in the challenge data is 44, so the demo opens on **Antti, 38** (Vantaa area, `CUST01656`): a typical salary for his age, rent, utility bills, monthly investing, and lunches out, fast food and the odd taxi. Aino, 24, on her first salary, is one tap away in the "Viewing as" menu. The three questions S-Pankki's mentors say matter most are the same at any age, and they are the first three chips in the chat:
+
+| Question | What Birky answers for Antti (6 Oct 2026) |
+|---|---|
+| "What kind of spender am I?" | An experience spender: 31% of his money slips through his fingers, a bit above S-Pankki customers aged 30-39 in the Vantaa area (228 customers) |
+| "What can I safely spend this week?" | 183.31 € this week, 235.68 € until payday on the 15th, after bills, usual needs and a buffer for surprises |
+| "How could I save more?" | The biggest lever (20% less on shopping = 1 224.50 € a year), the 6 314.43 € that has built up beyond this month's needs (an emergency buffer goal), and one regular payment worth a review (utility bills, 2 476.44 € a year) (`get_save_more_ideas`) |
+
 ## What it does
 
 | Moment | What the customer sees |
@@ -21,7 +29,7 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 | Why it matters | When a reply gives your numbers, Birky adds at most one line on the idea behind them, never the same one twice: "Rent and bills are basket 1 on autopilot: 894.47 € a month, 10 733.64 € a year, gone before you choose anything". The line comes from code (`app/lessons.py`, `lesson_for`) with the tool's own figures, so the number guard checks it like everything else |
 | Rent reminder | "Your rent of 771.82 € is due tomorrow. After rent and your usual bills you have 68.60 € safe to spend until payday, about 7.62 € a day." [Pay rent now] [Remind me later] [How do I stretch it?] |
 | One-tap pay | Button → S-Pankki confirm page → 4-digit PIN → "✅ Rent paid, balance now …" back in the chat |
-| Ask anything | "How much did I spend on taxis last month?" · "What kind of spender am I?" (vs 535 S-Pankki peers aged 20-29 **and** Statistics Finland households aged 17-24) · "What is safe to spend this week?" |
+| Ask anything | "How much did I spend on taxis last month?" · "What kind of spender am I?" (vs S-Pankki customers of your age, in your area for Antti, **and** Statistics Finland households) · "What can I safely spend this week?" · "How could I save more?" |
 | Can I afford it? | "Can I afford a 120€ jacket?" → fits your usual fun budget, but it is 51.40 € more than safe to spend until payday; what is left per day, and how many days it pushes back your goal |
 | First home? | "Could I afford my first home?" → from your salary and 200 S-Pankki mortgage applications: the loan and price range people with that income carried, the deposit plus transfer tax and fees, months to it at several saving paces, ASP, and what banks look at (collateral, income, equity, debts). Educational estimate, never a loan offer; offers a "First home deposit" goal |
 | Regular payments | Found in each customer's own transactions (`Engine.commitments()`): rent (771.82 € a month, usually on the 7th), about 3 utility bills a month with no company name (one monthly total, 122.65 €, and the usual range of one bill), the monthly investing (497.84 €, on the 18th) and the salary. For each: monthly and yearly cost, usual day, next date, the last 3 months vs the 3 before with both numbers, and active, stopped or paused. A bill alert flags a payment that really went up, or one bill well above the usual range ("a 75.00 € utility bill on Fri 28 Aug; one bill is usually 19.94 € to 60.09 €"). The monthly investing can be paused with PIN; rent gets a reminder the day before and the pay button. "Deactivate all my subscriptions" gets the honest answer: "I don't see any subscriptions on your account. Your regular payments are rent (771.82 € a month), about 3 utility bills a month (122.65 € in total) and your monthly investing (497.84 € a month)… Want to pause the investing?" |
@@ -48,7 +56,7 @@ Every answer uses the challenge's teaching model:
 
 | Source | Used for |
 |---|---|
-| S-Pankki synthetic transactions (challenge dataset) | Demo customer `CUST04831` (24 y) and the four other personas: every balance, bill, basket, salary and deposit, and every regular payment (rent, utility bills, monthly investing, salary) with its trend; peer group of 535 customers aged 20-29 |
+| S-Pankki synthetic transactions (challenge dataset) | Demo customer `CUST01656` (Antti, 38, the default), the original persona `CUST04831` (Aino, 24) and four more: every balance, bill, basket, salary and deposit, and every regular payment (rent, utility bills, monthly investing, salary) with its trend; Aino's spender profile also uses a peer group of 535 customers aged 20-29 |
 | [Statistics Finland, Household Budget Survey 2022, table 14q4](https://pxdata.stat.fi/PxWeb/pxweb/en/StatFin/StatFin__ktutk/statfin_ktutk_pxt_14q4.px/) | "You vs Finland": monthly spending of households by age of the reference person (`scripts/fetch_statfin.py`) |
 | S-Pankki mortgage applications (challenge dataset, 200 applications + negotiation history) | First-home estimate: income-to-loan rule, equity share, one-off costs, rejection reasons (`scripts/build_mortgage_benchmark.py` → `data/mortgage_benchmark.json`) |
 | S-Pankki transactions of all 5,100 customers (challenge dataset) | "People like you": p25 / median / p75 of monthly income and spending by postal area (00 Helsinki, 01 Vantaa area, 02 Espoo area) × age band, last 12 full months, groups of ≥ 30 customers only (`scripts/build_peer_benchmark.py` → `data/peer_benchmark.json`) |
@@ -58,7 +66,7 @@ Every answer uses the challenge's teaching model:
 - the PIN pages, and the payments, savings, investments and the pause of the monthly investing they confirm (a stand-in for PSD2 payment initiation and strong customer authentication; they change the demo state, no real money moves). The demo payday ("Salary landed") adds the customer's usual salary once;
 - the "Demo Fund" names and their scenario returns (2%, 4.5%, 6.5% a year): the backtests use real ETF prices, the fund names are made up and no real S-Pankki fund is named;
 - the linked "Demo Bank" (optional, the challenge's multi-bank bonus; the dataset has one account per customer): a made-up bank, its savings, card and card purchases are generated;
-- the persona first names (Aino, Eetu, …) and the demo date (6 Oct 2026); the banking-app home screen on `/mobile-demo` is a concept mock;
+- the persona first names (Antti, Aino, Eetu, …) and the demo date (6 Oct 2026); the banking-app home screen on `/mobile-demo` is a concept mock;
 - Trading 212 orders go to a Practice account (virtual money).
 
 There are no subscriptions in the dataset (no merchant charges the same amount every month), so Birky shows none and says so.
@@ -85,7 +93,7 @@ Trading 212 Practice API <─────────┘      (one-off investmen
 ```
 
 - `app/engine.py`: three baskets, spending by merchant type (ISO 18245 MCC: taxis, fast food, parking…), recurring payments and regular commitments (rent, utility bills, monthly investing and salary found from history, with trends), safe to spend, goals, what-if, real-price backtests, benchmarks.
-- `app/agent.py` + `app/tools.py`: Birky's persona and 22 tools, incl. `can_i_afford`, `get_safe_to_save`, `get_full_picture`, `get_home_readiness`, `explore_my_data` (only enum parameters, no code or SQL from the model) and `get_money_guide` over `content/finland-money-guide.md` (checked facts with official sources: Kela, vero.fi, ASP, deposit guarantee, KKV); `app/guard.py` checks every number in a reply against the tool results and asks for one rewrite if one is not there; Claude Opus 5.5 at low effort for fast chat replies.
+- `app/agent.py` + `app/tools.py`: Birky's persona and 24 tools, incl. `can_i_afford`, `get_safe_to_save`, `get_save_more_ideas`, `get_full_picture`, `get_home_readiness`, `explore_my_data` (only enum parameters, no code or SQL from the model) and `get_money_guide` over `content/finland-money-guide.md` (checked facts with official sources: Kela, vero.fi, ASP, deposit guarantee, KKV); `app/guard.py` checks every number in a reply against the tool results and asks for one rewrite if one is not there; Claude Opus 5.5 at low effort for fast chat replies.
 - `app/main.py`: WhatsApp webhook (signature checked), web chat API, confirm pages, dashboard, demo triggers.
 - `worker/index.ts` + `Dockerfile`: the same Python app as a Cloudflare Container behind a Worker.
 
@@ -100,7 +108,7 @@ uvicorn app.main:app --port 8000
 - Landing http://127.0.0.1:8000 · chat `/chat` · dashboard `/app` · explore `/app/explore` · inside a banking app `/mobile-demo` · cards `/api/widgets`
 - From the terminal: `python -m app.agent "What is safe for me to spend this week?"`
 - End to end, every flow in a phone-sized browser: `python scripts/demo_walkthrough.py --url http://127.0.0.1:8000`
-- Other customers: the "Viewing as" menu on `/chat`, `/app` and `/app/explore` (or `?as=<CUSTID>`) switches the web app to one of four more real customers picked by rule from the dataset (student-age, high earner, irregular income, older homeowner; `data/personas/index.json` says why each). Each has its own engine, state file (`data/state/<CUSTID>.json`) and chat history; WhatsApp stays on Aino. Rebuild with `python scripts/extract_personas.py --data-dir <dataset>`
+- Other customers: the "Viewing as" menu on `/chat`, `/app` and `/app/explore` (or `?as=<CUSTID>`) switches the web app between six real customers: Antti (the default, ~40, picked by rule as the age of the median customer with a regular life), Aino (24, the original first-job persona) and four more picked by rule from the dataset (student-age, high earner, irregular income, older homeowner; `data/personas/index.json` says why each). Each has its own engine, state file (`data/state/<CUSTID>.json`) and chat history. WhatsApp and every page without `?as=` use `DEMO_PERSONA` (default: Antti; `DEMO_PERSONA=CUST04831` brings back Aino). Rebuild with `python scripts/extract_personas.py --data-dir <dataset>`
 - Tests: `python -m pytest` (533). Conversation quality: `python scripts/convo_eval.py` (40 chats, read as WhatsApp bubbles with their reaction) → [docs/convo-eval.md](docs/convo-eval.md). Fleet check, every customer in the dataset: `python scripts/fleet_check.py --data-dir <dataset>` → `docs/fleet-check.md`
 - Refresh real data: `python scripts/fetch_market.py`, `python scripts/fetch_statfin.py`; rebuild the persona with `python scripts/extract_persona.py --data-dir <dataset>`, the mortgage benchmark with `python scripts/build_mortgage_benchmark.py --data-dir <dataset>` and the peer benchmark with `python scripts/build_peer_benchmark.py --data-dir <dataset>`
 - WhatsApp: set `<url>/webhook` and `WA_VERIFY_TOKEN` in the Meta app, subscribe to `messages`. Proactive messages: `POST /demo/remind`, `POST /demo/alert?kind=salary|unusual|bills`
@@ -108,7 +116,7 @@ uvicorn app.main:app --port 8000
 - Deploy: `wrangler deploy` (bump `INSTANCE` in `wrangler.jsonc` for a fresh container)
 
 ## Honest limits
-- One demo customer on synthetic data; merchants are anonymous in the dataset ("Restaurant #22").
+- Demo customers on synthetic data (one at a time; six to switch between); merchants are anonymous in the dataset ("Restaurant #22").
 - Payments and savings are simulated; investing uses demo fund names over real ETF prices; Trading 212 runs only on a Practice (virtual money) account.
 - Production needs S-Pankki's own APIs, a verified WhatsApp Business account (and, if Birky should ever write first after 24 h of silence, approved template messages), and real PIN/strong customer authentication.
 

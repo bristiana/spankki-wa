@@ -1116,8 +1116,9 @@ def landing(request: Request):
     L = {"rest": engine.monthly_avg("Restaurants", 3), "times": rest["times"], "rent": rent["amount_eur"],
          "safe": engine.safe_to_spend()["safe_to_spend_until_payday_eur"], "bills_year": reg["bills_per_year_eur"],
          "util_month": util.get("per_month_eur", 0), "util_count": round(util.get("bills_per_month", 0)),
-         "odd": util.get("unusual_bill"), "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"]}
-    return templates.TemplateResponse(request, "landing.html", _ctx(L=L))
+         "odd": util.get("unusual_bill"), "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"],
+         "fi_same_age": not off.get("group", "").endswith(" all")}  # Statistics Finland has age groups only up to 34
+    return templates.TemplateResponse(request, "landing.html", _ctx(L=L, who=PERSONAS[DEFAULT_PERSONA]))
 
 
 def _chart(o: dict) -> dict:
