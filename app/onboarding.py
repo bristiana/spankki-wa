@@ -51,6 +51,7 @@ RESUME = re.compile(r"^\s*(continue|resume|go on|next|let'?s go|let'?s continue|
 SKIP = re.compile(r"\b(skip|pass|rather not|prefer not|no idea|don'?t know|dunno|not sure)\b", re.I)
 YES = re.compile(r"\b(yes|yep|yeah|sure|ok|okay|please|kyllä|joo)\b", re.I)
 NO = re.compile(r"\b(no|nope|nah|not really|ei)\b", re.I)
+RESTART = re.compile(r"^\W*(start over|get started|restart|start again|aloita alusta)\W*$", re.I)  # the welcome again
 QUESTION_START = re.compile(r"^\s*(what|how|why|where|when|which|who|can|could|should|is|are|do|does|am)\b", re.I)
 # "i don't know what it means", "explain prudent vs balanced": a question back, not a skip
 CONFUSED = re.compile(r"\b(explain|mean|means|meaning|difference|vs|versus|tell me (?:about|more)|what'?s|"

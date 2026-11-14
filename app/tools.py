@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 
 from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_MERCHANT_TYPES, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS, PERIODS,
                      SPEND_CATEGORIES, Engine)
+from .whatsapp import short
 
 GUIDE_PATH = Path(__file__).resolve().parent.parent / "content" / "finland-money-guide.md"
 
@@ -315,7 +316,7 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out = engine.subscriptions()
     elif name == "create_stop_subscription_link":
         p = engine.create_stop_subscription(args["name"])
-        buttons.append({"label": f"Stop {p['name']}", "url": f"{public_url()}/stop/{p['pending_id']}"})
+        buttons.append({"label": short(f"Stop {p['name']}"), "url": f"{public_url()}/stop/{p['pending_id']}"})
         out = {**p, "note": "A 'Stop' button is attached to your message. Do not paste a link."}
     elif name == "create_goal":
         out = engine.create_goal(args["name"], float(args["target_eur"]), args.get("deadline"))
