@@ -5,6 +5,7 @@
 .guide[hidden]{display:none}
 .guide .g-hop{flex:none;pointer-events:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.18))}
 .guide .birky{--s:68px}
+.guide .birky{--s:56px}  /* Oiva's round picture is solid, so smaller than the old cut-out sprite */
 /* the guide is Oiva (art from design/mascot): one picture per mood instead of the old squirrel sprite */
 .guide .birky{animation:none;border-radius:50%;background:#fff6e8 url(/static/oiva/idle.svg) center/cover no-repeat;
   border:2px solid #fff}

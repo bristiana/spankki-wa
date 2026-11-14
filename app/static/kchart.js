@@ -155,11 +155,20 @@
     const pts = [`${x(0)},${y(0)}`].concat(v.map((val, i) => `${x(dayOf(i)).toFixed(1)},${y(val).toFixed(1)}`)).join(" ");
     svg.appendChild(el("polyline", {points: pts, class: "kc-line" + (over ? " kc-over" : "")}));
     svg.appendChild(el("circle", {cx: x(dayOf(today)), cy: y(v[today]), r: 4.5, class: "kc-dot kc-today" + (over ? " kc-over" : "")}));
-    // "412 € so far" on the side of the dot away from the even-pace line, on a halo so no line runs through it
-    const tx = x(dayOf(today)), anchor = tx > W - R - 90 ? "end" : "start";
-    const paceHere = budget * dayOf(today) / days, below = budget > 0 && v[today] < paceHere && y(v[today]) + 20 < T + ph;
-    svg.appendChild(el("text", {x: tx + (anchor === "start" ? 9 : -9), y: below ? y(v[today]) + 18 : y(v[today]) - 9, "text-anchor": anchor,
-                                class: "kc-val kc-strong kc-halo"}, num(v[today], unit, 0) + " so far"));
+    // "412 € so far" in the first free spot next to the dot: clear of the even-pace line and of the solid line
+    // (which only runs left of the dot, rising), on a halo for what is left
+    const tx = x(dayOf(today)), ty = y(v[today]), label = num(v[today], unit, 0) + " so far", tw = label.length * 6.6;
+    const paceY = px => y(budget * Math.min(Math.max((px - L) / pw, 0), 1));
+    const spots = [["start", tx + 9, ty - 9], ["start", tx + 9, ty + 19], ["end", tx - 9, ty - 9], ["end", tx - 9, ty - 24]];
+    const clear = ([a, sx, sy]) => {
+      const x0 = a === "start" ? sx : sx - tw, x1 = x0 + tw, top = sy - 12, bottom = sy + 4;
+      if (x0 < L || x1 > W - 2 || top < 2 || bottom > T + ph) return false;
+      if (!budget) return true;
+      const ys = [paceY(x0), paceY(x1)];  // a straight line: its height over the box is between these two
+      return Math.max(...ys) < top || Math.min(...ys) > bottom;
+    };
+    const [anchor, lx, ly] = spots.find(clear) || spots[0];
+    svg.appendChild(el("text", {x: lx, y: ly, "text-anchor": anchor, class: "kc-val kc-strong kc-halo"}, label));
     if (budget) svg.appendChild(el("text", {x: W - R, y: y(budget) - 7, "text-anchor": "end", class: "kc-axis kc-halo"},
                                    "budget " + num(budget, unit, 0)));
   }

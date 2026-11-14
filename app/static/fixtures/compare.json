@@ -21,7 +21,7 @@
    "p75": 4300.0,
    "percentile": 44,
    "better": "none",
-   "sentence": "Your income is 3 215.97 € a month. For people aged 35–44 in Helsinki it's typically 3 350.00 €."
+   "sentence": "Your income is 3 215,97 € a month. For people aged 35–44 in Helsinki it's typically 3 350,00 €."
   },
   {
    "id": "rent_share",
@@ -57,7 +57,7 @@
    "p75": 520.0,
    "percentile": 63,
    "better": "none",
-   "sentence": "You spend 410.00 € a month on restaurants. People your age in Helsinki typically spend 300.00 €."
+   "sentence": "You spend 410,00 € a month on restaurants. People your age in Helsinki typically spend 300,00 €."
   },
   {
    "id": "shopping",
@@ -69,7 +69,7 @@
    "p75": 450.0,
    "percentile": 54,
    "better": "none",
-   "sentence": "You spend 290.00 € a month on shopping. Typical for your age in Helsinki: 270.00 €."
+   "sentence": "You spend 290,00 € a month on shopping. Typical for your age in Helsinki: 270,00 €."
   },
   {
    "id": "buffer_months",
@@ -81,7 +81,7 @@
    "p75": 7.0,
    "percentile": 57,
    "better": "higher",
-   "sentence": "Your money would cover 4.1 months of essentials. People your age in Helsinki typically have 3.2 months."
+   "sentence": "Your money would cover 4,1 months of essentials. People your age in Helsinki typically have 3,2 months."
   }
  ]
 }

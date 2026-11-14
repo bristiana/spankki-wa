@@ -26,6 +26,12 @@ def test_eur_is_the_app_style(x, decimals, shown):
     ("keep 7% and 12.5% of income", "keep 7 % and 12,5 % of income"),
     ("Payday is Thu 15 Oct, in 9 days, 3.5 years", "Payday is Thu 15 Oct, in 9 days, 3.5 years"),
     ("items 1, 2, 3", "items 1, 2, 3"),
+    ("You spent 42.10 € 3 times", "You spent 42,10 € 3 times"),  # the € never moves to the next number
+    ("Food 120 € 45% of spend", "Food 120 € 45 % of spend"),
+    ("10 € 20 € 30 €", "10 € 20 € 30 €"),
+    ("a fuel price of 1.849 €/l", "a fuel price of 1.849 €/l"),  # 3 decimals: ambiguous with a comma, left as is
+    ("_5.5 €_ a day", "_5,50 €_ a day"),
+    ("see https://x.example/a?v=12.5%&p=3.5€ for 12.5%", "see https://x.example/a?v=12.5%&p=3.5€ for 12,5 %"),
 ])
 def test_style_rewrites_amounts_and_nothing_else(raw, shown):
     assert money.style(raw) == shown
