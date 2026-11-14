@@ -10,29 +10,31 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <style>
-/* One theme, taken from the app, nothing invented except the category scale:
+/* One theme, taken from the app, nothing invented except the category scale (the warning amber is the Oiva screens'):
    Light = S-mobiili's own tokens (app/templates/smobiili.html :root): page, card, ink, #222 strong text, muted, line, brand,
-   bright, mint, warn, the 8px card with its faint green shadow, green card titles and green amounts.
+   bright, mint, warn-bg, the 8px card with its faint green shadow, green card titles and green amounts.
    Dark = S-mobiili has no dark theme, so dark is the site's dark theme as it is on main (app/templates/base.html
-   prefers-color-scheme:dark): bg, card, ink, muted, line, brand, brand-ink, soft, warn, warn-bg, its 16px card with a 1px
+   prefers-color-scheme:dark): bg, card, ink, muted, line, brand, brand-ink, soft, warn-bg, its 16px card with a 1px
    border, and big amounts in ink (as on My money).
+   Warning = the Oiva screens' own "over" colour (app/static/oiva/screens.css --over on branch smobiili-oiva-screens, #b45309 light / #f5a524 dark): an amber that reads as a warning
+   in both modes, where S-mobiili's #7a5200 reads brown as a fill.
    Type = Instrument Sans (app/static/fonts/fonts.css) on S-mobiili's scale; chart text uses base.html's .kc sizes.
    Category scale c0-c7 (the one addition): S-mobiili's three greens, a teal and an olive green, then three greys for the
    rarer categories; every step is at least 3:1 on the card, and steps of like lightness differ in hue. In dark the first
    category is the site's dark brand green. Glyphs on a fill use the two brand-ink colours (#fff, #06140d). */
 :root{color-scheme:light;--page:#ebf7ec;--card:#fff;--ink:#363636;--strong:#222;--muted:#666;--line:#e6e6e6;--brand:#007841;
-  --bright:#00aa46;--brand-ink:#fff;--head:#007841;--mint:#d2fcd5;--warn:#7a5200;--warn-bg:#fff4d6;
-  --hero:#007841;--radius:8px;--edge:transparent;--shadow:0 1px 3px rgba(0,60,25,.05);--now-filter:none;
+  --bright:#00aa46;--brand-ink:#fff;--head:#007841;--mint:#d2fcd5;--warn:#b45309;--warn-bg:#fff4d6;
+  --hero:#007841;--radius:8px;--edge:transparent;--shadow:0 1px 3px rgba(0,60,25,.05);
   --c0:#004628;--c1:#007841;--c2:#00aa46;--c3:#0e8f6e;--c4:#5b8f1e;--c5:#4f5a55;--c6:#707b76;--c7:#8b9590;
-  --glyph-dark:#06140d;--glyph-light:#fff;--now-note:""}
+  --glyph-dark:#06140d;--glyph-light:#fff}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page:#0f1513;--card:#18201d;--ink:#e8efeb;--strong:#e8efeb;
   --muted:#9aa8a1;--line:#2a3430;--brand:#2fae6f;--bright:#2fae6f;--brand-ink:#06140d;--head:#2fae6f;--mint:#1d2b24;
-  --warn:#f3c66b;--warn-bg:#2b2416;--hero:#e8efeb;--radius:16px;--edge:#2a3430;--shadow:none;--now-filter:brightness(.7);
-  --c0:#2fae6f;--c1:#8fe0ad;--c2:#1f8a55;--c3:#3fb3a6;--c4:#8fae4c;--c5:#9aa8a1;--c6:#7a8781;--c7:#5f6c66;--now-note:" · a light-only screenshot"}}
+  --warn:#f5a524;--warn-bg:#2b2416;--hero:#e8efeb;--radius:16px;--edge:#2a3430;--shadow:none;
+  --c0:#2fae6f;--c1:#8fe0ad;--c2:#1f8a55;--c3:#3fb3a6;--c4:#8fae4c;--c5:#9aa8a1;--c6:#7a8781;--c7:#5f6c66}}
 :root[data-theme="dark"]{color-scheme:dark;--page:#0f1513;--card:#18201d;--ink:#e8efeb;--strong:#e8efeb;
   --muted:#9aa8a1;--line:#2a3430;--brand:#2fae6f;--bright:#2fae6f;--brand-ink:#06140d;--head:#2fae6f;--mint:#1d2b24;
-  --warn:#f3c66b;--warn-bg:#2b2416;--hero:#e8efeb;--radius:16px;--edge:#2a3430;--shadow:none;--now-filter:brightness(.7);
-  --c0:#2fae6f;--c1:#8fe0ad;--c2:#1f8a55;--c3:#3fb3a6;--c4:#8fae4c;--c5:#9aa8a1;--c6:#7a8781;--c7:#5f6c66;--now-note:" · a light-only screenshot"}
+  --warn:#f5a524;--warn-bg:#2b2416;--hero:#e8efeb;--radius:16px;--edge:#2a3430;--shadow:none;
+  --c0:#2fae6f;--c1:#8fe0ad;--c2:#1f8a55;--c3:#3fb3a6;--c4:#8fae4c;--c5:#9aa8a1;--c6:#7a8781;--c7:#5f6c66}
 *{box-sizing:border-box}
 body{margin:0;background:var(--page);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
 .wrap{max-width:780px;margin:0 auto;padding:20px 16px 60px}
@@ -44,8 +46,10 @@ section.pair>p{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.4
 .cols{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
 .col{width:350px;max-width:100%}
 .col>.tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
-.col.now>.tag::after{content:var(--now-note);text-transform:none;letter-spacing:0;font-weight:400}
-.col.now img{width:350px;max-width:100%;display:block;border-radius:8px;border:1px solid var(--edge);filter:var(--now-filter)}
+.col.now img{width:350px;max-width:100%;display:block;border-radius:8px}
+.col.now img.dk{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .col.now img.lt{display:none}:root:not([data-theme="light"]) .col.now img.dk{display:block}}
+:root[data-theme="dark"] .col.now img.lt{display:none}:root[data-theme="dark"] .col.now img.dk{display:block}
 
 /* the new cards */
 .card{background:var(--card);border:1px solid var(--edge);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 16px 16px}
@@ -93,7 +97,7 @@ svg.ch text{font-size:11px;fill:var(--muted)}
 <body>
 <div class="wrap">
   <h1>Oiva's charts, fintech style</h1>
-  <p class="intro" id="intro">Left: the chart on the Oiva screens today, with the hand-written sample figures it was built with (not the data set). Right: Antti's own transactions and his real peer group from the hackathon data set, redrawn after Revolut, Monzo, Copilot, N26 and Lunar, in S-mobiili's font and greens. Mockup only.</p>
+  <p class="intro" id="intro">Left: the chart on the Oiva screens today, shot on the same data as the right and in the same theme. Right: Antti's own transactions and his real peer group from the hackathon data set, redrawn after Revolut, Monzo, Copilot, N26 and Lunar, in S-mobiili's font and greens. Mockup only.</p>
   <div class="theme" role="group" aria-label="Colour theme">Theme
     <button type="button" data-t="system">System</button><button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button></div>
   <div class="notes" id="notes" hidden></div>
@@ -101,49 +105,49 @@ svg.ch text{font-size:11px;fill:var(--muted)}
   <section class="pair" id="p-trend">
     <h2>1 · Spending this month (Kulutus: Your pace)</h2>
     <p>Revolut/Monzo: the amount is the headline, the line sits under it; drag across the chart to read a day. Copilot: the budget is a target to beat, with a projection.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/spend-card1.png" alt="Today's pace chart"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen, on the same data</p><img class="lt" src="now/spend-card1.png" alt="Today's pace chart"><img class="dk" src="now/spend-card1-dark.png" alt="Today's pace chart, dark"></div>
       <div class="col"><p class="tag">New</p><div class="card rel" id="trend"></div></div></div>
   </section>
 
   <section class="pair" id="p-cats">
     <h2>2 · Where it went (Kulutus: donut)</h2>
     <p>Revolut/Lunar: categories as a list with round icons, share and amount; Monzo: one stacked bar instead of a ring, so the parts read as lengths.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/spend-card2.png" alt="Today's donut"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen, on the same data</p><img class="lt" src="now/spend-card2.png" alt="Today's donut"><img class="dk" src="now/spend-card2-dark.png" alt="Today's donut, dark"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="cats"></div></div></div>
   </section>
 
   <section class="pair" id="p-budget">
     <h2>3 · Budgets and pace (Budjetti)</h2>
     <p>Copilot: each bar knows the date. The tick is where an even pace would be today; a bar in the warning colour means spending faster than an even pace. Monzo: one "left to spend" number with a per-day figure.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/budget-card1.png" alt="Today's budget list"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen, on the same data</p><img class="lt" src="now/budget-card1.png" alt="Today's budget list"><img class="dk" src="now/budget-card1-dark.png" alt="Today's budget list, dark"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="budget"></div></div></div>
   </section>
 
   <section class="pair" id="p-sit">
     <h2>4 · People like me, at a glance (Vertailu)</h2>
     <p id="sit-blurb">N26/Revolut insights, condensed: all six figures on one scale of the group, so you see where you sit before reading six cards.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/compare-card0.png" alt="Today's comparison header"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen, on the same data</p><img class="lt" src="now/compare-card0.png" alt="Today's comparison header"><img class="dk" src="now/compare-card0-dark.png" alt="Today's comparison header, dark"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="sit"></div></div></div>
   </section>
 
   <section class="pair" id="p-fig">
     <h2>5 · One figure against the group (Vertailu: Income)</h2>
     <p>Revolut's price-range bar: labels sit on the chart, You and Typical as pins, the middle half as the thicker band.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/compare-card1.png" alt="Today's income comparison"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen, on the same data</p><img class="lt" src="now/compare-card1.png" alt="Today's income comparison"><img class="dk" src="now/compare-card1-dark.png" alt="Today's income comparison, dark"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="fig"></div></div></div>
   </section>
 
   <section class="pair" id="p-income">
     <h2>6 · Where the salary goes (Laskut: header)</h2>
     <p>Monzo "left to spend": what is left after the fixed payments is the headline, the salary split into one bar.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/bills-card0.png" alt="Today's bills header"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen, on the same data</p><img class="lt" src="now/bills-card0.png" alt="Today's bills header"><img class="dk" src="now/bills-card0-dark.png" alt="Today's bills header, dark"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="income"></div></div></div>
   </section>
 
   <section class="pair" id="p-cal">
     <h2>7 · The month's payments (Laskut: Going out / Coming in)</h2>
     <p>Monzo's balance graph marks upcoming bills on the month, N26 lists them with dates: one strip per payment, today as a line.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/bills-card1.png" alt="Today's bills list"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen, on the same data</p><img class="lt" src="now/bills-card1.png" alt="Today's bills list"><img class="dk" src="now/bills-card1-dark.png" alt="Today's bills list, dark"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="cal"></div></div></div>
   </section>
 </div>
@@ -281,7 +285,11 @@ svg.ch text{font-size:11px;fill:var(--muted)}
       const hr = host.getBoundingClientRect(), half = tip.offsetWidth / 2;  // svg has no offsetLeft: measure against the card
       tip.style.left = Math.min(Math.max(r.left - hr.left + x(d) * r.width / W, half + 4), hr.width - half - 4) + "px";
       const dy = r.top - hr.top + y(v) * r.height / H, th = tip.offsetHeight;  // above the dot, or below it when there is no room
-      tip.style.top = (dy - 12 - th > r.top - hr.top ? dy - 12 : dy + 12 + th) + "px";
+      // nor when it would sit on the Today dot (with its halo): then below, where the line is lower
+      const sc = r.width / W, tx = r.left - hr.left + x(TODAY) * sc, ty = r.top - hr.top + y(spent) * sc, tr0 = 9 * sc + 2;
+      const lx = parseFloat(tip.style.left), onToday = b => d !== TODAY && lx - half < tx + tr0 && lx + half > tx - tr0 && b - th < ty + tr0 && b > ty - tr0;
+      const above = dy - 12, below = dy + 12 + th;
+      tip.style.top = (above - th > r.top - hr.top && !(onToday(above) && !onToday(below)) ? above : below) + "px";
       const tr = tip.getBoundingClientRect();  // a label under the tooltip steps back while it is there
       [budLab, projLab].forEach(t => { const b = t.getBoundingClientRect();
         t.style.opacity = b.right > tr.left && b.left < tr.right && b.bottom > tr.top && b.top < tr.bottom ? 0 : 1; });
@@ -408,27 +416,30 @@ svg.ch text{font-size:11px;fill:var(--muted)}
     const x = d => x0 + (d - 1) / (DAYS - 1) * (x1 - x0);
     const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${MONTH_NAME}'s regular payments by day`});
     for (let d = 1; d <= DAYS; d += 7) if (Math.abs(d - TODAY) > 1) svg.appendChild(el("line", {x1: x(d), x2: x(d), y1: T - 4, y2: H - 18, stroke: css("line")}));
+    // the dots go in their own layer above the Today line, so the line never cuts into a dot
+    const marks = el("g", {});  // lane lines and bands go under the Today line, dots and labels over it
     lanes.forEach((l, i) => {
       const yc = T + i * lane + lane / 2;
-      svg.appendChild(el("text", {x: 0, y: yc - 2, style: "font-size:12.5px;fill:" + css("strong")}, l.name));
-      svg.appendChild(el("text", {x: 0, y: yc + 13, style: "font-size:11.5px;fill:" + (l.incoming ? css("brand") : css("muted")) + (l.incoming ? ";font-weight:600" : "")}, l.sub));
+      marks.appendChild(el("text", {x: 0, y: yc - 2, style: "font-size:12.5px;fill:" + css("strong")}, l.name));
+      marks.appendChild(el("text", {x: 0, y: yc + 13, style: "font-size:11.5px;fill:" + (l.incoming ? css("brand") : css("muted")) + (l.incoming ? ";font-weight:600" : "")}, l.sub));
       svg.appendChild(el("line", {x1: x0, x2: x1, y1: yc, y2: yc, stroke: css("line"), "stroke-width": 1}));
       if (l.from) {
         svg.appendChild(el("line", {x1: x(l.from), x2: x(l.to), y1: yc, y2: yc, stroke: css("brand"), "stroke-opacity": .35, "stroke-width": 8, "stroke-linecap": "round"}));
-        (l.paidDays || []).forEach(d => { svg.appendChild(el("circle", {cx: x(d), cy: yc, r: 6, fill: css("brand"), stroke: css("card"), "stroke-width": 2}));
-          svg.appendChild(el("path", {d: `M${x(d) - 2.6},${yc}l1.8,1.8l3.6,-3.6`, fill: "none", stroke: inkOn(css("brand")), "stroke-width": 1.5, "stroke-linecap": "round"})); });
+        (l.paidDays || []).forEach(d => { marks.appendChild(el("circle", {cx: x(d), cy: yc, r: 6, fill: css("brand"), stroke: css("card"), "stroke-width": 2}));
+          marks.appendChild(el("path", {d: `M${x(d) - 2.6},${yc}l1.8,1.8l3.6,-3.6`, fill: "none", stroke: inkOn(css("brand")), "stroke-width": 1.5, "stroke-linecap": "round"})); });
       } else {
         const past = l.day <= TODAY, fill = l.incoming ? css("bright") : css("brand");
-        svg.appendChild(el("circle", {cx: x(l.day), cy: yc, r: 7, fill, stroke: css("card"), "stroke-width": 2}));
-        if (past) svg.appendChild(el("path", {d: `M${x(l.day) - 3},${yc}l2,2l4,-4`, fill: "none", stroke: inkOn(fill), "stroke-width": 1.6, "stroke-linecap": "round"}));
+        marks.appendChild(el("circle", {cx: x(l.day), cy: yc, r: 7, fill, stroke: css("card"), "stroke-width": 2}));
+        if (past) marks.appendChild(el("path", {d: `M${x(l.day) - 3},${yc}l2,2l4,-4`, fill: "none", stroke: inkOn(fill), "stroke-width": 1.6, "stroke-linecap": "round"}));
         // paid: the date sits above its dot, left of today; still to come: to the right of the dot
-        svg.appendChild(el("text", past ? {x: x(l.day), y: yc - 11, "text-anchor": "middle", style: `font-size:11.5px;fill:${css("muted")}`}
+        marks.appendChild(el("text", past ? {x: x(l.day), y: yc - 11, "text-anchor": "middle", style: `font-size:11.5px;fill:${css("muted")}`}
           : {x: x(l.day) + 11, y: yc + 4, style: `font-size:11.5px;font-weight:600;paint-order:stroke;stroke:${css("card")};stroke-width:4px;fill:${css("strong")}`}, (past ? "paid " : "") + l.day + " " + M));
       }
     });
-    // today: on top of the lanes, with a card-coloured halo so it stays clear of the dots
+    // today: over the lane lines and bands, with a card-coloured halo; under the dots, so it never cuts into one
     svg.appendChild(el("line", {x1: x(TODAY), x2: x(TODAY), y1: T - 8, y2: H - 18, stroke: css("card"), "stroke-width": 4}));
     svg.appendChild(el("line", {x1: x(TODAY), x2: x(TODAY), y1: T - 8, y2: H - 18, stroke: css("strong"), "stroke-width": 1, "stroke-dasharray": "3 3"}));
+    svg.appendChild(marks);
     svg.appendChild(el("text", {x: x(TODAY), y: T - 12, "text-anchor": "middle", style: "font-size:11.5px;font-weight:600;fill:" + css("strong")}, "Today"));
     for (let d = 1; d <= DAYS; d += 7) svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": "middle"}, String(d)));
     const soon = lanes.filter(l => !l.from && l.day > TODAY).sort((a, b) => a.day - b.day).map(l => `${l.name.toLowerCase()} on ${l.day} ${M}`);
