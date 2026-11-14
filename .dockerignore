@@ -1,0 +1,8 @@
+.env
+.git
+.wrangler
+node_modules
+tests
+scripts
+data/state.json
+**/__pycache__

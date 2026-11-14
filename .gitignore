@@ -5,3 +5,5 @@ __pycache__/
 data/*.tmp
 data/state.json
 !data/.gitkeep
+.wrangler/
+node_modules/

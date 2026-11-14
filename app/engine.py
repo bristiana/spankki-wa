@@ -65,7 +65,7 @@ def merchant_name(mid) -> str | None:
 
 
 def eur(x: float) -> float:
-    return round(float(x), 2)
+    return round(float(x), 2) + 0.0  # no -0.0
 
 
 def month_start(d: date) -> date:
