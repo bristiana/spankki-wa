@@ -6,3 +6,4 @@ tests
 scripts
 data/state.json
 **/__pycache__
+.claude
