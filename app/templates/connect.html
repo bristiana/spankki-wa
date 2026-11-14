@@ -14,8 +14,8 @@
     <p class="muted">Your S-Pankki coach answers questions about your own spending, reminds you before bills and helps you save. You decide what it can see.</p>
     <div class="k" style="font-size:13px;color:var(--muted);margin:14px 0 6px">Accounts</div>
     <div class="bank on"><span class="dot"></span><b>S-Pankki</b><span class="muted">current account · Visa</span></div>
-    {% if linked %}<div class="bank on"><span class="dot"></span><b>{{ linked.bank }}</b><span class="muted">savings · credit card · demo</span></div>
-    {% else %}<a class="bank" href="/connect/bank?u={{ u }}" style="color:inherit;text-decoration:none;opacity:1"><span class="dot"></span><b>Add another bank</b><span class="muted">via PSD2 consent · demo ›</span></a>{% endif %}
+    {% if linked %}<div class="bank on"><span class="dot"></span><b>{{ linked.bank }}</b><span class="muted">savings · credit card</span></div>
+    {% else %}<a class="bank" href="/connect/bank?u={{ u }}" style="color:inherit;text-decoration:none;opacity:1"><span class="dot"></span><b>Add another bank</b><span class="muted">via PSD2 consent ›</span></a>{% endif %}
     <label class="opt"><input type="checkbox" name="scope" value="transactions" checked><span><b>Transactions and balance</b><br><span class="muted">So the coach can answer "how much did I spend on…"</span></span></label>
     <label class="opt"><input type="checkbox" name="scope" value="reminders" checked><span><b>Bill reminders</b><br><span class="muted">A message before rent and other regular payments</span></span></label>
     <label class="opt"><input type="checkbox" name="scope" value="payments" checked><span><b>Payment and saving buttons</b><br><span class="muted">You always confirm with your PIN. The coach can't move money by itself.</span></span></label>

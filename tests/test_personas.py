@@ -44,11 +44,11 @@ def test_the_hero_is_the_default_and_aino_stays_switchable(client, monkeypatch):
     monkeypatch.delenv("MIRROR_PHONE", raising=False)
     monkeypatch.delenv("DEMO_PHONE", raising=False)  # not mirroring WhatsApp: the chat follows the chosen customer
     assert main.engine.customer_id == main.HERO
-    assert f"Hi {main.DEMO_NAME}!" in client.get("/chat").text
+    assert f"Hei {main.DEMO_NAME}!" in client.get("/chat").text
     aino = main.engine_for(main.AINO)
     assert aino is not main.engine and aino.customer_id == main.AINO
     assert aino.safe_to_spend()["safe_to_spend_until_payday_eur"] == 68.60  # the engine's own default, unchanged
-    assert "Hi Aino!" in client.get("/chat", params={"as": main.AINO}).text
+    assert "Hei Aino!" in client.get("/chat", params={"as": main.AINO}).text
 
 
 def test_demo_persona_env_picks_the_default():
@@ -85,7 +85,7 @@ def test_as_param_sets_the_cookie_and_the_cookie_sticks(client, monkeypatch):
     pid = OTHERS[0]
     r = client.get("/chat", params={"as": pid})
     assert client.cookies.get(main.PERSONA_COOKIE) == pid
-    assert f"Hi {main.name_for(pid)}" in r.text
+    assert f"Hei {main.name_for(pid)}" in r.text
     assert f"Viewing as <b>{main.name_for(pid)}</b>" in client.get("/app/explore").text
     assert safe(client) == main.engine_for(pid).safe_to_spend()["safe_to_spend_until_payday_eur"]
 
@@ -109,7 +109,7 @@ def test_a_payment_in_one_persona_leaves_the_others_alone(client):
     client.cookies.set(main.PERSONA_COOKIE, main.DEFAULT_PERSONA)  # the confirm page acts on the creator, not the cookie
     route, flow = tools.ready_of(url)
     r = client.post(f"/s-mobiili/{route}/{flow}/confirm", json={})
-    assert r.status_code == 200 and r.json()["title"] == "Payment sent"
+    assert r.status_code == 200 and r.json()["title"] == "Maksu lähetetty"
     assert other.balance() == round(other_before - rent["amount_eur"], 2)
     assert main.engine.balance() == aino_before
     assert other.state_path.parent == main.STATE_DIR and other.state_path.exists()

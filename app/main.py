@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from dotenv import load_dotenv
+from jinja2 import pass_context
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -178,7 +179,56 @@ async def remember_persona(request: Request, call_next):
     response = await call_next(request)
     if "as" in request.query_params:
         response.set_cookie(PERSONA_COOKIE, persona_of(request), max_age=30 * 24 * 3600, samesite="lax", httponly=True)
+    pick = request.query_params.get("lang")
+    if pick in LANGS and request.cookies.get(LANG_COOKIE) != pick:  # the FI | EN switch: remembered afterwards
+        response.set_cookie(LANG_COOKIE, pick, max_age=365 * 24 * 3600, samesite="lax")
     return response
+
+
+# ---------------- S-mobiili language: Finnish by default, ?lang=en|fi switches and a cookie remembers it ----------------
+LANG_COOKIE = "lang"
+LANGS = ("fi", "en")
+
+
+def ui_lang(request: Request) -> str:
+    pick = request.query_params.get("lang")
+    if pick in LANGS:
+        return pick
+    kept = request.cookies.get(LANG_COOKIE)
+    return kept if kept in LANGS else "fi"
+
+
+def lang_url(request: Request, code: str) -> str:
+    """This page in the other language: the same path and query, with lang= swapped."""
+    q = [(k, v) for k, v in request.query_params.multi_items() if k != "lang"] + [("lang", code)]
+    return request.url.path + "?" + urlencode(q)
+
+
+@pass_context
+def _t(ctx, fi: str, en: str) -> str:
+    """Templates: {{ t("Tilit ja kortit", "Accounts and cards") }}, in the page's language."""
+    return en if ui_lang(ctx["request"]) == "en" else fi
+
+
+# The three baskets and the persona switcher's labels, in Finnish (the engine's own labels are English).
+BASKET_FI = {"regular": {"label": "Pakolliset ja säännölliset", "example": "vuokra"},
+             "irregular": {"label": "Pakolliset ja epäsäännölliset", "example": "rikkinäinen pesukone"},
+             "everyday": {"label": "Lipsuu sormien läpi", "example": "kahvit"}}
+PERSONA_FI = (("Demo default", "Oletusasiakas"), ("First job", "Ensimmäinen työ"), ("Student-age", "Opiskelija-ikäinen"),
+              ("High earner", "Hyvätuloinen"), ("Irregular income", "Epäsäännölliset tulot"),
+              ("Homeowner", "Asunnonomistaja"), ("Espoo area", "Espoon seutu"), ("Vantaa area", "Vantaan seutu"))
+
+
+def persona_label(label: str, lang: str = "fi") -> str:
+    if lang == "en":
+        return label.replace("Demo default", "Default customer")
+    for en, fi in PERSONA_FI:
+        label = label.replace(en, fi)
+    return label
+
+
+def tr(lang: str, fi: str, en: str) -> str:
+    return en if lang == "en" else fi
 
 
 def nice_date(iso: str) -> str:
@@ -209,6 +259,8 @@ def fi_money(x: float) -> str:
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
 templates.env.filters["fimoney"] = fi_money
+templates.env.globals.update(t=_t, ui_lang=ui_lang, lang_url=lang_url, persona_label=persona_label, basket_fi=BASKET_FI,
+                             basket_fi_by_label={BASKETS[k]["label"]: v["label"] for k, v in BASKET_FI.items()})
 DEMO_COOKIE = "oiva_demo"
 templates.env.globals["wa_login"] = lambda request: (enable_banking.mask(wa_phone(request))
                                                      or ("Demo" if request.cookies.get(DEMO_COOKIE) else ""))
@@ -564,7 +616,7 @@ def handle_message(m: dict):
             wa.send_bubbles(to, wa.bubbles(guardrails.secret_reply(secret)))
         said = (m["text"] or "").strip()
         if not secret and LOGIN.match(said):  # works before Connect S-Pankki too: it only signs a link for this number
-            wa.send_url_button(to, "Tap to log in to the S-Pankki demo site with this WhatsApp. The link is just for "
+            wa.send_url_button(to, "Tap to log in to the S-Pankki site with this WhatsApp. The link is just for "
                                    "you; don't forward it.", "Log in", f"{public_url()}/login?t={enable_banking.sign(to)}")
             return
         if not secret and REFRESH_BANK.match(said) and enable_banking.configured() and enable_banking.load(to):
@@ -585,8 +637,8 @@ def handle_message(m: dict):
             if onboarding.GREETING.match(said) or not said:
                 welcome(to)
                 return
-            wa.send_text(to, f"Hi {name}! I'm *Oiva*, your S-Pankki money coach. You're in the demo, on a sample "
-                             "customer's S-Pankki data. Write *add bank* to bring your own Revolut too.")
+            wa.send_text(to, f"Hi {name}! I'm *Oiva*, your S-Pankki money coach. Ask me anything about your "
+                             "money. Write *add bank* to bring your own Revolut too.")
         if not connected(to):
             wa.send_url_button(
                 to,
@@ -684,7 +736,7 @@ def bank_submit(request: Request, u: str = Form(""), scope: list[str] = Form([])
         "title": f"{DEMO_BANK['name']} linked",
         "lines": [f"Savings {money(f['banks'][1]['accounts'][0]['balance_eur'])} · card to repay "
                   f"{money(bill['amount_eur'])} by {nice_date(bill['due_date'])}.",
-                  "Oiva now counts the card bill in safe to spend. Synthetic demo bank, no real data.",
+                  "Oiva now counts the card bill in safe to spend.",
                   "Ask Oiva: \"Show my money across all my banks\"."],
         "wa": wa_back(request) if u else ""})
 
@@ -1000,7 +1052,7 @@ def pin_confirm(request: Request, path: str, kind: str, pid: str, pin: str):
     return templates.TemplateResponse(request, "done.html", {"title": title, "lines": lines, "wa": wa_back(request)})
 
 
-DEMO_IBAN = "FI00 0000 0000 0000 00 (demo)"
+DEMO_IBAN = "FI00 0000 0000 0000 00"
 INVEST_NOTE = "Funds can go down as well as up. Past or scenario returns are not a promise."
 PAUSE_NOTE = "Only new monthly deposits stop. You can start investing again any time."
 
@@ -1104,6 +1156,23 @@ SM_ROUTES = {"pay": "payment", "save": "saving", "invest": "investment", "stop":
 RISK_WORDS = {"low": "Low risk: small ups and downs, and slow growth.",
               "medium": "Medium risk: it can drop in a bad year, and grows more over time.",
               "high": "High risk: it can fall 20-30% in a bad year. Best for 10+ years."}
+# The same review screens in Finnish (S-mobiili's default language). Oiva's guide lines stay English in both.
+RISK_WORDS_FI = {"low": "Matala riski: pienet heilahtelut ja hidas kasvu.",
+                 "medium": "Keskitason riski: arvo voi laskea huonona vuonna, ja se kasvaa enemmän ajan myötä.",
+                 "high": "Korkea riski: arvo voi laskea 20-30 % huonona vuonna. Sopii 10+ vuodeksi."}
+FUND_WHAT_FI = {"prudent": "Euroalueen rahamarkkinat (seuraa XEON-ETF:ää). Hyvin pienet heilahtelut, pienin odotettu kasvu.",
+                "balanced": "Puolet maailman osakkeita, puolet euroalueen rahamarkkinoita (VWCE + XEON). Voi laskea huonona "
+                            "vuonna, kasvaa enemmän ajan myötä.",
+                "growth": "Maailman osakkeet, noin 3 700 yritystä (seuraa VWCE-ETF:ää). Voi laskea 20-30 % huonona vuonna; "
+                          "suurin odotettu kasvu 10+ vuodessa."}
+INVEST_NOTE_FI = "Rahastojen arvo voi nousta tai laskea. Aiemmat tai arvioidut tuotot eivät ole lupaus."
+PAUSE_NOTE_FI = "Vain uudet kuukausittaiset talletukset loppuvat. Voit aloittaa sijoittamisen uudelleen milloin vain."
+
+
+def fi_day(iso: str) -> str:
+    """2026-10-31 -> 31.10.2026 (a full date the Finnish way)."""
+    d = date.fromisoformat(iso)
+    return f"{d.day}.{d.month}.{d.year}"
 
 
 def demo_reference(seed: str) -> str:
@@ -1135,19 +1204,26 @@ def accounts(e: Engine) -> dict:
             "plans": e.state.get("plans", [])}
 
 
-def sm_flow(route: str, e: Engine, p: dict) -> dict:
-    """A flow's review screen and Oiva's lines on it. Guide targets are element ids on the page."""
+def sm_flow(route: str, e: Engine, p: dict, lang: str = "en") -> dict:
+    """A flow's review screen and Oiva's lines on it. Guide targets are element ids on the page. lang: the screen's
+    language (title, row values, note); row labels come in English and the template has their Finnish names. Oiva's
+    guide lines stay English in both."""
     amt = short_money(p["amount"])
+    fi = lang != "en"
+    T = lambda fi_text, en_text: fi_text if fi else en_text  # noqa: E731
+    m = fi_money if fi else money
+    day = lambda iso: fi_day(iso) if fi else nice_date(iso)  # noqa: E731
+    acct = T("Käyttötili", "Current account")
     if route == "pay":
         photo = p.get("source") == "photo"  # a bill photo (bills.py): the bill's own IBAN and reference
         to = p["name"] if photo else recipient(p)
         due = f", due {nice_date(p['due_date'])}" if p.get("due_date") else ""
-        return {"title": "Pay a bill", "fi": "Maksu", "heading": p["name"], "amount": money(p["amount"]),
+        return {"title": T("Maksa lasku", "Pay a bill"), "fi": "Maksu", "heading": p["name"], "amount": money(p["amount"]),
                 "rows": [("recipient", "Recipient", to), ("iban", "IBAN", bill_iban(p) if photo else DEMO_IBAN),
-                         ("reference", "Reference", (p.get("reference") or "none on the bill") if photo
-                          else demo_reference(p["bill_id"])),
-                         ("due", "Due date", nice_date(p["due_date"]) if p.get("due_date") else "-"),
-                         ("from", "From", "Current account")],
+                         ("reference", "Reference", (p.get("reference") or T("ei laskussa", "none on the bill"))
+                          if photo else demo_reference(p["bill_id"])),
+                         ("due", "Due date", day(p["due_date"]) if p.get("due_date") else "-"),
+                         ("from", "From", acct)],
                 "button": f"Pay {money(p['amount'])}", "cheer": f"Paid! {p['name']} is sorted.",
                 "steps": [("amount", f"This is the amount we planned: {amt}", "talk"),
                           ("row-recipient", f"It goes to {to}{due}", "talk"),
@@ -1157,11 +1233,12 @@ def sm_flow(route: str, e: Engine, p: dict) -> dict:
         g = e.state["goals"][p["goal_id"]]
         after = g["saved"] + p["amount"]
         pct = round(after / g["target"] * 100)
-        return {"title": "Move to savings", "fi": "Säästäjä", "heading": g["name"], "amount": money(p["amount"]),
+        return {"title": T("Siirto säästöön", "Move to savings"), "fi": "Säästäjä", "heading": g["name"],
+                "amount": money(p["amount"]),
                 "rows": [("goal", "Goal", g["name"]),
-                         ("so-far", "Saved so far", f"{money(g['saved'])} of {money(g['target'])}"),
-                         ("after", "After this", f"{money(after)} ({pct}%)"),
-                         ("from", "From", "Current account"), ("to", "To", "Savings pocket")],
+                         ("so-far", "Saved so far", f"{m(g['saved'])} {T('/', 'of')} {m(g['target'])}"),
+                         ("after", "After this", f"{m(after)} ({pct}%)"),
+                         ("from", "From", acct), ("to", "To", T("Taloustili", "Savings pocket"))],
                 "button": f"Save {money(p['amount'])}", "cheer": f"Saved! {amt} is in your pocket.",
                 "first_pocket": not pocket_open(e),
                 "steps": [("amount", f"This is the amount we planned: {amt}", "talk"),
@@ -1170,23 +1247,29 @@ def sm_flow(route: str, e: Engine, p: dict) -> dict:
     if route == "invest":
         f = FUNDS_BY_ID[p["fund_id"]]
         per = " / month" if p["monthly"] else ""
-        return {"title": "Invest monthly" if p["monthly"] else "Invest", "fi": "Sijoitukset", "heading": f["name"],
-                "amount": money(p["amount"]) + per, "note": INVEST_NOTE,
-                "rows": [("fund", "Fund", f"{f['name']} (your choice)"),
-                         ("risk", "Risk", f"{RISK_WORDS[f['risk']]} {f['risk_level']} of 7."),
-                         ("holds", "Holds", f["what"]), ("when", "When", invest_when(e, p)),
-                         ("from", "From", "Current account")],
+        when = invest_when(e, p) if not fi else (f"Joka palkkapäivä, alkaen {fi_day(e.next_payday()['date'])}"
+                                                 if p["monthly"] else "Tänään, kertasijoitus")
+        risk = (f"{RISK_WORDS_FI[f['risk']]} {f['risk_level']}/7." if fi
+                else f"{RISK_WORDS[f['risk']]} {f['risk_level']} of 7.")
+        return {"title": T("Kuukausisijoitus", "Invest monthly") if p["monthly"] else T("Sijoita", "Invest"),
+                "fi": "Sijoitukset", "heading": f["name"], "amount": money(p["amount"]) + per,
+                "note": T(INVEST_NOTE_FI, INVEST_NOTE),
+                "rows": [("fund", "Fund", f"{f['name']} {T('(oma valintasi)', '(your choice)')}"),
+                         ("risk", "Risk", risk),
+                         ("holds", "Holds", FUND_WHAT_FI.get(f["id"], f["what"]) if fi else f["what"]),
+                         ("when", "When", when), ("from", "From", acct)],
                 "button": "Start monthly investing" if p["monthly"] else f"Invest {money(p['amount'])}",
                 "cheer": "Done! It starts on payday." if p["monthly"] else "Invested.",
                 "steps": [("amount", f"This is the amount we planned: {amt}{per}", "talk"),
                           ("row-fund", "The fund you picked. I explain, you choose", "talk"),
                           ("row-risk", "Risk in plain words: " + RISK_WORDS[f["risk"]].split(": ", 1)[1], "think")]}
-    return {"title": "Pause monthly investing", "fi": "Sijoitukset", "heading": "Monthly investing",
-            "amount": f"{money(p['amount'])} / month", "note": PAUSE_NOTE, "button": "Pause investing",
-            "rows": [("what", "What", "Your monthly deposit to investments"),
-                     ("usual", "Usually on", f"Day {p['usual_day']} of the month"),
-                     ("next", "Next one", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
-                     ("invested", "Already invested", "Stays invested"), ("from", "From", "Current account")],
+    return {"title": T("Keskeytä kuukausisijoitus", "Pause monthly investing"), "fi": "Sijoitukset",
+            "heading": T("Kuukausisijoitus", "Monthly investing"),
+            "amount": f"{money(p['amount'])} / month", "note": T(PAUSE_NOTE_FI, PAUSE_NOTE), "button": "Pause investing",
+            "rows": [("what", "What", T("Kuukausittainen talletus sijoituksiin", "Your monthly deposit to investments")),
+                     ("usual", "Usually on", T(f"Kuun {p['usual_day']}. päivä", f"Day {p['usual_day']} of the month")),
+                     ("next", "Next one", day(p["next_charge"]) if p["next_charge"] else "-"),
+                     ("invested", "Already invested", T("Pysyy sijoitettuna", "Stays invested")), ("from", "From", acct)],
             "cheer": f"Paused. {short_money(p['per_year_eur'])} a year stays with you.",
             "steps": [("amount", f"Your monthly investing: about {amt} a month", "talk"),
                       ("row-next", "Only new deposits stop. " + (f"The next one was due {nice_date(p['next_charge'])}"
@@ -1220,7 +1303,8 @@ def demo_bonus(persona: str, today: date) -> dict:
     h = int(hashlib.sha1(persona.encode()).hexdigest(), 16)
     pay_month = today.month if today.day < 10 else today.month % 12 + 1
     return {"coming": 18 + h % 4000 / 100, "last": 20 + (h >> 16) % 4000 / 100, "to_next": 5.0,
-            "from_month": FI_MONTH_FROM[(today.month - 2) % 12], "pay_day": f"10.{pay_month}."}
+            "from_month": FI_MONTH_FROM[(today.month - 2) % 12],
+            "month_en": date(2000, (today.month - 2) % 12 + 1, 1).strftime("%B"), "pay_day": f"10.{pay_month}."}
 
 
 @app.get("/s-mobiili", include_in_schema=False)
@@ -1260,7 +1344,23 @@ def sm_ready(request: Request, e: Engine) -> dict | None:
     if p["status"] != "pending":
         return {"done": True}
     amt = short_money(p["amount"])
-    if route == "pay":
+    if ui_lang(request) == "fi":
+        amt_fi = nb(fi_money(p["amount"]).replace(",00 €", " €"))
+        if route == "pay":
+            to = p["name"] if p.get("source") == "photo" else recipient(p)
+            due = f" · eräpäivä {fi_date(p['due_date'])}" if p.get("due_date") else ""
+            what, sub = f"Maksa: {p['name']} · {fi_money(p['amount'])}", f"Saaja {to}{due}"
+        elif route == "save":
+            g = e.state["goals"].get(p.get("goal_id"), {})
+            what, sub = f"Säästä {amt_fi} Taloustilille", f"Tavoite: {g.get('name') or 'oma tavoitteesi'}"
+        elif route == "invest":
+            per = " kuussa" if p["monthly"] else ""
+            what, sub = f"Sijoita {amt_fi}{per}", f"Rahasto: {FUNDS_BY_ID[p['fund_id']]['name']}"
+        else:
+            what = f"Keskeytä kuukausisijoitus · {amt_fi}"
+            sub = (f"Seuraava olisi ollut {fi_date(p['next_charge'])}. " if p.get("next_charge") else "") + \
+                "Jo sijoitettu pysyy sijoitettuna"
+    elif route == "pay":
         to = p["name"] if p.get("source") == "photo" else recipient(p)
         due = f" · due {nice_date(p['due_date'])}" if p.get("due_date") else ""
         what, sub = f"Pay {p['name'].lower()} · {money(p['amount'])}", f"To {to}{due}"
@@ -1343,7 +1443,8 @@ def smobiili_etukortti_card(request: Request):
 @app.get("/s-mobiili/kuitit", response_class=HTMLResponse)
 def smobiili_receipts(request: Request):
     persona = sm_persona(request)
-    return sm_sub(request, persona, "kuitit", "Kuitit", receipts=receipts.receipt_list(engine_for(persona)))
+    return sm_sub(request, persona, "kuitit", tr(ui_lang(request), "Kuitit", "Receipts"),
+                  receipts=receipts.receipt_list(engine_for(persona)))
 
 
 @app.get("/s-mobiili/kuitit/{row_id}", response_class=HTMLResponse)
@@ -1352,7 +1453,8 @@ def smobiili_receipt(request: Request, row_id: int):
     r = receipts.build(engine_for(persona), row_id, persona)
     if not r:
         raise HTTPException(404)
-    return sm_sub(request, persona, "kuitti", "Kassakuitti", "/s-mobiili/kuitit" + sm_keep(request), r=r)
+    return sm_sub(request, persona, "kuitti", tr(ui_lang(request), "Kassakuitti", "Receipt"),
+                  "/s-mobiili/kuitit" + sm_keep(request), r=r)
 
 
 @app.get("/s-mobiili/{route}/{pid}", response_class=HTMLResponse)
@@ -1363,7 +1465,7 @@ def smobiili_flow(request: Request, route: str, pid: str):
         return RedirectResponse(f"/{route}/{pid}" + ("?web=1" if request.query_params.get("web") else ""),
                                 status_code=303)
     e, p = _pending_or_404(pid, SM_ROUTES[route])
-    f = sm_flow(route, e, p)
+    f = sm_flow(route, e, p, ui_lang(request))
     steps = guide_steps(f.pop("steps") + [("faceid", "Tap here and use Face ID", "talk")])
     pocket = guide_steps([("open-pocket", "First time? Open your Savings pocket. It's free, one tap", "talk")]
                          if f.get("first_pocket") else [])
@@ -1397,7 +1499,31 @@ async def smobiili_confirm(request: Request, route: str, pid: str):
     if route == "save" and body.get("open_pocket") and not e.state.get("savings_pocket_opened"):
         e.state["savings_pocket_opened"] = e.today.isoformat()
         e._save()
+    if ui_lang(request) == "fi":
+        title, lines = receipt_fi(e, p, done)
     return {"ok": True, "title": title, "lines": [nb(x) for x in lines], "balance_eur": done["balance_eur"]}
+
+
+def receipt_fi(e: Engine, p: dict, done: dict) -> tuple[str, list[str]]:
+    """S-mobiili's receipt after Face ID, in Finnish (the settle step's own lines are English: WhatsApp, PIN page)."""
+    bal = f"Saldo nyt {fi_money(done['balance_eur'])}."
+    if p["kind"] == "payment":
+        return "Maksu lähetetty", [f"{done['name']}: {fi_money(done['amount'])}", bal]
+    if p["kind"] == "saving":
+        g = e.state["goals"][p["goal_id"]]
+        pct = round(g["saved"] / g["target"] * 100)
+        return "Säästetty", [f"{fi_money(done['amount'])} tavoitteeseen {g['name']}. {fi_money(g['saved'])} / "
+                             f"{fi_money(g['target'])} ({pct} %). {bal}"]
+    if p["kind"] == "investment":
+        if done.get("monthly"):
+            return "Valmis", [f"Kuukausisäästö alkoi: {fi_money(done['amount'])} rahastoon {done['name']} joka "
+                              f"palkkapäivä, ensimmäisen kerran {fi_day(done['starts'])}. Voit muuttaa tai lopettaa "
+                              "sen milloin vain."]
+        return "Valmis", [f"Sijoitettu {fi_money(done['amount'])} rahastoon {done['name']}. {bal}"]
+    when = f" {fi_day(done['next_charge'])}" if done.get("next_charge") else ""
+    return "Sijoittaminen keskeytetty", [
+        f"Kuukausisijoitus keskeytetty. Noin {fi_money(done['amount'])} talletus jää tekemättä{when}. Tililläsi pysyy "
+        f"{fi_money(done['per_year_eur'])} vuodessa. Jo sijoitettu pysyy sijoitettuna. Voit aloittaa uudelleen milloin vain."]
 
 
 # ---------------- Demo triggers (used while filming) ----------------

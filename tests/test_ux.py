@@ -119,5 +119,5 @@ def test_ai_replies_use_the_app_currency_style(raw, shown):
 
 def test_chat_page_has_typing_state_and_keeps_amounts_together(client):
     page = client.get("/chat").text
-    assert "Oiva is thinking" in page and 'role", "status"' in page
+    assert "Oiva miettii" in page and 'role", "status"' in page
     assert "function nb(" in page and "visualViewport" in page and "function reveal(" in page

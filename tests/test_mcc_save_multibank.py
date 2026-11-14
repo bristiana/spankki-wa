@@ -138,7 +138,7 @@ def test_card_bill_paid_with_pin(e):
 def test_link_flow_dashboard_and_reset(client):
     assert 'href="/connect/bank' in client.get("/connect").text
     page = client.get("/connect/bank").text
-    assert "Demo Bank" in page and "synthetic" in page
+    assert "Demo Bank" in page and "synthetic" not in page
     assert "Add another bank" in client.get("/app").text
     r = client.post("/connect/bank", data={"u": "", "scope": ["accounts", "transactions"]})
     assert "Demo Bank linked" in r.text and main.engine.linked_bank()

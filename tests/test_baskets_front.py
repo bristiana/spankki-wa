@@ -34,7 +34,7 @@ def test_engine_baskets_carry_the_challenge_examples(client):
 
 
 def test_smobiili_home_shows_the_baskets_card_with_engine_numbers(client):
-    page = client.get("/s-mobiili/").text
+    page = client.get("/s-mobiili/?lang=en").text
     card = page[page.index('id="baskets"'):page.index('id="acct-pocket"')]
     assert "Where your money goes" in card and "3 baskets" in card
     assert card.count('class="k1"') + card.count('class="k2"') + card.count('class="k3"') >= 6  # bar + dots

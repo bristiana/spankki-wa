@@ -58,9 +58,9 @@ def test_receipt_screen_sums_to_the_real_purchase(client):
     assert r.status_code == 200
     page = r.text
     for text in ("Kassakuitti", "Yhteensä", "Avaa kuitin viivakoodi", "Jaa tai lataa PDF-kuitti", "Turun Osuuskauppa",
-                 "Demo receipt", first["store"]):
+                 first["store"]):
         assert text in page
-    assert main.fi_money(first["total_eur"]) in page
+    assert main.fi_money(first["total_eur"]) in page and "made up" not in page and "Demo receipt" not in page
     d = first["date"]
     assert f"{d.day}.{d.month}.{d.year}" in page
     assert sum(cents(page)) == round(first["total_eur"] * 100)

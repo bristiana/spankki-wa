@@ -5,15 +5,14 @@
   <form class="card" method="post" action="/connect/bank">
     <h1>Add another bank</h1>
     <p class="muted">Under PSD2 you can let S-Pankki read your accounts at another bank, so Oiva sees your whole money picture. Read only: Oiva can't move money there.</p>
-    <div class="row"><span>Bank</span><span><b>{{ bank.name }}</b> <span class="muted">(demo)</span></span></div>
+    <div class="row"><span>Bank</span><span><b>{{ bank.name }}</b></span></div>
     <div class="row"><span>Access</span><span>Read only</span></div>
     <div class="row"><span>Valid for</span><span>180 days, then you confirm again</span></div>
     {% if request.query_params.get('err') %}<p class="err">Choose at least accounts and balances.</p>{% endif %}
     <label class="opt"><input type="checkbox" name="scope" value="accounts" checked><span><b>Accounts and balances</b><br><span class="muted">Savings and credit card, for your total and net position</span></span></label>
     <label class="opt"><input type="checkbox" name="scope" value="transactions" checked><span><b>Card transactions, last 90 days</b><br><span class="muted">So the card bill is counted before payday</span></span></label>
-    <div class="note">Demo: {{ bank.name }} is a synthetic bank made up for this prototype, not a real bank or partner. Its accounts and transactions are generated. In S-mobiili this step would hand you to your other bank to approve with its own login.</div>
     <input type="hidden" name="u" value="{{ u }}">
-    {% if linked %}<p class="muted">Already linked since {{ linked.linked }}. Linking again refreshes the demo data.</p>{% endif %}
+    {% if linked %}<p class="muted">Already linked since {{ linked.linked }}. Linking again refreshes the data.</p>{% endif %}
     <button class="btn" type="submit">Allow and link {{ bank.name }}</button>
     <a class="btn ghost" href="/connect?u={{ u }}" style="margin-top:8px">Not now</a>
   </form>

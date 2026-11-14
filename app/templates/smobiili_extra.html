@@ -36,8 +36,8 @@
   .x-list .li .amt{font-size:16px;color:#222;font-weight:600}
 </style>
 {% if extra == "kortti" %}
-  <section class="x-white" aria-label="Digitaalinen S-Etukortti">
-    <svg class="x-art" viewBox="0 0 320 190" role="img" aria-label="Maksupääte ja puhelin, lähimaksu · a card terminal and a phone">
+  <section class="x-white" aria-label="{{ t('Digitaalinen S-Etukortti', 'Digital S-Etukortti') }}">
+    <svg class="x-art" viewBox="0 0 320 190" role="img" aria-label="{{ t('Maksupääte ja puhelin, lähimaksu', 'A card terminal and a phone, contactless') }}">
       <g fill="none" stroke="#9fd8a9" stroke-width="3"><circle cx="170" cy="102" r="16"/><circle cx="170" cy="102" r="30" opacity=".75"/><circle cx="170" cy="102" r="44" opacity=".5"/></g>
       <rect x="40" y="16" width="106" height="164" rx="16" fill="#d5d8d6"/>
       <rect x="46" y="22" width="94" height="152" rx="12" fill="#e2e4e3"/>
@@ -51,45 +51,43 @@
       <g transform="translate(207 74) scale(1.8)" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M24.6 3.6h-4.4c-3 0-4.7 1.6-5.3 4.6l-2.7 14.1c-.4 2-1.5 3.1-3.3 3.1H6.6"/><path d="M24.6 3.6v4.6h-1.4c-1.6 0-2.5.8-2.8 2.4l-2.8 14.2c-.6 3-2.4 4.6-5.2 4.6H6.6v-4.4"/></g>
     </svg>
-    <span class="x-use" id="card-status">{{ xi("nfc") }}Käytössä</span>
+    <span class="x-use" id="card-status">{{ xi("nfc") }}{{ t("Käytössä", "In use") }}</span>
   </section>
   <div class="pad">
-    <h2 class="sec">Näin käytät</h2>
+    <h2 class="sec">{{ t("Näin käytät", "How to use it") }}</h2>
     <section class="card">
       <ol class="x-steps">
-        <li>Avaa S-mobiili kassalla - kirjautumista ei tarvita!</li>
-        <li>Vie puhelin rauhallisesti maksupäätteelle ja seuraa maksupäätteen kuittausta Bonuksen kirjautumisesta</li>
-        <li>Siirry maksusovellukseen linkistä tai maksa muulla haluamallasi tavalla</li>
+        <li>{{ t("Avaa S-mobiili kassalla - kirjautumista ei tarvita!", "Open S-mobiili at the checkout - no need to log in!") }}</li>
+        <li>{{ t("Vie puhelin rauhallisesti maksupäätteelle ja seuraa maksupäätteen kuittausta Bonuksen kirjautumisesta", "Hold the phone steadily to the card terminal and watch the terminal confirm that your Bonus was recorded") }}</li>
+        <li>{{ t("Siirry maksusovellukseen linkistä tai maksa muulla haluamallasi tavalla", "Go to your payment app from the link, or pay any other way you like") }}</li>
       </ol>
     </section>
-    <a class="btn" href="#" title="Demo: ei avaa sivua" onclick="return false">Tarkemmat ohjeet S-Etukortti.fi{{ xi("ext") }}</a>
-    <h2 class="sec">Asetukset</h2>
+    <a class="btn" href="#" onclick="return false">{{ t("Tarkemmat ohjeet S-Etukortti.fi", "More instructions at S-Etukortti.fi") }}{{ xi("ext") }}</a>
+    <h2 class="sec">{{ t("Asetukset", "Settings") }}</h2>
     <section class="card list x-set">
-      <div class="li"><span class="txt">S-Etukortti puhelimessa<small>Bonus kirjautuu, kun viet puhelimen maksupäätteelle</small></span><span class="x-tog" role="img" aria-label="Päällä · on"></span></div>
-      <div class="li tap"><span class="txt">Maksusovellus</span><span class="val">Kysy aina</span>{{ icon("chevron", "i chev") }}</div>
-      <div class="li tap"><span class="txt">Kortin numero</span><span class="val">**** 2847</span></div>
+      <div class="li"><span class="txt">{{ t("S-Etukortti puhelimessa", "S-Etukortti on your phone") }}<small>{{ t("Bonus kirjautuu, kun viet puhelimen maksupäätteelle", "Your Bonus is recorded when you hold the phone to the terminal") }}</small></span><span class="x-tog" role="img" aria-label="{{ t('Päällä', 'On') }}"></span></div>
+      <div class="li tap"><span class="txt">{{ t("Maksusovellus", "Payment app") }}</span><span class="val">{{ t("Kysy aina", "Always ask") }}</span>{{ icon("chevron", "i chev") }}</div>
+      <div class="li tap"><span class="txt">{{ t("Kortin numero", "Card number") }}</span><span class="val">**** 2847</span></div>
     </section>
-    <p class="demo">Demo: the phone does not talk to a real terminal.</p>
   </div>
 {% elif extra == "kuitit" %}
   <div class="pad">
-    <h2 class="sec">Ruokaostokset <small>Grocery receipts</small></h2>
+    <h2 class="sec">{{ t("Ruokaostokset", "Grocery receipts") }}</h2>
     <section class="card list x-list" id="receipts">
       {% for k in receipts %}<a class="li tap" href="/s-mobiili/kuitit/{{ k.id }}{{ keep }}">{{ store_logo() }}<span class="txt">{{ k.store }}<small>{{ k.date.day }}.{{ k.date.month }}.{{ k.date.year }}</small></span>
         <span class="amt">{{ k.total_eur|fimoney }}</span>{{ icon("chevron", "i chev") }}</a>
-      {% else %}<p class="muted">Ei kuitteja · no grocery purchases yet.</p>{% endfor %}
+      {% else %}<p class="muted">{{ t("Ei vielä kuitteja.", "No grocery purchases yet.") }}</p>{% endfor %}
     </section>
-    <p class="demo">Dates and totals are your real grocery purchases; the stores and items are demo.</p>
   </div>
 {% elif extra == "kuitti" %}
   <div class="pad">
     <section class="card list x-rows">
       <div class="li tap">{{ store_logo() }}<span class="txt">{{ r.store.name }}</span>{{ icon("chevron", "i chev") }}</div>
-      <div class="li tot-row"><span class="txt">Yhteensä</span><span class="tot" id="receipt-total">{{ r.total_eur|fimoney }}</span></div>
-      <div class="li tap">{{ icon("barcode") }}<span class="txt">Avaa kuitin viivakoodi</span>{{ icon("chevron", "i chev") }}</div>
-      <div class="li tap">{{ xi("share") }}<span class="txt">Jaa tai lataa PDF-kuitti</span></div>
+      <div class="li tot-row"><span class="txt">{{ t("Yhteensä", "Total") }}</span><span class="tot" id="receipt-total">{{ r.total_eur|fimoney }}</span></div>
+      <div class="li tap">{{ icon("barcode") }}<span class="txt">{{ t("Avaa kuitin viivakoodi", "Open the receipt barcode") }}</span>{{ icon("chevron", "i chev") }}</div>
+      <div class="li tap">{{ xi("share") }}<span class="txt">{{ t("Jaa tai lataa PDF-kuitti", "Share or download a PDF receipt") }}</span></div>
     </section>
-    <section class="x-rec" id="receipt" aria-label="Kuitti · receipt">
+    <section class="x-rec" id="receipt" aria-label="{{ t('Kuitti', 'Receipt') }}">
       <p class="c">{{ r.store.header }} {{ r.store.phone }}</p>
       <p class="c">{{ r.coop }}</p>
       <p class="c pre">{{ r.code }}  {{ r.date.day }}.{{ r.date.month }}.{{ r.date.year }} {{ r.time }}</p>
@@ -105,6 +103,5 @@
       <p class="c">BONUKSEEN OIKEUTTAVAT OSTOT {{ r.total }}</p>
       <p class="c">KIITOS KÄYNNISTÄ</p>
     </section>
-    <p class="demo" id="receipt-demo">Demo receipt: the date and total are your real purchase, the items are made up.</p>
   </div>
 {% endif %}
