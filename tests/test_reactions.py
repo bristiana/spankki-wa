@@ -1,5 +1,5 @@
 """The Instinct-style voice: a reaction on the person's message, "---" bubbles, the paced reactions, the rewrite when a
-reply says what Birky never says, tool results defanged, and how it all reaches the web chat. A fake client plays the
+reply says what Oiva never says, tool results defanged, and how it all reaches the web chat. A fake client plays the
 model; no real API calls. WhatsApp payloads for the same paths: tests/test_whatsapp_payloads.py."""
 import json
 import random
@@ -286,8 +286,8 @@ def test_web_open_thread_buttons_pick_things_up(client):
 
 # ---------------- no emoji in the words: the reaction is the only one ----------------
 @pytest.mark.parametrize("raw, clean", [
-    ("Done ✅ Birky is switched off", "Done Birky is switched off"),
-    ("Hi Ana 👋 I'm *Birky* 🐿️, your coach", "Hi Ana I'm *Birky*, your coach"),
+    ("Done ✅ Oiva is switched off", "Done Oiva is switched off"),
+    ("Hi Ana 👋 I'm *Oiva* 🐿️, your coach", "Hi Ana I'm *Oiva*, your coach"),
     ("🧾 Heads-up: a bill", "Heads-up: a bill"),
     ("Paid ✅", "Paid"),
     ("👍", ""),

@@ -1,12 +1,12 @@
-/* Birky the guide (guide.js). Needs birky.css. The root element it lives in must be position:relative. */
+/* Oiva the guide (guide.js). Needs birky.css. The root element it lives in must be position:relative. */
 .guide{position:absolute;left:0;top:0;z-index:40;display:flex;align-items:flex-end;gap:4px;width:min(272px,calc(100% - 16px));
   justify-content:flex-end;pointer-events:none;transition:transform .7s cubic-bezier(.45,.05,.3,1);will-change:transform}
 .guide.instant{transition:none}
 .guide[hidden]{display:none}
 .guide .g-hop{flex:none;pointer-events:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.18))}
-.guide .birky{--s:68px}
+.guide .birky{--s:72px}
 .guide.moving .g-hop{animation:g-hop .24s ease-in-out infinite alternate}
-@keyframes g-hop{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+@keyframes g-hop{from{transform:translateY(0)}to{transform:translateY(-4px)}}
 .guide .g-bubble{pointer-events:auto;position:relative;background:var(--g-card,#fff);color:var(--g-ink,#14201b);
   border:1px solid var(--g-line,#e2e8e5);border-radius:16px 16px 4px 16px;padding:9px 12px;font-size:14px;line-height:1.35;
   box-shadow:0 6px 18px rgba(0,0,0,.14);margin-bottom:30px;max-width:196px;transition:opacity .2s}

@@ -1,10 +1,10 @@
-"""How Birky sounds on a phone: a reaction on the person's message, then one to three short bubbles.
+"""How Oiva sounds on a phone: a reaction on the person's message, then one to three short bubbles.
 
 The model opens a reply with "[react]<emoji>" and splits bubbles with a line that is only "---". split_reaction() takes
 the reaction out of the text; pace() decides whether it reaches the person, so about two replies in three carry one,
 never the same emoji twice in a row. A reply that is only a reaction ("thanks" -> 🙏) always goes.
 
-The reaction is the only emoji Birky sends: strip_emoji() takes every emoji out of the words that go out, on WhatsApp
+The reaction is the only emoji Oiva sends: strip_emoji() takes every emoji out of the words that go out, on WhatsApp
 and on the web, and the web chat shows no reaction at all.
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ GAP = "\x00"
 
 def strip_emoji(text: str | None) -> str:
     """The text with every emoji taken out, and the gaps it leaves tidied: "Done ✅ Paid" -> "Done Paid",
-    "*Birky* 🐿️, hi" -> "*Birky*, hi", "🧾 Heads-up" -> "Heads-up". Deterministic, no model involved."""
+    "*Oiva* 🐿️, hi" -> "*Oiva*, hi", "🧾 Heads-up" -> "Heads-up". Deterministic, no model involved."""
     if not text:
         return text or ""
     s = _RUN.sub(GAP, text)

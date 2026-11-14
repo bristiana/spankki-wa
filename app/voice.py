@@ -1,4 +1,4 @@
-"""WhatsApp voice notes -> text, so Birky can be asked out loud.
+"""WhatsApp voice notes -> text, so Oiva can be asked out loud.
 
 The audio is fetched from Meta (Graph media API) and transcribed by Whisper on Cloudflare Workers AI:
 in production through the Worker's /__stt route (AI binding, guarded by WA_VERIFY_TOKEN), locally
@@ -19,11 +19,11 @@ log = logging.getLogger("voice")
 MODEL = "@cf/openai/whisper-large-v3-turbo"
 MAX_BYTES = 8_000_000  # a few minutes of WhatsApp Opus; longer notes are refused, not cut
 # Whisper spells names it has never seen phonetically ("Berkey", "spanky"); a hint fixes that.
-HINT = "Birky, S-Pankki, S-mobiili, S-Bonus, Kela, euro, payday."
+HINT = "Oiva, S-Pankki, S-mobiili, S-Bonus, Kela, euro, payday."
 
 
 class VoiceError(Exception):
-    """Why a voice note could not be turned into text, in words Birky can say."""
+    """Why a voice note could not be turned into text, in words Oiva can say."""
 
 
 def _remote() -> tuple[str, dict] | None:

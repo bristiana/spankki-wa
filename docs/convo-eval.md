@@ -1,6 +1,6 @@
 # Conversation-quality pass
 
-Birky on WhatsApp felt poor in real use. The obvious bugs (confused answers taken as skips, double replies, a broken
+Oiva on WhatsApp felt poor in real use. The obvious bugs (confused answers taken as skips, double replies, a broken
 button) were already fixed, so this pass looks at the conversation itself: 31 multi-turn chats, every reply read the
 way WhatsApp shows it (split into bubbles by `whatsapp.bubbles`), scored, root causes fixed, then the same chats run
 again.
@@ -47,7 +47,7 @@ again.
 | average longest bubble (chars) | 263 | 207 |
 | replies with a bubble over 300 chars | 15 | 8 |
 | replies ending with two questions | 4 | 3* |
-| re-introductions in the middle of a task ("Hi Aino, I'm Birky") | 2 | 0 |
+| re-introductions in the middle of a task ("Hi Aino, I'm Oiva") | 2 | 0 |
 | ISO dates in the reply ("2026-10-15") | 4 | 0 |
 | markdown WhatsApp can't show | 0 | 0 |
 | average seconds per AI reply | 4.4 | 4.0 |
@@ -81,7 +81,7 @@ bubble with seven bullets, a menu rather than an answer.
 
 **Re-introducing itself to a stressed person** (`stressed#0`):
 
-> Hey Aino, I'm Birky 🐿️ That sounds stressful. Here's the good news: [...]
+> Hey Aino, I'm Oiva 🐿️ That sounds stressful. Here's the good news: [...]
 
 **Advice instead of information** (`stressed#1`): "Stick to about 7.62 € a day [...] you can lower [your investment]".
 
@@ -162,7 +162,7 @@ After (one question, the interview's):
 
 - **Fund comparisons, ASP and the first-home answer stay long** (115-125 words): they carry three options or several
   required caveats. A future step could split them into an answer plus a "Show the details" button.
-- **"save 50 for my trip" with no trip goal** still takes two turns: Birky asks for the total and "ok" does not move
+- **"save 50 for my trip" with no trip goal** still takes two turns: Oiva asks for the total and "ok" does not move
   it on. A quick-reply with suggested totals, or a goal with no target yet, would fix it.
 - **"and the month before?"** after an answer that already gave both months repeats the earlier month instead of
   going one month further back.
@@ -298,19 +298,19 @@ Before (no reaction, 3 bubbles, 77 words):
 
 > **Aino:** im broke and stressed
 >
-> **Birky:** That sounds stressful, Aino. Here's what I can see: your rent of *771.82 €* due tomorrow is covered, and so are your usual groceries, transport and a small buffer for surprises.
+> **Oiva:** That sounds stressful, Aino. Here's what I can see: your rent of *771.82 €* due tomorrow is covered, and so are your usual groceries, transport and a small buffer for surprises.
 >
-> **Birky:** After all that, *68.60 €* is safe to spend until payday, which is in 9 days. That's about *7.62 €* a day. Payday is Thu 15 Oct, when about 2 313.39 € is expected.
+> **Oiva:** After all that, *68.60 €* is safe to spend until payday, which is in 9 days. That's about *7.62 €* a day. Payday is Thu 15 Oct, when about 2 313.39 € is expected.
 >
-> **Birky:** Want me to check your subscriptions for anything you no longer use?
+> **Oiva:** Want me to check your subscriptions for anything you no longer use?
 
 After:
 
 > **Aino:** im broke and stressed  ‹🫂›
 >
-> **Birky:** That's a heavy feeling, and I'm here with you. Tomorrow's rent is covered, groceries are covered too, and you still have *68.60 €* free until payday in 9 days.
+> **Oiva:** That's a heavy feeling, and I'm here with you. Tomorrow's rent is covered, groceries are covered too, and you still have *68.60 €* free until payday in 9 days.
 >
-> **Birky:** That works out to about 7.62 € a day. Want me to look at where a bit more room could come from?
+> **Oiva:** That works out to about 7.62 € a day. Want me to look at where a bit more room could come from?
 
 "wat is safe to spnd", then "thx" (`typo_safe`)
 
@@ -318,23 +318,23 @@ Before (no reaction, then 🙏):
 
 > **Aino:** wat is safe to spnd
 >
-> **Birky:** You can safely spend *68.60 €* until payday on Thu 15 Oct, in 9 days. That works out to about 7.62 € a day, or 53.36 € this week.
+> **Oiva:** You can safely spend *68.60 €* until payday on Thu 15 Oct, in 9 days. That works out to about 7.62 € a day, or 53.36 € this week.
 >
-> **Birky:** Rent of 771.82 € goes out tomorrow. Your usual bills, food, transport and a small buffer for surprises are already set aside.
+> **Oiva:** Rent of 771.82 € goes out tomorrow. Your usual bills, food, transport and a small buffer for surprises are already set aside.
 >
-> **Birky:** Your balance isn't your budget: of the 1 001.94 € in your account, only 68.60 € is free to spend. Want me to check a purchase against it?
+> **Oiva:** Your balance isn't your budget: of the 1 001.94 € in your account, only 68.60 € is free to spend. Want me to check a purchase against it?
 >
 > **Aino:** thx  ‹🙏›
 >
-> **Birky:** You're welcome, Aino! I'm here whenever you need me. 🐿️
+> **Oiva:** You're welcome, Aino! I'm here whenever you need me. 🐿️
 
 After:
 
 > **Aino:** wat is safe to spnd  ‹👀›
 >
-> **Birky:** You've got *68.60 €* free until payday on Thu 15 Oct, so about 7.62 € a day.
+> **Oiva:** You've got *68.60 €* free until payday on Thu 15 Oct, so about 7.62 € a day.
 >
-> **Birky:** Rent (771.82 €) goes out tomorrow and is already set aside, along with your usual groceries and a small buffer for surprises.
+> **Oiva:** Rent (771.82 €) goes out tomorrow and is already set aside, along with your usual groceries and a small buffer for surprises.
 >
 > **Aino:** thx  ‹🙏›
 >
@@ -346,28 +346,28 @@ Before (👀 on both):
 
 > **Aino:** How much did I spend on taxis last month?  ‹👀›
 >
-> **Birky:** In September you spent *57.73 €* on taxis, all on one ride.
+> **Oiva:** In September you spent *57.73 €* on taxis, all on one ride.
 >
-> **Birky:** • In August you spent nothing on taxis.  
+> **Oiva:** • In August you spent nothing on taxis.  
 > • Parking was your biggest transport cost last month, at 112.56 €.
 >
-> **Birky:** A one-off taxi can feel small, but if rides become a habit they add up fast. Want me to chart your transport spending over the past 12 months?
+> **Oiva:** A one-off taxi can feel small, but if rides become a habit they add up fast. Want me to chart your transport spending over the past 12 months?
 >
 > **Aino:** and the month before?  ‹👀›
 >
-> **Birky:** In August you spent *0.00 €* on taxis, so September's 57.73 € ride was the only one in those two months.
+> **Oiva:** In August you spent *0.00 €* on taxis, so September's 57.73 € ride was the only one in those two months.
 >
-> **Birky:** Want me to check further back, for example the last 12 months?
+> **Oiva:** Want me to check further back, for example the last 12 months?
 
 After:
 
 > **Aino:** How much did I spend on taxis last month?  ‹🚕›
 >
-> **Birky:** You spent *57.73 €* on taxis in September, all on one ride.
+> **Oiva:** You spent *57.73 €* on taxis in September, all on one ride.
 >
 > **Aino:** and the month before?  ‹👀›
 >
-> **Birky:** Nothing in August, *0 €* on taxis.
+> **Oiva:** Nothing in August, *0 €* on taxis.
 
 New in this pass, no before: "got a raise today!! 🎉" gets ‹💰› and *"Whoa, congrats Aino! That's well deserved 🥳"*,
 then one offer to put part of it aside; "someone used my card, I didn't make this payment" gets ‹😬›, *"freeze your

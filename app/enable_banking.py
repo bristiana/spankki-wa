@@ -3,7 +3,7 @@
 S-Pankki stays the main bank (the challenge data). This adds what the customer has elsewhere (Revolut, OP, Nordea...)
 from their real accounts: balances and the last 90 days of transactions, shown in get_full_picture.
 
-Who: only the person who opened a link Birky sent them on WhatsApp ("login with WhatsApp"). The link carries a signed,
+Who: only the person who opened a link Oiva sent them on WhatsApp ("login with WhatsApp"). The link carries a signed,
 expiring token for their phone; opening it sets a cookie. The data is stored per phone, never shown to anyone else.
 Ported from Moni (src/eb.js).
 """
@@ -272,7 +272,7 @@ def verify(token: str | None) -> str | None:
         return None
 
 
-# ---------- what Birky sees ----------
+# ---------- what Oiva sees ----------
 def picture(phone: str | None) -> list[dict]:
     """The person's real linked banks, summarised for the coach: balances, spending per month by category, recent."""
     if not phone:

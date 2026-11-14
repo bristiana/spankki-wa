@@ -5,11 +5,11 @@
 
 Original wording (RO): *S-Pankki nu are nevoie de încă o aplicație. Are nevoie de un prieten în WhatsApp. Într-o aplicație de bancă ești „client”: meniuri, formulare, te simți evaluat. În WhatsApp vorbești cu prietenii, așa că acolo întrebi fără jenă „am rămas fără bani, ce fac?”.*
 
-## How every part of Birky serves it
+## How every part of Oiva serves it
 - **Talks like a friend:** short bubbles, a reaction on your message, your own tone back, no reports.
 - **Helps you finish:** comes back the next day on what you left open (a lesson, a goal, a payment link).
 - **Still a bank:** real numbers checked by code, money moves only with your PIN, no pressure, never asks for codes.
-- **S-mobiili wins too:** the same Birky lives in the app (web chat, home-screen cards), on one backend.
+- **S-mobiili wins too:** the same Oiva lives in the app (web chat, home-screen cards), on one backend.
 
 ## Use it
 - **Video:** open on this line (the problem in 5 seconds), then show the WhatsApp chat feeling like a friend's.

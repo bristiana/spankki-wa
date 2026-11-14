@@ -1,4 +1,4 @@
-"""Conversation-quality eval: ~30 multi-turn chats with Birky through the web chat API, read as WhatsApp would show them.
+"""Conversation-quality eval: ~30 multi-turn chats with Oiva through the web chat API, read as WhatsApp would show them.
 
 Runs against a LOCAL server only (it calls /demo/reset first). Every AI turn is a real model call, so keep runs rare.
 

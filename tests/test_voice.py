@@ -26,11 +26,11 @@ def test_behind_the_worker_uses_the_stt_route(monkeypatch):
     monkeypatch.setenv("PUBLIC_URL", "https://birky.example/")
     monkeypatch.setenv("WA_VERIFY_TOKEN", "vt")
     calls = []
-    monkeypatch.setattr(httpx, "post", lambda url, **kw: calls.append((url, kw)) or Resp({"text": " Hi Birky "}))
-    assert voice.transcribe(b"ogg") == "Hi Birky"
+    monkeypatch.setattr(httpx, "post", lambda url, **kw: calls.append((url, kw)) or Resp({"text": " Hi Oiva "}))
+    assert voice.transcribe(b"ogg") == "Hi Oiva"
     url, kw = calls[0]
     assert url == "https://birky.example/__stt" and kw["params"] == {"key": "vt"}
-    assert kw["json"]["audio"] == "b2dn" and "Birky" in kw["json"]["initial_prompt"]
+    assert kw["json"]["audio"] == "b2dn" and "Oiva" in kw["json"]["initial_prompt"]
 
 
 def test_locally_uses_the_workers_ai_rest_api(monkeypatch):

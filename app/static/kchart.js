@@ -1,4 +1,4 @@
-/* Birky charts: draws an explore_my_data chart spec as inline SVG, no libraries.
+/* Oiva charts: draws an explore_my_data chart spec as inline SVG, no libraries.
    spec = {type: "line"|"bar", title, subtitle, unit: "€"|"", labels: [...], values: [...]}
    Colours come from the page's CSS variables (--brand, --ink, --muted, --line), so light and dark mode follow. */
 (function () {

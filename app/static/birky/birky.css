@@ -1,15 +1,22 @@
-/* Birky sprite: <span class="birky talk" role="img" aria-label="Birky"></span>
-   Moods (rows of sprite.svg, regenerate with scripts/make_birky_sprites.py): idle talk happy think worried wave.
-   Size with --s (default 64px). Six frames per row, stepped. */
-.birky{--s:64px;--row:0;--fps:1s;display:inline-block;flex:none;width:var(--s);height:var(--s);vertical-align:middle;
-  background:url(/static/birky/sprite.svg) 0 calc(var(--row) * 20%)/600% 600% no-repeat;
-  animation:birky-play var(--fps) steps(6) infinite}
-.birky.idle{--row:0;--fps:1s}
-.birky.talk{--row:1;--fps:.6s}
-.birky.happy{--row:2;--fps:.6s}
-.birky.think{--row:3;--fps:1s}
-.birky.worried{--row:4;--fps:.75s}
-.birky.wave{--row:5;--fps:.75s}
+/* Oiva sprite: <span class="birky talk" role="img" aria-label="Oiva"></span>
+   The Penny squirrel pack, an 8 x 11 grid in penny.webp (scripts/make_penny_sprite.py, atlas in penny.json).
+   Moods: idle talk happy think worried wave busy walk-r walk-l. "look" shows one still from the 16 look
+   directions: class "birky look" plus --row (9 or 10) and --col (0..7); direction N = 0..15 (22.5 deg each,
+   clockwise from up) is row 9 + floor(N / 8), column N % 8.
+   Size with --s (the width, default 64px). */
+.birky{--s:64px;--row:0;--n:6;--t:1.2s;display:inline-block;flex:none;width:var(--s);height:calc(var(--s) * 13 / 12);
+  vertical-align:middle;background:url(/static/birky/penny.webp) 0 calc(var(--row) * 10%)/800% 1100% no-repeat;
+  animation:birky-play var(--t) steps(var(--n)) infinite}
+.birky.idle{--row:0;--n:6;--t:1.2s}
+.birky.walk-r{--row:1;--n:8;--t:.64s}
+.birky.walk-l{--row:2;--n:8;--t:.64s}
+.birky.wave{--row:3;--n:4;--t:.6s}
+.birky.happy{--row:4;--n:5;--t:.7s}
+.birky.worried{--row:5;--n:8;--t:1.2s}
+.birky.talk{--row:6;--n:6;--t:.9s}
+.birky.busy{--row:7;--n:6;--t:.6s}
+.birky.think{--row:8;--n:6;--t:1.2s}
+.birky.look{--row:9;--col:0;animation:none;background-position:calc(var(--col) * 100% / 7) calc(var(--row) * 10%)}
 .birky.once{animation-iteration-count:1;animation-fill-mode:forwards}
-@keyframes birky-play{from{background-position-x:0}to{background-position-x:120%}}
+@keyframes birky-play{from{background-position-x:0}to{background-position-x:calc(var(--n) * 100% / 7)}}
 @media (prefers-reduced-motion:reduce){.birky{animation:none!important;background-position-x:0}}
