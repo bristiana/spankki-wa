@@ -201,8 +201,9 @@ def _hold_game(engine: Engine, user: str):
 
 def start(engine: Engine, user: str) -> Turn:
     _hold_game(engine, user)
-    r = engine.state.setdefault("learn", {})[user] = {"lesson": 0, "paused": False, "note": False, "done": False,
-                                                       "seen": []}
+    runs = (engine.state.setdefault("learn", {}).get(user) or {}).get("run", 0)
+    r = engine.state["learn"][user] = {"lesson": 0, "paused": False, "note": False, "done": False, "seen": [],
+                                       "run": runs + 1}  # run: each go at the course comes back at most once
     t = _show(engine, r)
     t.lead = [f"📚 *Learn in 2 minutes*: {COUNT} short lessons, each with your own numbers. Write *stop* to pause "
               "and *learn* to pick it up."]
@@ -212,9 +213,17 @@ def start(engine: Engine, user: str) -> Turn:
 def finish(engine: Engine, r: dict) -> Turn:
     r["done"] = True
     engine._save()
-    return Turn("🎓 That's all five. The short version: plan for basket 1, keep a buffer for basket 2, choose "
-                "basket 3, and pay yourself first. Write *learn* any time to go again.",
-                [("quiz:start", "Play basket game"), ("quiz:money", "Open My money")], done=True)
+    return Turn("🎓 That's all five, course done! 🎉 The short version: plan for basket 1, keep a buffer for "
+                "basket 2, choose basket 3, and pay yourself first. Write *learn* any time to go again.",
+                [("quiz:start", "Play basket game"), ("quiz:money", "Open My money")],
+                lead=[f"🌰 {COUNT} of {COUNT} done!"], done=True)
+
+
+def progress(done: int) -> str:
+    """The streak line between lessons: "2 of 5 done 🌰", with a nudge as the end comes closer."""
+    left = COUNT - done
+    tail = " Last one, 30 seconds 💪" if left == 1 else " Past halfway 🙌" if done == (COUNT + 1) // 2 else ""
+    return f"✅ {done} of {COUNT} done 🌰{tail}"
 
 
 def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | None:
@@ -244,8 +253,7 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
             engine._save()
             return Turn(f"Sure, ask me anything about *{TITLES[i].lower()}*, in your own words. Write *learn* to "
                         f"pick up at lesson {i + 1}/{COUNT}.")
-        r["lesson"] += 1
-        return _show(engine, r)
+        return _next(engine, r)
     if button_id or not r or r["done"] or r["paused"]:
         return None
     if EXIT.match(text):
@@ -262,7 +270,9 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
 
 def _next(engine: Engine, r: dict) -> Turn:
     r["lesson"] += 1
-    return _show(engine, r)
+    t = _show(engine, r)
+    t.lead = [progress(r["lesson"])]
+    return t
 
 
 def waiting_lesson(engine: Engine, user: str) -> str | None:

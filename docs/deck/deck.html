@@ -235,7 +235,7 @@
       </div>
       <div class="q" style="margin-top:40px">A statement shows what you <i>spent</i>.</div>
       <div class="q">It never says what is <span>safe to spend</span> before rent,</div>
-      <div class="q">which <span>subscription</span> renews tomorrow,</div>
+      <div class="q">which <span>bill</span> just went up,</div>
       <div class="q">or what to do on <span>payday</span>.</div>
     </div>
     <div style="width:700px">
@@ -262,7 +262,7 @@
       <div class="feats">
         <div class="feat"><div class="ic">💬</div><b>Answers with your numbers</b><span>"What kind of spender am I?" in plain words, every figure computed by code.</span></div>
         <div class="feat"><div class="ic">⏰</div><b>Warns before bills</b><span>Rent tomorrow? Here is what is safe to spend until payday.</span></div>
-        <div class="feat"><div class="ic">🔁</div><b>Sorts subscriptions</b><span>Active, forgotten and price rises. Stop future payments with a PIN.</span></div>
+        <div class="feat"><div class="ic">🧾</div><b>Knows your regular payments</b><span>Rent, bills and monthly investing, from your own data. Flags a bill that goes up.</span></div>
         <div class="feat"><div class="ic">🎯</div><b>Saves &amp; invests</b><span>Goals, "pay yourself first" on payday, one tap and your PIN.</span></div>
       </div>
     </div>
@@ -320,12 +320,12 @@
       </div>
     </div>
     <div class="mom">
-      <div class="mono tag">🔁 Before a renewal</div>
+      <div class="mono tag">🧾 A bill that stands out</div>
       <div class="wa">
-        <div class="bub">🔁 <b>StreamPlus</b> renews tomorrow: 13.99 €.<br>The price went up from 11.99 € to 13.99 € on Fri 07 Aug.<br>That's 167.88 € a year. Keep it?</div>
-        <div class="btns"><div>Keep it</div><div>Stop payments</div></div>
+        <div class="bub">🧾 Heads-up: a <b>75.00 €</b> utility bill on Fri 28 Aug. One bill is usually 19.94 € to 60.09 €.<br><br>Your utilities come to 122.65 € a month, about 3 bills.</div>
+        <div class="btns"><div>My regular payments</div><div>OK, thanks</div></div>
       </div>
-      <div class="why"><b>4 active</b> subscriptions: 71.55 € a month, 858.55 € a year.</div>
+      <div class="why">Rent and bills: <b>894.47 € a month</b>, 10 733.64 € a year. No subscriptions in the data.</div>
     </div>
     <div class="mom">
       <div class="mono tag">💰 Salary day</div>
@@ -400,7 +400,7 @@
   <div class="tour">
     <div><div class="phone sm"><img src="img/landing.png" alt="Landing page"></div><div class="cap"><b>Start</b> · WhatsApp or S-mobiili</div></div>
     <div><div class="phone sm"><img src="img/dashboard.png" alt="My money dashboard"></div><div class="cap"><b>My money</b> · safe to spend, baskets</div></div>
-    <div><div class="phone sm"><img src="img/chat_subs_top.png" alt="Chat answering about subscriptions"></div><div class="cap"><b>Chat</b> · "What subscriptions?"</div></div>
+    <div><div class="phone sm"><img src="img/chat_spender.png" alt="Chat answering: What kind of spender am I?"></div><div class="cap"><b>Chat</b> · "What kind of spender am I?"</div></div>
   </div>
   <div class="pn">8</div>
 </section>
@@ -424,9 +424,9 @@
         <div class="node g">Engine<small>deterministic, 44 tests</small></div>
       </div>
       <div class="line">
-        <div class="node">PIN confirm pages<small>pay · save · invest · stop</small></div>
+        <div class="node">PIN confirm pages<small>pay · save · invest · pause investing</small></div>
         <div class="node">My money dashboard<small>/app</small></div>
-        <div class="node">Proactive triggers<small>rent · salary · renewals</small></div>
+        <div class="node">Proactive triggers<small>rent · salary · bills</small></div>
       </div>
     </div>
   </div>
@@ -434,7 +434,7 @@
   <div class="next" style="margin-top:0">
     <div class="chip"><b>PSD2 payment initiation</b>in place of the demo PIN pages</div>
     <div class="chip"><b>Multi-bank view</b>Nordea, OP, Danske via PSD2</div>
-    <div class="chip"><b>Real card subscriptions</b>from S-Pankki card data</div>
+    <div class="chip"><b>Card data</b>the same detector finds card subscriptions</div>
   </div>
   <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">9</div>
 </section>
@@ -462,7 +462,7 @@
       <h3 style="color:var(--ink)"><span class="dot" style="background:var(--orange)"></span>Simulated, and labelled</h3>
       <ul style="color:var(--ink)">
         <li>PIN pages, a stand-in for PSD2</li>
-        <li>Subscriptions (the dataset has none)</li>
+        <li>The linked "Demo Bank"</li>
         <li>"Demo Fund" names</li>
         <li>Trading 212 on a Practice account</li>
       </ul>

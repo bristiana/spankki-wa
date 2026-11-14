@@ -108,12 +108,12 @@ def _profile(r: dict) -> str | None:
     return f"{share}% of your spending is basket 3, slips through your fingers: the part you can change today."
 
 
-def _subscriptions(r: dict) -> str | None:
-    n, year = r.get("active_count") or 0, r.get("active_per_year_eur") or 0
-    if not n:
+def _regular(r: dict) -> str | None:
+    month, year = r.get("bills_per_month_eur") or 0, r.get("bills_per_year_eur") or 0
+    if not month:
         return None
-    return (f"Subscriptions are basket 3 on autopilot: {n} small charges add up to {eur(year)} a year without a "
-            "single new decision.")
+    return (f"Rent and bills are basket 1 on autopilot: {eur(month)} a month, {eur(year)} a year, gone before you "
+            "choose anything. Safe to spend starts after them.")
 
 
 def _full_picture(r: dict) -> str | None:
@@ -135,7 +135,7 @@ def _goal(r: dict) -> str | None:
 
 LESSONS = {"get_spending": _spending, "get_baskets": _baskets, "get_safe_to_spend": _safe_to_spend,
            "get_safe_to_save": _safe_to_save, "can_i_afford": _afford, "simulate_cut": _cut,
-           "get_spender_profile": _profile, "get_subscriptions": _subscriptions, "get_full_picture": _full_picture,
+           "get_spender_profile": _profile, "get_regular_payments": _regular, "get_full_picture": _full_picture,
            "create_goal": _goal}
 
 

@@ -44,7 +44,8 @@ CALLS = [
     ("afford", lambda e: e.afford(50.0, "test")),
     ("simulate_cut", lambda e: e.simulate_cut("Restaurants", 20)),
     ("spender_profile", lambda e: e.spender_profile()),
-    ("subscriptions", lambda e: e.subscriptions()),
+    ("commitments", lambda e: e.commitments()),
+    ("alert_bills", lambda e: e.alert("bills")),
     ("monthly_flow", lambda e: e.monthly_flow()),
     ("full_picture", lambda e: e.full_picture()),
     ("portfolio", lambda e: e.portfolio()),
@@ -108,6 +109,13 @@ def sanity(out: dict, age: int | None = None) -> list[str]:
         if b["due_date"] and b["due_date"] < TODAY.isoformat():
             bad.append("upcoming_bills: bill due in the past")
             break
+    for c in (out.get("commitments") or {}).get("regular_payments", []):
+        if c["next_expected"] and c["next_expected"] < TODAY.isoformat():
+            bad.append(f"commitments: {c['id']} expected in the past")
+        if c["status"] == "active" and c["per_month_eur"] <= 0:
+            bad.append(f"commitments: active {c['id']} costs nothing")
+        if abs(c["per_year_eur"] - c["per_month_eur"] * 12) > 0.01:
+            bad.append(f"commitments: {c['id']} yearly is not 12 x monthly")
     b = out.get("baskets")
     if b and b["total_spent_eur"] > 0:
         shares = [x["share_pct"] for x in b["baskets"]]
@@ -126,7 +134,8 @@ def sanity(out: dict, age: int | None = None) -> list[str]:
     if sp and sp["savings_rate_pct"] is not None and sp["savings_rate_pct"] > 1000:
         bad.append("spender_profile: savings rate above 1000%")
     if sp and age is not None and sp["peers"]["group"]:
-        lo, hi = map(int, sp["peers"]["group"].rsplit(" ", 1)[1].split("-"))
+        band = sp["peers"]["age_band"]
+        lo, hi = (int(band[:-1]), 200) if band.endswith("+") else map(int, band.split("-"))
         if not lo <= age <= hi:
             bad.append("spender_profile: peers from another age band")
     return bad
@@ -176,6 +185,16 @@ def check_customer(cid: str, rows: pd.DataFrame, state_dir: str, age: int | None
         "days_to_payday": s["next_payday"]["days_away"] if s else None,
         "payday_found": bool(s and s["next_payday"].get("date")),
         "rent_found": any(r.transaction_type == "housing_payment" for r in e.recurring()),
+        "commitments": sorted(f"{x['id']}:{x['status']}" for x in (out.get("commitments") or {}).get(
+            "regular_payments", [])),
+        "card_subscriptions": (out.get("commitments") or {}).get("subscriptions_found", 0),
+        "utilities_fixed_days": any(x.get("fixed_days") for x in (out.get("commitments") or {}).get(
+            "regular_payments", [])),
+        "utilities_up": any(x["id"] == "utilities" and (x.get("trend") or {}).get("direction") == "up"
+                            for x in (out.get("commitments") or {}).get("regular_payments", [])),
+        "utilities_unusual_bill": any(x.get("unusual_bill") for x in (out.get("commitments") or {}).get(
+            "regular_payments", [])),
+        "bill_alert": (out.get("alert_bills") or {}).get("type"),
         "left_per_month_eur": f["left_per_month_eur"] if f else None,
         **({f"share_{x['basket']}_pct": x["share_pct"] for x in b["baskets"]} if b else {}),
         "notes": sorted(name for name, res in out.items() if isinstance(res, dict) and res.get("not_enough_data")),
@@ -232,6 +251,12 @@ def summarise(recs: list[dict], seconds: float) -> dict:
             "safe_to_spend_limited_by_pay_cycle": sum(1 for f in fig if f.get("limited_by_cycle")),
             "zero_cycle_budget": sum(1 for f in fig if f.get("cycle_budget_eur") == 0),
             "not_enough_data_notes": dict(Counter(n for f in fig for n in f.get("notes", []))),
+            "commitments": dict(sorted(Counter(c for f in fig for c in f.get("commitments", [])).items())),
+            "customers_with_card_subscriptions": sum(1 for f in fig if f.get("card_subscriptions")),
+            "utilities_on_fixed_days": sum(1 for f in fig if f.get("utilities_fixed_days")),
+            "utilities_went_up": sum(1 for f in fig if f.get("utilities_up")),
+            "utilities_unusual_bill": sum(1 for f in fig if f.get("utilities_unusual_bill")),
+            "bill_alert_types": dict(Counter(str(f.get("bill_alert")) for f in fig)),
         },
         "distribution": {k: stats([f.get(k) for f in fig]) for k in (
             "balance_eur", "safe_to_spend_eur", "safe_per_day_eur", "safe_this_week_eur", "cycle_budget_eur",

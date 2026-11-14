@@ -10,6 +10,9 @@ import time
 
 import httpx
 
+from .guardrails import redact  # noqa: F401  (kept here: the webhook path redacts before the coach)
+from .reactions import SEPARATOR, quick_reaction  # noqa: F401
+
 log = logging.getLogger("whatsapp")
 GRAPH = "https://graph.facebook.com/v25.0"
 
@@ -51,6 +54,11 @@ def parse(payload: dict) -> list[dict]:
                     text, button_id = m["button"].get("text"), m["button"].get("payload")
                 elif kind == "audio":  # voice note (or audio file): app.voice turns it into text
                     media_id = m["audio"].get("id")
+                elif kind in ("image", "document"):  # a bill photo or PDF (app.bills); the caption is their text
+                    media = m[kind]
+                    mime = (media.get("mime_type") or "").split(";")[0].strip().lower()
+                    if kind == "image" or mime == "application/pdf" or mime.startswith("image/"):
+                        media_id, text = media.get("id"), media.get("caption")
                 out.append({"id": m["id"], "from": m["from"], "name": names.get(m["from"], ""), "kind": kind,
                             "text": text, "button_id": button_id, "media_id": media_id, "ts": int(m.get("timestamp", 0))})
     return sorted(out, key=lambda x: x["ts"])
@@ -304,43 +312,38 @@ def send_reply_buttons(to: str, text: str, buttons: list[tuple[str, str]]):
 BUBBLE_PAUSE_S = 0.8
 
 
-def quick_reaction(text: str | None) -> str | None:
-    """An instant receipt on the person's message: 👀 question, 🙏 thanks, 💰 money news, 👋 hello."""
-    t = (text or "").lower()
-    if re.search(r"\b(thanks|thank you|thx|kiitos|mersi)\b", t):
-        return "🙏"
-    if re.search(r"\b(salary|paid|bonus|raise|palkka)\b", t):
-        return "💰"
-    if re.match(r"^\s*(hi|hey|hello|moi|hei|terve|salut)\b", t) and len(t) < 25:
-        return "👋"
-    if "?" in t or re.match(r"^\s*(how|what|why|where|when|can|should|is|am|do)\b", t):
-        return "👀"
-    return None
-
-
 def send_reaction(to: str, message_id: str, emoji: str):
     return _post({"to": to, "type": "reaction", "reaction": {"message_id": message_id, "emoji": emoji}})
 
 
 def bubbles(text: str, max_bubbles: int = 3) -> list[str]:
-    """Split a reply on blank lines into at most 3 chat bubbles, like a person typing.
+    """Split a reply into at most 3 chat bubbles, like a person typing.
 
-    A line that ends with ":" stays with the list under it. When there are more paragraphs than bubbles, the two
-    neighbours that make the shortest bubble together are joined (the later pair on a tie), so the length is shared
-    out instead of one long last bubble."""
-    parts = [p.strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
-    if not parts:
+    A line that is only "---" is where the coach wants a new bubble: each part becomes one, as written. Without one,
+    blank lines split it, and a line that ends with ":" stays with the list under it. When there are more parts than
+    bubbles, the two neighbours that make the shortest bubble together are joined (the later pair on a tie), so the
+    length is shared out instead of one long last bubble."""
+    text = (text or "").strip()
+    if SEPARATOR.search(text):
+        glued = [p.strip() for p in SEPARATOR.split(text) if p.strip()]
+    else:
+        glued = []
+        for p in (p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()):
+            if glued and glued[-1].endswith(":"):
+                glued[-1] += "\n" + p
+            else:
+                glued.append(p)
+    if not glued:
         return [text]
-    glued: list[str] = []
-    for p in parts:
-        if glued and glued[-1].endswith(":"):
-            glued[-1] += "\n" + p
-        else:
-            glued.append(p)
     while len(glued) > max_bubbles:
         i = min(range(len(glued) - 1), key=lambda k: (len(glued[k]) + len(glued[k + 1]), -k))
         glued[i:i + 2] = [glued[i] + "\n\n" + glued[i + 1]]
     return glued
+
+
+def plain(text: str) -> str:
+    """The reply as one text, its bubbles apart by a blank line (no "---" left), e.g. for a single web message."""
+    return "\n\n".join(bubbles(text, max_bubbles=99)) if (text or "").strip() else ""
 
 
 def send_bubbles(to: str, parts: list[str]):
@@ -348,24 +351,6 @@ def send_bubbles(to: str, parts: list[str]):
         if i:
             time.sleep(BUBBLE_PAUSE_S)
         send_text(to, p)
-
-
-def _luhn(digits: str) -> bool:
-    total = 0
-    for i, ch in enumerate(reversed(digits)):
-        d = int(ch)
-        if i % 2:
-            d = d * 2 - 9 if d * 2 > 9 else d * 2
-        total += d
-    return total % 10 == 0
-
-
-def redact(text: str) -> str:
-    """Remove what the coach never needs before it reaches the AI: card numbers, IBANs, Finnish personal IDs."""
-    t = re.sub(r"\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,3})?\b", "[IBAN removed]", text)
-    t = re.sub(r"\b\d{6}[-+AaBCDEFYXWVU]\d{3}[0-9A-Ya-y]\b", "[personal ID removed]", t)
-    return re.sub(r"\b\d(?:[ -]?\d){12,18}\b",
-                  lambda m: "[card number removed]" if _luhn(re.sub(r"\D", "", m.group())) else m.group(), t)
 
 
 def failed_statuses(payload: dict) -> list[dict]:

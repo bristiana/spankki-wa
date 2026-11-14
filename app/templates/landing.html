@@ -32,24 +32,24 @@
   <section class="hero">
     <div>
       <h1>You don't need another app. You need a friend in WhatsApp.</h1>
-      <p>In a banking app you're a customer. In WhatsApp you talk to friends, so you can ask "I'm out of money, what do I do?" without feeling judged. Birky, the S-Pankki savings squirrel, answers with your real numbers and helps you finish what you start.</p>
+      <p>In a banking app you're a customer. In WhatsApp you talk to friends, so you can ask "I'm out of money, what do I do?" without feeling judged. Birky, the S-Pankki savings squirrel, answers with your real numbers and helps you finish what you start. For everyday money at any age, from a first salary to a family budget.</p>
       <div class="cta">
         {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}?text=Hi%20Birky">💬 Chat on WhatsApp</a>{% endif %}
         <a class="btn {{ 'ghost' if wa else '' }}" href="/chat">Try it in S-mobiili</a>
       </div>
       <div class="also"><a href="/app">📊 See the money dashboard ›</a><a href="/mobile-demo">📱 See it inside a banking app ›</a></div>
-      <p class="muted" style="font-size:13px;margin:4px 0 0">Demo customer on synthetic S-Pankki data.</p>
+      <p class="muted" style="font-size:13px;margin:4px 0 0">Demo customer {{ who.name }}, {{ who.age }}, on synthetic S-Pankki data.</p>
     </div>
     <img src="/static/birky.svg" alt="Birky the squirrel holding a euro coin">
   </section>
 
   <section class="feats">
-    <div class="card feat"><b>Ask anything</b><span class="muted">"How much did I spend on taxis last month?" "What kind of spender am I?"</span>
-      <div class="bub">You spend <b>{{ money(L.rest) }} a month</b> on restaurants, about {{ L.times }}× Finnish households your age (Statistics Finland).</div></div>
+    <div class="card feat"><b>Ask anything</b><span class="muted">"What kind of spender am I?" "What can I safely spend this week?" "How could I save more?"</span>
+      <div class="bub">You spend <b>{{ money(L.rest) }} a month</b> on restaurants, about {{ L.times }}× {{ "Finnish households your age" if L.fi_same_age else "the average Finnish household" }} (Statistics Finland).</div></div>
     <div class="card feat"><b>Safe to spend</b><span class="muted">Before rent, Birky tells you what's really left until payday, then you pay with one tap and your PIN.</span>
       <div class="bub">Rent of <b>{{ money(L.rent) }}</b> is due soon. After it you have <b>{{ money(L.safe) }}</b> safe to spend until payday.</div></div>
-    <div class="card feat"><b>Subscriptions, sorted</b><span class="muted">Active, forgotten and price rises in one list. Stop a card payment with your PIN.</span>
-      <div class="bub">{{ L.sub_name }} went up from {{ money(L.sub_from) }} to <b>{{ money(L.sub_to) }}</b>. That's {{ money(L.sub_year) }} a year. Keep it?</div></div>
+    <div class="card feat"><b>Regular payments, from your data</b><span class="muted">Rent, utility bills and your monthly investing, found in your own transactions: what each costs a month and a year, when it's due, and when a bill goes up.</span>
+      <div class="bub">{% if L.odd %}A <b>{{ money(L.odd.amount_eur) }}</b> utility bill on {{ nice(L.odd.date) }}: one bill is usually {{ money(L.odd.usual_low_eur) }} to {{ money(L.odd.usual_high_eur) }}.{% else %}About {{ L.util_count }} utility bills a month, <b>{{ money(L.util_month) }}</b> in total.{% endif %} Rent and bills come to {{ money(L.bills_year) }} a year.</div></div>
     <div class="card feat"><b>Save, then invest</b><span class="muted">Goals with real deadlines, savings pockets, and what investing would really have done, on real ETF prices.</span>
       <div class="bub">Cutting dining out by 20% frees <b>{{ money(L.cut) }} a month</b>. Over the last 2 years that would have grown to {{ money(L.cut_growth) }} in a global fund, on real prices.</div></div>
   </section>

@@ -4,6 +4,7 @@ Run: uvicorn app.main:app --port 8000
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
@@ -22,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import broker, learn, onboarding, quiz, rules, voice
+from . import bills, broker, guardrails, learn, onboarding, quiz, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -33,7 +34,51 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 log = logging.getLogger("app")
 
-engine = Engine(today=date.fromisoformat(os.environ.get("DEMO_TODAY", "2026-10-06")))
+# ---------------- Personas: the demo default and the other real customers judges can switch to ----------------
+ROOT = Path(__file__).resolve().parents[1]
+PERSONA_DIR = ROOT / "data" / "personas"
+STATE_DIR = ROOT / "data" / "state"  # one state file per extra persona: payments and goals never leak across
+AINO = "CUST04831"  # the engine's own default (data/persona.csv); still in the switcher
+PERSONA_COOKIE = "kurre_as"
+
+
+def load_personas(path: Path = PERSONA_DIR / "index.json") -> dict[str, dict]:
+    rows = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+    out = {r["id"]: r for r in rows}
+    out.setdefault(AINO, {"id": AINO, "name": "Aino", "file": None, "age": 24, "label": "First job, 24",
+                          "description": ""})
+    return out
+
+
+PERSONAS = load_personas()
+# The hero (index.json "hero": true, picked by rule in scripts/extract_personas.py) is who people meet first: the web
+# chat, /app, the widgets, the landing page and the WhatsApp demo phone. DEMO_PERSONA=<CUSTID> picks another one.
+HERO = next((p["id"] for p in PERSONAS.values() if p.get("hero")), AINO)
+
+
+def pick_default(env: str | None) -> str:
+    return env if env in PERSONAS else HERO
+
+
+def default_state_path(persona: str) -> Path:
+    """Aino keeps data/state.json; any other default gets its own file, so a state saved for one customer (payments,
+    goals) is never replayed on another one's account."""
+    return ROOT / "data" / "state.json" if persona == AINO else STATE_DIR / f"{persona}.json"
+
+
+DEFAULT_PERSONA = pick_default(os.environ.get("DEMO_PERSONA"))
+DEMO_NAME = PERSONAS[DEFAULT_PERSONA]["name"]
+
+
+def persona_engine(persona: str, today: date, state_path: Path | None = None) -> Engine:
+    """A persona's engine from index.json (Aino's rows are data/persona.csv, the engine's default)."""
+    p = PERSONAS[persona]
+    return Engine(csv_path=PERSONA_DIR / p["file"] if p.get("file") else None, today=today,
+                  state_path=state_path or STATE_DIR / f"{persona}.json", age=p.get("age"))
+
+
+engine = persona_engine(DEFAULT_PERSONA, date.fromisoformat(os.environ.get("DEMO_TODAY", "2026-10-06")),
+                        default_state_path(DEFAULT_PERSONA))
 _coach: Coach | None = None
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 app = FastAPI(title="S-Pankki Chat")
@@ -43,7 +88,6 @@ owner: dict[str, str] = {}
 inbox: dict[str, list[str]] = {}  # web chat session -> confirmations waiting to be shown
 last_seen: dict[str, float] = {}  # WhatsApp number -> when they last wrote (free-form replies only within 24 h)
 WINDOW_S = 24 * 3600
-DEMO_NAME = "Aino"
 # Quick-reply buttons that turn into a question for the coach.
 ASK = {
     "ask:tight": "My budget is tight until payday. What can I do?",
@@ -52,6 +96,7 @@ ASK = {
     "ask:unusual": "Tell me more about that big payment and how it fits my month.",
     "ask:pace": "My savings goal is behind plan. How can I catch up?",
     "ask:week": "What did I spend on in the last 7 days?",
+    "ask:bills": "What are my regular payments?",
     "ask:everyday": "Where does my 'slips through your fingers' money go? Explain that basket with my last month.",
 }
 names: dict[str, str] = {}  # WhatsApp number -> first name from the profile
@@ -70,7 +115,7 @@ def name_of(phone: str | None) -> str:
 
 
 def coach(persona: str | None = None) -> Coach:
-    """The default persona's coach (WhatsApp, Aino) or, for a judge's pick, one coach per persona: its own
+    """The default persona's coach (WhatsApp and the web app's default) or, for a judge's pick, one coach per persona: its own
     engine and its own conversation histories. All share one API client."""
     global _coach
     if _coach is None:
@@ -84,23 +129,6 @@ def coach(persona: str | None = None) -> Coach:
 
 
 # ---------------- Personas: judges switch the web app to other real customers ----------------
-ROOT = Path(__file__).resolve().parents[1]
-PERSONA_DIR = ROOT / "data" / "personas"
-STATE_DIR = ROOT / "data" / "state"  # one state file per extra persona: payments and goals never leak across
-DEFAULT_PERSONA = "CUST04831"
-PERSONA_COOKIE = "kurre_as"
-
-
-def load_personas(path: Path = PERSONA_DIR / "index.json") -> dict[str, dict]:
-    rows = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
-    out = {r["id"]: r for r in rows}
-    out.setdefault(DEFAULT_PERSONA, {"id": DEFAULT_PERSONA, "name": DEMO_NAME, "file": None, "age": 24,
-                                     "label": "Demo persona, 24", "description": ""})
-    out[DEFAULT_PERSONA]["name"] = DEMO_NAME
-    return out
-
-
-PERSONAS = load_personas()
 _engines: dict[str, Engine] = {}
 _coaches: dict[str, Coach] = {}
 _persona_lock = threading.RLock()  # coach() builds the engine under the same lock
@@ -122,10 +150,8 @@ def engine_for(persona: str | None) -> Engine:
         return engine
     with _persona_lock:
         if persona not in _engines:
-            p = PERSONAS[persona]
             STATE_DIR.mkdir(parents=True, exist_ok=True)
-            _engines[persona] = Engine(csv_path=PERSONA_DIR / p["file"], today=engine.today,
-                                       state_path=STATE_DIR / f"{persona}.json", age=p.get("age"))
+            _engines[persona] = persona_engine(persona, engine.today)
         return _engines[persona]
 
 
@@ -216,14 +242,26 @@ def window_open(phone: str | None) -> bool:
     return bool(phone) and time.time() - last < WINDOW_S
 
 
-def send_reply(to: str, reply):
-    """Short bubbles like a person typing; a button rides on the last bubble."""
+def send_reply(to: str, reply, message_id: str | None = None):
+    """A reaction on their message first (when the coach picked one), then short bubbles like a person typing
+    ("---" or blank lines split them); a button rides on the last bubble. A reply that is only a reaction sends
+    just the reaction."""
+    reaction = getattr(reply, "reaction", None)
+    if reaction and message_id:
+        wa.send_reaction(to, message_id, reaction)
+    if not (reply.text or "").strip():
+        if reply.buttons:  # nothing to say but something to tap
+            for b in reply.buttons:
+                wa.send_url_button(to, wa.OVERFLOW_BODY, b["label"], b["url"])
+        elif not (reaction and message_id):
+            wa.send_text(to, "👍")
+        return
     parts = wa.bubbles(reply.text)
     if reply.buttons:
         wa.send_bubbles(to, parts[:-1])
         first, *rest = reply.buttons
         wa.send_url_button(to, parts[-1], first["label"], first["url"])
-        for k, b in enumerate(rest, start=2):  # e.g. one stop link per subscription, each with its own PIN
+        for k, b in enumerate(rest, start=2):  # e.g. several links, each with its own PIN
             wa.send_url_button(to, f"{k}/{len(reply.buttons)}", b["label"], b["url"])
     else:
         wa.send_bubbles(to, parts)
@@ -259,21 +297,40 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         return {"text": f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*, filled in and ready "
                         "in S-mobiili. Check it and confirm with Face ID.",
                 "url": (OPEN_APP, confirm_url("pay", p["pending_id"]) + q)}
+    if bid.startswith("resume:") and bid != "resume:later":  # "Finish it" on a confirmation left open yesterday
+        p = e.pending(bid[7:])
+        if not p or p["status"] != "pending":
+            return {"text": "That one's already done ✅"}
+        owner[p["pending_id"]] = user
+        path = {"payment": "pay", "investment": "invest", "saving": "save", "pause_investing": "stop"}[p["kind"]]
+        return {"text": f"Here it is again: *{p['name']}*, {money(p['amount'])}. It's ready in S-mobiili: "
+                        "confirm with Face ID.",
+                "url": (OPEN_APP, confirm_url(path, p["pending_id"]) + q)}
     if bid.startswith("later:"):
+        note_later(e, user, bid)
         if bid == "later:unusual":
             return {"text": "Great, enjoy it 🙂 I'll keep an eye on your safe-to-spend."}
         if bid == "later:goal":
             return {"text": "Okay 👍 I'll look at your pace again next week."}
-        return {"text": "Sure ⏰ I'll remind you again tomorrow at 9:00."}
-    if bid.startswith("stop:"):
-        p = e.create_stop_subscription(bid[5:])
+        if bid == "later:bills":
+            return {"text": "Okay 👍 I'll keep an eye on your bills."}
+        return {"text": "Sure ⏰ I'll check back with you tomorrow."}
+    if bid == "pause:investing":
+        p = e.create_pause_investing()
         owner[p["pending_id"]] = user
-        per = "month" if p["cadence"] == "monthly" else "year"
-        return {"text": f"Stop future card payments to *{p['name']}* ({money(p['amount'])}/{per})? "
-                        "It's ready in S-mobiili: confirm with Face ID.",
+        nxt = f" The next one would go out on {nice_date(p['next_charge'])}." if p["next_charge"] else ""
+        return {"text": f"Pause your *monthly investing* of about *{money(p['amount'])}*?{nxt} What you've invested "
+                        "so far stays invested. It's ready in S-mobiili: confirm with Face ID.",
                 "url": (OPEN_APP, confirm_url("stop", p["pending_id"]) + q)}
     if bid.startswith("keep:"):
-        return {"text": f"Okay, {bid[5:]} stays on 👍 I'll tell you if the price changes again."}
+        return {"text": "Okay, your monthly investing stays on 👍 Paying yourself first, on autopilot."}
+    if bid.startswith("remind:"):
+        c = next((x for x in e.commitments()["regular_payments"] if x["id"] == bid[7:]), None)
+        if c and c["next_expected"]:
+            return {"text": f"Okay ⏰ I'll message you the day before your {c['name'].lower()} is due "
+                            f"({nice_date(c['next_expected'])})."}
+        return {"text": "Your utility bills come on different days, so there's no date to remind you of. I'll tell "
+                        "you when one is well above your usual range."}
     if bid == "learn:buffer" or bid.startswith("learn:save:"):  # a lesson's action: a goal, then the usual save
         goal_id, amount = learn.goal_for(e, bid)
         if amount < 1:
@@ -316,6 +373,65 @@ def flow_context(e: Engine, user: str) -> str | None:
     return None
 
 
+LATER = re.compile(r"^\W*(maybe later|later|not now|not today|another time|some other time|ask me later|"
+                   r"tomorrow|maybe tomorrow|myöhemmin|ehkä myöhemmin|senare)\W*$", re.I)
+
+
+def note_later(e: Engine, user: str, key: str, offer: str | None = None):
+    """A "maybe later": the open thread Birky comes back to once, the next day (rules.open_threads)."""
+    e.state.setdefault("later", {})[user] = {"key": key, "offer": offer, "at": time.time()}
+    e._save()
+
+
+def note_chat_later(e: Engine, user: str, text: str, last_said: str):
+    """"maybe later" typed right after Birky offered something: remember the offer (its last bubble, a question)."""
+    if not LATER.match(text or ""):
+        return
+    offer = (wa.bubbles(last_said)[-1] if last_said.strip() else "").strip()
+    if offer.endswith("?") and len(offer) <= 300:
+        import hashlib
+        note_later(e, user, "chat:" + hashlib.sha1(offer.encode()).hexdigest()[:8], offer)
+
+
+def ask_text(e: Engine, user: str, bid: str) -> str | None:
+    """The question a quick-reply button stands for (ASK), or "Yes, let's do it" on yesterday's maybe-later."""
+    if bid == "resume:later":
+        offer = (e.state.get("later", {}).get(user) or {}).get("offer")
+        return f'Yes, let\'s do it now. You offered: "{offer}"' if offer else "Yes, let's pick up where we left off."
+    return ASK.get(bid)
+
+
+def touch(e: Engine, user: str):
+    """When they last wrote: open threads come back only after a quiet day, inside the 24-hour window."""
+    e.state.setdefault("last_msg", {})[user] = time.time()
+
+
+def coach_context(e: Engine, user: str, text: str, extra: str | None = None) -> str | None:
+    """What the coach should know right now: a waiting flow question, a hand-off to a person at S-Pankki."""
+    kind = guardrails.escalation(text)
+    parts = [flow_context(e, user), guardrails.escalation_context(kind) if kind else None, extra]
+    return " ".join(p for p in parts if p) or None
+
+
+def fresh_start(e: Engine, user: str, persona: str | None = None) -> str:
+    """"/new" or "fresh start": the conversation history goes, running flows wait quietly, no follow-ups pending."""
+    coach(persona).reset(user)
+    for kind in ("learn", "quiz", "onboarding"):
+        r = e.state.get(kind, {}).get(user)
+        if r and not r.get("done") and r.get("step") != "done":
+            r["paused"], r["note"] = True, False
+    e.state.get("later", {}).pop(user, None)
+    sent = e.state.setdefault("sent", {}).setdefault(user, {})
+    for t in rules.open_threads(e, user, force=True):  # a clean slate: nothing from before comes back tomorrow
+        sent[t["dedup_key"]] = e.today.isoformat()
+    e._save()
+    return guardrails.FRESH_REPLY
+
+
+SECRET_CONTEXT = ("Their message had a {what} in it; it was removed before it reached you and the app has already "
+                  "asked them to delete it. Don't mention it again; answer only the rest.")
+
+
 def flow_turn(e: Engine, user: str, text: str, bid: str = "") -> onboarding.Turn | None:
     """The no-AI flows, in order: the Learn course, the basket game, the interview. None = the coach answers."""
     return learn.turn(e, user, text, bid) or quiz.turn(e, user, text, bid) or onboarding.turn(e, user, text, bid)
@@ -355,27 +471,67 @@ def wa_back(request: Request) -> str:
     return "" if request.query_params.get("web") else os.environ.get("WA_DISPLAY_NUMBER", "")
 
 
+def ask(persona: str | None, user: str, text: str, name: str, context: str | None = None, may_pay: bool = True,
+        photo: bool = False):
+    """coach.ask, telling the bill tool whose turn it is and whether it may prepare the bill payment."""
+    hint = None if photo else bills.context_line(engine_for(persona), user)
+    token = bills.turn.set((user, may_pay))
+    try:
+        return coach(persona).ask(user, text, name=name, context=" ".join(x for x in (context, hint) if x) or None)
+    finally:
+        bills.turn.reset(token)
+
+
+def ask_about_bill(persona: str | None, user: str, bill: dict, caption: str | None, name: str):
+    """A bill photo just read: explain it, or, only when the caption asks to pay, prepare the payment."""
+    e, pay = engine_for(persona), bills.asks_to_pay(caption)
+    context = " ".join(x for x in (bills.PAY if pay else bills.EXPLAIN, flow_context(e, user)) if x)
+    return ask(persona, user, bills.coach_text(e, bill, caption), name, context, may_pay=pay, photo=True)
+
+
+def bill_photo(to: str, name: str, m: dict):
+    try:
+        bill = bills.read(engine, to, getattr(coach(), "client", None), bills.download(m["media_id"]), None)
+    except bills.BillError as e:
+        wa.send_text(to, str(e))
+        return
+    except Exception as e:  # no WA token, Meta or the AI down: say so plainly, keep the details in the log
+        log.warning("bill photo %s failed: %s", m["media_id"], e)
+        wa.send_text(to, "Sorry, I couldn't open that photo. Could you send it again in a moment?")
+        return
+    problem = bills.reply_problem(bill)
+    if problem:
+        wa.send_text(to, problem)
+        return
+    reply = ask_about_bill(None, to, bill, m["text"] and wa.redact(m["text"]), name)
+    for b in reply.buttons:
+        owner[b["url"].rsplit("/", 1)[-1]] = to
+    send_reply(to, reply, m["id"])
+
+
 def handle_message(m: dict):
     to, name = m["from"], first_name(m["name"])
     names[to] = name
     try:
         wa.mark_read_typing(m["id"])
-        if m.get("media_id") and not m["text"]:  # a voice note: from here on it is handled like typed text
+        if m.get("kind") == "audio" and m.get("media_id") and not m["text"]:  # a voice note: handled like typed text
             try:
                 m["text"] = voice.to_text(m["media_id"])
             except voice.VoiceError as e:
                 wa.send_text(to, str(e))
                 return
             wa.send_text(to, f"🎙️ _{wa.short(m['text'].replace('_', ' '), 300)}_")  # what Birky heard, so a mishearing is visible
-        emoji = wa.quick_reaction(m["text"])
-        if emoji:
-            wa.send_reaction(to, m["id"], emoji)
         word = (m["text"] or "").strip().lower().strip(".!")
         # mid-game or mid-course, a bare "stop" pauses it
         stop = word in ("stop", "lopeta") and (quiz.active(engine, to) or learn.active(engine, to))
         if word in STOP_WORDS and not stop:
             switch_off(to)
             return
+        bid = m.get("button_id") or ""
+        secret = [] if bid else guardrails.secrets(m["text"])
+        if secret:  # a card number, PIN or code: never to the AI, and a kind "please delete that"
+            wa.send_reaction(to, m["id"], "🔒")
+            wa.send_bubbles(to, wa.bubbles(guardrails.secret_reply(secret)))
         if not connected(to):
             wa.send_url_button(
                 to,
@@ -387,7 +543,12 @@ def handle_message(m: dict):
         if onboarding.RESTART.match(m["text"] or ""):  # the way back to the welcome, e.g. for the demo phone
             welcome(to)
             return
-        bid = m.get("button_id") or ""
+        if guardrails.FRESH.match(m["text"] or ""):
+            wa.send_text(to, fresh_start(engine, to))
+            return
+        if m.get("kind") in bills.KINDS and m.get("media_id"):  # a bill photo: explain it, pay only when asked
+            bill_photo(to, name, m)
+            return
         learn.step_away(engine, to, bid)
         try:
             direct = button_reply(to, bid)
@@ -400,14 +561,22 @@ def handle_message(m: dict):
                 wa.send_text(to, direct["text"])
             return
         if m["text"] is None:
-            wa.send_text(to, "I can read text and listen to voice notes, but not photos or files yet. What would you like to know?")
+            wa.send_text(to, "I can read text, voice notes and photos of bills, but not this kind of message yet. "
+                             "What would you like to know?")
             return
-        text = ASK.get(bid) or wa.redact(m["text"])
+        asked = ask_text(engine, to, bid)
+        text = asked or wa.redact(m["text"])
+        extra = None
+        if secret:
+            text = guardrails.leftover_question(text)
+            if not text:
+                return
+            extra = SECRET_CONTEXT.format(what=secret[0])
         if text.strip().lower() in ("my data", "download my data", "export"):
             wa.send_url_button(to, "Your data, yours to keep (MyData): every transaction and what Birky "
                                    "calculated from it, as a file.", "Download my data", f"{public_url()}/app/export.json")
             return
-        if bid not in ASK:
+        if not asked:
             t = flow_turn(engine, to, text, bid)
             if t:
                 if stop:
@@ -415,11 +584,14 @@ def handle_message(m: dict):
                 send_turn(to, t)
                 remember(None, to, m["text"] or text, t)
                 return
-        reply = coach().ask(to, text, name=name, context=flow_context(engine, to))
+        c = coach()
+        if hasattr(c, "last_said"):
+            note_chat_later(engine, to, text, c.last_said(to))
+        reply = ask(None, to, text, name, coach_context(engine, to, text, extra))
         for b in reply.buttons:
             if "chart" not in b:
                 owner[b["url"].rsplit("/", 1)[-1]] = to
-        send_reply(to, reply)
+        send_reply(to, reply, None if secret else m["id"])
         for note in (quiz.paused_note(engine, to), learn.paused_note(engine, to)):  # how to get back to it
             if note:
                 wa.send_text(to, note)
@@ -580,15 +752,15 @@ def settle_investment(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str
     return done, "Done", [plain(msg)]
 
 
-def settle_stop_subscription(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
+def settle_pause_investing(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
     done = e.confirm(pid)
-    subs = e.subscriptions()
-    msg = (f"✅ *{done['name']} stopped.* No more charges of {money(done['amount'])}. "
-           f"That's {money(done['per_year_eur'])} a year back in your pocket.\n"
-           f"Active subscriptions now: {subs['active_count']}, {money(subs['active_per_month_eur'])} a month.")
+    when = f" on {nice_date(done['next_charge'])}" if done.get("next_charge") else ""
+    msg = (f"✅ *Monthly investing paused.* The deposit of about {money(done['amount'])} won't go out{when}. "
+           f"That's {money(done['per_year_eur'])} a year staying on your account.\n"
+           "What you've invested so far stays invested. Start again any time.")
     if done["first_time"]:
         notify(pid, msg)
-    return done, "Payment stopped", [plain(msg)]
+    return done, "Investing paused", [plain(msg)]
 
 
 def settle_saving(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
@@ -602,7 +774,7 @@ def settle_saving(e: Engine, pid: str, p: dict) -> tuple[dict, str, list[str]]:
     return done, "Saved", [plain(msg)]
 
 
-SETTLE = {"payment": settle_payment, "investment": settle_investment, "stop_subscription": settle_stop_subscription,
+SETTLE = {"payment": settle_payment, "investment": settle_investment, "pause_investing": settle_pause_investing,
           "saving": settle_saving}
 
 
@@ -619,13 +791,23 @@ def pin_confirm(request: Request, path: str, kind: str, pid: str, pin: str):
 
 
 DEMO_IBAN = "FI00 0000 0000 0000 00 (demo)"
-DEMO_CARD = "S-Pankki Visa •• 4821 (demo)"
 INVEST_NOTE = "Funds can go down as well as up. Past or scenario returns are not a promise."
-STOP_NOTE = "Future charges from this merchant will be declined. Also cancel your account with the service."
+PAUSE_NOTE = "Only new monthly deposits stop. You can start investing again any time."
 
 
 def recipient(p: dict) -> str:
     return "Landlord · Asunto Oy Demo" if p["category"] == "Housing" else p["name"]
+
+
+def bill_iban(p: dict) -> str:
+    """The account number read from a bill photo, in groups of four."""
+    return " ".join(re.findall(".{1,4}", p["iban"]))
+
+
+def pause_rows(p: dict) -> list[tuple[str, str]]:
+    return [("What", "Your monthly deposit to investments"), ("Usually on", f"day {p['usual_day']} of the month"),
+            ("Next one", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
+            ("Already invested", "Stays invested")]
 
 
 def invest_when(e: Engine, p: dict) -> str:
@@ -637,7 +819,10 @@ def pay_page(request: Request, pid: str):
     e, p = _pending_or_404(pid, "payment")
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "wa": wa_back(request), "action": f"/pay/{pid}", "title": "Confirm payment", "amount": money(p["amount"]),
-        "rows": [("To", recipient(p)), ("Account", DEMO_IBAN), ("For", p["name"]),
+        "rows": [("To", p["name"]), ("Account", bill_iban(p)),
+                 ("Reference", p.get("reference") or "none on the bill"), ("Due", nice_date(p["due_date"])),
+                 ("From", "S-Pankki current account")] if p.get("source") == "photo" else  # a bill photo (bills.py)
+                [("To", recipient(p)), ("Account", DEMO_IBAN), ("For", p["name"]),
                  ("Due", nice_date(p["due_date"])), ("From", "S-Pankki current account")],
         "button": f"Pay {money(p['amount'])}"})
 
@@ -675,18 +860,16 @@ def order_text(order: dict) -> str:
 
 @app.get("/stop/{pid}", response_class=HTMLResponse)
 def stop_page(request: Request, pid: str):
-    e, p = _pending_or_404(pid, "stop_subscription")
+    e, p = _pending_or_404(pid, "pause_investing")
     return templates.TemplateResponse(request, "confirm.html", {
-        "p": p, "wa": wa_back(request), "action": f"/stop/{pid}", "title": "Stop recurring card payment",
-        "amount": money(p["amount"]) + (" / month" if p["cadence"] == "monthly" else " / year"),
-        "rows": [("Merchant", p["name"]), ("Next charge", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
-                 ("You save", f"{money(p['per_year_eur'])} a year"), ("Card", DEMO_CARD)],
-        "note": STOP_NOTE, "button": f"Stop {p['name']}"})
+        "p": p, "wa": wa_back(request), "action": f"/stop/{pid}", "title": "Pause monthly investing",
+        "amount": money(p["amount"]) + " / month", "rows": pause_rows(p), "note": PAUSE_NOTE,
+        "button": "Pause investing"})
 
 
 @app.post("/stop/{pid}", response_class=HTMLResponse)
 def stop_confirm(request: Request, pid: str, pin: str = Form("")):
-    return pin_confirm(request, f"/stop/{pid}", "stop_subscription", pid, pin)
+    return pin_confirm(request, f"/stop/{pid}", "pause_investing", pid, pin)
 
 
 @app.get("/save/{pid}", response_class=HTMLResponse)
@@ -707,7 +890,7 @@ def save_confirm(request: Request, pid: str, pin: str = Form("")):
 
 # ---------------- S-mobiili mock: Birky's buttons open the bank app with the move filled in ----------------
 # A concept prototype, clearly labelled: our own screens, not S-Bank's. Review -> Face ID (simulated) -> receipt.
-SM_ROUTES = {"pay": "payment", "save": "saving", "invest": "investment", "stop": "stop_subscription"}
+SM_ROUTES = {"pay": "payment", "save": "saving", "invest": "investment", "stop": "pause_investing"}
 RISK_WORDS = {"low": "Low risk: small ups and downs, and slow growth.",
               "medium": "Medium risk: it can drop in a bad year, and grows more over time.",
               "high": "High risk: it can fall 20-30% in a bad year. Best for 10+ years."}
@@ -746,14 +929,20 @@ def sm_flow(route: str, e: Engine, p: dict) -> dict:
     """A flow's review screen and Birky's lines on it. Guide targets are element ids on the page."""
     amt = short_money(p["amount"])
     if route == "pay":
+        photo = p.get("source") == "photo"  # a bill photo (bills.py): the bill's own IBAN and reference
+        to = p["name"] if photo else recipient(p)
+        due = f", due {nice_date(p['due_date'])}" if p.get("due_date") else ""
         return {"title": "Pay a bill", "fi": "Maksu", "heading": p["name"], "amount": money(p["amount"]),
-                "rows": [("recipient", "Recipient", recipient(p)), ("iban", "IBAN", DEMO_IBAN),
-                         ("reference", "Reference", demo_reference(p["bill_id"])),
-                         ("due", "Due date", nice_date(p["due_date"])), ("from", "From", "Current account")],
+                "rows": [("recipient", "Recipient", to), ("iban", "IBAN", bill_iban(p) if photo else DEMO_IBAN),
+                         ("reference", "Reference", (p.get("reference") or "none on the bill") if photo
+                          else demo_reference(p["bill_id"])),
+                         ("due", "Due date", nice_date(p["due_date"]) if p.get("due_date") else "-"),
+                         ("from", "From", "Current account")],
                 "button": f"Pay {money(p['amount'])}", "cheer": f"Paid! {p['name']} is sorted 🌰",
                 "steps": [("amount", f"This is the amount we planned: {amt}", "talk"),
-                          ("row-recipient", f"It goes to {recipient(p)}, due {nice_date(p['due_date'])}", "talk"),
-                          ("row-reference", "IBAN and reference are filled in. Nothing to type", "talk")]}
+                          ("row-recipient", f"It goes to {to}{due}", "talk"),
+                          ("row-reference", "IBAN and reference are copied from your bill. Nothing to type" if photo
+                           else "IBAN and reference are filled in. Nothing to type", "talk")]}
     if route == "save":
         g = e.state["goals"][p["goal_id"]]
         after = g["saved"] + p["amount"]
@@ -782,15 +971,17 @@ def sm_flow(route: str, e: Engine, p: dict) -> dict:
                 "steps": [("amount", f"This is the amount we planned: {amt}{per}", "talk"),
                           ("row-fund", "The fund you picked. I explain, you choose", "talk"),
                           ("row-risk", "Risk in plain words: " + RISK_WORDS[f["risk"]].split(": ", 1)[1], "think")]}
-    per = "month" if p["cadence"] == "monthly" else "year"
-    return {"title": "Stop a card payment", "fi": "Kortit", "heading": p["name"], "amount": f"{money(p['amount'])} / {per}",
-            "note": STOP_NOTE, "button": f"Stop {p['name']}",
-            "rows": [("merchant", "Merchant", p["name"]),
-                     ("next", "Next charge", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
-                     ("saves", "You save", f"{money(p['per_year_eur'])} a year"), ("card", "Card", DEMO_CARD)],
-            "cheer": f"Stopped. {short_money(p['per_year_eur'])} a year back 🌰",
-            "steps": [("amount", f"{p['name']} costs you {amt} a {per}", "talk"),
-                      ("row-saves", f"Stopping it saves {short_money(p['per_year_eur'])} a year", "happy")]}
+    return {"title": "Pause monthly investing", "fi": "Sijoitukset", "heading": "Monthly investing",
+            "amount": f"{money(p['amount'])} / month", "note": PAUSE_NOTE, "button": "Pause investing",
+            "rows": [("what", "What", "Your monthly deposit to investments"),
+                     ("usual", "Usually on", f"Day {p['usual_day']} of the month"),
+                     ("next", "Next one", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
+                     ("invested", "Already invested", "Stays invested"), ("from", "From", "Current account")],
+            "cheer": f"Paused. {short_money(p['per_year_eur'])} a year stays with you 🌰",
+            "steps": [("amount", f"Your monthly investing: about {amt} a month", "talk"),
+                      ("row-next", "Only new deposits stop. " + (f"The next one was due {nice_date(p['next_charge'])}"
+                                                                if p["next_charge"] else "Nothing else changes"), "talk"),
+                      ("row-invested", "What you've already invested stays invested", "happy")]}
 
 
 def guide_steps(steps) -> list[dict]:
@@ -873,8 +1064,8 @@ async def smobiili_confirm(request: Request, route: str, pid: str):
 
 # ---------------- Demo triggers (used while filming) ----------------
 def alert_message(kind: str, name: str, e: Engine | None = None) -> tuple[str, list] | None:
-    if kind not in ("salary", "unusual", "renewal"):
-        raise HTTPException(400, "kind must be salary, unusual or renewal")
+    if kind not in ("salary", "unusual", "bills"):
+        raise HTTPException(400, "kind must be salary, unusual or bills")
     a = (e or engine).alert(kind)
     if kind != "salary" and not a["found"]:
         return None
@@ -895,13 +1086,37 @@ def alert_text(kind: str, a: dict, name: str) -> tuple[str, list]:
                 f"That's *{a['times_usual']}x* your usual {a['category'].lower()} payment ({money(a['usual_eur'])}).\n\n"
                 "It sits in your *slips through your fingers* basket. Was that planned?")
         return text, [("later:unusual", "Yes, all good"), ("ask:unusual", "Tell me more")]
-    inc = a.get("price_increase")
+    return bills_text(a)
+
+
+def bills_text(a: dict) -> tuple[str, list]:
+    """A real regular payment (engine.commitments()) that went up, a utility bill above the usual range, or the next
+    one coming up. a["type"] is increase, unusual_bill or upcoming."""
+    what = a["name"].lower()
+    if a["type"] == "increase":
+        tr = a["trend"]
+        text = (f"📈 Your *{what}* went up: *{money(tr['last_per_month_eur'])} a month* in {tr['last_months']}, "
+                f"from {money(tr['previous_per_month_eur'])} a month in {tr['previous_months']}.")
+        if a.get("extra_per_year_eur"):
+            text += f" That's {money(a['extra_per_year_eur'])} more a year."
+        if a["id"] == "investing":
+            return text + "\n\nKeep it, or pause it for now?", [("keep:investing", "Keep it"),
+                                                               ("pause:investing", "Pause investing")]
+        return text + "\n\nIt sits in your *mandatory & regular* basket.", [
+            ("ask:bills", "My regular payments"), ("ask:tight", "How do I stretch it?")]
+    if a["type"] == "unusual_bill":
+        odd = a["unusual_bill"]
+        return (f"🧾 Heads-up: a *{money(odd['amount_eur'])}* utility bill on {nice_date(odd['date'])}. One bill is "
+                f"usually {money(odd['usual_low_eur'])} to {money(odd['usual_high_eur'])}.\n\n"
+                f"Your utilities come to {money(a['per_month_eur'])} a month, about {round(a['bills_per_month'])} "
+                "bills.", [("ask:bills", "My regular payments"), ("later:bills", "OK, thanks")])
     when = "tomorrow" if a["days_to_next"] == 1 else f"in {a['days_to_next']} days"
-    text = f"🔁 *{a['name']}* renews {when}: {money(a['price_eur'])}."
-    if inc:
-        text += f"\nThe price went up from {money(inc['from_eur'])} to {money(inc['to_eur'])} on {nice_date(inc['since'])}."
-    text += f"\nThat's {money(a['per_year_eur'])} a year. Keep it?"
-    return text, [(f"keep:{a['name']}", "Keep it"), (f"stop:{a['name']}", "Stop payments")]
+    day = nice_date(a["next_expected"])
+    if a["id"] == "investing":
+        return (f"📈 Your *monthly investing* of about {money(a['per_month_eur'])} goes out {when} ({day}).\n\n"
+                "Keep it, or pause it for now?", [("keep:investing", "Keep it"), ("pause:investing", "Pause investing")])
+    return (f"🧾 Your *{what}* of about {money(a['per_month_eur'])} is due {when} ({day}).",
+            [("remind:" + a["id"], "Remind me before"), ("ask:bills", "My regular payments")])
 
 
 @app.post("/demo/alert")
@@ -964,19 +1179,16 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
     if kind == "UNUSUAL_TRANSACTION":
         return alert_text("unusual", d, name)
     if kind == "RECURRING_CHARGE_UPCOMING":
-        if d["source"] == "subscription":
-            return alert_text("renewal", d, name)
+        if d["source"] != "bill":  # the monthly investing or a fixed-day utility bill (engine.commitments())
+            return bills_text({**d, "type": "upcoming"})
         b = d["bill"]
         return bill_text(b, d["safe"], name), [(f"pay:{b['bill_id']}", pay_label(b["name"])),
                                                (f"later:{b['bill_id']}", "Remind me later"),
                                                ("ask:tight", "How do I stretch it?")]
-    if kind == "SUBSCRIPTION_PRICE_INCREASE":
-        inc = d["price_increase"]
-        per = "month" if d["cadence"] == "monthly" else "year"
-        return (f"📈 *{d['name']}* went up from {money(inc['from_eur'])} to *{money(inc['to_eur'])}* a {per} "
-                f"on {nice_date(inc['since'])}. That's {money(d['extra_per_year_eur'])} more a year, "
-                f"{money(d['per_year_eur'])} a year in total.\n\nStill worth it?",
-                [(f"keep:{d['name']}", "Keep it"), (f"stop:{d['name']}", "Stop payments")])
+    if kind == "BILL_INCREASE":
+        return bills_text({**d, "type": "increase" if d["increase"] == "trend" else "unusual_bill"})
+    if kind == "OPEN_THREAD":
+        return thread_message(d, name)
     if kind == "GOAL_DRIFT":
         return (f"🎯 {name}, your *{d['name']}* goal is a bit behind plan: {money(d['saved_eur'])} saved, "
                 f"while {money(d['expected_by_now_eur'])} would be on track by today. To reach {money(d['target_eur'])} "
@@ -992,6 +1204,34 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
         text += "\nComing up: " + ", ".join(f"{b['name']} {money(b['amount_eur'])} on {nice_date(b['due_date'])}"
                                             for b in d["bills_next_7d"]) + "."
     return text, [("ask:week", "Where did it go?"), ("ask:tight", "How do I stretch it?")]
+
+
+def thread_message(d: dict, name: str) -> tuple[str, list]:
+    """The "comes back a day later" message for an open thread: one short friendly line, one button to carry on."""
+    t = d["thread"]
+    if t == "learn":
+        done = f" ({d['done']} of {d['of']} done 🌰)" if d["done"] else ""
+        return (f"Hey {name} 📚 Lesson {d['lesson']}/{d['of']}, *{d['title'].lower()}*, is waiting{done}. 30 seconds?",
+                [("learn:start", "Continue lesson")])
+    if t == "onboarding":
+        return (f"Hey {name} 👋 We stopped halfway through setting up your goal. Finish it? It takes a minute.",
+                [("ob:resume", "Let's finish")])
+    if t == "quiz":
+        return (f"Hey {name} 🧺 Your basket game is paused at {d['round']}/{d['of']}. One more round?",
+                [("quiz:resume", "Keep playing")])
+    if t == "pin":
+        return (f"Hey {name} 🔐 *{d['name']}* ({money(d['amount_eur'])}) is still waiting for you to confirm it "
+                "with Face ID in S-mobiili. Want to finish it?", [(f"resume:{d['pending_id']}", "Finish it")])
+    if t == "goal":
+        return (f"Hey {name} 🌰 Your *{d['name']}* goal is set, but nothing's in it yet. Start with "
+                f"{money(d['amount_eur'])}?",
+                [(f"save:{d['goal_id']}:{d['amount_eur']:.0f}", f"Save {d['amount_eur']:.0f} €")])
+    if d["kind"] == "bill":
+        b = d["bill"]
+        return (f"Hey {name} ⏰ You said later yesterday: *{b['name'].lower()}* of {money(b['amount_eur'])} is due "
+                f"{nice_date(b['due_date'])}. Pay it now?", [(f"pay:{b['bill_id']}", pay_label(b["name"]))])
+    return (f"Hey {name} 🙂 Yesterday you said maybe later to this: \"{d['offer']}\" Still up for it?",
+            [("resume:later", "Yes, let's do it")])
 
 
 def mask(to: str) -> str:
@@ -1078,16 +1318,17 @@ def landing(request: Request):
     off = engine.official_benchmark() or {"comparison": []}
     rest = next((r for r in off["comparison"] if r["category"] == "Restaurants"), {"times": "-"})
     rent = next((b for b in engine.upcoming_bills(45) if b["category"] == "Housing"), {"amount_eur": 0})
-    subs = engine.subscriptions()["subscriptions"]
-    up = next((x for x in subs if x["price_increase"]), subs[0])
+    reg = engine.commitments()
+    util = next((x for x in reg["regular_payments"] if x["id"] == "utilities"), None) or {}
     cut = engine.simulate_cut("Restaurants", 20)
     growth = next((r for r in (cut.get("real_past_check") or {}).get("results", []) if r and "Growth" in r["fund"]),
                   {"value_today_eur": 0})
     L = {"rest": engine.monthly_avg("Restaurants", 3), "times": rest["times"], "rent": rent["amount_eur"],
-         "safe": engine.safe_to_spend()["safe_to_spend_until_payday_eur"], "sub_name": up["name"],
-         "sub_from": (up["price_increase"] or {}).get("from_eur", up["price_eur"]), "sub_to": up["price_eur"],
-         "sub_year": up["per_year_eur"], "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"]}
-    return templates.TemplateResponse(request, "landing.html", _ctx(L=L))
+         "safe": engine.safe_to_spend()["safe_to_spend_until_payday_eur"], "bills_year": reg["bills_per_year_eur"],
+         "util_month": util.get("per_month_eur", 0), "util_count": round(util.get("bills_per_month", 0)),
+         "odd": util.get("unusual_bill"), "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"],
+         "fi_same_age": not off.get("group", "").endswith(" all")}  # Statistics Finland has age groups only up to 34
+    return templates.TemplateResponse(request, "landing.html", _ctx(L=L, who=PERSONAS[DEFAULT_PERSONA]))
 
 
 def _chart(o: dict) -> dict:
@@ -1203,7 +1444,16 @@ def dashboard(request: Request):
     o = engine_for(persona).overview()
     return templates.TemplateResponse(request, "dashboard.html", _ctx(
         o=o, name=name_for(persona), today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o),
-        **persona_ctx(persona)))
+        peers=_peers_card(engine_for(persona)), **persona_ctx(persona)))
+
+
+def _peers_card(eng: Engine) -> dict | None:
+    """'People like you' on /app: None (no card) when the benchmark file is missing."""
+    from . import peers
+    try:
+        return peers.card(eng.new_life_budget())
+    except ValueError:
+        return None
 
 
 @app.get("/chat", response_class=HTMLResponse)
@@ -1254,21 +1504,31 @@ def widgets(e: Engine | None = None) -> dict:
                   "baskets": [{"key": x["basket"], "label": x["label"], "share_pct": x["share_pct"],
                                "total_eur": x["total_eur"]} for x in b["baskets"]],
                   "deep_link": ask_link(f"Where did my money go {month}, basket by basket?")})
-    subs = e.subscriptions()["subscriptions"]
-    up = next((x for x in subs if x["status"] == "active" and x["price_increase"]), None)
-    off = next((x for x in subs if x["status"] == "inactive"), None)
+    reg = e.commitments()
+    outs = [x for x in reg["regular_payments"] if x["direction"] == "out" and x["status"] == "active"]
+    up = next((x for x in outs if (x.get("trend") or {}).get("direction") == "up"), None)
+    odd = next((x for x in outs if x.get("unusual_bill")), None)
     if up:
-        inc = up["price_increase"]
-        cards.append({"id": "subscription", "kind": "price_increase", "title": f"{up['name']} went up",
-                      "value": money(inc["to_eur"]), "subtitle": f"was {money(inc['from_eur'])} · {money(up['per_year_eur'])} a year",
-                      "name": up["name"], "from_eur": inc["from_eur"], "to_eur": inc["to_eur"],
-                      "per_year_eur": up["per_year_eur"],
-                      "deep_link": ask_link(f"{up['name']} went up in price. Is it still worth it?")})
-    elif off:
-        cards.append({"id": "subscription", "kind": "inactive", "title": f"{off['name']} looks unused",
-                      "value": money(off["price_eur"]), "subtitle": f"last charged {nice_date(off['last_charge'])}",
-                      "name": off["name"], "price_eur": off["price_eur"], "last_charge": off["last_charge"],
-                      "deep_link": ask_link("What subscriptions am I paying for?")})
+        tr = up["trend"]
+        cards.append({"id": "regular_payments", "kind": "increase", "title": f"{up['name']} went up",
+                      "value": f"{money(tr['last_per_month_eur'])}/mo",
+                      "subtitle": f"was {money(tr['previous_per_month_eur'])} a month ({tr['previous_months']})",
+                      "name": up["name"], "from_eur": tr["previous_per_month_eur"], "to_eur": tr["last_per_month_eur"],
+                      "deep_link": ask_link(f"Why did my {up['name'].lower()} go up?")})
+    elif odd:
+        u = odd["unusual_bill"]
+        cards.append({"id": "regular_payments", "kind": "unusual_bill", "title": "A bigger utility bill",
+                      "value": money(u["amount_eur"]),
+                      "subtitle": f"{nice_date(u['date'])} · usually {money(u['usual_low_eur'])} to {money(u['usual_high_eur'])}",
+                      "name": odd["name"], "amount_eur": u["amount_eur"], "date": u["date"],
+                      "usual_low_eur": u["usual_low_eur"], "usual_high_eur": u["usual_high_eur"],
+                      "deep_link": ask_link("What are my regular payments?")})
+    elif outs:
+        cards.append({"id": "regular_payments", "kind": "summary", "title": "Regular payments",
+                      "value": f"{money(reg['outgoing_per_month_eur'])}/mo",
+                      "subtitle": f"{len(outs)} found in your account · {money(reg['outgoing_per_year_eur'])} a year",
+                      "per_month_eur": reg["outgoing_per_month_eur"], "per_year_eur": reg["outgoing_per_year_eur"],
+                      "deep_link": ask_link("What are my regular payments?")})
     goals = e.goals()
     if goals:
         g = goals[0]
@@ -1296,8 +1556,13 @@ def mobile_demo(request: Request):
         name=name_for(persona), balance=e.balance(), recent=e.recent(6)))
 
 
+WEB_UPLOAD_MAX = bills.MAX_BYTES * 4 // 3 + 64_000  # a 5 MB photo as base64, plus the rest of the JSON
+
+
 @app.post("/api/chat")
 async def chat_api(request: Request):
+    if int(request.headers.get("content-length") or 0) > WEB_UPLOAD_MAX:  # before reading it
+        raise HTTPException(413, "image too large (max 5 MB)")
     try:
         body = await request.json()
     except ValueError:
@@ -1306,7 +1571,7 @@ async def chat_api(request: Request):
         raise HTTPException(400, "send a JSON object")
     sid = "web:" + str(body.get("session", "default"))[:40]
     text = str(body.get("text", "")).strip()[:1000]
-    if not text:
+    if not text and not body.get("image"):
         raise HTTPException(400)
     web_sessions.add(sid)
     # The page sends the persona it was drawn for; the cookie covers other callers.
@@ -1317,6 +1582,8 @@ async def chat_api(request: Request):
     def quick(buttons):
         return [{"label": t, "send": f"__btn__:{i}"} for i, t in buttons]
 
+    if body.get("image"):
+        return await web_bill(persona, sid, e, name, body["image"], wa.redact(text), quick)
     if text == "__remind__":
         t, rent = reminder_text(name, e)
         if not rent:
@@ -1328,13 +1595,20 @@ async def chat_api(request: Request):
         m = alert_message(text.split(":", 1)[1], name, e)
         return {"text": m[0], "buttons": [], "quick": quick(m[1])} if m else {"text": "Nothing to flag right now.", "buttons": []}
     def interview(t: onboarding.Turn, buttons=()):
-        return {"text": "\n\n".join(t.lead + [t.text]), "buttons": list(buttons), "quick": quick(t.buttons)}
+        return {"text": "\n\n".join(t.lead + [t.text]), "bubbles": [*t.lead, t.text], "buttons": list(buttons),
+                "quick": quick(t.buttons)}
+
+    def said(reply_text: str, reaction: str | None = None, **more):
+        """A plain answer from the app, in bubbles ("---" splits them), with the reaction for their message."""
+        parts = wa.bubbles(reply_text)
+        return {"text": "\n\n".join(parts), "bubbles": parts, "reaction": reaction, "buttons": [], **more}
 
     if text == "__start__":  # the web chat's stand-in for Connect S-Pankki
         t = onboarding.start(e, sid)
         remember(persona, sid, "[connected S-Pankki]", t)
         return interview(t, [{"label": "Open My money", "url": "/app"}])
-    bid = ""
+    touch(e, sid)
+    bid, secret, extra = "", [], None
     if text.startswith("__btn__:"):
         bid = text.split(":", 1)[1]
         learn.step_away(e, sid, bid)
@@ -1345,17 +1619,61 @@ async def chat_api(request: Request):
         if direct:
             url = direct.get("url")
             return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else []}
-        text = ASK.get(bid, bid)
-    if bid not in ASK:
+        text = ask_text(e, sid, bid) or bid
+    else:
+        if guardrails.FRESH.match(text):
+            return said(fresh_start(e, sid, persona), "👌")
+        secret = guardrails.secrets(text)
+        text = wa.redact(text)
+        if secret:  # never to the AI; a kind "please delete that", then the rest of the question if there is one
+            rest = guardrails.leftover_question(text)
+            warn = guardrails.secret_reply(secret)
+            if not rest:
+                return said(warn, "🔒")
+            text, extra = rest, SECRET_CONTEXT.format(what=secret[0])
+    asked = bool(bid) and ask_text(e, sid, bid) is not None
+    if not asked:
         typed = "" if bid else text
         t = flow_turn(e, sid, typed, bid)
         if t:
             remember(persona, sid, typed or f"[tapped {bid}]", t)
             return interview(t)
+    c = coach(persona)
+    if not bid and hasattr(c, "last_said"):
+        note_chat_later(e, sid, text, c.last_said(sid))
+    context = coach_context(e, sid, text, extra)
+    return await web_answer(e, sid, lambda: ask(persona, sid, text, name, context), quick, secret)
+
+
+async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption: str, quick):
+    """A bill photo from the web chat (base64, or a data: URL): read it, then explain it or, if asked, pay it."""
     import anyio
-    context = flow_context(e, sid)
     try:
-        reply = await anyio.to_thread.run_sync(lambda: coach(persona).ask(sid, text, name=name, context=context))
+        data = base64.b64decode(str(image).split(",", 1)[-1], validate=True)
+    except ValueError:
+        raise HTTPException(400, "image is not base64")
+    if len(data) > bills.MAX_BYTES:
+        raise HTTPException(413, "image too large (max 5 MB)")
+    try:
+        bill = await anyio.to_thread.run_sync(lambda: bills.read(e, sid, getattr(coach(persona), "client", None),
+                                                                 data, None))
+    except bills.BillError as err:
+        return {"text": str(err), "buttons": []}
+    except Exception:
+        log.exception("bill photo failed")
+        return JSONResponse({"text": "Sorry, I couldn't read that photo just now. Could you try again in a moment?",
+                             "buttons": []})
+    problem = bills.reply_problem(bill)
+    if problem:
+        return {"text": problem, "buttons": []}
+    return await web_answer(e, sid, lambda: ask_about_bill(persona, sid, bill, caption, name), quick)
+
+
+async def web_answer(e: Engine, sid: str, run, quick, secret=()):
+    """The coach's reply for the web chat: bubbles, buttons, charts, and any paused flow's note."""
+    import anyio
+    try:
+        reply = await anyio.to_thread.run_sync(run)
     except Exception:
         log.exception("coach failed")
         return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
@@ -1370,8 +1688,13 @@ async def chat_api(request: Request):
     paused = quiz.paused_note(e, sid)
     waiting = learn.paused_note(e, sid)
     again = onboarding.reask(e, sid)  # a side question mid-interview: the waiting question comes back
-    extra = "".join(f"\n\n{x}" for x in (paused, waiting, again and again.text) if x)
-    return JSONResponse({"text": reply.text + extra, "tools": reply.tools_used, "trace": reply.trace,
+    parts = wa.bubbles(reply.text) if reply.text.strip() else []
+    if secret:
+        parts = wa.bubbles(guardrails.secret_reply(secret)) + parts
+    notes = [x for x in (paused, waiting, again and again.text) if x]
+    return JSONResponse({"text": "\n\n".join(parts + notes), "bubbles": parts + notes,
+                         "reaction": "🔒" if secret else getattr(reply, "reaction", None),
+                         "tools": reply.tools_used, "trace": reply.trace,
                          "buttons": out, "charts": charts, "quick": quick(again.buttons) if again else []})
 
 

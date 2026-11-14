@@ -19,15 +19,15 @@ challenge's synthetic S-Pankki data; the only edits are that the waits for AI re
 
 ```bash
 cp .env.example .env            # ANTHROPIC_API_KEY is required; leave WhatsApp settings empty
-rm -f data/state.json
-WA_TOKEN= DEMO_PHONE= PUBLIC_URL=http://127.0.0.1:8103 python -m uvicorn app.main:app --port 8103 &
+rm -rf data/state.json data/state
+DEMO_PERSONA=CUST04831 WA_TOKEN= DEMO_PHONE= PUBLIC_URL=http://127.0.0.1:8103 python -m uvicorn app.main:app --port 8103 &   # the video follows Aino
 python scripts/record_video.py --url http://127.0.0.1:8103
 ```
 
 - `--no-voice`: captions only, no narration.
 - `--edit-only`: re-edit the last capture (`out/video/recording.json`) without recording again.
 - Raw frames, the uncut capture and the WAVs go to `out/video/` (not committed).
-- Restart the server with a fresh `data/state.json` before each take, so goals and payments start clean.
+- Restart the server with a fresh `data/state.json` (and `data/state/`) before each take, so goals and payments start clean.
 
 Needs Windows (for System.Speech), ffmpeg on PATH and `pip install playwright` with Microsoft Edge installed.
 Replies come from the live model, so wording changes between takes; the numbers come from the engine and stay the

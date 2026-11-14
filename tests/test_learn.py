@@ -15,6 +15,8 @@ from app.tools import GUIDE, run_tool
 from tests.test_whatsapp_payloads import BASE, chat, connected  # noqa: F401  (the signed-webhook fixture)
 
 INDEX = json.loads((main.PERSONA_DIR / "index.json").read_text(encoding="utf-8"))
+WITH_FILE = [p for p in INDEX if p.get("file")]  # every persona but Aino (data/persona.csv)
+EETU = next(p["id"] for p in INDEX if p["name"] == "Eetu")
 SHAMING = ("you should", "must ", "too much", "wasting", "bad ", "irresponsible")
 
 
@@ -35,7 +37,7 @@ def e(tmp_path):
     ("simulate_cut", {"category": "Restaurants", "cut_pct": 20, "years": 5},
      ["× 365", "3.19 € a day", "97.18 € a month", "1 166.16 € a year"]),
     ("get_spender_profile", {}, ["38%", "change today"]),
-    ("get_subscriptions", {}, ["4 small charges", "858.55 € a year"]),
+    ("get_regular_payments", {}, ["basket 1 on autopilot", "894.47 € a month", "10 733.64 € a year"]),
 ])
 def test_tool_results_carry_a_lesson_with_their_own_numbers(e, tool, args, expect):
     out = run_tool(e, tool, args, [])
@@ -157,7 +159,7 @@ def test_progress_is_per_user_and_per_persona(e, tmp_path):
     again = Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json")  # saved: survives a restart
     assert again.state["learn"]["a"]["lesson"] == 1
     other = Engine(today=date(2026, 10, 6), state_path=tmp_path / "eetu.json",
-                   csv_path=main.PERSONA_DIR / INDEX[1]["file"])
+                   csv_path=main.PERSONA_DIR / WITH_FILE[0]["file"])
     assert "a" not in other.state.get("learn", {})
 
 
@@ -242,7 +244,8 @@ def test_web_chip_runs_the_course_with_quick_replies(client):
     assert "The three baskets" in main._coach.asked[-1][1]
     say("learn")
     for i in range(1, 4):
-        assert say(f"__btn__:learn:next:{i - 1}")["text"].startswith(f"📚 *{i + 1}/5 ·")
+        r = say(f"__btn__:learn:next:{i - 1}")
+        assert r["text"].startswith(f"✅ {i} of 5 done 🌰") and f"\n\n📚 *{i + 1}/5 ·" in r["text"]
     r = say("__btn__:learn:next:3")
     save = next(q["send"] for q in r["quick"] if "learn:save:" in q["send"])
     out = say(save)
@@ -252,7 +255,7 @@ def test_web_chip_runs_the_course_with_quick_replies(client):
 
 
 def test_web_course_uses_the_viewed_persona(client):
-    eetu = INDEX[1]["id"]
+    eetu = EETU
     r = client.post("/api/chat", json={"session": "p", "text": "learn", "as": eetu}).json()
     pe = main.engine_for(eetu)
     assert pe.state["learn"]["web:p"]["lesson"] == 0 and "web:p" not in main.engine.state.get("learn", {})

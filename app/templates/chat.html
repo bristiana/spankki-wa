@@ -6,7 +6,13 @@
   footer{display:none}
   #log{flex:1;overflow-y:auto;padding:16px;max-width:560px;width:100%;margin:0 auto}
   .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
-  .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px}
+  .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px;position:relative}
+  /* Birky's reaction on the person's message, like a WhatsApp reaction */
+  .me.reacted{margin-bottom:18px}
+  .react{position:absolute;right:8px;bottom:-15px;background:var(--card);border:1px solid var(--line);border-radius:99px;
+    padding:1px 6px;font-size:14px;line-height:20px;box-shadow:0 1px 2px rgba(0,0,0,.12);animation:pop .25s ease-out}
+  @keyframes pop{0%{transform:scale(.4);opacity:0}80%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+  @media (prefers-reduced-motion:reduce){.react{animation:none}}
   .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;margin-left:40px;position:relative}
   .bot::before{content:"";position:absolute;left:-40px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:#fff6e8 url(/static/birky.svg) center/120% no-repeat;border:1px solid var(--line)}
   .bot .btn{margin-top:10px;padding:11px;min-height:44px;font-size:15px}
@@ -21,11 +27,14 @@
   .chips.all{flex-wrap:wrap;overflow-x:hidden;overflow-y:auto;max-height:40dvh;-webkit-mask-image:none;mask-image:none;padding-top:4px}
   .chips.all button{flex:0 1 auto;max-width:100%;white-space:normal;text-align:left}
   .chips:not(.all) .more{display:none}
-  .chips button[data-more]{color:var(--brand);font-weight:600}
+  .chips.top{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-bottom:6px}
+  .chips.top button{flex:1 1 auto;font-weight:600;border-color:var(--brand)}  .chips button[data-more]{color:var(--brand);font-weight:600}
   .chips button{flex:none;min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 14px;font:14px system-ui;cursor:pointer;white-space:nowrap}
   form#f{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
   form#f input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px system-ui;background:var(--bg);color:var(--ink)}
   form#f button{border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 15px system-ui;padding:0 18px;min-height:44px;cursor:pointer}
+  #attach{flex:none;display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;border:1px solid var(--line);border-radius:50%;background:var(--bg);font-size:20px;cursor:pointer}
+  .me img{display:block;max-width:180px;max-height:220px;border-radius:10px;margin-bottom:4px}
   #sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
   #sheet.open{display:flex}
   #sheet .panel{background:var(--bg);width:100%;max-width:480px;height:88dvh;border-radius:18px 18px 0 0;overflow:hidden;display:flex;flex-direction:column}
@@ -58,30 +67,36 @@
 <div id="log" aria-live="polite" aria-label="Conversation with Birky">
   <div class="msg bot">Hi {{ name }} 👋 I'm <b>Birky</b>, your S-Pankki money coach. Ask me anything about your money.</div>
 </div>
+<!-- The three questions S-Pankki's mentors say matter most: always in view, above the scrolling ideas -->
+<div class="chips top" id="top">
+  <button>What kind of spender am I?</button>
+  <button>What can I safely spend this week?</button>
+  <button>How could I save more?</button>
+</div>
 <div class="chips" id="chips">
   <button data-q="__start__">🐿️ Get started</button>
-  <button data-q="__remind__">⏰ Rent reminder</button>
-  <button>🧺 Play the basket game</button>
   <button>📚 Learn in 2 minutes</button>
-  <button>What is safe for me to spend this week?</button>
+  <button>🧺 Play the basket game</button>
+  <button data-q="__remind__">⏰ Rent reminder</button>
   <button>When do I spend most on restaurants?</button>
   <button class="more">Show my groceries by month</button>
-  <button>How much did I spend on taxis last month?</button>
-  <button>How much can I safely save?</button>
-  <button>Could I afford my first home?</button>
-  <button class="more" data-q="__alert__:renewal">🔁 Renewal alert</button>
+  <button>How much do I need a month here?</button>
+  <button class="more">How much did I spend on taxis last month?</button>
+  <button class="more">How much can I safely save?</button>
+  <button class="more">Could I afford a home of my own?</button>
+  <button class="more" data-q="__alert__:bills">🧾 Bill alert</button>
   <button class="more" data-q="__alert__:salary">💰 Salary landed</button>
   <button class="more" data-q="__alert__:unusual">👀 Unusual spend</button>
   <button class="more">Show my money across all my banks</button>
   <button class="more">Can I afford a 120€ jacket?</button>
-  <button class="more">What kind of spender am I?</button>
-  <button class="more">What subscriptions am I paying for?</button>
+  <button class="more">What are my regular payments?</button>
   <button class="more">How much could I save if I cut dining out by 20%?</button>
   <button class="more">I want to save 1500 euros for a trip to Lapland by next summer</button>
   <button class="more">How much have I invested so far?</button>
   <button data-more aria-expanded="false" aria-controls="chips">More ideas ›</button>
 </div>
 <form id="f" autocomplete="off">
+  <label id="attach" title="Send a photo of a bill" aria-label="Send a photo of a bill">📷<input id="photo" type="file" accept="image/*" hidden></label>
   <input id="q" placeholder="Ask about your money…" aria-label="Message" enterkeyhint="send">
   <button id="send">Send</button>
 </form>
@@ -135,17 +150,37 @@ async function checkInbox() {
 }
 setInterval(checkInbox, 2500);
 
-async function send(text, shown) {
-  if (!text) return;
-  if (shown !== null) add("me", esc(shown || text));
+// The reaction Birky put on the person's message: a small badge on their bubble.
+function react(mine, emoji) {
+  if (!mine || !emoji) return;
+  const b = document.createElement("span");
+  b.className = "react"; b.textContent = emoji; b.setAttribute("aria-label", "Birky reacted " + emoji);
+  mine.classList.add("reacted"); mine.appendChild(b);
+}
+const pause = ms => new Promise(r => setTimeout(r, ms));
+
+async function send(text, shown, image) {
+  if (!text && !image) return;
+  const mine = image ? add("me", '<img alt="Your photo" src="' + image + '">' + esc(text || ""))
+                     : shown !== null ? add("me", esc(shown || text)) : null;
   const t = add("typing", 'Birky is thinking <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
   t.setAttribute("role", "status");
   try {
     const r = await fetch("/api/chat", {method: "POST", headers: {"content-type": "application/json"},
-                                         body: JSON.stringify({session: sid, text, as: {{ persona.id|tojson }}})});
-    const j = r.ok ? await r.json() : {text: "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
+                                         body: JSON.stringify({session: sid, text, image, as: {{ persona.id|tojson }}})});
+    const j = r.ok ? await r.json() : {text: r.status === 413 ? "That photo is too big for me. Could you try a smaller one?"
+                                             : "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
     t.remove();
-    const d = add("bot", fmt(j.text || "…"));
+    react(mine, j.reaction);
+    // One bubble per part, a beat apart, like a person typing; buttons and charts ride on the last one.
+    const parts = (j.bubbles && j.bubbles.length) ? j.bubbles : (j.text ? [j.text] : []);
+    const extras = (j.charts || []).length || (j.buttons || []).length || (j.quick || []).length;
+    if (!parts.length && !extras) { if (mine) reveal(mine); return; }  // only a reaction ("thanks" -> 🙏)
+    let d = null;
+    for (const [i, p] of (parts.length ? parts : ["👇"]).entries()) {
+      if (i) await pause(450);
+      d = add("bot", fmt(p));
+    }
     for (const c of j.charts || []) {  // explore_my_data: the engine's numbers, drawn right in the bubble
       d.classList.add("has-chart");
       const box = document.createElement("div"), plot = document.createElement("div");
@@ -182,9 +217,24 @@ async function send(text, shown) {
 }
 
 document.getElementById("f").onsubmit = e => { e.preventDefault(); const v = q.value.trim(); q.value = ""; send(v); };
+// A bill photo: shrunk to 1600 px on the phone (a camera photo is 3-12 MB; the server takes up to 5 MB) and sent
+// with whatever is typed as its caption ("explain it", "pay it").
+const photo = document.getElementById("photo");
+photo.onchange = async () => {
+  const f = photo.files[0]; photo.value = "";
+  if (!f || !f.type.startsWith("image/")) return;
+  try {
+    const bmp = await createImageBitmap(f), k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const v = q.value.trim(); q.value = "";
+    send(v, null, c.toDataURL("image/jpeg", 0.85));
+  } catch (e) { add("bot", "I couldn't open that photo. Could you try another one?"); }
+};
 const chips = document.getElementById("chips");
-chips.querySelectorAll("button").forEach(b => b.onclick = () => {
-  if (b.hasAttribute("data-more")) {  // 8 ideas at first; the rest one tap away
+document.querySelectorAll("#top button, #chips button").forEach(b => b.onclick = () => {
+  if (b.hasAttribute("data-more")) {  // 9 ideas at first; the rest one tap away
     const all = chips.classList.toggle("all");
     b.textContent = all ? "Fewer ‹" : "More ideas ›"; b.setAttribute("aria-expanded", all);
     return;

@@ -68,7 +68,7 @@ def test_persona_override_works_like_as(client):
     page = client.get(f"/s-mobiili/?persona={other}").text
     assert f"Hi {main.PERSONAS[other]['name']}" in page
     assert main.money_nb(main.engine_for(other).balance()) in page
-    assert "Hi Aino" in client.get("/s-mobiili/?persona=nobody").text
+    assert f"Hi {main.PERSONAS[main.DEFAULT_PERSONA]['name']}" in client.get("/s-mobiili/?persona=nobody").text
 
 
 def test_pay_review_is_prefilled_and_guided(client):
@@ -115,13 +115,29 @@ def test_invest_shows_the_chosen_fund_and_risk_in_plain_words(client):
     assert "Monthly plan" in client.get("/s-mobiili/").text
 
 
-def test_stop_payment_flow(client):
-    sub = next(s for s in main.engine.subscriptions()["subscriptions"] if s["status"] == "active")
-    p = main.engine.create_stop_subscription(sub["name"])
+def test_pause_investing_flow(client):
+    p = main.engine.create_pause_investing()
     page = client.get(f"/s-mobiili/stop/{p['pending_id']}").text
-    assert "Stop a card payment" in page and sub["name"] in page and "a year" in page
-    assert confirm(client, "stop", p["pending_id"]).json()["title"] == "Payment stopped"
-    assert main.engine.state["stopped"][sub["name"]] == "2026-10-06"
+    assert "Pause monthly investing" in page and f"Day {p['usual_day']} of the month" in page
+    assert main.money_nb(p["amount"]) in page and "Stays invested" in page and main.nice_date(p["next_charge"]) in page
+    assert "card payment" not in page.lower() and "merchant" not in page.lower()
+    assert [s["target"] for s in steps(page)] == ["amount", "row-next", "row-invested", "faceid"]
+    before = main.engine.balance()
+    j = confirm(client, "stop", p["pending_id"]).json()
+    assert j["title"] == "Investing paused" and "stays invested" in j["lines"][0]
+    assert main.engine.balance() == before
+    assert main.engine.commitments()["regular_payments"] and "paused" in client.get("/app").text
+    assert confirm(client, "stop", p["pending_id"]).status_code == 409
+
+
+def test_pay_a_bill_photo_shows_the_bills_own_iban_and_reference(client):
+    p = main.engine._pend({"kind": "payment", "source": "photo", "bill_id": "photo-x", "name": "Voltti Energia Oy",
+                           "category": "Utilities", "amount": 57.08, "due_date": "2026-10-20",
+                           "iban": "FI5979900020451187", "reference": "20261005837", "invoice_number": None,
+                           "transaction_type": "utilities_payment"})
+    page = client.get(f"/s-mobiili/pay/{p['pending_id']}").text
+    assert "FI59 7990 0020 4511 87" in page and "20261005837" in page and "Voltti Energia Oy" in page
+    assert main.DEMO_IBAN not in page and "copied from your bill" in page
 
 
 # ---------------- the confirm: same engine logic as the PIN page ----------------
@@ -172,9 +188,9 @@ def test_whatsapp_and_chat_buttons_open_s_mobiili(client):
     g = main.engine.create_goal("Trip", 500)["goal"]
     tools.run_tool(main.engine, "create_saving_link", {"goal_id": g["id"], "amount_eur": 20}, buttons)
     tools.run_tool(main.engine, "create_investment_link", {"amount_eur": 30, "fund_id": "growth", "monthly": True}, buttons)
-    tools.run_tool(main.engine, "create_stop_subscription_link", {"name": "all"}, buttons)
+    tools.run_tool(main.engine, "create_pause_investing_link", {}, buttons)
     routes = [b["url"].split("/s-mobiili/")[1].split("/")[0] for b in buttons]
-    assert routes[:3] == ["pay", "save", "invest"] and set(routes[3:]) == {"stop"}
+    assert routes == ["pay", "save", "invest", "stop"]
     assert all(b["url"].startswith("http://127.0.0.1:8806/s-mobiili/") for b in buttons)
 
 

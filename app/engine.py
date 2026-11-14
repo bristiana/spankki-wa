@@ -38,6 +38,7 @@ BASKETS = {
     },
 }
 CATEGORY_BASKET = {c: k for k, b in BASKETS.items() for c in b["categories"]}
+EVERYDAY_WORDS = {"Restaurants": "eating out", "Entertainment": "entertainment", "Lifestyle": "shopping"}
 NO_PAYDAY_DAYS = 30  # safe-to-spend horizon when no regular salary is found
 INCOME_TYPES = {"salary", "other_income", "investment_withdrawal"}
 CYCLE_INCOME_TYPES = {"salary", "other_income"}  # what a pay cycle earns (the cycle budget in safe to spend)
@@ -67,24 +68,19 @@ FUND_MIX = {
     "growth": [{"name": "Vanguard FTSE All-World (VWCE)", "ticker": "VWCEd_EQ", "pct": 100}],
 }
 
-# The S-Pankki dataset has no subscriptions (no merchant repeats on a schedule), so the demo customer gets a few
-# synthetic card subscriptions. They are labelled as demo data everywhere and are NOT part of the balance.
-# The detector below is generic: it only sees dated charges, like it would with real card data.
-DEMO_SUBSCRIPTIONS = [
-    # name, category, day, amount, start, end (None = still charging), price change (from_date, new_amount), cadence
-    {"name": "StreamPlus", "kind": "Video streaming", "day": 7, "amount": 11.99, "start": "2025-01-07", "end": None,
-     "change": ("2026-08-07", 13.99), "cadence": "monthly"},
-    {"name": "MusicBox", "kind": "Music streaming", "day": 3, "amount": 10.99, "start": "2024-11-03", "end": None,
-     "change": None, "cadence": "monthly"},
-    {"name": "FitHub Gym", "kind": "Gym membership", "day": 20, "amount": 39.90, "start": "2025-09-20", "end": None,
-     "change": None, "cadence": "monthly"},
-    {"name": "CloudDrive", "kind": "Cloud storage", "day": 25, "amount": 2.99, "start": "2024-12-25", "end": "2026-06-25",
-     "change": None, "cadence": "monthly"},
-    {"name": "GamePass Plus", "kind": "Gaming", "day": 14, "amount": 14.99, "start": "2025-05-14", "end": "2026-03-14",
-     "change": None, "cadence": "monthly"},
-    {"name": "LinguaPro", "kind": "Language app", "day": 10, "amount": 79.99, "start": "2025-02-10", "end": None,
-     "change": None, "cadence": "yearly"},
-]
+# Regular commitments: what comes back every month in the customer's own transactions. The S-Pankki dataset has no
+# subscription merchants (no streaming, gym or app charges), so nothing here is invented: rent, the utility bills,
+# the monthly investment and the salary are found from each customer's own rows.
+COMMITMENT_TYPES = {  # transaction type -> id, name, what it is, direction, what the person can do about it
+    "housing_payment": ("rent", "Rent", "Housing payment", "out", ["remind", "pay"]),
+    "investment_deposit": ("investing", "Monthly investing", "Your monthly deposit to investments", "out", ["pause"]),
+    "salary": ("salary", "Salary", "Income", "in", []),
+}
+GRACE_DAYS = 10  # stopped = no payment for longer than the usual gap + this
+TREND_PCT = {"single": 5, "utilities": 15}  # a real change: last 3 full months vs the 3 before, at least this many %
+TREND_MIN_EUR = 10.0  # ... and at least this many euros a month
+UNUSUAL_BILL_FACTOR = 1.2  # one utility bill this far above the top of the usual range (its 90th percentile)
+CARD_REPEAT_MIN = 4  # card charges from one merchant, about a month apart, same amount: a card subscription
 
 # Merchant category codes (ISO 18245) found in the persona data, as plain English.
 MCC_LABELS = {
@@ -236,7 +232,7 @@ class Engine:
                 return json.loads(mirrored)
             except ValueError:
                 pass
-        return {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": [],
+        return {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "paused": {}, "orders": [],
                 "linked_banks": {}}
 
     def _save(self):
@@ -246,7 +242,7 @@ class Engine:
         store.save(self._store_name(), text)
 
     def reset(self):
-        self.state = {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": [],
+        self.state = {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "paused": {}, "orders": [],
                       "linked_banks": {}}
         self._save()
 
@@ -579,8 +575,8 @@ class Engine:
     def upcoming_bills(self, days: int = 14) -> list[dict]:
         out = []
         for r in self.recurring():
-            if r.direction != "out":
-                continue
+            if r.direction != "out" or self.state.get("paused", {}).get(r.transaction_type):
+                continue  # a paused monthly investment is not coming up
             d = self._next_due(r)
             if (d - self.today).days <= days:
                 bill_id = f"{r.key}-{d.isoformat()}"
@@ -722,6 +718,76 @@ class Engine:
                               if flow["investing_per_month_eur"] > 0 else "."))
         return out
 
+    def save_more(self) -> dict:
+        """'How could I save more?': at most three ideas, each with one number. The biggest real lever (a 20% cut on
+        the largest 'slips through your fingers' category), what can go to savings now or every payday, and one
+        regular payment worth a review."""
+        ideas = []
+        cuts = [self.simulate_cut(c, 20) for c in BASKETS["everyday"]["categories"] if self.monthly_avg(c, 3) > 0]
+        top = max(cuts, key=lambda c: c["saving_per_month_eur"]) if cuts else None
+        if top and top["saving_per_year_eur"] >= 60:
+            ideas.append({"idea": "biggest_lever", "category": top["category"],
+                          "in_words": EVERYDAY_WORDS[top["category"]], "basket": BASKETS["everyday"]["label"],
+                          "cut_pct": 20, "now_per_month_eur": top["current_per_month_eur"],
+                          "saving_per_month_eur": top["saving_per_month_eur"],
+                          "saving_per_year_eur": top["saving_per_year_eur"],
+                          "number_to_say": "saving_per_year_eur",
+                          "why": "the largest category in the 'slips through your fingers' basket over the last 3 full "
+                                 "months; a fifth less there is a habit change, not a sacrifice"})
+        save = self.safe_to_save()
+        m = save["monthly"]
+        if save["reserve_eur"] >= RESERVE_NOTE_EUR:
+            ideas.append({"idea": "move_what_built_up", "amount_eur": save["reserve_eur"], "number_to_say": "amount_eur",
+                          "why": "money on the current account beyond what this pay cycle needs: in a savings goal "
+                                 "(an emergency buffer first) it stops being spendable by accident",
+                          "how": "create_goal, then create_saving_link (the person confirms with their PIN)"})
+        elif m["sustainable_saving_per_month_eur"] > 0:
+            ideas.append({"idea": "pay_yourself_first", "per_month_eur": m["sustainable_saving_per_month_eur"],
+                          "number_to_say": "per_month_eur",
+                          "why": "the average monthly surplus of the last 3 full months, moved on payday before "
+                                 "spending starts"})
+        review = self._payment_to_review()
+        if review:
+            ideas.append(review)
+        out = {
+            "ideas": ideas[:3],
+            "monthly_picture": {k: m[k] for k in ("income_per_month_eur", "spending_per_month_eur",
+                                                  "investing_per_month_eur", "left_per_month_eur")},
+            "goals": save["goals"],
+            "next_step": ("Offer one thing: an 'Emergency buffer' savings goal to move part of what has built up into "
+                          "(create_goal, then create_saving_link; the PIN is theirs)."
+                          if any(i["idea"] == "move_what_built_up" for i in ideas) and not save["goals"] else
+                          f"Offer one thing: try {EVERYDAY_WORDS[top['category']]} 20% lighter for one month."
+                          if top else "Offer one thing: a savings goal to give the money a name."),
+            "method": "biggest lever = simulate_cut(20%) on the largest 'slips through your fingers' category, last 3 "
+                      "full months; what built up = the reserve from get_safe_to_save; the review = a regular payment "
+                      "from get_regular_payments (one that went up, else the utility bills)",
+        }
+        if m["left_per_month_eur"] < 0:
+            out["note"] = ("The last 3 full months spent and invested more than came in. Say it kindly in a few words "
+                           "('lately a bit more has gone out than came in'), without the number unless they ask; the "
+                           "lever is what turns it around.")
+        return out
+
+    def _payment_to_review(self) -> dict | None:
+        """One regular payment worth a look: one that went up (old and new numbers), else the utility bills. Monthly
+        investing is saving, so it is never the one to cut; rent changes only with the lease."""
+        items = [x for x in self.commitments()["regular_payments"]
+                 if x["direction"] == "out" and x["status"] == "active" and x["id"] != "investing"]
+        up = next((x for x in items if (x.get("trend") or {}).get("direction") == "up"), None)
+        if up:
+            t = up["trend"]
+            return {"idea": "review_payment", "name": up["name"], "per_month_eur": t["last_per_month_eur"],
+                    "before_per_month_eur": t["previous_per_month_eur"], "number_to_say": "per_month_eur",
+                    "why": f"went up from {t['previous_months']} to {t['last_months']}; worth checking why"}
+        util = next((x for x in items if x["id"] == "utilities"), None)
+        if util and util["per_month_eur"] >= 30:
+            return {"idea": "review_payment", "name": util["name"], "per_month_eur": util["per_month_eur"],
+                    "per_year_eur": util["per_year_eur"], "number_to_say": "per_year_eur",
+                    "why": "a regular payment that runs on its own; comparing the contracts behind it once a year "
+                           "(the data names no company) is a quick check"}
+        return None
+
     # ---------- other banks (PSD2 account information, mock) ----------
     def link_bank(self, scope: list[str] | None = None) -> dict:
         """Mock PSD2 consent: store a synthetic second bank (savings + credit card + 3 months of card purchases)."""
@@ -806,10 +872,7 @@ class Engine:
         budget = sum(self.monthly_avg(c, 3) for c in cats)
         s = self._slice(month_start(self.today), self.today)
         spent = -s[(s["tx_amount_eur"] < 0) & s["category"].isin(cats)]["tx_amount_eur"].sum()
-        # The "slips through your fingers" bills: subscriptions charging before payday.
-        subs = sum(x["price_eur"] for x in self.subscriptions()["subscriptions"]
-                   if x["status"] == "active" and x["days_to_next"] < days)
-        left = budget - spent - subs
+        left = budget - spent
         safe_left = safe["safe_to_spend_until_payday_eur"]
         goals = []
         for g in self.goals():
@@ -826,7 +889,6 @@ class Engine:
             "fits_safe_to_spend": bool(amount <= safe_left),
             "flexible_budget_per_month_eur": eur(budget),
             "spent_this_month_eur": eur(spent),
-            "subscriptions_before_payday_eur": eur(subs),
             "flexible_left_this_month_eur": eur(left),
             "flexible_left_after_eur": eur(left - amount),
             "safe_to_spend_until_payday_eur": eur(safe_left),
@@ -838,7 +900,7 @@ class Engine:
             "per_day_after_eur": eur(max(0.0, safe_left - amount) / days),
             "goals": goals,
             "method": "flexible budget = your average monthly 'slips through your fingers' spending (last 3 months) "
-                      "- spent on it this month - subscriptions due before payday; safe to spend as in get_safe_to_spend; "
+                      "- spent on it this month; safe to spend as in get_safe_to_spend; "
                       "fits_with_reserve: it could be paid by also using the reserve (savings built up beyond the "
                       "pay cycle), which shrinks those savings",
         }
@@ -921,6 +983,27 @@ class Engine:
                                         "vs_peers_pct": round((mine - m) / m * 100),
                                         "in_top_quarter_of_spenders": mine > -p25.get(c, 0.0)})
             comparisons.sort(key=lambda x: -x["vs_peers_pct"])
+        over, band = "the last 3 full months", self.benchmark["age_band"] if self.benchmark else None
+        group, customers = ((f"S-Pankki customers aged {band}", self.benchmark["customers"])
+                            if self.benchmark else (None, None))
+        if not self.benchmark:  # another age band than benchmark.json: the same area and age from "people like you"
+            try:
+                nl = self.new_life_budget()
+            except (ValueError, KeyError, TypeError):
+                nl = None
+            rows = [r for r in ((nl or {}).get("you") or {}).get("comparison", []) if r["key"] in SPEND_CATEGORIES
+                    and r["typical_median_eur"] > 5]
+            if rows and nl["group"].get("age_band") and not nl["group"].get("starting_out"):  # always an age group
+                band, over = nl["group"]["age_band"], "the last 12 full months, for you and for them"
+                group, customers = f"S-Pankki customers {nl['group']['who'].removeprefix('customers ')}", \
+                    nl["group"]["customers"]
+                comparisons = sorted(
+                    ({"category": r["key"], "you_per_month_eur": r["you_per_month_eur"],
+                      "peers_median_eur": r["typical_median_eur"],
+                      "vs_peers_pct": round((r["you_per_month_eur"] - r["typical_median_eur"]) / r["typical_median_eur"] * 100),
+                      "in_top_quarter_of_spenders": r["you_per_month_eur"] > r["typical_range_eur"][1],
+                      "where_you_are": r["where_you_are"]} for r in rows),
+                    key=lambda x: -x["vs_peers_pct"])
         # No income in the window: a savings rate would be invented (or divide by zero).
         save_rate = round(b["invested_eur"] / b["income_eur"] * 100) if b["income_eur"] > 0 else None
         r = self.spending("Restaurants", "last_3_months")
@@ -940,8 +1023,8 @@ class Engine:
             "restaurant_visits_last_3_months": r["transactions"],
             "weekend_restaurant_share_pct": wk_share,
             "traits": traits,
-            "peers": {"group": f"S-Pankki customers aged {self.benchmark['age_band']}" if self.benchmark else None,
-                      "customers": self.benchmark["customers"] if self.benchmark else None,
+            "peers": {"group": group, "age_band": band if group else None, "customers": customers,
+                      "compared_over": over if group else None,
                       "biggest_differences": comparisons[:4]},
             "baskets": [{k: x[k] for k in ("label", "per_month_eur", "share_pct")} for x in b["baskets"]],
             "finland_official": self.official_benchmark(),
@@ -1003,7 +1086,7 @@ class Engine:
         return {"today": self.today.isoformat(), "balance_eur": self.balance(), "safe": self.safe_to_spend(),
                 "full": self.full_picture(),
                 "baskets": self.baskets("last_3_months"), "flow": self.weekly_flow(), "series": self.balance_series(),
-                "bills": self.upcoming_bills(), "subs": self.subscriptions(), "goals": self.goals(),
+                "bills": self.upcoming_bills(), "regular": self.commitments(), "goals": self.goals(),
                 "invest": {"put_in": port["net_put_in_eur"], "plan": port["monthly_plan_in_data"],
                            "real": port["if_your_deposits_were_in_each_fund"]},
                 "official": self.official_benchmark(), "recent": self.recent()}
@@ -1016,10 +1099,10 @@ class Engine:
                  "merchant": merchant_name(r["merchant_id"])} for _, r in self.tx.iterrows()]
         return {"customer_id": self.customer_id, "as_of": self.today.isoformat(), "balance_eur": self.balance(),
                 "transactions": rows, "baskets_last_3_months": self.baskets("last_3_months"),
-                "subscriptions": self.subscriptions(), "goals": self.state.get("goals", {}),
+                "regular_payments": self.commitments(), "goals": self.state.get("goals", {}),
                 "investment_plans": self.state.get("plans", []), "consents": self.state.get("connected", {}),
-                "linked_banks": self.state.get("linked_banks", {}),
-                "note": "Synthetic S-Pankki demo data. Subscriptions are demo additions."}
+                "paused": self.state.get("paused", {}), "linked_banks": self.state.get("linked_banks", {}),
+                "note": "S-Pankki's synthetic challenge data. A linked Demo Bank, if any, is made up."}
 
     # ---------- money moves (only after the user confirms) ----------
     def create_payment(self, bill_id: str) -> dict:
@@ -1063,13 +1146,19 @@ class Engine:
         if p["status"] == "done":
             return {"pending_id": pid, **p, "balance_eur": self.balance(), "first_time": False}
         kind = p["kind"]
-        if kind == "payment" and not any(b["bill_id"] == p["bill_id"] for b in self.upcoming_bills(45)):
+        if kind == "payment" and p.get("source") == "photo":  # a bill from a photo (app/bills.py): paid once
+            if any(q is not p and q.get("bill_id") == p["bill_id"] and q["status"] == "done"
+                   for q in self.state["pending"].values()):
+                raise ValueError(f"the {p['name']} bill is already paid")
+        elif kind == "payment" and not any(b["bill_id"] == p["bill_id"] for b in self.upcoming_bills(45)):
             raise ValueError(f"{p['name']} due {p['due_date']} is already paid")
         moves_now = kind in ("payment", "saving") or (kind == "investment" and not p.get("monthly"))
         if moves_now and p["amount"] > self.balance():
             raise ValueError(f"not enough money: your balance is {self.balance():.2f} EUR")
-        if kind == "stop_subscription":
-            self.state.setdefault("stopped", {})[p["name"]] = self.today.isoformat()
+        if kind == "pause_investing":
+            if self.state.setdefault("paused", {}).get("investment_deposit"):
+                raise ValueError("monthly investing is already paused")
+            self.state["paused"]["investment_deposit"] = self.today.isoformat()
         elif kind == "investment" and p.get("monthly"):
             # A monthly plan moves money on payday, not now.
             p["starts"] = self.next_payday()["date"]
@@ -1092,80 +1181,234 @@ class Engine:
         self._save()
         return {"pending_id": pid, **self.state["pending"][pid]}
 
-    # ---------- subscriptions (F1) ----------
-    def subscription_charges(self) -> list[dict]:
-        """Card charges of the demo subscriptions up to today (synthetic, see DEMO_SUBSCRIPTIONS)."""
+    # ---------- regular commitments (F1): found in the customer's own transactions ----------
+    def _month_totals(self, rows: pd.DataFrame, d0: date, months: int) -> list[float]:
+        """Euros (positive) per calendar month, for `months` months from d0; a month without a payment is 0."""
+        by: dict[tuple, float] = {}
+        for d, a in zip(rows["date"], rows["tx_amount_eur"]):
+            by[(d.year, d.month)] = by.get((d.year, d.month), 0.0) + abs(float(a))
+        return [by.get((m.year, m.month), 0.0) for m in (add_months(d0, i) for i in range(months))]
+
+    def _trend(self, rows: pd.DataFrame, kind: str) -> dict | None:
+        """The last 3 full months vs the 3 before, per month. None when the history is shorter than 6 full months.
+        A change counts only when it is bigger than the usual month-to-month swing could make it by chance (twice
+        the standard error of the difference of two 3-month averages), at least TREND_PCT and TREND_MIN_EUR."""
+        d0, _ = self._full_months(6)
+        if self._covered(d0, 6) < 6:
+            return None
+        totals = self._month_totals(rows, d0, 6)
+        d12, _ = self._full_months(12)
+        n12 = self._covered(d12, 12)
+        year = self._month_totals(rows, add_months(d12, 12 - n12), n12)
+        swing = float(pd.Series(year).std()) if n12 >= 6 else 0.0
+        old, new = sum(totals[:3]) / 3, sum(totals[3:]) / 3
+        change = new - old
+        noise = 2 * swing * (2 / 3) ** 0.5
+        if not old:
+            direction = "started" if new else "about the same"
+        elif (abs(change) >= max(TREND_MIN_EUR, noise)) and abs(change) / old * 100 >= TREND_PCT[kind]:
+            direction = "up" if change > 0 else "down"
+        else:
+            direction = "about the same"
+
+        def span(a: int, b: int) -> str:
+            return f"{add_months(d0, a).strftime('%b')}-{add_months(d0, b).strftime('%b %Y')}"
+        return {"previous_months": span(0, 2), "previous_per_month_eur": eur(old),
+                "last_months": span(3, 5), "last_per_month_eur": eur(new), "change_per_month_eur": eur(change),
+                "change_pct": round(change / old * 100) if old else None, "direction": direction,
+                "usual_swing_per_month_eur": eur(swing),
+                "rule": f"up or down = at least {TREND_PCT[kind]}%, {TREND_MIN_EUR:.0f} EUR a month and more than the "
+                        "usual month-to-month swing explains"}
+
+    def _next_on(self, last: date, day: int) -> date:
+        """The first `day`-of-month after the month of `last` that is not in the past."""
+        d = on_day(add_months(month_start(last), 1), day)
+        while d < self.today:
+            d = on_day(add_months(month_start(d), 1), day)
+        return d
+
+    def _monthly(self, ttype: str, t: pd.DataFrame | None = None) -> dict | None:
+        """One payment a month of this type (rent, the investment deposit, the salary), or None."""
+        cid, name, what, direction, actions = COMMITMENT_TYPES[ttype]
+        t = self.tx if t is None else t
+        rows = t[(t["transaction_type"] == ttype) & ((t["tx_amount_eur"] < 0) if direction == "out"
+                                                     else (t["tx_amount_eur"] > 0))].sort_values("date", kind="stable")
+        if len(rows) < 3:
+            return None
+        dates = list(rows["date"])
+        gaps = sorted((b - a).days for a, b in zip(dates, dates[1:]))
+        gap = gaps[len(gaps) // 2]
+        if not 20 <= gap <= 40:
+            return None  # comes, but not once a month
+        amounts = [float(x) for x in rows["tx_amount_eur"].abs()]
+        day = int(pd.Series([d.day for d in dates[-6:]]).median())
+        last = dates[-1]
+        paused = self.state.get("paused", {}).get(ttype)
+        status = ("paused_by_you" if paused else "stopped" if (self.today - last).days > gap + GRACE_DAYS
+                  else "active")
+        nxt = self._next_on(last, day) if status == "active" else None
+        per_month = sum(amounts[-3:]) / len(amounts[-3:])
+        category = rows["category"].mode()[0]
+        item = {"id": cid, "name": name, "what": what, "direction": direction, "status": status,
+                "basket": (BASKETS[CATEGORY_BASKET[category]]["label"] if category in CATEGORY_BASKET else
+                           "Saving (your choice, not spending)" if direction == "out" else None),
+                "per_month_eur": eur(per_month), "per_year_eur": eur(eur(per_month) * 12), "usual_day": day,
+                "next_expected": nxt.isoformat() if nxt else None,
+                "days_to_next": (nxt - self.today).days if nxt else None,
+                "last_payment": {"date": last.isoformat(), "amount_eur": eur(amounts[-1])},
+                "range_last_6_eur": {"low": eur(min(amounts[-6:])), "high": eur(max(amounts[-6:]))},
+                "payments": len(rows), "since": dates[0].isoformat(), "usual_gap_days": gap,
+                "trend": self._trend(rows, "single"), "actions": actions if status == "active" else []}
+        if paused:
+            item["paused_since"] = paused
+            item["note"] = "Paused by you; what is already invested stays invested."
+        elif status == "stopped":
+            item["note"] = (f"No payment since {last.isoformat()}: longer than the usual {gap} days plus "
+                            f"{GRACE_DAYS}, so it looks stopped.")
+        return item
+
+    def _utilities(self, t: pd.DataFrame | None = None) -> dict | None:
+        """The utility bills: about 3 a month, no merchant, different days. Treated as one monthly total."""
+        t = self.tx if t is None else t
+        rows = t[(t["transaction_type"] == "utilities_payment") & (t["tx_amount_eur"] < 0)].sort_values(
+            "date", kind="stable")
+        if len(rows) < 3:
+            return None
+        d3, d1 = self._full_months(3)
+        d6, _ = self._full_months(6)
+        n3, n6 = self._covered(d3, 3), self._covered(d6, 6)
+        last3 = rows[(rows["date"] >= d3) & (rows["date"] <= d1)]
+        last6 = rows[(rows["date"] >= d6) & (rows["date"] <= d1)]
+        per_month = float(last3["tx_amount_eur"].abs().sum()) / n3 if n3 else 0.0
+        # The usual range of one bill: the 12 months before the last 3 full months (all bills on a short history).
+        earlier = rows[(rows["date"] < d3) & (rows["date"] >= add_months(d3, -12))]
+        if len(earlier) < 6:
+            earlier = rows[rows["date"] < d3]
+        ref = (earlier if len(earlier) >= 6 else rows)["tx_amount_eur"].abs().astype(float)
+        lo, hi, med = float(ref.quantile(0.1)), float(ref.quantile(0.9)), float(ref.median())
+        unusual = None
+        recent = rows[rows["date"] >= d3]
+        if len(earlier) >= 6 and len(recent):
+            top = recent.loc[recent["tx_amount_eur"].abs().idxmax()]
+            amt = abs(float(top["tx_amount_eur"]))
+            if amt > hi * UNUSUAL_BILL_FACTOR and amt > float(ref.max()):  # and bigger than any bill of that year
+                unusual = {"date": top["date"].isoformat(), "amount_eur": eur(amt), "usual_low_eur": eur(lo),
+                           "usual_high_eur": eur(hi), "usual_median_eur": eur(med),
+                           "times_usual": round(amt / med, 1) if med else None}
+        # Fixed days: only when most months have the same number of bills and each one lands within 4 days.
+        by_month: dict[tuple, list[int]] = {}
+        for d in last6["date"]:
+            by_month.setdefault((d.year, d.month), []).append(d.day)
+        counts = [len(v) for v in by_month.values()]
+        fixed = None
+        if len(by_month) >= 4:
+            n = max(set(counts), key=counts.count)
+            same = [sorted(v) for v in by_month.values() if len(v) == n]
+            if len(same) >= 4 and max(max(m[k] for m in same) - min(m[k] for m in same) for k in range(n)) <= 4:
+                fixed = [int(pd.Series([m[k] for m in same]).median()) for k in range(n)]
+        last = rows["date"].iloc[-1]
+        status = "stopped" if (self.today - last).days > 31 + GRACE_DAYS else "active"
+        nxt = None
+        if fixed and status == "active":
+            paid_now = int((rows["date"] >= month_start(self.today)).sum())
+            this = [on_day(self.today, d) for k, d in enumerate(fixed) if k >= paid_now]
+            nxt = min([d for d in this if d >= self.today] or [on_day(add_months(month_start(self.today), 1), fixed[0])])
+        days = [d.day for d in (last6["date"] if len(last6) else rows["date"])]
+        per_bills = len(last6) / n6 if n6 else 0.0
+        item = {"id": "utilities", "name": "Utility bills", "what": "Utility bills (the data names no company)",
+                "direction": "out", "status": status, "basket": BASKETS["regular"]["label"],
+                "per_month_eur": eur(per_month), "per_year_eur": eur(eur(per_month) * 12),
+                "bills_per_month": round(per_bills, 1),
+                "one_bill_usual_range_eur": {"low": eur(lo), "high": eur(hi)},
+                "fixed_days": fixed, "usual_day": fixed[0] if fixed and len(fixed) == 1 else None,
+                "day_range": {"first": min(days), "last": max(days)},
+                "next_expected": nxt.isoformat() if nxt else None,
+                "days_to_next": (nxt - self.today).days if nxt else None,
+                "last_payment": {"date": last.isoformat(), "amount_eur": eur(abs(float(rows["tx_amount_eur"].iloc[-1])))},
+                "payments": len(rows), "since": rows["date"].iloc[0].isoformat(),
+                "trend": self._trend(rows, "utilities"), "unusual_bill": unusual,
+                "actions": (["remind"] if fixed else ["watch"]) if status == "active" else []}
+        if not fixed:
+            item["note"] = (f"About {round(per_bills)} bills a month on different days (day {min(days)} to "
+                            f"{max(days)}), so there is no fixed date to expect; this is the monthly total.")
+        if status == "stopped":
+            item["note"] = f"No utility bill since {last.isoformat()}."
+        return item
+
+    def _card_repeats(self, t: pd.DataFrame | None = None) -> list[dict]:
+        """Card subscriptions, if any: the same merchant charging the same amount about once a month."""
+        t = self.tx if t is None else t
+        p = t[(t["transaction_type"] == "purchase") & t["merchant_id"].notna() & (t["tx_amount_eur"] < 0)]
+        many = p["merchant_id"].value_counts()
         out = []
-        for sub in DEMO_SUBSCRIPTIONS:
-            d = date.fromisoformat(sub["start"])
-            end = date.fromisoformat(sub["end"]) if sub["end"] else self.today
-            step = 12 if sub["cadence"] == "yearly" else 1
-            while d <= min(end, self.today):
-                amt = sub["amount"]
-                if sub["change"] and d >= date.fromisoformat(sub["change"][0]):
-                    amt = sub["change"][1]
-                out.append({"date": d, "merchant": sub["name"], "kind": sub["kind"], "amount": amt})
-                d = add_months(d, step).replace(day=min(sub["day"], 28))
+        for mid, g in p[p["merchant_id"].isin(many[many >= CARD_REPEAT_MIN].index)].groupby("merchant_id"):
+            amts = g["tx_amount_eur"].abs().astype(float)
+            med = float(amts.median())
+            same = g[(amts - med).abs() <= 0.02 * med + 0.01]
+            if len(same) < CARD_REPEAT_MIN:
+                continue
+            ds = sorted(same["date"])
+            if sum(25 <= (b - a).days <= 35 for a, b in zip(ds, ds[1:])) < CARD_REPEAT_MIN - 1:
+                continue
+            out.append({"name": merchant_name(mid), "amount_eur": eur(med), "charges": len(ds),
+                        "last_charge": ds[-1].isoformat(), "active": (self.today - ds[-1]).days <= 31 + GRACE_DAYS})
         return out
 
-    def subscriptions(self) -> dict:
-        """Detect repeating charges per merchant: active, inactive or stopped, price increases, next charge."""
-        by: dict[str, list] = {}
-        for c in self.subscription_charges():
-            by.setdefault(c["merchant"], []).append(c)
-        items = []
-        for name, cs in by.items():
-            cs.sort(key=lambda c: c["date"])
-            if len(cs) < 2:
-                continue
-            gaps = sorted((b["date"] - a["date"]).days for a, b in zip(cs, cs[1:]))
-            gap = gaps[len(gaps) // 2]
-            if 25 <= gap <= 35:
-                cadence, months, grace = "monthly", 1, 10
-            elif 350 <= gap <= 380:
-                cadence, months, grace = "yearly", 12, 30
-            else:
-                continue
-            last = cs[-1]
-            earlier = sorted(c["amount"] for c in cs[:-1])
-            usual = earlier[len(earlier) // 2]
-            nxt = add_months(last["date"], months).replace(day=min(last["date"].day, 28))
-            if self.state.get("stopped", {}).get(name):
-                status = "stopped_by_you"
-            elif (self.today - last["date"]).days > gap + grace:
-                status = "inactive"
-            else:
-                status = "active"
-            price_now = last["amount"]
-            first_new = next((c for c in cs if c["amount"] == price_now), last)
-            increase = price_now > usual * 1.05 and price_now - usual >= 1
-            per_month = price_now / months
-            items.append({
-                "name": name, "what": cs[0]["kind"], "cadence": cadence, "status": status,
-                "price_eur": eur(price_now), "per_month_eur": eur(per_month), "per_year_eur": eur(per_month * 12),
-                "last_charge": last["date"].isoformat(),
-                "next_charge": nxt.isoformat() if status == "active" else None,
-                "days_to_next": (nxt - self.today).days if status == "active" else None,
-                "price_increase": {"from_eur": eur(usual), "to_eur": eur(price_now),
-                                   "since": first_new["date"].isoformat()} if increase else None,
-                "charges_so_far": len(cs), "paid_total_eur": eur(sum(c["amount"] for c in cs)),
-            })
-        items.sort(key=lambda x: (x["status"] != "active", -x["per_month_eur"]))
-        active = [i for i in items if i["status"] == "active"]
-        return {"active_count": len(active), "active_per_month_eur": eur(sum(i["per_month_eur"] for i in active)),
-                "active_per_year_eur": eur(sum(i["per_year_eur"] for i in active)), "subscriptions": items,
-                "basket": BASKETS["everyday"]["label"],
-                "note": "Demo subscriptions added to the synthetic data, which has none. Paid by card, not in the balance."}
+    def commitments(self) -> dict:
+        """Regular payments from the customer's own data: rent, utility bills, the monthly investment and the salary,
+        with monthly and yearly cost, usual day, next date, the trend (real old vs new numbers) and active/stopped."""
+        t = self.tx
+        items = [x for x in (self._monthly("housing_payment", t), self._utilities(t),
+                             self._monthly("investment_deposit", t), self._monthly("salary", t)) if x]
+        active = [x for x in items if x["direction"] == "out" and x["status"] == "active"]
+        bills = [x for x in active if x["id"] in ("rent", "utilities")]
+        salary = next((x for x in items if x["id"] == "salary" and x["status"] == "active"), None)
+        cards = self._card_repeats(t)
+        can = []
+        inv = next((x for x in items if x["id"] == "investing"), None)
+        if inv and inv["status"] == "active":
+            can.append(f"Monthly investing ({inv['per_month_eur']:.2f} EUR a month) is the regular payment the person "
+                       "chose: it can be paused with their PIN (create_pause_investing_link). What is already invested "
+                       "stays invested.")
+        elif inv:
+            can.append(f"Monthly investing is {inv['status'].replace('_', ' ')}; a new monthly plan can be set up with "
+                       "create_investment_link.")
+        if any(x["id"] == "rent" for x in bills):
+            can.append("Rent can't be stopped here. Birky reminds the day before it is due, and it can be paid with "
+                       "the PIN (create_payment_link with its bill_id from get_upcoming_bills).")
+        if any(x["id"] == "utilities" for x in bills):
+            can.append("Utility bills can't be stopped here. Birky flags a bill well above the usual range.")
+        return {
+            "regular_payments": items,
+            "outgoing_per_month_eur": eur(sum(x["per_month_eur"] for x in active)),
+            "outgoing_per_year_eur": eur(sum(x["per_year_eur"] for x in active)),
+            "bills_per_month_eur": eur(sum(x["per_month_eur"] for x in bills)),
+            "bills_per_year_eur": eur(sum(x["per_year_eur"] for x in bills)),
+            "income_per_month_eur": salary["per_month_eur"] if salary else None,
+            "subscriptions_found": len(cards),
+            "card_subscriptions": cards,
+            "subscriptions_note": (
+                "No subscriptions on this account: no card payment repeats from the same merchant every month for "
+                "the same amount (no streaming, gym or app charges). Say so plainly; never invent one."
+                if not cards else "Card subscriptions are cancelled with the service itself; Birky can't stop them."),
+            "what_can_be_done": can,
+            "method": "From your S-Pankki transactions: a payment type that comes about once a month (median gap 20-40 "
+                      "days); per month = the average of the last 3 payments (utilities: of the last 3 full months); "
+                      "usual day = median day of the last 6; stopped = no payment for longer than the usual gap + "
+                      f"{GRACE_DAYS} days; trend = last 3 full months vs the 3 before.",
+            "source": "Your S-Pankki transactions",
+        }
 
-    def create_stop_subscription(self, name: str) -> dict:
-        sub = next((x for x in self.subscriptions()["subscriptions"] if x["name"].lower() == name.lower()), None)
-        if not sub:
-            raise ValueError(f"no subscription called {name!r}")
-        if sub["status"] != "active":
-            raise ValueError(f"{sub['name']} is already {sub['status']}")
-        return self._pend({"kind": "stop_subscription", "name": sub["name"], "amount": sub["price_eur"],
-                           "cadence": sub["cadence"], "next_charge": sub["next_charge"], "category": "Subscriptions",
-                           "per_year_eur": sub["per_year_eur"]})
+    def create_pause_investing(self) -> dict:
+        """Prepare pausing the monthly investment deposit. The person confirms with their PIN."""
+        inv = self._monthly("investment_deposit")
+        if not inv:
+            raise ValueError("no monthly investing in your account history, so there is nothing to pause")
+        if inv["status"] != "active":
+            raise ValueError(f"monthly investing is already {inv['status'].replace('_', ' ')}")
+        return self._pend({"kind": "pause_investing", "name": inv["name"], "amount": inv["per_month_eur"],
+                           "usual_day": inv["usual_day"], "next_charge": inv["next_expected"],
+                           "per_year_eur": inv["per_year_eur"], "category": "Invest Deposit"})
 
     # ---------- savings goals (F2) ----------
     def monthly_flow(self, months: int = 3) -> dict:
@@ -1299,12 +1542,21 @@ class Engine:
                     "amount_eur": eur(-row["tx_amount_eur"]), "date": row["date"].isoformat(),
                     "where": merchant_name(row["merchant_id"]), "usual_eur": eur(u),
                     "times_usual": float(round(-row["tx_amount_eur"] / u, 1))}
-        if kind == "renewal":
-            subs = [x for x in self.subscriptions()["subscriptions"] if x["status"] == "active"]
-            if not subs:
-                return {"kind": kind, "found": False}
-            return {"kind": kind, "found": True, **min(subs, key=lambda x: x["days_to_next"])}
-        raise ValueError("kind must be salary, unusual or renewal")
+        if kind == "bills":
+            # A regular payment that went up, else a utility bill well above the usual range, else the next one due.
+            outs = [x for x in self.commitments()["regular_payments"]
+                    if x["direction"] == "out" and x["status"] == "active"]
+            up = next((x for x in outs if (x.get("trend") or {}).get("direction") == "up"), None)
+            if up:
+                return {"kind": kind, "found": True, "type": "increase", **up}
+            odd = next((x for x in outs if x.get("unusual_bill")), None)
+            if odd:
+                return {"kind": kind, "found": True, "type": "unusual_bill", **odd}
+            due = [x for x in outs if x["days_to_next"] is not None]
+            if due:
+                return {"kind": kind, "found": True, "type": "upcoming", **min(due, key=lambda x: x["days_to_next"])}
+            return {"kind": kind, "found": False}
+        raise ValueError("kind must be salary, unusual or bills")
 
     # ---------- first home (data/mortgage_benchmark.json) ----------
     REASON_LABELS = {
@@ -1414,3 +1666,12 @@ class Engine:
                 "income_short_by_eur": eur(max(0.0, income_needed - income)),
                 "max_price_at_your_income_eur": prices["typical"]}
         return out
+
+    # ---------- people like you (data/peer_benchmark.json, app/peers.py) ----------
+    def new_life_budget(self, area: str | None = None, age: int | None = None, starting_out: bool = False) -> dict:
+        """'How much does someone like me need a month here?': the typical month of S-Pankki customers of the same
+        area and age (groups of at least 30 only), and where this person's own month sits in it."""
+        from .peers import new_life_budget
+        return new_life_budget(self, area, age, starting_out)
+
+    peers = new_life_budget

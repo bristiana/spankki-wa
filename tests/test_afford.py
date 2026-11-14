@@ -17,9 +17,8 @@ def test_afford_jacket(e):
     a = e.afford(120, "jacket")
     safe = e.safe_to_spend()
     assert a["safe_to_spend_until_payday_eur"] == safe["safe_to_spend_until_payday_eur"] == 68.6
-    assert a["flexible_left_this_month_eur"] == round(
-        a["flexible_budget_per_month_eur"] - a["spent_this_month_eur"] - a["subscriptions_before_payday_eur"], 2)
-    assert a["subscriptions_before_payday_eur"] == 13.99  # StreamPlus on 7 Oct, before payday on 15 Oct
+    assert a["flexible_left_this_month_eur"] == round(a["flexible_budget_per_month_eur"] - a["spent_this_month_eur"], 2)
+    assert "subscriptions_before_payday_eur" not in a  # the data has no subscriptions
     assert a["fits_flexible_budget"] and not a["fits_safe_to_spend"] and not a["fits"]
     assert a["safe_left_after_eur"] == -51.4 and a["per_day_after_eur"] == 0
     assert a["days_to_payday"] == 9 and a["goals"] == []

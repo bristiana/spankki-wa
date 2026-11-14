@@ -128,13 +128,11 @@ def spender_profile(a, o):
     return "Compared your spending with people your age", figs, src
 
 
-def subscriptions(a, o):
-    figs = _figs(o, [("Active subscriptions", "active_count", str), ("Per month", "active_per_month_eur", eur),
-                     ("Per year", "active_per_year_eur", eur)])
-    rises = sum(1 for s in o.get("subscriptions", []) if s.get("price_increase"))
-    if rises:
-        figs.append({"label": "Price increases", "value": str(rises)})
-    return "Found the subscriptions you pay by card", figs, [TX]
+def regular_payments(a, o):
+    figs = [{"label": x["name"], "value": f"{eur(x['per_month_eur'])} a month"}
+            for x in o.get("regular_payments", []) if x.get("status") == "active"][:4]
+    figs += _figs(o, [("Going out per year", "outgoing_per_year_eur", eur), ("Subscriptions found", "subscriptions_found", str)])
+    return "Found the payments that come back every month", figs, [TX]
 
 
 def full_picture(a, o):
@@ -164,14 +162,45 @@ def upcoming_bills(a, o):
 EXPLAIN = {"get_safe_to_spend": safe_to_spend, "get_spending": spending, "get_baskets": baskets,
            "simulate_cut": simulate_cut, "can_i_afford": afford, "get_safe_to_save": safe_to_save,
            "get_home_readiness": home_readiness, "explore_my_data": explore, "get_spender_profile": spender_profile,
-           "get_subscriptions": subscriptions, "get_full_picture": full_picture, "get_money_guide": money_guide,
+           "get_regular_payments": regular_payments, "get_full_picture": full_picture, "get_money_guide": money_guide,
            "get_portfolio": portfolio, "get_upcoming_bills": upcoming_bills}
+
+def people_like_me(a, o):
+    g = o.get("group") or {}
+    figs = _figs(o, [("Typical month", "typical_month.total.median_eur", eur)])
+    you = next((r for r in (_get(o, "you.comparison") or []) if r.get("key") == "total"), None)
+    if you:
+        figs.append({"label": "Your month", "value": eur(you["you_per_month_eur"])})
+    figs += _figs(o, [("Customers in the group", "group.customers", str)])
+    src = ([TX] if you else []) + ["averages of at least 30 S-Pankki customers (challenge data)"]
+    return f"Looked up how {g.get('who', 'people like you')} live", figs, src
+
+
+EXPLAIN["get_people_like_me"] = people_like_me
+
+
+def save_more(a, o):
+    figs = []
+    for i in o.get("ideas") or []:
+        if i.get("idea") == "biggest_lever":
+            figs.append({"label": f"20% less on {i['in_words']}, a year", "value": eur(i["saving_per_year_eur"])})
+        elif i.get("idea") == "move_what_built_up":
+            figs.append({"label": "Built up beyond the pay cycle", "value": eur(i["amount_eur"])})
+        elif i.get("idea") == "pay_yourself_first":
+            figs.append({"label": "Steady surplus a month", "value": eur(i["per_month_eur"])})
+        elif i.get("idea") == "review_payment":
+            k = i.get("number_to_say", "per_month_eur")
+            figs.append({"label": f"{i['name']}, {'a year' if k == 'per_year_eur' else 'a month'}", "value": eur(i[k])})
+    return "Looked for where you could save more", figs, [TX]
+
+
+EXPLAIN["get_save_more_ideas"] = save_more
 
 STEPS = {"list_funds": "Looked up the demo funds", "get_goals": "Looked up your savings goals",
          "create_goal": "Made a savings plan", "create_payment_link": "Prepared a payment for your PIN",
          "create_investment_link": "Prepared an investment for your PIN",
          "create_saving_link": "Prepared a saving for your PIN",
-         "create_stop_subscription_link": "Prepared stopping a subscription for your PIN"}
+         "create_pause_investing_link": "Prepared pausing your monthly investing for your PIN"}
 
 
 def generic(name: str, a: dict, o) -> tuple[str, list, list]:

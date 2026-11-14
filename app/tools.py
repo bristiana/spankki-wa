@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 
 from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_MERCHANT_TYPES, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS, PERIODS,
                      SPEND_CATEGORIES, Engine)
+from . import bills
 from .lessons import lesson_for
 from .whatsapp import short
 
@@ -100,6 +101,14 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
+        "name": "get_save_more_ideas",
+        "description": "'How could I save more?': up to three ideas from the customer's own data, best first, each "
+                       "with the one number to say (number_to_say): the biggest lever (20% less on the largest 'slips "
+                       "through your fingers' category, per year), money that can go to savings now (or every "
+                       "payday), and one regular payment worth a review. Plus the monthly picture and one next step.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
         "name": "get_full_picture",
         "description": "All the customer's accounts across banks (S-Pankki plus any bank linked through PSD2): total "
                        "balances, credit card debt, net position, the next card bill and how many months savings could "
@@ -169,19 +178,23 @@ TOOLS = [
         },
     },
     {
-        "name": "get_subscriptions",
-        "description": "Card subscriptions found from repeating charges: active ones (with next charge and monthly/yearly "
-                       "cost), inactive ones (stopped charging) and price increases.",
+        "name": "get_regular_payments",
+        "description": "The person's regular payments, found from their own S-Pankki transactions: rent, utility bills "
+                       "(several a month with no company name, so one monthly total), the monthly investment and the "
+                       "salary. Each has monthly and yearly cost, usual day, next expected date, status (active, "
+                       "stopped, paused_by_you), the trend (last 3 full months vs the 3 before, with both numbers) and, "
+                       "for utilities, a bill well above the usual range. Also says whether there are any "
+                       "subscriptions (subscriptions_found; in this data there are none). Use for subscriptions, "
+                       "regular payments, fixed costs and 'what goes out every month'.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
-        "name": "create_stop_subscription_link",
-        "description": "Prepare stopping future card payments to an active subscription, or to every active one with "
-                       "name 'all' (one Stop button each). Does NOT stop anything: the user confirms each with PIN. "
-                       "Only call when the user asked to stop, cancel or deactivate it (or all of them).",
-        "input_schema": {"type": "object", "properties": {"name": {"type": "string", "description":
-                                                                   "Subscription name, or 'all' for every active one"}},
-                         "required": ["name"], "additionalProperties": False},
+        "name": "create_pause_investing_link",
+        "description": "Prepare pausing the monthly investment deposit, the one regular payment the person chose. Does "
+                       "NOT pause it: the person confirms with PIN; what is already invested stays invested. Only call "
+                       "when they asked to pause or stop their monthly investing, or said yes to it. Rent and utility "
+                       "bills cannot be stopped.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
         "name": "create_goal",
@@ -269,13 +282,62 @@ TOOLS = [
             "price_eur": {"type": ["number", "null"], "description": "A specific home price to check, or null."}},
             "required": ["price_eur"], "additionalProperties": False},
     },
+    {
+        "name": "get_people_like_me",
+        "description": "'Budget for a new life' / 'how do people like me live here': what a typical month costs "
+                       "(p25, median, p75 per basket and main category, plus income) for S-Pankki customers of the "
+                       "user's own area and age, and where the user's own month sits (in line / a bit above / below). "
+                       "Use for 'how much do I need a month in Helsinki', 'is 400 € on food normal for my area', 'what "
+                       "does a first flat in Espoo cost a month', 'how do people my age live', 'what if I moved to "
+                       "Vantaa'. Only groups of at least 30 customers; fallback_reason says when a broader group was "
+                       "used. A what-if (another area or age) has no personal comparison.",
+        "input_schema": {"type": "object", "properties": {
+            "area": {"type": ["string", "null"], "description": "City or postal code for a what-if: Helsinki, Espoo, "
+                                                                "Vantaa (the data covers only the capital region). "
+                                                                "Null = the user's own area."},
+            "age": {"type": ["integer", "null"], "description": "An age for a what-if; null = the user's own age."},
+            "starting_out": {"type": "boolean", "description": "True for 'first job / first flat': people aged 18-29 "
+                                                               "with a regular salary."}},
+            "required": ["area", "age", "starting_out"], "additionalProperties": False},
+    },
 ]
+TOOLS.append(bills.TOOL)  # bill photos (app/bills.py)
 
 
 def explore_query(q: dict) -> str:
     """explore() query -> the query string of /app/explore (defaults and empty values left out)."""
     defaults = {"what": "spent", "group_by": "month", "metric": "sum", "period": "last_12_months"}
     return urlencode({k: v for k, v in q.items() if v and defaults.get(k) != v})
+
+
+def no_subscriptions_answer(c: dict) -> str:
+    """The honest reply to "cancel all my subscriptions", built from get_regular_payments: there are none in the
+    data, so say so, name the real regular payments and offer what can change (pausing the monthly investing)."""
+    if c["subscriptions_found"]:
+        names = ", ".join(s["name"] for s in c["card_subscriptions"])
+        return (f"I see card payments that repeat every month ({names}). I can't stop card payments from here: "
+                "cancel them with the service itself.")
+    active = {x["id"]: x for x in c["regular_payments"] if x["direction"] == "out" and x["status"] == "active"}
+    parts = []
+    if "rent" in active:
+        parts.append(f"rent ({active['rent']['per_month_eur']:.2f} € a month)")
+    if "utilities" in active:
+        u = active["utilities"]
+        n = round(u["bills_per_month"])
+        parts.append(f"about {n} utility bill{'s' if n != 1 else ''} a month ({u['per_month_eur']:.2f} € in total)")
+    if "investing" in active:
+        parts.append(f"your monthly investing ({active['investing']['per_month_eur']:.2f} € a month)")
+    if not parts:
+        return "I don't see any subscriptions or regular payments on your account."
+    listed = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+    text = f"I don't see any subscriptions on your account. Your regular payments are {listed}."
+    if "rent" in active:
+        text += " Rent and bills can't be stopped, but I can remind you before rent is due."
+    elif "utilities" in active:
+        text += " Bills can't be stopped from here."
+    if "investing" in active:
+        text += " Want to pause the investing?"
+    return text
 
 
 def public_url() -> str:
@@ -300,6 +362,8 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out = engine.safe_to_spend()
     elif name == "get_safe_to_save":
         out = engine.safe_to_save()
+    elif name == "get_save_more_ideas":
+        out = engine.save_more()
     elif name == "get_full_picture":
         out = engine.full_picture()
     elif name == "can_i_afford":
@@ -320,25 +384,14 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         label = f"Invest {p['amount']:.0f} €" + ("/month" if p["monthly"] else "")
         buttons.append({"label": label, "url": confirm_url("invest", p["pending_id"])})
         out = {**p, "note": "An 'Invest' button is attached to your message. Do not paste a link."}
-    elif name == "get_subscriptions":
-        out = engine.subscriptions()
-    elif name == "create_stop_subscription_link":
-        if (args.get("name") or "").strip().lower() in ("all", "every", "everything", "all of them"):
-            active = [s["name"] for s in engine.subscriptions()["subscriptions"] if s["status"] == "active"]
-            stops = [engine.create_stop_subscription(n) for n in active]
-            for p in stops:
-                buttons.append({"label": short(f"Stop {p['name']}"), "url": confirm_url("stop", p["pending_id"])})
-            out = {"prepared": stops, "count": len(stops),
-                   "per_month_eur": round(sum(p["amount"] if p["cadence"] == "monthly" else p["per_year_eur"] / 12
-                                              for p in stops), 2),
-                   "per_year_eur": round(sum(p["per_year_eur"] for p in stops), 2),
-                   "note": (f"{len(stops)} 'Stop' buttons are attached to your message, one per subscription; each "
-                            "needs the PIN, nothing is stopped yet. Do not paste links." if stops else
-                            "There are no active subscriptions to stop.")}
-        else:
-            p = engine.create_stop_subscription(args["name"])
-            buttons.append({"label": short(f"Stop {p['name']}"), "url": confirm_url("stop", p["pending_id"])})
-            out = {**p, "note": "A 'Stop' button is attached to your message. Do not paste a link."}
+    elif name == "get_regular_payments":
+        out = engine.commitments()
+        out["if_asked_to_cancel_subscriptions"] = no_subscriptions_answer(out)
+    elif name == "create_pause_investing_link":
+        p = engine.create_pause_investing()
+        buttons.append({"label": short("Pause investing"), "url": confirm_url("stop", p["pending_id"])})
+        out = {**p, "note": "A 'Pause investing' button is attached to your message; nothing is paused until they "
+                            "confirm with Face ID in S-mobiili. Do not paste a link."}
     elif name == "create_goal":
         out = engine.create_goal(args["name"], float(args["target_eur"]), args.get("deadline"))
     elif name == "get_goals":
@@ -363,6 +416,19 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         price = args.get("price_eur")
         out = engine.home_readiness(float(price) if price else None)
         out["asp"]["sources"] = GUIDE.get("asp", {}).get("sources", [])
+    elif name == "get_people_like_me":
+        age = args.get("age")
+        try:
+            out = engine.new_life_budget(args.get("area"), int(age) if age else None, bool(args.get("starting_out")))
+        except ValueError as e:  # a city outside the dataset: say so, and give the whole region instead
+            if not args.get("area"):
+                raise
+            out = engine.new_life_budget(None, int(age) if age else None, bool(args.get("starting_out")))
+            out["area_not_covered"] = str(e)
+        out["say"] = ("Compare only to reassure or help a choice, never to judge. Say it is averages of at least 30 "
+                      "S-Pankki customers, never one person.")
+    elif name == "create_bill_payment_link":
+        out = bills.run_tool(engine, buttons, confirm_url("pay", "").rstrip("/"))
     else:
         raise ValueError(f"unknown tool {name}")
     lesson = lesson_for(name, out)

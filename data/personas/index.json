@@ -1,18 +1,28 @@
 [
   {
+    "id": "CUST01656",
+    "name": "Antti",
+    "file": "CUST01656.csv",
+    "age": 38,
+    "label": "Demo default, 38, Vantaa area",
+    "description": "The demo default: steady salary, housing payment, bills and monthly investing, plus the everyday spending most of us have (eating out, fast food, the odd taxi).",
+    "why": "age 38, the age group of the median customer: salary 3,325 € a month, the closest to the 3,313 € median of customers aged 38-45, among the 5 of 12 candidates that pass every check (a 1,075 € housing payment and utilities every month, monthly investing, never a negative balance, 3 taxi rides and 13 fast-food buys in the last 3 full months); safe to spend this week 183 €, and 20% less on lifestyle would save 1,224 € a year",
+    "hero": true
+  },
+  {
     "id": "CUST04831",
     "name": "Aino",
     "file": null,
     "age": 24,
-    "label": "Demo persona, 24",
-    "description": "The demo persona: steady salary, rent, a few subscriptions and dining out."
+    "label": "First job, 24, Espoo area",
+    "description": "The original demo persona: steady salary, rent, monthly investing and dining out."
   },
   {
     "id": "CUST01756",
     "name": "Eetu",
     "file": "CUST01756.csv",
     "age": 18,
-    "label": "Student-age, 18",
+    "label": "Student-age, 18, Espoo area",
     "description": "Student-age, tight budget: little left over each month.",
     "why": "age 18, 1,006 € income a month, the lowest of the 233 customers aged 22 or under with a regular salary; -24 € a month left after rent, bills and spending"
   },
@@ -21,7 +31,7 @@
     "name": "Helena",
     "file": "CUST00613.csv",
     "age": 55,
-    "label": "High earner, 55",
+    "label": "High earner, 55, Espoo area",
     "description": "High earner with a big balance.",
     "why": "salary 7,161 € a month (top 2%) and the largest balance among them, 82,800 €"
   },

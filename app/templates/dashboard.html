@@ -29,6 +29,19 @@
   .x{font-weight:700;color:var(--neg)}
   .row .l b{color:var(--ink)}
   .row>span:last-child small{display:block;color:var(--muted);font-size:12px;text-align:right}
+  .peers .pr .row{border:0;padding:10px 0 2px}
+  .peers .pr.main{border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:2px}
+  .peers .pr.main .row b{font-size:16px}
+  .peers svg{overflow:visible}
+  .peers .pt{stroke:var(--line);stroke-width:2;stroke-linecap:round}
+  .peers .pb{fill:var(--brand);opacity:.22}
+  .peers .pm{stroke:var(--brand);stroke-width:2.5;stroke-linecap:round}
+  .peers .py{fill:#e07a2e;stroke:var(--card);stroke-width:2}
+  .peers .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
+  .peers .legend i{display:inline-block;vertical-align:-1px;margin-right:5px}
+  .peers .lb{width:16px;height:10px;border-radius:5px;background:var(--brand);opacity:.3}
+  .peers .lm{width:3px;height:12px;border-radius:2px;background:var(--brand)}
+  .peers .ly{width:10px;height:10px;border-radius:50%;background:#e07a2e}
 </style>
 {% endblock %}
 {% block body %}
@@ -82,6 +95,28 @@
       <div class="row"><span class="l"><b>Left over</b></span><span class="{{ 'x' if o.baskets.left_over_eur < 0 else 'pos' }}">{{ money(o.baskets.left_over_eur) }}</span></div>
     </div>
 
+    {% if peers and peers.rows %}
+    <div class="card wide peers" id="people-like-you">
+      <div class="k">People like you · {{ peers.title }}</div>
+      <div class="muted">A typical month for {{ peers.who }}, next to yours.</div>
+      {% for r in peers.rows %}
+      <div class="pr{{ ' main' if r.main }}">
+        <div class="row"><span class="l"><b>{{ r.label }}</b><small>middle half {{ money(r.typical_range_eur[0]) }} to {{ money(r.typical_range_eur[1]) }}</small></span><span>{{ money(r.you_per_month_eur) }}<small><span class="pill{{ '' if r.where_you_are == 'in line' else ' off' }}">{{ r.where_you_are }}</span></small></span></div>
+        <svg viewBox="0 0 300 18" role="img" aria-label="{{ r.label }}: typical {{ money(r.typical_median_eur) }}, middle half {{ money(r.typical_range_eur[0]) }} to {{ money(r.typical_range_eur[1]) }}; you {{ money(r.you_per_month_eur) }}, {{ r.where_you_are }}">
+          <line x1="6" x2="294" y1="9" y2="9" class="pt"/>
+          <rect x="{{ r.x0 }}" y="3" width="{{ r.w }}" height="12" rx="6" class="pb"/>
+          <line x1="{{ r.xm }}" x2="{{ r.xm }}" y1="1" y2="17" class="pm"/>
+          <circle cx="{{ r.xy }}" cy="9" r="5.5" class="py"/>
+        </svg>
+      </div>
+      {% endfor %}
+      <div class="src legend"><span><i class="lb"></i>middle half</span><span><i class="lm"></i>typical</span><span><i class="ly"></i>you</span></div>
+      {% if peers.fallback_reason %}<div class="src">{{ peers.fallback_reason }}</div>{% endif %}
+      <div class="src">Averages of at least {{ peers.min_group }} S-Pankki customers (this group: {{ peers.n }}), {{ peers.period }}. Never one person's data.</div>
+      <div class="cta"><a class="btn ghost" href="/chat?q={{ 'How much do I need a month here?'|urlencode }}">How much do I need a month here?</a></div>
+    </div>
+    {% endif %}
+
     <div class="card">
       <div class="k">Money in and out · 12 weeks</div>
       <svg viewBox="0 0 300 110" aria-label="Weekly in and out">
@@ -99,13 +134,14 @@
     </div>
 
     <div class="card">
-      <div class="k">Subscriptions</div>
-      <div class="big" style="font-size:24px">{{ money(o.subs.active_per_month_eur) }}<span class="muted" style="font-size:15px"> a month · {{ money(o.subs.active_per_year_eur) }} a year</span></div>
-      {% for s in o.subs.subscriptions %}
-      <div class="row"><span class="l">{{ s.name }}<small>{{ s.what }}{% if s.price_increase %} · was {{ money(s.price_increase.from_eur) }}{% endif %}</small></span>
-        <span>{% if s.status == 'active' %}{% if s.price_increase %}<span class="pill warn">price up</span> {% endif %}{{ money(s.price_eur) }}{% elif s.status == 'inactive' %}<span class="pill off">inactive</span>{% else %}<span class="pill">stopped</span>{% endif %}</span></div>
+      <div class="k">Regular payments</div>
+      <div class="big" style="font-size:24px">{{ money(o.regular.outgoing_per_month_eur) }}<span class="muted" style="font-size:15px"> a month out · {{ money(o.regular.outgoing_per_year_eur) }} a year</span></div>
+      {% for s in o.regular.regular_payments %}
+      {% set up = s.trend and s.trend.direction == 'up' %}
+      <div class="row"><span class="l">{{ s.name }}<small>{% if s.id == 'utilities' %}about {{ s.bills_per_month|round|int }} a month{% if s.unusual_bill %} · {{ money(s.unusual_bill.amount_eur) }} on {{ nice(s.unusual_bill.date) }}, usually up to {{ money(s.unusual_bill.usual_high_eur) }}{% endif %}{% elif s.next_expected %}next {{ nice(s.next_expected) }}{% else %}{{ s.what }}{% endif %}{% if up %} · was {{ money(s.trend.previous_per_month_eur) }}{% endif %}</small></span>
+        <span>{% if s.status == 'active' %}{% if up %}<span class="pill warn">went up</span> {% elif s.unusual_bill %}<span class="pill warn">big bill</span> {% endif %}{{ '+' if s.direction == 'in' else '' }}{{ money(s.per_month_eur) }}{% elif s.status == 'stopped' %}<span class="pill off">stopped</span>{% else %}<span class="pill">paused</span>{% endif %}</span></div>
       {% endfor %}
-      <div class="src">Demo subscriptions: the S-Pankki dataset has none.</div>
+      <div class="src">{% if not o.regular.subscriptions_found %}No subscriptions in your account. {% endif %}Found in your S-Pankki transactions; per month, last 3 months.</div>
     </div>
     <div class="card">
       <div class="k">You vs Finland</div>
