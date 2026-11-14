@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Oiva fintech charts</title>
 <!-- Mockup only: Oiva's charts redrawn in the style of Revolut, Monzo, Copilot, N26 and Lunar, beside today's charts,
-     from the same sample data (data/*.json = app/static/fixtures on the Oiva screens branch). Not wired into the app. -->
+     from Antti's own transactions and his real peer group in the hackathon data set (data/*.json, built by
+     scripts/build_chart_mockup_fixtures.py in the same shapes as app/static/fixtures on the Oiva screens branch). Not wired into the app. -->
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <style>
@@ -71,7 +72,7 @@ svg.ch text{font-size:10.5px;fill:var(--muted)}
 .track>b{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;background:var(--strong);border-radius:1px;box-shadow:0 0 0 1.5px var(--card)}
 .st{font-size:12px;font-weight:600}.st.ok{color:var(--brand)}.st.over,.st.fast{color:var(--warn)}.chips{display:flex;flex-wrap:wrap;column-gap:6px}
 .nob{font-size:13px;color:var(--muted);padding:10px 0 0;border-top:1px solid var(--line);margin-top:2px}
-.nob a{color:var(--brand);font-weight:600;text-decoration:none}
+.nob a,.sub a{color:var(--brand);font-weight:600;text-decoration:none}
 .key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:8px}
 .key span{display:inline-flex;align-items:center;gap:6px}
 .key i{display:inline-block;width:12px;height:8px;border-radius:99px}
@@ -82,7 +83,7 @@ svg.ch text{font-size:10.5px;fill:var(--muted)}
 <body>
 <div class="wrap">
   <h1>Oiva's charts, fintech style</h1>
-  <p class="intro" id="intro">Left: the chart on the Oiva screens today. Right: the same sample data, redrawn after Revolut, Monzo, Copilot, N26 and Lunar, in S-mobiili's font and greens. Mockup only.</p>
+  <p class="intro" id="intro">Left: the chart on the Oiva screens today, with the hand-written sample figures it was built with (not the data set). Right: Antti's own transactions and his real peer group from the hackathon data set, redrawn after Revolut, Monzo, Copilot, N26 and Lunar, in S-mobiili's font and greens. Mockup only.</p>
   <div class="theme" role="group" aria-label="Colour theme">Theme
     <button type="button" data-t="system">System</button><button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button></div>
   <div class="notes" id="notes" hidden></div>
@@ -90,49 +91,49 @@ svg.ch text{font-size:10.5px;fill:var(--muted)}
   <section class="pair" id="p-trend">
     <h2>1 · Spending this month (Kulutus: Your pace)</h2>
     <p>Revolut/Monzo: the amount is the headline, the line sits under it; drag across the chart to read a day. Copilot: the budget is a target to beat, with a projection.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/spend-card1.png" alt="Today's pace chart"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/spend-card1.png" alt="Today's pace chart"></div>
       <div class="col"><p class="tag">New</p><div class="card rel" id="trend"></div></div></div>
   </section>
 
   <section class="pair" id="p-cats">
     <h2>2 · Where it went (Kulutus: donut)</h2>
     <p>Revolut/Lunar: categories as a list with round icons, share and amount; Monzo: one stacked bar instead of a ring, so the parts read as lengths.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/spend-card2.png" alt="Today's donut"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/spend-card2.png" alt="Today's donut"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="cats"></div></div></div>
   </section>
 
   <section class="pair" id="p-budget">
     <h2>3 · Budgets and pace (Budjetti)</h2>
     <p>Copilot: each bar knows the date. The tick is where an even pace would be today; a bar in the warning colour means spending faster than an even pace. Monzo: one "left to spend" number with a per-day figure.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/budget-card1.png" alt="Today's budget list"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/budget-card1.png" alt="Today's budget list"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="budget"></div></div></div>
   </section>
 
   <section class="pair" id="p-sit">
     <h2>4 · People like me, at a glance (Vertailu)</h2>
     <p id="sit-blurb">N26/Revolut insights, condensed: all six figures on one scale of the group, so you see where you sit before reading six cards.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/compare-card0.png" alt="Today's comparison header"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/compare-card0.png" alt="Today's comparison header"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="sit"></div></div></div>
   </section>
 
   <section class="pair" id="p-fig">
     <h2>5 · One figure against the group (Vertailu: Income)</h2>
     <p>Revolut's price-range bar: labels sit on the chart, You and Typical as pins, the middle half as the thicker band.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/compare-card1.png" alt="Today's income comparison"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/compare-card1.png" alt="Today's income comparison"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="fig"></div></div></div>
   </section>
 
   <section class="pair" id="p-income">
     <h2>6 · Where the salary goes (Laskut: header)</h2>
     <p>Monzo "left to spend": what is left after the fixed payments is the headline, the salary split into one bar.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/bills-card0.png" alt="Today's bills header"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/bills-card0.png" alt="Today's bills header"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="income"></div></div></div>
   </section>
 
   <section class="pair" id="p-cal">
     <h2>7 · The month's payments (Laskut: Going out / Coming in)</h2>
     <p>Monzo's balance graph marks upcoming bills on the month, N26 lists them with dates: one strip per payment, today as a line.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/bills-card1.png" alt="Today's bills list"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now: today's screen and its hand-written sample figures</p><img src="now/bills-card1.png" alt="Today's bills list"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="cal"></div></div></div>
   </section>
 </div>
@@ -191,13 +192,24 @@ svg.ch text{font-size:10.5px;fill:var(--muted)}
   const B = spend.budget_total_eur, catSet = budget.items.filter(i => i.limit_eur != null);
   const catLim = sum(catSet, i => i.limit_eur);
   const afterBills = by("salary").per_month_eur - rec.bills_per_month_eur - by("investing").per_month_eur;
+  const span = c => { const f0 = ymd(c.from), t0 = ymd(c.to); return `${MON[f0.m - 1]}${f0.y !== t0.y ? " " + f0.y : ""}–${MON[t0.m - 1]} ${t0.y}`; };
+  function budgetRule() {  // the rule in budget.json, said from its own numbers
+    const hm = Object.keys(spend.categories[0].history_eur), a = ymd(hm[0] + "-01"), z = ymd(hm[hm.length - 1] + "-01");
+    const none = spend.categories.filter(c => c.budget_eur == null).map(c => c.label);
+    return `each category's budget is its median month over the ${hm.length} full months before (${MON[a.m - 1]}–${MON[z.m - 1]} ${z.y}), rounded to the nearest 10${NB}€` +
+      (none.length ? `; ${none.join(" and ")} had a median of 0${NB}€, so ${none.length > 1 ? "they have" : "it has"} none` : "") +
+      `. The overall budget is their sum, ${eur(catLim, 0)} (chart 1 and chart 3 use the same figure), under the ${eur(afterBills)} left after bills and investing (chart 6).`;
+  }
   const notes = [];
-  if (Math.abs(catLim - B) >= 0.01) notes.push(`The overall budget is ${eur(B)}, but the ${catSet.length} category budgets add up to ${eur(catLim)} and ${budget.items.length - catSet.length} categories have none. Chart 1 uses the overall budget, chart 3 the category budgets; neither is adjusted.`);
+  const C = compare.cohort, web = id => compare.web.find(w => w.id === id);
+  notes.push(`Spending, budgets, bills and regular payments: computed from Antti's own transactions (data/personas/CUST01656.csv), as of ${TODAY}${NB}${MONTH_NAME} ${asOf.y}. The data set ends on 30 Sep 2026, so the page is set in September, not October; nothing after ${TODAY}${NB}${M} is used. Regular payments come from the Oiva screens' own engine (commitments()) run with that date.`);
+  notes.push(`Budgets, by one rule: ${budgetRule()}`);
+  notes.push(`People like me: ${C.n} customers in the data set with a postal code starting 01 (the Vantaa area, where Antti lives) aged ${C.age_band.replace("-", "–")} (his band; he is 38), monthly averages over ${span(C)}. The same group, with ${C.n} people, is in data/peer_benchmark.json (that file's window ends a month later). Statistics Finland figures are shown beside them with their links, and are labelled as a different measure.`);
+  if (Math.abs(catLim - B) >= 0.01) notes.push(`The overall budget is ${eur(B)}, but the ${catSet.length} category budgets add up to ${eur(catLim)}.`);
   if (B > afterBills) notes.push(`The overall budget (${eur(B)}) is ${eur(B - afterBills)} more than is left after bills and investing in a typical month (${eur(afterBills)}, chart 6).`);
   notes.push(`The budget data's status is "${[...new Set(catSet.map(i => i.status))].join('", "')}", which the screens set as "not over the limit" (oiva/data.js). Pace is a separate reading, computed here: share of the budget spent against share of the month gone (${TODAY} of ${DAYS} days), the same rule spend.json uses for the overall pace.`);
-  notes.unshift(`From the hackathon data set: recurring.json's monthly amounts, payment counts and dates up to 30 Sep 2026 are computed from Antti's own transactions (data/personas/CUST01656.csv); the data set ends there, so its as-of date (${spend.as_of}) and "next expected" dates assume an October the data does not hold. Hand-written samples, as their own "source" says: spend.json, budget.json and compare.json, apart from the salary (${eur(by("salary").per_month_eur)}) they reuse. Chart 7 mixes both: today, the paid rent and the paid utility bill come from spend.json. compare.json's group (35–44 in Helsinki, ${compare.cohort.n} people) is not one of the groups in data/peer_benchmark.json.`);
   const notesEl = document.getElementById("notes");
-  notesEl.innerHTML = `<b>About the data: where it comes from, and where it disagrees with itself</b><ul>${notes.map(n => `<li>${n}</li>`).join("")}</ul>`;
+  notesEl.innerHTML = `<b>About the data: where each figure comes from</b><ul>${notes.map(n => `<li>${n}</li>`).join("")}</ul>`;
   notesEl.hidden = false;
   document.getElementById("intro").textContent += ` As of ${TODAY}${NB}${MONTH_NAME} ${asOf.y} (day ${TODAY} of ${DAYS}).`;
   document.getElementById("sit-blurb").textContent = `N26/Revolut insights, condensed: all ${compare.figures.length} figures on one scale of ${compare.cohort.n} people, so you see where you sit before reading ${compare.figures.length} cards.`;
@@ -214,7 +226,7 @@ svg.ch text{font-size:10.5px;fill:var(--muted)}
       : `<span class="chip ok">${eur(-ahead)} under an even pace</span>`;
     host.innerHTML = `<p class="k">Spending in ${MONTH_NAME} so far, all categories</p><p class="hero">${hero(spent)}</p>
       ${chip}
-      <p class="sub"><b>${eur(left)}</b> left of your ${eur(B, 0)} overall budget · <b>${eur(left / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days</p><div class="chart-gap"></div>`;
+      <p class="sub"><b>${eur(left)}</b> left of your ${eur(B, 0)} budget (the sum of the category budgets) · <b>${eur(left / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days</p><div class="chart-gap"></div>`;
     const W = 318, H = 176, L = 2, R = 40, T = 22, Bm = 22, pw = W - L - R, ph = H - T - Bm;
     const step = Math.max(proj, B) > 2000 ? 1000 : 500, top = Math.ceil(Math.max(proj, B) * 1.08 / 500) * 500;  // axis room above the higher of budget and projection
     const x = d => L + d / DAYS * pw, y = v => T + ph - v / top * ph;  // d = day, 0 = start of the month
@@ -301,14 +313,15 @@ svg.ch text{font-size:10.5px;fill:var(--muted)}
           <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)"><span class="st ${word(i)[0]}">${word(i)[1]}</span><span style="white-space:nowrap">${eur(i.spent_eur)} of ${eur(i.limit_eur, 0)}</span></div>
         </div></div>`; }).join("")}</div>
       <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Even pace by today</span>${set.some(i => i.spent_eur > 0 && !fast(i)) ? `<span><i style="background:var(--bright)"></i>Within even pace</span>` : ""}${set.some(fast) ? `<span><i style="background:var(--warn)"></i>Faster than even pace</span>` : ""}</div>
-      ${unset.length ? `<p class="nob">No budget yet: ${unset.map(i => `${i.label} ${eur(i.spent_eur, 0)}`).join(" · ")}</p>` : ""}`;
+      ${unset.length ? `<p class="nob">No budget: ${unset.map(i => `${i.label} (spent ${eur(i.spent_eur, 0)})`).join(" · ")}</p>` : ""}
+      <p class="sub" style="font-size:12px">How the budgets are set: ${budgetRule().replace(/^e/, "E")}</p>`;
   })();
 
   /* 4 · where you sit */
   (function () {
     const host = document.getElementById("sit"), c = compare.cohort, F = compare.figures;
     const UNIT = {months: "mo"};
-    const fmt = f => f.unit === "eur" ? eur(f.you, 0) : f.unit === "pct" ? (f.you < 0 ? MINUS : "") + Math.abs(Math.round(f.you * 100)) + NB + "%" : String(f.you).replace(".", ",") + NB + (UNIT[f.unit] || f.unit);
+    const fmt = f => f.unit === "eur" ? eur(f.you, 0) : f.unit === "pct" ? (f.you < 0 ? MINUS : "") + (Math.abs(f.you) < .01 ? Math.abs(f.you * 100).toFixed(1).replace(".", ",") : Math.abs(Math.round(f.you * 100))) + NB + "%" : String(f.you).replace(".", ",") + NB + (UNIT[f.unit] || f.unit);
     // warn only when "better" has a direction and you are outside the middle half on the wrong side
     const worse = f => (f.better === "higher" && f.percentile < 25) || (f.better === "lower" && f.percentile > 75);
     const W = 318, rowH = 40, H = F.length * rowH + 26, x0 = 6, x1 = W - 76, px = p => x0 + p / 100 * (x1 - x0);
@@ -326,9 +339,7 @@ svg.ch text{font-size:10.5px;fill:var(--muted)}
     const yb = F.length * rowH + 18;
     [[0, "lowest"], [50, "typical"], [100, "highest"]].forEach(([p, t]) =>
       svg.appendChild(el("text", {x: px(p), y: yb, "text-anchor": p ? (p === 100 ? "end" : "middle") : "start"}, t)));
-    const f0 = ymd(c.from), t0 = ymd(c.to);
-    const span = `${MON[f0.m - 1]}${f0.y !== t0.y ? " " + f0.y : ""}–${MON[t0.m - 1]} ${t0.y}`;
-    host.innerHTML = `<p class="h3">Where you sit</p><p class="k" style="margin-top:2px">Among ${c.n} people aged ${c.age_band.replace("-", "–")} in ${c.city}, <span style="white-space:nowrap">${span}</span></p>`;
+    host.innerHTML = `<p class="h3">Where you sit</p><p class="k" style="margin-top:2px">Among ${c.n} people aged ${c.age_band.replace("-", "–")} in ${c.city}, monthly averages <span style="white-space:nowrap">${span(c)}</span></p>`;
     host.appendChild(svg);
     host.insertAdjacentHTML("beforeend", `<div class="key"><span><i style="background:var(--brand);width:10px;height:10px"></i>You</span><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Typical</span><span><i style="background:var(--c4)"></i>Middle half</span>${F.some(worse) ? `<span><i style="background:var(--warn);width:10px;height:10px"></i>Outside the middle half, on the worse side</span>` : ""}</div>`);
   })();
@@ -351,9 +362,10 @@ svg.ch text{font-size:10.5px;fill:var(--muted)}
     svg.appendChild(el("text", {x: bx + bw / 2, y: yb - 38, "text-anchor": "middle", style: "font-size:12.5px;font-weight:700;fill:" + css("brand-ink")}, bubble));
     [[f.p25, eur(f.p25, 0)], [f.p75, eur(f.p75, 0)]].forEach(([v, t]) =>
       svg.appendChild(el("text", {x: px(v), y: yb + 24, "text-anchor": "middle"}, t)));
-    host.innerHTML = `<p class="h3">${f.label}</p><p class="k" style="margin-top:2px">A month, against ${compare.cohort.n} people your age in ${compare.cohort.city}</p>`;
+    host.innerHTML = `<p class="h3">${f.label}</p><p class="k" style="margin-top:2px">Salary and other income a month, ${span(compare.cohort)}, against ${compare.cohort.n} people aged ${compare.cohort.age_band.replace("-", "–")} in ${compare.cohort.city}</p>`;
     host.appendChild(svg);
-    host.insertAdjacentHTML("beforeend", `<p class="sub">Higher than about <b>${Math.round(f.percentile / 10)} in 10</b> people in the group. The thick band is the middle half.</p>`);
+    host.insertAdjacentHTML("beforeend", `<p class="sub">Higher than about <b>${Math.round(f.percentile / 10)} in 10</b> people in the group. The thick band is the middle half.</p>
+      <p class="sub" style="font-size:12px">Statistics Finland, a different measure (all disposable cash income per person, not only what reaches this account): median for all adults in Vantaa ${eur(web("income_vantaa_all_adults").value_eur_year / 12, 0)} a month (<a href="${web("income_vantaa_all_adults").url}">table 14ww</a>); for ages 35–49 in all of Finland ${eur(web("income_finland_35_49").value_eur_year / 12, 0)} a month (<a href="${web("income_finland_35_49").url}">table 11py</a>), both ${web("income_finland_35_49").year}, a twelfth of the yearly figure. No table gives age and area together. Chart 6's ${eur(by("salary").per_month_eur, 0)} is salary only, the average of the last 3 payments.</p>`);
   })();
 
   /* 6 · where the salary goes */
@@ -371,11 +383,11 @@ svg.ch text{font-size:10.5px;fill:var(--muted)}
 
   /* 7 · the month's payments */
   (function () {
-    const host = document.getElementById("cal"), u = by("utilities");
+    const host = document.getElementById("cal"), u = by("utilities"), rentPaid = spend.bills.find(b => /rent/i.test(b.name) && dayOf(b.date));
     const paidHere = re => spend.bills.filter(b => re.test(b.name) && dayOf(b.date)).map(b => dayOf(b.date));
     const due = p => (p.next_expected && dayOf(p.next_expected)) || paidHere(new RegExp(p.name, "i"))[0] || p.usual_day;
     const lanes = [
-      {name: "Rent", sub: eur(by("rent").per_month_eur), day: due(by("rent"))},  // paid this month, per spend.json bills
+      {name: "Rent", sub: rentPaid ? eur(rentPaid.amount_eur) : eur(by("rent").per_month_eur) + " a month", day: due(by("rent"))},  // the amount paid this month, per spend.json bills
       {name: "Utilities", sub: "~" + Math.round(u.bills_per_month) + " bills, " + eur(u.per_month_eur, 0), from: u.day_range.first, to: u.day_range.last, paidDays: paidHere(/utility/i)},
       {name: by("salary").name, sub: "+" + eur(by("salary").per_month_eur), day: due(by("salary")), incoming: true},
       {name: "Investing", sub: eur(by("investing").per_month_eur), day: due(by("investing"))}];
