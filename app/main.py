@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Red
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import broker
+from . import broker, onboarding
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import FUNDS_BY_ID, Engine
@@ -128,6 +128,7 @@ def switch_off(to: str):
     engine.state.setdefault("connected", {}).pop(to, None)
     engine._save()
     coach().reset(to)
+    onboarding.forget(engine, to)
     names.pop(to, None)
     wa.send_text(to, "Done ✅ Kurre is switched off for this number and our chat history is deleted. "
                      "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
@@ -161,6 +162,15 @@ def button_reply(user: str, bid: str, web: bool = False) -> dict | None:
         return {"text": f"Move *{money(p['amount'])}* to your savings pocket for *{goal}*? Confirm with your PIN.",
                 "url": (f"Save {money(p['amount'])}", f"{public_url()}/save/{p['pending_id']}{q}")}
     return None
+
+
+def send_turn(to: str, t: onboarding.Turn):
+    """An interview message on WhatsApp: lead lines, then the question with its reply buttons."""
+    wa.send_bubbles(to, t.lead)
+    if t.buttons:
+        wa.send_reply_buttons(to, t.text, t.buttons)
+    else:
+        wa.send_text(to, t.text)
 
 
 def notify(pid: str, text: str):
@@ -216,10 +226,18 @@ def handle_message(m: dict):
             wa.send_url_button(to, "Your data, yours to keep (MyData): every transaction and what Kurre "
                                    "calculated from it, as a file.", "Download my data", f"{public_url()}/app/export.json")
             return
+        if bid not in ASK:
+            t = onboarding.turn(engine, to, text, bid)
+            if t:
+                send_turn(to, t)
+                return
         reply = coach().ask(to, text, name=name)
         for b in reply.buttons:
             owner[b["url"].rsplit("/", 1)[-1]] = to
         send_reply(to, reply)
+        again = onboarding.reask(engine, to)  # a side question mid-interview: the waiting question comes back
+        if again:
+            send_turn(to, again)
     except Exception:
         log.exception("handling message failed")
         wa.send_text(to, "Sorry, something went wrong on my side. Try again in a minute.")
@@ -243,10 +261,11 @@ def connect_submit(request: Request, bg: BackgroundTasks, u: str = Form(""), sco
 
 
 def welcome(to: str):
-    reply = coach().ask(to, "I just connected my account. Give me a very short first look at where my money went in the "
-                            "last 3 months using the three baskets. Then ask me one short question: what am I saving for, with an amount and when.", name=name_of(to))
-    send_reply(to, reply)
+    """Right after Connect: the three baskets, the My money button, then the first interview question."""
+    t = onboarding.start(engine, to)
+    wa.send_bubbles(to, t.lead)
     wa.send_url_button(to, "Your whole money picture, any time 📊", "Open My money", f"{public_url()}/app")
+    send_turn(to, onboarding.Turn(t.text, t.buttons))
 
 
 # ---------------- Confirm pages ----------------
@@ -582,6 +601,12 @@ async def chat_api(request: Request):
     if text.startswith("__alert__:"):
         m = alert_message(text.split(":", 1)[1], DEMO_NAME)
         return {"text": m[0], "buttons": [], "quick": quick(m[1])} if m else {"text": "Nothing to flag right now.", "buttons": []}
+    def interview(t: onboarding.Turn, buttons=()):
+        return {"text": "\n\n".join(t.lead + [t.text]), "buttons": list(buttons), "quick": quick(t.buttons)}
+
+    if text == "__start__":  # the web chat's stand-in for Connect S-Pankki
+        return interview(onboarding.start(engine, sid), [{"label": "Open My money", "url": "/app"}])
+    bid = ""
     if text.startswith("__btn__:"):
         bid = text.split(":", 1)[1]
         try:
@@ -592,6 +617,10 @@ async def chat_api(request: Request):
             url = direct.get("url")
             return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else []}
         text = ASK.get(bid, bid)
+    if bid not in ASK:
+        t = onboarding.turn(engine, sid, "" if bid else text, bid)
+        if t:
+            return interview(t)
     import anyio
     try:
         reply = await anyio.to_thread.run_sync(lambda: coach().ask(sid, text, name=DEMO_NAME))
@@ -603,7 +632,9 @@ async def chat_api(request: Request):
     for b in reply.buttons:
         owner[b["url"].rsplit("/", 1)[-1]] = sid
         out.append({"label": b["label"], "url": b["url"].replace(public_url(), "") + "?web=1"})
-    return JSONResponse({"text": reply.text, "tools": reply.tools_used, "buttons": out})
+    again = onboarding.reask(engine, sid)  # a side question mid-interview: the waiting question comes back
+    return JSONResponse({"text": reply.text + (f"\n\n{again.text}" if again else ""), "tools": reply.tools_used,
+                         "buttons": out, "quick": quick(again.buttons) if again else []})
 
 
 @app.get("/api/inbox")
