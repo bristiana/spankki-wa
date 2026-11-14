@@ -130,6 +130,98 @@
     if (next) next.addEventListener("click", () => renderers.spend(el, {month: shiftMonth(d.month, 1)}));
   };
 
+  // ---------- Budget ----------
+  const SOURCE = {own: "Your own", peers: "People like me", helsinki: "Helsinki area", finland: "Finland"};
+  let toastTimer = null;
+
+  renderers.budget = async function (el, given) {
+    const res = given || await OivaData.get("budget");
+    const d = res.data;
+    if (!d || !Array.isArray(d.items) || !d.presets) return errorCard("budget", () => renderers.budget(el));
+    const peers = d.presets.peers || {}, co = peers.cohort || {};
+    const cohortText = co.age_band ? "people aged " + co.age_band.replace("-", "–") + " in " + co.city + ", " + co.n + " people" : "";
+    let h = sampleNote(res)
+      + '<section class="card"><p class="muted bd-intro">Tap a category to set its monthly budget: your own amount, or what is typical for people like you.</p>'
+      + '<button class="btn ghost" type="button" id="bd-all">Set all to people like me</button>'
+      + (cohortText ? '<p class="fi bd-cohort">Typical (median) spend for ' + esc(cohortText) + '. S-Pankki data, Apr–Sep 2026.</p>' : "")
+      + '</section><section class="card bd-list">';
+    for (const it of d.items) {
+      const lim = isNum(it.limit_eur) ? it.limit_eur : null, spent = isNum(it.spent_eur) ? it.spent_eur : 0;
+      const over = lim != null && spent > lim;
+      h += '<button type="button" class="bd-item" data-cat="' + esc(it.category) + '">'
+        + '<span class="sp-row"><span>' + esc(it.label || it.category) + '</span><b>' + (lim != null ? money(lim) : "") + '</b></span>'
+        + (lim != null
+          ? '<span class="bar' + (over ? " over" : "") + '"><i style="width:' + (lim > 0 ? Math.min(100, Math.round(spent / lim * 100)) : (spent > 0 ? 100 : 0)) + '%"></i></span>'
+            + '<small>' + (over ? "Over by " + money(spent - lim) : money(spent) + " spent · " + money(lim - spent) + " left"
+              + (isNum(it.left_per_day_eur) ? ", " + money(it.left_per_day_eur) + " a day" : "")) + ' · ' + esc(SOURCE[it.source] || "Your own") + '</small>'
+          : '<small>No budget yet · ' + money(spent) + ' spent this month</small>')
+        + '</button>';
+    }
+    h += '</section><p class="fi bd-foot">A budget is a setting, not a payment: no PIN needed, and you can undo it.</p>';
+    el.innerHTML = h;
+    el.querySelectorAll(".bd-item").forEach(b => b.addEventListener("click", () => openSheet(el, d, b.dataset.cat, b)));
+    el.querySelector("#bd-all").addEventListener("click", () => apply(el, d, {category: "all", mode: "peers"}, "All budgets set to people like me"));
+  };
+
+  function phoneEl() { return document.getElementById("phone") || document.body; }
+
+  function openSheet(el, d, cat, opener) {
+    const it = d.items.find(i => i.category === cat); if (!it) return;
+    const label = it.label || cat, P = d.presets;
+    let sheet = phoneEl().querySelector(".bd-sheet");
+    if (!sheet) { sheet = document.createElement("div"); sheet.className = "bd-sheet"; phoneEl().appendChild(sheet); }
+    const choice = (mode, amount, note) => isNum(amount)
+      ? '<button type="button" class="bd-choice" data-mode="' + mode + '"><span class="sp-row"><span>' + SOURCE[mode] + '</span><b>' + money(amount) + '</b></span><small>' + esc(note) + '</small></button>' : "";
+    const co = (P.peers && P.peers.cohort) || {};
+    sheet.innerHTML = '<div class="bd-panel" role="dialog" aria-modal="true" aria-labelledby="bd-title">'
+      + '<h2 id="bd-title">' + esc(label) + ' budget</h2><p class="muted">A month. Spent so far: ' + money(it.spent_eur) + '</p>'
+      + choice("peers", P.peers && P.peers.per_category[cat], co.age_band ? "Typical for people aged " + co.age_band.replace("-", "–") + " in " + co.city + " (" + co.n + " people)" : "")
+      + choice("helsinki", P.helsinki && P.helsinki.per_category[cat], "Typical in Helsinki, Espoo and Vantaa" + (P.helsinki && P.helsinki.n ? " (" + P.helsinki.n + " people)" : ""))
+      + choice("finland", P.finland && P.finland.per_category[cat], "Statistics Finland " + (P.finland && P.finland.year || "") + ", " + (P.finland && P.finland.per_person ? "per person" : "per household") + ", your age group")
+      + '<form class="bd-own"><label for="bd-own-input">Your own amount</label><div><input id="bd-own-input" type="number" inputmode="decimal" min="0" step="1" placeholder="'
+      + (isNum(it.limit_eur) ? it.limit_eur : "") + '"><button class="btn" type="submit">Save</button></div><p class="bd-err" role="alert" hidden></p></form>'
+      + '<button type="button" class="btn ghost bd-cancel">Cancel</button></div>';
+    sheet.hidden = false;
+    const close = () => { sheet.hidden = true; document.removeEventListener("keydown", onKey); if (opener) opener.focus(); };
+    const onKey = e => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    sheet.onclick = e => { if (e.target === sheet) close(); };
+    sheet.querySelector(".bd-cancel").addEventListener("click", close);
+    sheet.querySelectorAll(".bd-choice").forEach(b => b.addEventListener("click", () => {
+      close(); apply(el, d, {category: cat, mode: b.dataset.mode}, label + " budget set to " + SOURCE[b.dataset.mode].toLowerCase());
+    }));
+    sheet.querySelector(".bd-own").addEventListener("submit", e => {
+      e.preventDefault();
+      const v = Number(sheet.querySelector("#bd-own-input").value), err = sheet.querySelector(".bd-err");
+      if (sheet.querySelector("#bd-own-input").value === "" || !isFinite(v) || v < 0) { err.textContent = "Enter an amount of 0 € or more."; err.hidden = false; return; }
+      close(); apply(el, d, {category: cat, mode: "own", amount_eur: Math.round(v * 100) / 100}, label + " budget set");
+    });
+    sheet.querySelector(".bd-choice, #bd-own-input").focus();
+  }
+
+  async function apply(el, d, change, message) {
+    const before = d.items.map(i => ({category: i.category, limit_eur: isNum(i.limit_eur) ? i.limit_eur : null, source: i.source}))
+      .filter(i => change.category === "all" || i.category === change.category);
+    let res;
+    try { res = await OivaData.setBudget(change); } catch (err) { return toast(String(err.message || err)); }
+    await renderers.budget(el, res);
+    toast(message + ".", async () => {
+      let last = null;
+      for (const b of before) last = await OivaData.setBudget({category: b.category, mode: "restore", amount_eur: b.limit_eur, source: b.source});
+      if (last) await renderers.budget(el, last);
+      toast("Undone.");
+    });
+  }
+
+  function toast(text, undo) {
+    let t = phoneEl().querySelector(".bd-toast");
+    if (!t) { t = document.createElement("div"); t.className = "bd-toast"; t.setAttribute("role", "status"); phoneEl().appendChild(t); }
+    t.innerHTML = '<span>' + esc(text) + '</span>' + (undo ? '<button type="button">Undo</button>' : "");
+    t.hidden = false;
+    if (undo) t.querySelector("button").addEventListener("click", () => { clearTimeout(toastTimer); t.hidden = true; undo(); });
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, undo ? 10000 : 3000);
+  }
+
   // ---------- plumbing ----------
   async function render(name, el) {
     host = el || host;
