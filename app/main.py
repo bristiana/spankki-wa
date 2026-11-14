@@ -270,7 +270,12 @@ async def chat_api(request: Request):
         return {"text": f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*. Confirm it with your PIN.",
                 "buttons": [{"label": f"Pay {money(p['amount'])}", "url": f"/pay/{p['pending_id']}"}]}
     import anyio
-    reply = await anyio.to_thread.run_sync(lambda: coach().ask(sid, text, name=DEMO_NAME))
+    try:
+        reply = await anyio.to_thread.run_sync(lambda: coach().ask(sid, text, name=DEMO_NAME))
+    except Exception:
+        log.exception("coach failed")
+        return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
+                                     "Bill reminders and payments still work.", "buttons": []})
     return JSONResponse({"text": reply.text, "tools": reply.tools_used,
                          "buttons": [{"label": b["label"], "url": b["url"].replace(public_url(), "")} for b in reply.buttons]})
 

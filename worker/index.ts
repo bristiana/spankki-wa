@@ -22,6 +22,16 @@ export class Coach extends DurableObject<any> {
   }
 
   async fetch(request: Request): Promise<Response> {
+    // /admin/restart?key=<WA_VERIFY_TOKEN>: stop the container so the next request starts it with fresh secrets.
+    const u = new URL(request.url);
+    if (u.pathname === "/admin/restart") {
+      if (!this.env.WA_VERIFY_TOKEN || u.searchParams.get("key") !== this.env.WA_VERIFY_TOKEN) {
+        return new Response("forbidden", { status: 403 });
+      }
+      const c = (this.ctx as any).container;
+      if (c?.running) await c.destroy("restart requested");
+      return new Response("restarted; next request boots a fresh container\n");
+    }
     this.starting ??= this.startAndWait().finally(() => { this.starting = undefined; });
     await this.starting;
     const url = new URL(request.url);
