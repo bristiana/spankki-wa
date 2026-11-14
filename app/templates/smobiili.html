@@ -247,6 +247,18 @@
     <a href="{{ home_url }}" aria-current="page">{{ icon("wallet") }}S-Pankki</a>
     <a href="{{ home_url }}">{{ icon("me") }}Me</a>
   </nav>
+  <div class="call" id="oiva-call" hidden role="dialog" aria-modal="false" aria-labelledby="call-title">
+    <div class="call-panel">
+      <p class="call-demo" id="call-demo" hidden>Demo playback · voice not connected</p>
+      <div class="call-top"><b id="call-title">Oiva</b><span id="call-state" role="status">Connecting…</span><span id="call-timer">0:00</span></div>
+      <div class="call-oiva" id="call-oiva" data-state="idle" aria-hidden="true"></div>
+      <p class="call-provider" id="call-provider" hidden>Your voice goes to ElevenLabs, our voice provider, to make the call. S-Pankki doesn't store the audio.</p>
+      <div class="call-captions" id="call-captions" aria-live="polite"></div>
+      <p class="call-error" id="call-error" hidden>Can't start the call. <a href="{{ '/chat' ~ ('?embed=1' if web else '') }}">You can still type to Oiva</a></p>
+      <div class="call-summary" id="call-summary" hidden></div>
+      <div class="call-btns"><button type="button" id="call-mute" aria-pressed="false">Mute</button><button type="button" id="call-end">End</button></div>
+    </div>
+  </div>
   {% else %}
   <div class="fid" id="fid" hidden role="dialog" aria-modal="true" aria-labelledby="fid-title">
     <div class="panel" id="fid-panel">
@@ -269,6 +281,9 @@
 {% if screen != "flow" %}<script src="/static/kchart.js"></script>
 <script src="/static/oiva/data.js"></script>
 <script src="/static/oiva/screens.js"></script>
+<script src="/static/oiva/oiva.js"></script>
+<script src="/static/oiva/voice-stub.js"></script>
+<script src="/static/oiva/call.js"></script>
 {% if screen != "home" %}<script>OivaScreens.render({{ screen|tojson }}, document.getElementById("oiva-screen"));</script>{% endif %}{% endif %}
 <script>
 (() => {
