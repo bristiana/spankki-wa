@@ -45,3 +45,19 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .sp-cats .sc-h+.sp-cat{border-top:0}
 .sp-row{display:flex;justify-content:space-between;gap:12px;font-size:15px}.sp-row b{white-space:nowrap;font-weight:600}
 .sp-cat small{display:block;font-size:12.5px;color:var(--muted)}
+
+/* Budget */
+.bd-intro{margin:0 0 4px}.bd-cohort,.bd-foot{display:block;margin:8px 4px 0}
+.bd-item{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:none;border:0;border-top:1px solid var(--line);padding:10px 0;min-height:52px;cursor:pointer}
+.bd-item:first-child{border-top:0}.bd-item small{display:block;font-size:12.5px;color:var(--muted)}
+.bd-sheet{position:absolute;inset:0;z-index:40;background:rgba(0,0,0,.4);display:flex;align-items:flex-end}
+.bd-panel{width:100%;max-height:88%;overflow-y:auto;background:var(--card);border-radius:20px 20px 0 0;padding:18px 16px 22px}
+.bd-panel h2{margin:0 0 2px;color:var(--brand);font-size:18px}
+.bd-choice{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:var(--soft);border:0;border-radius:12px;padding:10px 12px;margin:8px 0;min-height:52px;cursor:pointer}
+.bd-choice small{display:block;font-size:12.5px;color:var(--muted)}
+.bd-own{margin:12px 0 0}.bd-own label{font-size:14px;font-weight:600}
+.bd-own div{display:flex;gap:8px;margin-top:4px}.bd-own input{flex:1;min-height:48px;border:1px solid var(--line);border-radius:12px;padding:0 12px;font:inherit;background:var(--card);color:var(--ink)}
+.bd-own .btn{width:auto;padding:0 20px;min-height:48px}
+.bd-err{color:var(--over);font-size:13px;margin:6px 0 0}
+.bd-toast{position:absolute;left:12px;right:12px;bottom:96px;z-index:41;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);color:var(--card);border-radius:12px;padding:6px 8px 6px 14px;font-size:14px}
+.bd-toast button{min-height:44px;min-width:64px;border:0;border-radius:10px;background:transparent;color:var(--card);font:700 15px system-ui;text-decoration:underline;cursor:pointer}
