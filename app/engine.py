@@ -43,6 +43,10 @@ NO_PAYDAY_DAYS = 30  # safe-to-spend horizon when no regular salary is found
 INCOME_TYPES = {"salary", "other_income", "investment_withdrawal"}
 CYCLE_INCOME_TYPES = {"salary", "other_income"}  # what a pay cycle earns (the cycle budget in safe to spend)
 RESERVE_NOTE_EUR = 100  # messages mention the reserve from this much
+SWEEP_TYPE = "salary_sweep"  # an automatic transfer of most of the salary to another account, the day it lands
+WEEK_DAYS = 7  # "this week" in safe to spend
+LEVER_MIN_EUR_YEAR = 60  # a 20% everyday cut smaller than this a year is not a lever worth naming
+WEEKEND_MIN_VISITS = 4  # restaurant visits in 3 months before a weekend share means anything
 SPEND_CATEGORIES = list(CATEGORY_BASKET)
 
 # Demo funds. Clearly labelled as demo products; the assistant explains them but never picks one.
@@ -193,7 +197,12 @@ class Engine:
         self.today = today or date(2026, 10, 6)
         bp = benchmark_path or ROOT / "data" / "benchmark.json"
         self.benchmark = json.loads(bp.read_text()) if bp.exists() else None
-        self.age = age if age is not None else (self.benchmark or {}).get("persona_age")
+        # The benchmark's persona age belongs to the default persona only: another customer of unknown age must not
+        # be compared with that persona's age group.
+        default_persona = frame is None and csv_path is None
+        self.age = age if age is not None else (self.benchmark or {}).get("persona_age") if default_persona else None
+        if self.benchmark and self.age is None:
+            self.benchmark = None  # age unknown: no age group to compare with
         if self.benchmark and self.age is not None:
             lo, hi = map(int, self.benchmark["age_band"].split("-"))
             if not lo <= self.age <= hi:
@@ -618,16 +627,26 @@ class Engine:
         after = bal - bills - util - needs - buffer
         # The balance is not all this cycle's money: what usually comes in minus the usual mandatory costs is what
         # a pay cycle can sustain for flexible spending. Anything on the account beyond that is reserve (savings).
-        income_m = self.monthly_income(6)
+        # A salary sweep moves most of the salary on to another account the day it lands: it never stays here.
+        moved_m = self.moved_out_per_month(6)
+        income_m = self.monthly_income(6) - moved_m
         mandatory_m = self.monthly_avg("Housing", 3) + util_m + needs_m + irregular_m
         cycle = max(0.0, income_m - mandatory_m) * frac
-        free = min(after, cycle)
+        # Never a negative amount to spend: when bills and needs come to more than the balance, nothing is free and
+        # the gap is reported separately (short_by_eur).
+        free = max(0.0, min(after, cycle))
         reserve = max(0.0, after - cycle)
-        per_day = max(0.0, free) / days
+        per_day = free / days
+        week = per_day * min(WEEK_DAYS, days)
         span = "until payday" if pay["date"] else f"in the next {days} days"
-        if after < 0:
-            basis = (f"Bills, usual needs and the buffer {span} come to more than the balance, so nothing is free "
-                     "to spend.")
+        overdrawn = bal < 0
+        if overdrawn:
+            basis = (f"The account is overdrawn ({bal:.2f} EUR), so nothing is safe to spend until money comes in; "
+                     f"bills, usual needs and the buffer {span} need another {bal - after:.2f} "
+                     "EUR on top of getting back to zero.")
+        elif after < 0:
+            basis = (f"Bills, usual needs and the buffer {span} come to {-after:.2f} EUR more than the balance, so "
+                     "nothing is free to spend.")
         elif after <= cycle:
             basis = (f"Limited by the balance: after bills, usual needs and the buffer, {after:.2f} EUR is left, "
                      f"less than the {cycle:.2f} EUR your usual income leaves for flexible spending {span}.")
@@ -649,7 +668,7 @@ class Engine:
             "surprise_buffer_eur": eur(buffer),
             "safe_to_spend_until_payday_eur": eur(free),
             "safe_per_day_eur": eur(per_day),
-            "safe_this_week_eur": eur(per_day * min(7, days)),
+            "safe_this_week_eur": eur(week),
             "left_after_bills_eur": eur(after),
             "income_per_month_eur": eur(income_m),
             "mandatory_costs_per_month_eur": eur(mandatory_m),
@@ -663,10 +682,28 @@ class Engine:
                       "months) - average housing, utilities, groceries, transport and irregular costs, for the days "
                       "until payday. What (a) has beyond (b) is the reserve: money built up beyond the pay cycle",
             "horizon_days": days,
+            "payday_known": bool(pay["date"]),
+            "overdrawn": overdrawn,
+            "short_by_eur": eur(max(0.0, -after)),
+            "status": ("overdrawn" if overdrawn else "nothing_free" if after < 0 else
+                       "no_cycle_budget" if not cycle else "ok"),
         }
+        if moved_m > 0:
+            out["moved_to_other_account_per_month_eur"] = moved_m
         if not pay["date"]:
-            out["not_enough_data"] = (f"No regular payday found, so this covers the next {days} days instead of "
-                                      "'until payday'. Say so; never name a payday.")
+            # No pay cycle to plan to: say so, and give the plain next-7-days view, balance minus what falls due.
+            soon = [b for b in committed if b["days_away"] < WEEK_DAYS]
+            wk = WEEK_DAYS / 30.4
+            needs7 = (util_m + needs_m + irregular_m) * wk
+            left7 = bal - sum(b["amount_eur"] for b in soon) - needs7
+            out["next_7_days"] = {"bills_due_eur": eur(sum(b["amount_eur"] for b in soon)),
+                                  "usual_needs_and_buffer_eur": eur(needs7), "left_eur": eur(left7)}
+            week = max(0.0, min(week, left7))
+            out["safe_this_week_eur"] = eur(week)
+            out["not_enough_data"] = (f"No regular salary found, so safe to spend can't be worked out until a payday. "
+                                      f"The total covers the next {days} days instead, and this week's amount is the "
+                                      "balance minus bills due and usual needs over the next 7 days (next_7_days), "
+                                      "kept within what the next 30 days allow. Say so; never name a payday.")
         return out
 
     def safe_to_save(self) -> dict:
@@ -712,10 +749,22 @@ class Engine:
             out["where_a_cut_could_come_from"] = sorted(
                 ({"category": c["category"], "cut_pct": 20, "saving_per_month_eur": c["saving_per_month_eur"]}
                  for c in cuts), key=lambda c: -c["saving_per_month_eur"])
-            out["note"] = ("The last 3 months spent and invested more than came in, so there is no steady surplus. "
-                           "A monthly saving has to come from a cut (see where_a_cut_could_come_from)"
+            moved = flow["moved_to_other_account_per_month_eur"]
+            out["note"] = (("Most of the salary moves to another account the day it lands (about "
+                            f"{moved:.2f} EUR a month) and what stays here was spent, so this account has no steady "
+                            "surplus. That other account may already be the saving; Birky can't see it."
+                            if moved > 0 else
+                            "The last 3 months spent and invested more than came in, so there is no steady surplus.")
+                           + (" A monthly saving has to come from a cut (see where_a_cut_could_come_from)"
+                              if any(c["saving_per_month_eur"] > 0 for c in out["where_a_cut_could_come_from"]) else
+                              " There is next to no eating out, entertainment or shopping to trim, so a saving would "
+                              "come from the regular payments (get_regular_payments), not a cut")
                            + (f"; investing already takes {flow['investing_per_month_eur']} EUR a month."
                               if flow["investing_per_month_eur"] > 0 else "."))
+        if safe["overdrawn"]:
+            out["overdrawn"] = True
+            out["overdrawn_note"] = ("The account is overdrawn right now, so nothing can go to savings today; the "
+                                     "first step is getting back above zero.")
         return out
 
     def save_more(self) -> dict:
@@ -725,7 +774,8 @@ class Engine:
         ideas = []
         cuts = [self.simulate_cut(c, 20) for c in BASKETS["everyday"]["categories"] if self.monthly_avg(c, 3) > 0]
         top = max(cuts, key=lambda c: c["saving_per_month_eur"]) if cuts else None
-        if top and top["saving_per_year_eur"] >= 60:
+        lever = top if top and top["saving_per_year_eur"] >= LEVER_MIN_EUR_YEAR else None
+        if lever:
             ideas.append({"idea": "biggest_lever", "category": top["category"],
                           "in_words": EVERYDAY_WORDS[top["category"]], "basket": BASKETS["everyday"]["label"],
                           "cut_pct": 20, "now_per_month_eur": top["current_per_month_eur"],
@@ -741,7 +791,7 @@ class Engine:
                           "why": "money on the current account beyond what this pay cycle needs: in a savings goal "
                                  "(an emergency buffer first) it stops being spendable by accident",
                           "how": "create_goal, then create_saving_link (the person confirms with their PIN)"})
-        elif m["sustainable_saving_per_month_eur"] > 0:
+        elif m["sustainable_saving_per_month_eur"] > 0 and not save.get("overdrawn"):
             ideas.append({"idea": "pay_yourself_first", "per_month_eur": m["sustainable_saving_per_month_eur"],
                           "number_to_say": "per_month_eur",
                           "why": "the average monthly surplus of the last 3 full months, moved on payday before "
@@ -749,24 +799,54 @@ class Engine:
         review = self._payment_to_review()
         if review:
             ideas.append(review)
+        if not ideas:  # nothing to cut, nothing built up, no surplus, no bill to review: the buffer is the goal
+            target = self.safe_to_spend()["mandatory_costs_per_month_eur"]
+            ideas.append({"idea": "start_a_buffer", "target_eur": float(round(target)), "number_to_say": "target_eur",
+                          "why": "nothing obvious to cut and no steady surplus yet; one month of essential costs "
+                                 "(rent, bills, groceries, getting around, the usual one-offs) is a first emergency "
+                                 "buffer to build in small steps, even 10-20 EUR on payday"})
+        if any(i["idea"] == "move_what_built_up" for i in ideas) and not save["goals"]:
+            step = ("Offer one thing: an 'Emergency buffer' savings goal to move part of what has built up into "
+                    "(create_goal, then create_saving_link; the PIN is theirs).")
+        elif lever:
+            step = f"Offer one thing: try {EVERYDAY_WORDS[lever['category']]} 20% lighter for one month."
+        elif review:
+            step = f"Offer one thing: a reminder to check the {review['name'].lower()} once this year."
+        elif save.get("overdrawn"):
+            step = "Offer one thing: a reminder for when money next comes in, to get back above zero first."
+        elif ideas[0]["idea"] == "start_a_buffer" and not save["goals"]:
+            step = "Offer one thing: an 'Emergency buffer' savings goal to fill in small steps on payday (create_goal)."
+        else:
+            step = "Offer one thing: a savings goal to give the money a name."
         out = {
             "ideas": ideas[:3],
             "monthly_picture": {k: m[k] for k in ("income_per_month_eur", "spending_per_month_eur",
                                                   "investing_per_month_eur", "left_per_month_eur")},
             "goals": save["goals"],
-            "next_step": ("Offer one thing: an 'Emergency buffer' savings goal to move part of what has built up into "
-                          "(create_goal, then create_saving_link; the PIN is theirs)."
-                          if any(i["idea"] == "move_what_built_up" for i in ideas) and not save["goals"] else
-                          f"Offer one thing: try {EVERYDAY_WORDS[top['category']]} 20% lighter for one month."
-                          if top else "Offer one thing: a savings goal to give the money a name."),
+            "next_step": step,
             "method": "biggest lever = simulate_cut(20%) on the largest 'slips through your fingers' category, last 3 "
                       "full months; what built up = the reserve from get_safe_to_save; the review = a regular payment "
                       "from get_regular_payments (one that went up, else the utility bills)",
         }
+        if not lever:
+            everyday = sum(c["current_per_month_eur"] for c in cuts)
+            out["no_lever_reason"] = (f"Eating out, entertainment and shopping come to only {everyday:.2f} EUR a "
+                                      "month over the last 3 full months: a 20% cut there would save less than "
+                                      f"{LEVER_MIN_EUR_YEAR} EUR a year, so there is nothing worth cutting. Point to "
+                                      "the regular payments or the buffer instead, and say kindly that everyday "
+                                      "spending is already low.")
+        moved = m.get("moved_to_other_account_per_month_eur", 0.0)
+        if moved > 0:
+            out["monthly_picture"]["moved_to_other_account_per_month_eur"] = moved
+            out["moved_note"] = m["moved_note"]
+        if save.get("overdrawn"):
+            out["overdrawn_note"] = save["overdrawn_note"]
         if m["left_per_month_eur"] < 0:
-            out["note"] = ("The last 3 full months spent and invested more than came in. Say it kindly in a few words "
-                           "('lately a bit more has gone out than came in'), without the number unless they ask; the "
-                           "lever is what turns it around.")
+            out["note"] = (("After the salary moved on to the other account, a bit more went out of this one than "
+                            "stayed in over the last 3 full months." if moved > 0 else
+                            "The last 3 full months spent and invested more than came in.") + " Say it kindly in a few words "
+                           "('lately a bit more has gone out than came in'), without the number unless they ask"
+                           + ("; the lever is what turns it around." if lever else "."))
         return out
 
     def _payment_to_review(self) -> dict | None:
@@ -1007,17 +1087,43 @@ class Engine:
         # No income in the window: a savings rate would be invented (or divide by zero).
         save_rate = round(b["invested_eur"] / b["income_eur"] * 100) if b["income_eur"] > 0 else None
         r = self.spending("Restaurants", "last_3_months")
+        kinds = []  # (key, sentence), strongest first; the first one is the answer to "what kind of spender am I?"
+        salary_m = self.monthly_avg("Salary", 3) * -1  # monthly_avg flips the sign: salary is money in
+        moved_pct = round(self.moved_out_per_month(3) / salary_m * 100) if salary_m > 0 else 0
+        if moved_pct >= 50:
+            kinds.append(("salary_mover", f"Salary mover: about {moved_pct}% of your salary moves on to another "
+                                          "account the day it lands, so this account only sees what is left."))
         if everyday_share >= 30:
-            traits.append("Experience spender: a big part of your money goes to eating out and fun.")
+            kinds.append(("experience", "Experience spender: a big part of your money goes to eating out and fun."))
         if save_rate is not None and save_rate >= 10:
-            traits.append(f"Steady saver: you invest about {save_rate}% of what comes in.")
+            kinds.append(("saver", f"Steady saver: you invest about {save_rate}% of what comes in."))
         late = self._slice(*self._full_months(3))
         late = late[(late["category"] == "Restaurants")]
         weekend = late[[d.weekday() >= 4 for d in late["date"]]]
         wk_share = round(-weekend["tx_amount_eur"].sum() / max(1e-9, -late["tx_amount_eur"].sum()) * 100) if len(late) else 0
-        if wk_share >= 50:
-            traits.append(f"Weekend effect: {wk_share}% of your restaurant money goes out Friday to Sunday.")
+        if wk_share >= 50 and len(late) >= WEEKEND_MIN_VISITS:  # one Saturday lunch is not a pattern
+            kinds.append(("weekend", f"Weekend effect: {wk_share}% of your restaurant money goes out Friday to "
+                                     "Sunday."))
+        traits = [t for _, t in kinds]
+        # Every customer gets a kind, even with none of the traits above: the largest basket says it.
+        share = {x["basket"]: x["share_pct"] for x in b["baskets"]}
+        if b["total_spent_eur"] <= 0:
+            kind = ("quiet", "Quiet account: almost no card or bill spending here in the last 3 full months.")
+        elif kinds:
+            kind = kinds[0]
+        elif share["irregular"] >= 25:
+            kind = ("one_offs", f"One-off spender: {share['irregular']}% of your spending goes to health, home & tech "
+                                "and travel, costs that come when they come.")
+        elif share["regular"] >= 60:
+            kind = ("essentials_first", f"Essentials first: {share['regular']}% of your spending is rent, bills, "
+                                        "groceries and getting around; little slips through your fingers.")
+        else:
+            kind = ("balanced", f"Balanced spender: no basket dominates ({share['regular']}% essentials, "
+                                f"{share['irregular']}% one-offs, {share['everyday']}% eating out, fun and shopping).")
+        if not traits:
+            traits = [kind[1]]
         return {
+            "kind": {"key": kind[0], "in_words": kind[1]},
             "everyday_share_pct": everyday_share,
             "savings_rate_pct": save_rate,
             "restaurant_visits_last_3_months": r["transactions"],
@@ -1025,7 +1131,11 @@ class Engine:
             "traits": traits,
             "peers": {"group": group, "age_band": band if group else None, "customers": customers,
                       "compared_over": over if group else None,
-                      "biggest_differences": comparisons[:4]},
+                      "biggest_differences": comparisons[:4],
+                      **({} if group else {"no_peers_reason": (
+                          "No age on file, so there is no group of people the same age to compare with."
+                          if self.age is None else
+                          "No group of at least 30 S-Pankki customers like you to compare with.")})},
             "baskets": [{k: x[k] for k in ("label", "per_month_eur", "share_pct")} for x in b["baskets"]],
             "finland_official": self.official_benchmark(),
         }
@@ -1418,8 +1528,14 @@ class Engine:
         inc = s[s["transaction_type"].isin(INCOME_TYPES)]["tx_amount_eur"].sum() / max(1, n)
         spend = -s[(s["tx_amount_eur"] < 0) & s["category"].isin(SPEND_CATEGORIES)]["tx_amount_eur"].sum() / max(1, n)
         inv = -s[s["category"] == "Invest Deposit"]["tx_amount_eur"].sum() / max(1, n)
+        moved = -s[s["transaction_type"] == SWEEP_TYPE]["tx_amount_eur"].sum() / max(1, n)
         out = {"income_per_month_eur": eur(inc), "spending_per_month_eur": eur(spend),
-               "investing_per_month_eur": eur(inv), "left_per_month_eur": eur(inc - spend - inv)}
+               "investing_per_month_eur": eur(inv), "moved_to_other_account_per_month_eur": eur(moved),
+               "left_per_month_eur": eur(inc - spend - inv - moved)}
+        if moved > 0:
+            out["moved_note"] = (f"About {eur(moved):.2f} EUR a month of the salary moves automatically to another "
+                                 "account the day it lands (a salary sweep). That money is not on this account, so it "
+                                 "is not counted as left over; Birky cannot see where it goes.")
         if n < months:
             out["not_enough_data"] = (f"Only {n} full month(s) of history; averages use those." if n else
                                       "No full month of history yet, so there is no monthly average.")
@@ -1432,6 +1548,14 @@ class Engine:
         n = self._covered(d0, months)
         s = self._slice(d0, d1)
         return eur(s[s["transaction_type"].isin(CYCLE_INCOME_TYPES)]["tx_amount_eur"].sum() / n) if n else 0.0
+
+    def moved_out_per_month(self, months: int = 6) -> float:
+        """Average salary sweep per full month: salary that moves on to another account the day it lands, so it is
+        never this account's money to spend."""
+        d0, d1 = self._full_months(months)
+        n = self._covered(d0, months)
+        s = self._slice(d0, d1)
+        return eur(-s[s["transaction_type"] == SWEEP_TYPE]["tx_amount_eur"].sum() / n) if n else 0.0
 
     def create_goal(self, name: str, target_eur: float, deadline: str | None = None) -> dict:
         if not 10 <= target_eur <= 1_000_000:
