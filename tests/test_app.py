@@ -148,3 +148,15 @@ def test_window_and_failed_status(client, monkeypatch):
     st = {"entry": [{"changes": [{"value": {"statuses": [{"status": "failed", "recipient_id": "4070",
                                                            "errors": [{"code": 131047, "title": "Re-engagement"}]}]}}]}]}
     assert failed_statuses(st) == [{"to": "4070", "code": 131047, "title": "Re-engagement"}]
+
+
+def test_demo_phone_stays_connected_until_stop(monkeypatch):
+    from app import main
+    monkeypatch.setenv("DEMO_PHONE", "40711111111")
+    main.engine.state.get("connected", {}).pop("40711111111", None)
+    main.engine.state.get("switched_off", {}).pop("40711111111", None)
+    assert main.connected("40711111111")          # fresh container: no reconnect needed
+    assert not main.connected("40722222222")      # anyone else still connects first
+    main.switch_off("40711111111")
+    assert not main.connected("40711111111")      # STOP is respected
+    main.engine.state.get("switched_off", {}).pop("40711111111", None)

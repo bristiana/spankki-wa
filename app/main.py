@@ -170,7 +170,12 @@ templates.env.filters["nb"] = nb
 
 
 def connected(phone: str) -> bool:
-    return phone in engine.state.setdefault("connected", {})
+    """The demo phone counts as connected unless it switched off (STOP): a redeploy or demo reset starts a fresh
+    container with empty state, and the demo owner should not have to reconnect after every one."""
+    if phone in engine.state.setdefault("connected", {}):
+        return True
+    demo = os.environ.get("DEMO_PHONE", "")
+    return bool(phone) and phone == demo and phone not in engine.state.get("switched_off", {})
 
 
 # ---------------- WhatsApp ----------------
@@ -222,13 +227,14 @@ STOP_WORDS = {"stop", "unsubscribe", "delete my data", "switch off", "lopeta"}
 def switch_off(to: str):
     """Consent withdrawn: forget the connection, the chat history and the name."""
     engine.state.setdefault("connected", {}).pop(to, None)
+    engine.state.setdefault("switched_off", {})[to] = engine.today.isoformat()
     engine.state.get("held", {}).pop(to, None)
     engine._save()
     coach().reset(to)
     onboarding.forget(engine, to)
     quiz.forget(engine, to)
     names.pop(to, None)
-    wa.send_text(to, "Done ✅ Kurre is switched off for this number and our chat history is deleted. "
+    wa.send_text(to, "Done ✅ Birky is switched off for this number and our chat history is deleted. "
                      "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
 
 
@@ -309,7 +315,7 @@ def handle_message(m: dict):
         if not connected(to):
             wa.send_url_button(
                 to,
-                f"Hi {name} 👋 I'm *Kurre* 🐿️, your S-Pankki money coach. I answer questions about your spending, remind you "
+                f"Hi {name} 👋 I'm *Birky* 🐿️, your S-Pankki money coach. I answer questions about your spending, remind you "
                 "before bills and help you save.\n\nTo start, connect your S-Pankki account. You choose what I can see, "
                 "and you can switch me off any time.",
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
@@ -337,7 +343,7 @@ def handle_message(m: dict):
             return
         text = ASK.get(bid) or wa.redact(m["text"])
         if text.strip().lower() in ("my data", "download my data", "export"):
-            wa.send_url_button(to, "Your data, yours to keep (MyData): every transaction and what Kurre "
+            wa.send_url_button(to, "Your data, yours to keep (MyData): every transaction and what Birky "
                                    "calculated from it, as a file.", "Download my data", f"{public_url()}/app/export.json")
             return
         if bid not in ASK:
@@ -386,14 +392,15 @@ def bank_submit(request: Request, u: str = Form(""), scope: list[str] = Form([])
         "title": f"{DEMO_BANK['name']} linked",
         "lines": [f"Savings {money(f['banks'][1]['accounts'][0]['balance_eur'])} · card to repay "
                   f"{money(bill['amount_eur'])} by {nice_date(bill['due_date'])}.",
-                  "Kurre now counts the card bill in safe to spend. Synthetic demo bank, no real data.",
-                  "Ask Kurre: \"Show my money across all my banks\"."],
+                  "Birky now counts the card bill in safe to spend. Synthetic demo bank, no real data.",
+                  "Ask Birky: \"Show my money across all my banks\"."],
         "wa": wa_back(request) if u else ""})
 
 
 @app.post("/connect", response_class=HTMLResponse)
 def connect_submit(request: Request, bg: BackgroundTasks, u: str = Form(""), scope: list[str] = Form([])):
     engine.state.setdefault("connected", {})[u] = {"scope": scope, "at": engine.today.isoformat()}
+    engine.state.get("switched_off", {}).pop(u, None)
     engine._save()
     if u:
         bg.add_task(welcome, u)
@@ -424,8 +431,8 @@ def _pending_or_404(pid: str, kind: str) -> tuple[Engine, dict]:
 # ---------------- Friendly error pages: a browser gets a page, an API caller keeps JSON ----------------
 CONFIRM_PATHS = ("/pay/", "/invest/", "/save/", "/stop/")
 ERRORS = {
-    "expired": ("This link has expired", "Payment and saving links from Kurre work once, and this one is no longer valid. "
-                                         "Nothing was paid or moved. Ask Kurre again for a fresh link."),
+    "expired": ("This link has expired", "Payment and saving links from Birky work once, and this one is no longer valid. "
+                                         "Nothing was paid or moved. Ask Birky again for a fresh link."),
     404: ("Page not found", "This page doesn't exist. It may have moved, or the link has a typo."),
     400: ("That didn't work", "Something in the link or the form wasn't right. Go back and try again."),
     500: ("Something went wrong on our side", "Nothing was paid or moved. Try again in a minute."),
@@ -1048,7 +1055,7 @@ def widgets_api(request: Request):
 
 @app.get("/mobile-demo", response_class=HTMLResponse)
 def mobile_demo(request: Request):
-    """Concept mock: Kurre's cards and chat inside a generic banking app home screen."""
+    """Concept mock: Birky's cards and chat inside a generic banking app home screen."""
     persona = persona_of(request)
     e = engine_for(persona)
     return templates.TemplateResponse(request, "mobile_demo.html", _ctx(

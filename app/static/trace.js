@@ -32,6 +32,6 @@
     return h + "</div></details>";
   }
 
-  root.kurreTrace = traceHtml;
+  root.birkyTrace = traceHtml;
   if (typeof module !== "undefined") module.exports = traceHtml;
 })(typeof window !== "undefined" ? window : globalThis);
