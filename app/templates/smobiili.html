@@ -29,6 +29,7 @@
 <title>{% if screen == "home" %}S-mobiili concept{% else %}{{ f.title }} · S-mobiili concept{% endif %}</title>
 <link rel="stylesheet" href="/static/birky/birky.css">
 <link rel="stylesheet" href="/static/birky/guide.css">
+{% if screen != "flow" %}<link rel="stylesheet" href="/static/oiva/screens.css">{% endif %}
 <style>
   :root{--page:#e9f4ec;--bar:#fff;--card:#fff;--ink:#1d2621;--muted:#5f6b65;--line:#e3ebe5;--brand:#00703c;--brand-ink:#fff;
         --accent:#00a651;--soft:#e9f4ec;--warn:#7a5200;--warn-bg:#fff4d6;--frame:#101412;

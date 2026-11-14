@@ -1,0 +1,22 @@
+/* Oiva's screens in the S-mobiili mock (smobiili.html provides --brand, --ink, --muted, --line, --card, --soft). */
+:root{--c0:#00703c;--c1:#b86e00;--c2:#1b7f8c;--c3:#c2410c;--c4:#6d4fb3;--c5:#6b7570;--over:#b45309}
+@media (prefers-color-scheme:dark){:root{--c0:#3cc47a;--c1:#f2b14a;--c2:#4cc4d4;--c3:#fb8a5c;--c4:#b9a2f0;--c5:#a7b3ad;--over:#f5a524}}
+
+/* charts (kchart.js); the main site has these in base.html */
+.kc{display:block;width:100%;height:auto;overflow:visible;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.kc text{font-size:11px;fill:var(--muted)}
+.kc .kc-label{font-size:12.5px;fill:var(--ink)}
+.kc .kc-val{font-size:11.5px;fill:var(--ink)}
+.kc .kc-strong{font-weight:700}
+.kc .kc-total{font-size:17px;font-weight:750;fill:var(--ink)}
+.kc-grid{stroke:var(--line)}.kc-base{stroke:var(--muted);opacity:.45}
+.kc-bar{fill:var(--brand)}.kc-soft{opacity:.42}
+.kc-line{fill:none;stroke:var(--brand);stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round}
+.kc-line.kc-over{stroke:var(--over)}
+.kc-area{fill:var(--brand);opacity:.1}
+.kc-dot{fill:var(--brand);stroke:var(--card);stroke-width:1.5}.kc-dot.kc-over{fill:var(--over)}
+.kc-pace{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 4}
+.kc-empty{color:var(--muted);font-size:14px;margin:8px 0}
+.kc-c0{fill:var(--c0)}.kc-c1{fill:var(--c1)}.kc-c2{fill:var(--c2)}.kc-c3{fill:var(--c3)}.kc-c4{fill:var(--c4)}.kc-c5{fill:var(--c5)}
+circle.kc-arc.kc-c0{stroke:var(--c0);fill:none}circle.kc-arc.kc-c1{stroke:var(--c1);fill:none}circle.kc-arc.kc-c2{stroke:var(--c2);fill:none}
+circle.kc-arc.kc-c3{stroke:var(--c3);fill:none}circle.kc-arc.kc-c4{stroke:var(--c4);fill:none}circle.kc-arc.kc-c5{stroke:var(--c5);fill:none}
