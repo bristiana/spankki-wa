@@ -273,17 +273,43 @@ def verify(token: str | None) -> str | None:
 
 
 # ---------- what Oiva sees ----------
+def _drop_internal(tx: list[dict]) -> list[dict]:
+    """Money moved between the person's own accounts (out of one, the same amount into another within a day) is not
+    spending or income: leave both sides out."""
+    ins: dict[float, list[int]] = {}
+    for i, t in enumerate(tx):
+        if t["amount_eur"] > 0:
+            ins.setdefault(t["amount_eur"], []).append(i)
+    drop = set()
+    for i, t in enumerate(tx):
+        if t["amount_eur"] >= 0:
+            continue
+        for j in ins.get(-t["amount_eur"], []):
+            if j in drop or tx[j]["_acc"] == t["_acc"]:
+                continue
+            if abs((date.fromisoformat(tx[j]["date"]) - date.fromisoformat(t["date"])).days) <= 1:
+                drop.update((i, j))
+                break
+    return [t for k, t in enumerate(tx) if k not in drop]
+
+
 def picture(phone: str | None) -> list[dict]:
     """The person's real linked banks, summarised for the coach: balances, spending per month by category, recent."""
     if not phone:
         return []
     out = []
     for link in load(phone).values():
-        accs, tx = [], []
-        for a in link.get("accounts", []):
+        accs, tx, seen = [], [], set()
+        for n, a in enumerate(link.get("accounts", [])):
+            # The same account can come back several times (one per earlier consent): count it once.
+            key = (a.get("iban_end"), a.get("currency"), a.get("product")) if a.get("iban_end") else ("uid", a.get("uid"))
+            if key in seen:
+                continue
+            seen.add(key)
             accs.append({"type": a.get("product") or "account", "ending": a.get("iban_end") or None,
                          "balance_eur": a.get("balance_eur")})
-            tx += a.get("transactions") or []
+            tx += [{**t, "_acc": n} for t in a.get("transactions") or []]
+        tx = _drop_internal(tx)
         spent = [t for t in tx if t["amount_eur"] < 0]
         months = max(1.0, HISTORY_DAYS / 30.4)
         by_cat: dict[str, float] = {}
@@ -295,7 +321,8 @@ def picture(phone: str | None) -> list[dict]:
             "spending_per_month_eur": eur(sum(by_cat.values()) / months),
             "spending_per_month_by_category_eur": {k: eur(v / months) for k, v in
                                                    sorted(by_cat.items(), key=lambda kv: -kv[1])},
-            "recent_transactions": sorted(tx, key=lambda t: t["date"], reverse=True)[:8],
+            "recent_transactions": [{k: v for k, v in t.items() if k != "_acc"}
+                                    for t in sorted(tx, key=lambda t: t["date"], reverse=True)[:8]],
             "consent_valid_until": link.get("valid_until"),
         })
     return out
