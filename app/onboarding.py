@@ -16,7 +16,7 @@ from .engine import Engine, add_months, month_start
 
 ORDER = ["goal", "amount", "risk", "checkin"]
 ASK = {  # first wording, then the one used when the question comes back
-    "goal": ["What are you saving for: a trip, a buffer for surprises, a first home or something else?",
+    "goal": ["What are you saving for: a buffer for surprises, a home renovation, the kids, a trip or something else?",
              "What would you like to put money aside for?"],
     "amount": ["How much do you need, and by when, like 1,500 € by June?",
                "Roughly what amount, and is there a date, like 800 € by March?"],
@@ -32,13 +32,13 @@ ASK = {  # first wording, then the one used when the question comes back
                 "A weekly check-in on your goal, yes or no?"],
 }
 BUTTONS = {
-    "goal": [("ob:goal:trip", "A trip"), ("ob:goal:buffer", "Emergency buffer"), ("ob:goal:home", "First home")],
+    "goal": [("ob:goal:trip", "A trip"), ("ob:goal:buffer", "Emergency buffer"), ("ob:goal:home", "Home renovation")],
     "amount": [("ob:skip", "Skip")],
     "risk": [("ob:risk:prudent", "Prudent"), ("ob:risk:balanced", "Balanced"), ("ob:risk:growth", "Growth")],
     "checkin": [("ob:checkin:yes", "Yes, weekly"), ("ob:checkin:no", "No check-ins")],
 }
 PRESET_GOALS = {"trip": ("Trip", "a trip"), "buffer": ("Emergency buffer", "a buffer for surprises"),
-                "home": ("First home", "a first home")}
+                "home": ("Home renovation", "a home renovation")}  # three buttons: WhatsApp allows no more
 RISK_LINE = {"prudent": "Prudent: steady matters more than fast.",
              "balanced": "Balanced: some ups and downs are fine.",
              "growth": "Growth: you can sit through bigger swings."}

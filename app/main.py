@@ -33,7 +33,51 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 log = logging.getLogger("app")
 
-engine = Engine(today=date.fromisoformat(os.environ.get("DEMO_TODAY", "2026-10-06")))
+# ---------------- Personas: the demo default and the other real customers judges can switch to ----------------
+ROOT = Path(__file__).resolve().parents[1]
+PERSONA_DIR = ROOT / "data" / "personas"
+STATE_DIR = ROOT / "data" / "state"  # one state file per extra persona: payments and goals never leak across
+AINO = "CUST04831"  # the engine's own default (data/persona.csv); still in the switcher
+PERSONA_COOKIE = "kurre_as"
+
+
+def load_personas(path: Path = PERSONA_DIR / "index.json") -> dict[str, dict]:
+    rows = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+    out = {r["id"]: r for r in rows}
+    out.setdefault(AINO, {"id": AINO, "name": "Aino", "file": None, "age": 24, "label": "First job, 24",
+                          "description": ""})
+    return out
+
+
+PERSONAS = load_personas()
+# The hero (index.json "hero": true, picked by rule in scripts/extract_personas.py) is who people meet first: the web
+# chat, /app, the widgets, the landing page and the WhatsApp demo phone. DEMO_PERSONA=<CUSTID> picks another one.
+HERO = next((p["id"] for p in PERSONAS.values() if p.get("hero")), AINO)
+
+
+def pick_default(env: str | None) -> str:
+    return env if env in PERSONAS else HERO
+
+
+def default_state_path(persona: str) -> Path:
+    """Aino keeps data/state.json; any other default gets its own file, so a state saved for one customer (payments,
+    goals) is never replayed on another one's account."""
+    return ROOT / "data" / "state.json" if persona == AINO else STATE_DIR / f"{persona}.json"
+
+
+DEFAULT_PERSONA = pick_default(os.environ.get("DEMO_PERSONA"))
+DEMO_NAME = PERSONAS[DEFAULT_PERSONA]["name"]
+
+
+def persona_engine(persona: str, today: date, state_path: Path | None = None) -> Engine:
+    """A persona's engine from index.json (Aino's rows are data/persona.csv, the engine's default)."""
+    p = PERSONAS[persona]
+    return Engine(csv_path=PERSONA_DIR / p["file"] if p.get("file") else None, today=today,
+                  state_path=state_path or STATE_DIR / f"{persona}.json", age=p.get("age"))
+
+
+engine = persona_engine(DEFAULT_PERSONA, date.fromisoformat(os.environ.get("DEMO_TODAY", "2026-10-06")),
+                        default_state_path(DEFAULT_PERSONA))
 _coach: Coach | None = None
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 app = FastAPI(title="S-Pankki Chat")
@@ -43,7 +87,6 @@ owner: dict[str, str] = {}
 inbox: dict[str, list[str]] = {}  # web chat session -> confirmations waiting to be shown
 last_seen: dict[str, float] = {}  # WhatsApp number -> when they last wrote (free-form replies only within 24 h)
 WINDOW_S = 24 * 3600
-DEMO_NAME = "Aino"
 # Quick-reply buttons that turn into a question for the coach.
 ASK = {
     "ask:tight": "My budget is tight until payday. What can I do?",
@@ -71,7 +114,7 @@ def name_of(phone: str | None) -> str:
 
 
 def coach(persona: str | None = None) -> Coach:
-    """The default persona's coach (WhatsApp, Aino) or, for a judge's pick, one coach per persona: its own
+    """The default persona's coach (WhatsApp and the web app's default) or, for a judge's pick, one coach per persona: its own
     engine and its own conversation histories. All share one API client."""
     global _coach
     if _coach is None:
@@ -85,23 +128,6 @@ def coach(persona: str | None = None) -> Coach:
 
 
 # ---------------- Personas: judges switch the web app to other real customers ----------------
-ROOT = Path(__file__).resolve().parents[1]
-PERSONA_DIR = ROOT / "data" / "personas"
-STATE_DIR = ROOT / "data" / "state"  # one state file per extra persona: payments and goals never leak across
-DEFAULT_PERSONA = "CUST04831"
-PERSONA_COOKIE = "kurre_as"
-
-
-def load_personas(path: Path = PERSONA_DIR / "index.json") -> dict[str, dict]:
-    rows = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
-    out = {r["id"]: r for r in rows}
-    out.setdefault(DEFAULT_PERSONA, {"id": DEFAULT_PERSONA, "name": DEMO_NAME, "file": None, "age": 24,
-                                     "label": "Demo persona, 24", "description": ""})
-    out[DEFAULT_PERSONA]["name"] = DEMO_NAME
-    return out
-
-
-PERSONAS = load_personas()
 _engines: dict[str, Engine] = {}
 _coaches: dict[str, Coach] = {}
 _persona_lock = threading.RLock()  # coach() builds the engine under the same lock
@@ -123,10 +149,8 @@ def engine_for(persona: str | None) -> Engine:
         return engine
     with _persona_lock:
         if persona not in _engines:
-            p = PERSONAS[persona]
             STATE_DIR.mkdir(parents=True, exist_ok=True)
-            _engines[persona] = Engine(csv_path=PERSONA_DIR / p["file"], today=engine.today,
-                                       state_path=STATE_DIR / f"{persona}.json", age=p.get("age"))
+            _engines[persona] = persona_engine(persona, engine.today)
         return _engines[persona]
 
 
@@ -1092,8 +1116,9 @@ def landing(request: Request):
     L = {"rest": engine.monthly_avg("Restaurants", 3), "times": rest["times"], "rent": rent["amount_eur"],
          "safe": engine.safe_to_spend()["safe_to_spend_until_payday_eur"], "bills_year": reg["bills_per_year_eur"],
          "util_month": util.get("per_month_eur", 0), "util_count": round(util.get("bills_per_month", 0)),
-         "odd": util.get("unusual_bill"), "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"]}
-    return templates.TemplateResponse(request, "landing.html", _ctx(L=L))
+         "odd": util.get("unusual_bill"), "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"],
+         "fi_same_age": not off.get("group", "").endswith(" all")}  # Statistics Finland has age groups only up to 34
+    return templates.TemplateResponse(request, "landing.html", _ctx(L=L, who=PERSONAS[DEFAULT_PERSONA]))
 
 
 def _chart(o: dict) -> dict:

@@ -18,7 +18,7 @@ OTHERS = [p["id"] for p in INDEX if p["id"] != main.DEFAULT_PERSONA]
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.delenv("WA_TOKEN", raising=False)
-    main.engine = Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json")
+    main.engine = main.persona_engine(main.DEFAULT_PERSONA, date(2026, 10, 6), tmp_path / "s.json")
     main._coach = None
     monkeypatch.setattr(main.wa, "_post", lambda body: None)
     return TestClient(main.app)
@@ -29,11 +29,33 @@ def safe(client, **params) -> float:
     return w["safe_to_spend"]["amount_eur"]
 
 
-def test_index_lists_the_default_first_and_four_real_customers():
-    assert INDEX[0]["id"] == "CUST04831" and INDEX[0]["name"] == "Aino"
-    assert len(OTHERS) == 4 and len(set(p["name"] for p in INDEX)) == 5
-    for p in INDEX[1:]:
-        assert (main.PERSONA_DIR / p["file"]).exists() and p["age"] and p["label"] and p["description"]
+def test_index_lists_the_hero_first_then_aino_and_four_real_customers():
+    hero = INDEX[0]
+    assert hero.get("hero") and main.HERO == main.DEFAULT_PERSONA == hero["id"] and main.DEMO_NAME == hero["name"]
+    assert 38 <= hero["age"] <= 45 and hero["why"]
+    assert INDEX[1]["id"] == main.AINO == "CUST04831" and INDEX[1]["name"] == "Aino" and INDEX[1]["file"] is None
+    assert len(OTHERS) == 5 and len(set(p["name"] for p in INDEX)) == 6
+    for p in INDEX:
+        assert p["age"] and p["label"] and p["description"]
+        assert p["file"] is None or (main.PERSONA_DIR / p["file"]).exists()
+
+
+def test_the_hero_is_the_default_and_aino_stays_switchable(client):
+    assert main.engine.customer_id == main.HERO
+    assert f"Viewing as <b>{main.DEMO_NAME}</b>" in client.get("/chat").text
+    aino = main.engine_for(main.AINO)
+    assert aino is not main.engine and aino.customer_id == main.AINO
+    assert aino.safe_to_spend()["safe_to_spend_until_payday_eur"] == 68.60  # the engine's own default, unchanged
+    assert "Viewing as <b>Aino</b>" in client.get("/chat", params={"as": main.AINO}).text
+
+
+def test_demo_persona_env_picks_the_default():
+    assert main.pick_default(None) == main.pick_default("") == main.HERO
+    assert main.pick_default(main.AINO) == main.AINO and main.pick_default(OTHERS[-1]) == OTHERS[-1]
+    assert main.pick_default("CUST99999") == main.pick_default("../persona") == main.HERO
+    # Aino keeps data/state.json; another default gets its own file, so no saved payment lands on the wrong account
+    assert main.default_state_path(main.AINO) == main.ROOT / "data" / "state.json"
+    assert main.default_state_path(main.HERO) == main.STATE_DIR / f"{main.HERO}.json"
 
 
 def test_each_persona_has_its_own_numbers(client):
@@ -46,7 +68,7 @@ def test_each_persona_has_its_own_numbers(client):
         page = client.get("/app", params={"as": pid}).text
         assert page != base and f"Hi {main.name_for(pid)}" in page and main.money_nb(e.balance()) in page
         seen.add(safe(client, **{"as": pid}))
-    assert len(seen) == 5
+    assert len(seen) == len(INDEX) == 6
 
 
 @pytest.mark.parametrize("pid", [p["id"] for p in INDEX])
@@ -69,7 +91,7 @@ def test_unknown_persona_falls_back_to_the_default(client, bad):
     aino = safe(client)
     assert safe(client, **{"as": bad}) == aino
     client.cookies.set(main.PERSONA_COOKIE, bad)
-    assert safe(client) == aino and "Viewing as <b>Aino</b>" in client.get("/app").text
+    assert safe(client) == aino and f"Viewing as <b>{main.DEMO_NAME}</b>" in client.get("/app").text
     assert main.engine_for(bad) is main.engine
 
 
@@ -125,7 +147,7 @@ def test_coach_runs_on_the_session_persona(client):
     theirs = client.post("/api/chat", json=ask).json()
     assert mine["text"] == f"{main.engine_for(pid).safe_to_spend()['safe_to_spend_until_payday_eur']:.2f} €"
     assert theirs["text"] == f"{main.engine.safe_to_spend()['safe_to_spend_until_payday_eur']:.2f} €"
-    assert f"first name is {main.name_for(pid)}." in fake.systems[0] and "first name is Aino." in fake.systems[-1]
+    assert f"first name is {main.name_for(pid)}." in fake.systems[0] and f"first name is {main.DEMO_NAME}." in fake.systems[-1]
     assert main.coach(pid).engine is main.engine_for(pid) and main.coach(pid).client is fake
     # one history per persona for the same web session
     assert len(main.coach(pid).histories["web:s3"]) == len(main._coach.histories["web:s3"]) == 4
@@ -138,4 +160,5 @@ def test_whatsapp_stays_on_the_default_persona(client):
 
 def test_extract_script_picks_by_rule():
     src = (main.ROOT / "scripts" / "extract_personas.py").read_text(encoding="utf-8")
-    assert not set(re.findall(r"CUST\d{5}", src)) - {main.DEFAULT_PERSONA}  # no hand-picked customer ids
+    assert not set(re.findall(r"CUST\d{5}", src)) - {main.AINO}  # no hand-picked customer ids
+    assert not set(re.findall(r"CUST\d{5}", (main.ROOT / "app" / "main.py").read_text(encoding="utf-8"))) - {main.AINO}  # hero by rule

@@ -10,6 +10,8 @@ from app.agent import Reply
 from app.engine import BASKETS, Engine
 
 INDEX = json.loads((main.PERSONA_DIR / "index.json").read_text(encoding="utf-8"))
+WITH_FILE = [p for p in INDEX if p.get("file")]  # every persona but Aino (data/persona.csv)
+EETU = next(p["id"] for p in INDEX if p["name"] == "Eetu")
 SHAMING = ("wrong", "incorrect", "oops", "fail", "bad", "should have", "mistake")
 
 
@@ -55,7 +57,7 @@ def test_picks_are_deterministic_for_a_date_and_change_on_replay(e, tmp_path):
     assert quiz.pick(e, 1) != quiz.pick(e)
 
 
-@pytest.mark.parametrize("p", INDEX[1:], ids=lambda p: p["name"])
+@pytest.mark.parametrize("p", WITH_FILE, ids=lambda p: p["name"])
 def test_every_persona_gets_a_full_diverse_game(p, tmp_path):
     e = Engine(csv_path=main.PERSONA_DIR / p["file"], today=date(2026, 10, 6), state_path=tmp_path / "s.json",
                age=p["age"])
@@ -223,7 +225,7 @@ def test_web_chat_plays_the_whole_game(client):
 
 
 def test_web_game_uses_the_viewed_persona(client):
-    eetu = INDEX[1]["id"]
+    eetu = EETU
     r = client.post("/api/chat", json={"session": "p", "text": "quiz", "as": eetu}).json()
     pe = main.engine_for(eetu)
     assert pe.state["quiz"]["web:p"]["picks"] == quiz.pick(pe)
