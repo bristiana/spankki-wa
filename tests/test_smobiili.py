@@ -94,7 +94,7 @@ def test_mobile_demo_page(client):
     r = client.get("/mobile-demo")
     assert r.status_code == 200
     html = r.text
-    assert "Concept: how Birky could sit inside S-mobiili. Not the real app." in html
+    assert "Concept: how Oiva could sit inside S-mobiili. Not the real app." in html
     assert main.money_nb(main.engine.balance()) in html
     assert main.engine.recent(6)[0]["what"] in html
     assert "/api/widgets" in html and "embed=1" in html

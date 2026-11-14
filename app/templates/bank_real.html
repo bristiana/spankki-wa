@@ -4,7 +4,7 @@
 <main>
   <form class="card" method="post" action="/bank/start">
     <h1>Add a bank</h1>
-    <p class="muted">S-Pankki stays your main bank. Bring your other accounts here too, so Birky sees your whole money picture. Read only: Birky sees balances and the last 90 days, it can't move money there.</p>
+    <p class="muted">S-Pankki stays your main bank. Bring your other accounts here too, so Oiva sees your whole money picture. Read only: Oiva sees balances and the last 90 days, it can't move money there.</p>
     {% if err %}<p class="err">The bank didn't answer. Try again in a minute.</p>{% endif %}
     <div class="row"><span>Bank</span><span>
       <select name="bank" required aria-label="Bank">
@@ -12,7 +12,7 @@
       </select></span></div>
     <div class="row"><span>Access</span><span>Read only</span></div>
     <div class="row"><span>Valid for</span><span>90 days, then you confirm again</span></div>
-    <div class="note">Your bank opens next and you approve with its own login. Connected through Enable Banking, a licensed PSD2 provider. Messages with Birky pass through WhatsApp (Meta).</div>
+    <div class="note">Your bank opens next and you approve with its own login. Connected through Enable Banking, a licensed PSD2 provider. Messages with Oiva pass through WhatsApp (Meta).</div>
     <button class="btn" type="submit">Continue to my bank</button>
   </form>
   {% if linked %}

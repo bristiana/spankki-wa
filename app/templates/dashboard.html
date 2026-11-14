@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}My money · Birky{% endblock %}
+{% block title %}My money · Oiva{% endblock %}
 {% block head %}
 <style>
   main{max-width:980px}
@@ -77,7 +77,7 @@
       <div class="src"><span class="pill">demo</span> {{ o.full.banks[1].bank.split(' (')[0] }} is a synthetic bank linked through a mock PSD2 consent. Its savings cover about {{ o.full.savings_cover_irregular_months }} months of your irregular basket.</div>
       {% else %}
       <div class="row"><span class="l">S-Pankki<small>current account</small></span><span>{{ money(o.balance_eur) }}</span></div>
-      <p class="muted" style="margin:8px 0 0">Savings or a credit card at another bank? Link it (PSD2, read only) and Birky counts it in safe to spend.</p>
+      <p class="muted" style="margin:8px 0 0">Savings or a credit card at another bank? Link it (PSD2, read only) and Oiva counts it in safe to spend.</p>
       <div class="cta"><a class="btn ghost" href="/connect/bank">Add another bank</a></div>
       {% endif %}
     </div>
@@ -130,7 +130,7 @@
       {% for b in o.bills %}
       <div class="row"><span class="l">{{ b.name }}<small>{{ nice(b.due_date) if b.due_date else b.note }}</small></span><span>{{ money(b.amount_eur) }}</span></div>
       {% endfor %}
-      <div class="cta"><a class="btn" href="/chat">Pay or ask Birky</a></div>
+      <div class="cta"><a class="btn" href="/chat">Pay or ask Oiva</a></div>
     </div>
 
     <div class="card">
@@ -159,9 +159,9 @@
       <div class="row" style="border:0;padding-bottom:0"><span class="l"><b>{{ g.goal.name }}</b><small>{{ money(g.goal.saved) }} of {{ money(g.goal.target) }}{% if g.goal.deadline %} · by {{ nice(g.goal.deadline) }}{% endif %}</small></span><span>{{ g.progress_pct }}%</span></div>
       <div class="meter"><i class="b1" style="width:{{ [g.progress_pct, 100]|min }}%"></i></div>
       {% else %}
-      <p class="muted">No goal yet. Tell Birky what you're saving for, like "1500 € for a trip by June".</p>
+      <p class="muted">No goal yet. Tell Oiva what you're saving for, like "1500 € for a trip by June".</p>
       {% endfor %}
-      <div class="cta"><a class="btn ghost" href="/chat">Set a goal with Birky</a></div>
+      <div class="cta"><a class="btn ghost" href="/chat">Set a goal with Oiva</a></div>
     </div>
     <div class="card">
       <div class="k">Investing</div>
@@ -189,9 +189,9 @@
     {% elif me %}<p class="muted" style="margin:0">Bring your Revolut or another bank here, read only.</p><div class="cta"><a class="btn" href="/bank">🏦 Add a bank</a></div>
     {% else %}<p class="muted" style="margin:0">Log in with WhatsApp to bring your other banks here (Revolut, OP, Nordea...), read only.</p><div class="cta"><a class="btn" href="/login?next=/bank">Log in with WhatsApp</a></div>{% endif %}
   </div>
-  <div class="card" style="margin-top:14px"><div class="k">Your data (MyData)</div><p class="muted" style="margin:0">Explore it your way, or take everything with you: every transaction, its basket and what Birky calculated.</p>
+  <div class="card" style="margin-top:14px"><div class="k">Your data (MyData)</div><p class="muted" style="margin:0">Explore it your way, or take everything with you: every transaction, its basket and what Oiva calculated.</p>
     <div class="cta"><a class="btn" href="/app/explore">🔎 Explore my data</a></div>
     <div class="cta"><a class="btn ghost" href="/app/export.csv" download>Download CSV</a><a class="btn ghost" href="/app/export.json" download>Download JSON</a></div></div>
-  <div class="cta" style="margin:18px 0"><a class="btn" href="/chat">💬 Chat with Birky</a>{% if wa %}<a class="btn ghost" href="https://wa.me/{{ wa }}?text=Hi">Open in WhatsApp</a>{% endif %}</div>
+  <div class="cta" style="margin:18px 0"><a class="btn" href="/chat">💬 Chat with Oiva</a>{% if wa %}<a class="btn ghost" href="https://wa.me/{{ wa }}?text=Hi">Open in WhatsApp</a>{% endif %}</div>
 </main>
 {% endblock %}

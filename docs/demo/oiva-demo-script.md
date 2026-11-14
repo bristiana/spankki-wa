@@ -54,6 +54,6 @@ the call is now smaller, so more of the screen behind shows.
 - The screens use labelled sample data until Bogdan's `/api/spend`, `/api/budget`, `/api/compare` and `/api/recurring`
   are on main (not there on 14 Nov, 20:40).
 - The call is demo playback until Christiana's `window.OivaVoice` (`app/static/oiva/voice.js`) is on main.
-- The mock still says "Ask Birky" on the chat bubble and on the baskets card; the Birky → Oiva rename PR hasn't
+- The mock still says "Ask Oiva" on the chat bubble and on the baskets card; the Oiva → Oiva rename PR hasn't
   landed.
 - Amounts show a decimal point (`412.30 €`); S-mobiili writes a decimal comma (`412,30 €`).

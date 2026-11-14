@@ -1,4 +1,4 @@
-"""The S-mobiili mock: Birky's buttons open review screens, Face ID (simulated) runs the same confirm as the PIN page."""
+"""The S-mobiili mock: Oiva's buttons open review screens, Face ID (simulated) runs the same confirm as the PIN page."""
 import json
 import re
 from datetime import date

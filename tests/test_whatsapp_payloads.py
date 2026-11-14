@@ -514,7 +514,7 @@ def test_bill_pdf_that_is_not_a_bill_and_one_that_cannot_be_opened(chat, monkeyp
     connected(chat).media("document", "application/pdf")
     assert "can't see anything about money" in chat.texts()[-1] and main._coach.asked == []
     monkeypatch.setattr(bills, "download", download)
-    chat.media("image")  # no WA_TOKEN in tests: the download fails and Birky says so
+    chat.media("image")  # no WA_TOKEN in tests: the download fails and Oiva says so
     assert chat.texts()[-1].startswith("Sorry, I couldn't open that photo")
 
 
@@ -542,7 +542,7 @@ def test_voice_note_that_cannot_be_heard(chat, monkeypatch):
 
 
 def test_voice_note_without_speech_to_text(chat):
-    connected(chat).media("audio")  # no WA_TOKEN in tests, so the download fails and Birky says so
+    connected(chat).media("audio")  # no WA_TOKEN in tests, so the download fails and Oiva says so
     assert chat.texts()[-1].startswith("Sorry, I couldn't hear that voice note")
 
 

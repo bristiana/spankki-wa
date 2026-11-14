@@ -168,13 +168,13 @@
 </style>
 </head>
 <body>
-<p class="outside">Concept prototype · not the real S-mobiili. Our own mock of how Birky's buttons open the bank app; no real money moves.</p>
+<p class="outside">Concept prototype · not the real S-mobiili. Our own mock of how Oiva's buttons open the bank app; no real money moves.</p>
 <div class="phone" id="phone">
   <div class="status" aria-hidden="true"><span>9:41</span><i></i><span>5G ▮</span></div>
   <header class="top">
     {% if screen != "home" %}<a href="{{ home_url }}" aria-label="Back to S-Pankki home">{{ icon("back") }}</a>{% endif %}
     <h1>{{ "S-Pankki" if screen == "home" else f.title }}</h1>
-    <a class="chat" id="ask" href="{{ '/chat' ~ ('?embed=1' if web else '') }}" aria-label="Ask Birky">{{ icon("chat") }}</a>
+    <a class="chat" id="ask" href="{{ '/chat' ~ ('?embed=1' if web else '') }}" aria-label="Ask Oiva">{{ icon("chat") }}</a>
   </header>
   <p class="concept" id="concept-label">Concept prototype · not the real S-mobiili</p>
   <main class="screen" id="screen">
@@ -191,7 +191,7 @@
         <span><b>{{ k.label }}</b><small>e.g. {{ k.example }}</small>{% if k.basket == "everyday" %}<span class="bk-hint">the only basket you can change today</span>{% endif %}</span>
         <span class="n">{{ k.per_month_eur|money }}<small>a month · {{ k.share_pct }}%</small></span></span>
       {% endfor %}
-      <span class="bk-ask">Where does my money go? Ask Birky{{ icon("chevron") }}</span>
+      <span class="bk-ask">Where does my money go? Ask Oiva{{ icon("chevron") }}</span>
     </a>
     <section class="card tile">{{ icon("bill") }}<div>
       <span class="t">Payments <small>· Maksut ja e-laskut</small></span>

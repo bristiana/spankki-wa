@@ -1,4 +1,4 @@
-/* Birky sprite: <span class="birky talk" role="img" aria-label="Birky"></span>
+/* Oiva sprite: <span class="birky talk" role="img" aria-label="Oiva"></span>
    Moods (rows of sprite.svg, regenerate with scripts/make_birky_sprites.py): idle talk happy think worried wave.
    Size with --s (default 64px). Six frames per row, stepped. */
 .birky{--s:64px;--row:0;--fps:1s;display:inline-block;flex:none;width:var(--s);height:var(--s);vertical-align:middle;

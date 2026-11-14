@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Explore my data · Birky{% endblock %}
+{% block title %}Explore my data · Oiva{% endblock %}
 {% block head %}
 <style>
   main{max-width:980px}
@@ -84,7 +84,7 @@
       <div class="cta"><a class="btn ghost" href="{{ csv_url }}" download>Download this view (CSV)</a><a class="btn ghost" href="/app/export.csv">All my transactions</a></div>
     </div>
   </div>
-  <div class="cta" style="margin:18px 0"><a class="btn" href="/chat">💬 Ask Birky about it</a><a class="btn ghost" href="/app">Back to My money</a></div>
+  <div class="cta" style="margin:18px 0"><a class="btn" href="/chat">💬 Ask Oiva about it</a><a class="btn ghost" href="/app">Back to My money</a></div>
 </main>
 <script>
 const spec = {{ v.chart|tojson }}, plot = document.getElementById("plot");

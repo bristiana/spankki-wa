@@ -172,8 +172,8 @@
  "subscriptions_note": "No subscriptions on this account: no card payment repeats from the same merchant every month for the same amount (no streaming, gym or app charges). Say so plainly; never invent one.",
  "what_can_be_done": [
   "Monthly investing (203.25 EUR a month) is the regular payment the person chose: it can be paused with their PIN (create_pause_investing_link). What is already invested stays invested.",
-  "Rent can't be stopped here. Birky reminds the day before it is due, and it can be paid with the PIN (create_payment_link with its bill_id from get_upcoming_bills).",
-  "Utility bills can't be stopped here. Birky flags a bill well above the usual range."
+  "Rent can't be stopped here. Oiva reminds the day before it is due, and it can be paid with the PIN (create_payment_link with its bill_id from get_upcoming_bills).",
+  "Utility bills can't be stopped here. Oiva flags a bill well above the usual range."
  ],
  "method": "From your S-Pankki transactions: a payment type that comes about once a month (median gap 20-40 days); per month = the average of the last 3 payments (utilities: of the last 3 full months); usual day = median day of the last 6; stopped = no payment for longer than the usual gap + 10 days; trend = last 3 full months vs the 3 before."
 }

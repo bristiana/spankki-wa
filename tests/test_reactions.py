@@ -1,5 +1,5 @@
 """The Instinct-style voice: a reaction on the person's message, "---" bubbles, the paced reactions, the rewrite when a
-reply says what Birky never says, tool results defanged, and how it all reaches the web chat. A fake client plays the
+reply says what Oiva never says, tool results defanged, and how it all reaches the web chat. A fake client plays the
 model; no real API calls. WhatsApp payloads for the same paths: tests/test_whatsapp_payloads.py."""
 import json
 import random

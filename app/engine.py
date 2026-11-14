@@ -752,7 +752,7 @@ class Engine:
             moved = flow["moved_to_other_account_per_month_eur"]
             out["note"] = (("Most of the salary moves to another account the day it lands (about "
                             f"{moved:.2f} EUR a month) and what stays here was spent, so this account has no steady "
-                            "surplus. That other account may already be the saving; Birky can't see it."
+                            "surplus. That other account may already be the saving; Oiva can't see it."
                             if moved > 0 else
                             "The last 3 months spent and invested more than came in, so there is no steady surplus.")
                            + (" A monthly saving has to come from a cut (see where_a_cut_could_come_from)"
@@ -1202,7 +1202,7 @@ class Engine:
                 "official": self.official_benchmark(), "recent": self.recent()}
 
     def export(self) -> dict:
-        """MyData: everything Birky knows about this customer, in one portable file."""
+        """MyData: everything Oiva knows about this customer, in one portable file."""
         rows = [{"date": r["date"].isoformat(), "category": r["category"],
                  "basket": BASKETS[CATEGORY_BASKET[r["category"]]]["label"] if r["category"] in CATEGORY_BASKET else None,
                  "amount_eur": eur(r["tx_amount_eur"]), "type": r["transaction_type"],
@@ -1484,10 +1484,10 @@ class Engine:
             can.append(f"Monthly investing is {inv['status'].replace('_', ' ')}; a new monthly plan can be set up with "
                        "create_investment_link.")
         if any(x["id"] == "rent" for x in bills):
-            can.append("Rent can't be stopped here. Birky reminds the day before it is due, and it can be paid with "
+            can.append("Rent can't be stopped here. Oiva reminds the day before it is due, and it can be paid with "
                        "the PIN (create_payment_link with its bill_id from get_upcoming_bills).")
         if any(x["id"] == "utilities" for x in bills):
-            can.append("Utility bills can't be stopped here. Birky flags a bill well above the usual range.")
+            can.append("Utility bills can't be stopped here. Oiva flags a bill well above the usual range.")
         return {
             "regular_payments": items,
             "outgoing_per_month_eur": eur(sum(x["per_month_eur"] for x in active)),
@@ -1500,7 +1500,7 @@ class Engine:
             "subscriptions_note": (
                 "No subscriptions on this account: no card payment repeats from the same merchant every month for "
                 "the same amount (no streaming, gym or app charges). Say so plainly; never invent one."
-                if not cards else "Card subscriptions are cancelled with the service itself; Birky can't stop them."),
+                if not cards else "Card subscriptions are cancelled with the service itself; Oiva can't stop them."),
             "what_can_be_done": can,
             "method": "From your S-Pankki transactions: a payment type that comes about once a month (median gap 20-40 "
                       "days); per month = the average of the last 3 payments (utilities: of the last 3 full months); "
@@ -1535,7 +1535,7 @@ class Engine:
         if moved > 0:
             out["moved_note"] = (f"About {eur(moved):.2f} EUR a month of the salary moves automatically to another "
                                  "account the day it lands (a salary sweep). That money is not on this account, so it "
-                                 "is not counted as left over; Birky cannot see where it goes.")
+                                 "is not counted as left over; Oiva cannot see where it goes.")
         if n < months:
             out["not_enough_data"] = (f"Only {n} full month(s) of history; averages use those." if n else
                                       "No full month of history yet, so there is no monthly average.")

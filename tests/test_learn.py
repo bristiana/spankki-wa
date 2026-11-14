@@ -99,7 +99,7 @@ def test_five_lessons_use_the_engines_numbers(e):
     assert f"*{eur(cut['saving_per_month_eur'])} a month*" in t[4].text
     assert eur(balanced["paid_in_eur"]) in t[4].text and eur(balanced["value_eur"]) in t[4].text
     assert "scenario, not a promise" in t[4].text
-    assert [b[1] for b in t[4].buttons] == ["I'm done", "Save 34 € now", "Ask Birky"]  # half of 68.60 € free now
+    assert [b[1] for b in t[4].buttons] == ["I'm done", "Save 34 € now", "Ask Oiva"]  # half of 68.60 € free now
     assert learn.turn(e, "u", "", "learn:finish").text.startswith("🎓 That's all five")
     assert e.state["learn"]["u"]["done"] and e.state["learn"]["u"]["seen"] == [0, 1, 2, 3, 4]
 

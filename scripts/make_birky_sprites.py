@@ -1,4 +1,4 @@
-"""Generate Birky's sprite sheet from one parameterised drawing.
+"""Generate Oiva's sprite sheet from one parameterised drawing.
 
 Writes into app/static/birky/:
   sprite.svg    6 x 6 grid of 240px frames (one mood per row), used by birky.css
@@ -185,9 +185,9 @@ def build() -> dict:
         assert len(poses) == COLS, mood
         for c, p in enumerate(poses):
             rows.append(f'<g transform="translate({c * CELL} {r * CELL})">{squirrel(p)}</g>')
-        (OUT / f"{mood}.svg").write_text(svg(CELL, CELL, squirrel(poses[STILL[mood]]), f"Birky the squirrel, {mood}"), encoding="utf-8")
+        (OUT / f"{mood}.svg").write_text(svg(CELL, CELL, squirrel(poses[STILL[mood]]), f"Oiva the squirrel, {mood}"), encoding="utf-8")
     w, h = COLS * CELL, len(MOODS) * CELL
-    (OUT / "sprite.svg").write_text(svg(w, h, "".join(rows), "Birky sprite sheet"), encoding="utf-8")
+    (OUT / "sprite.svg").write_text(svg(w, h, "".join(rows), "Oiva sprite sheet"), encoding="utf-8")
     atlas = {"image": "sprite.svg", "frame": CELL, "cols": COLS,
              "moods": {m: {"row": i, "frames": COLS, "fps": FPS[m]} for i, m in enumerate(MOODS)}}
     (OUT / "sprite.json").write_text(json.dumps(atlas, indent=2) + "\n", encoding="utf-8")

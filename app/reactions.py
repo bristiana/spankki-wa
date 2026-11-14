@@ -1,4 +1,4 @@
-"""How Birky sounds on a phone: a reaction on the person's message, then one to three short bubbles.
+"""How Oiva sounds on a phone: a reaction on the person's message, then one to three short bubbles.
 
 The model opens a reply with "[react]<emoji>" and splits bubbles with a line that is only "---". split_reaction() takes
 the reaction out of the text; pace() decides whether it reaches the person, so about two replies in three carry one,

@@ -7,7 +7,7 @@
   #log{flex:1;overflow-y:auto;padding:16px;max-width:560px;width:100%;margin:0 auto}
   .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
   .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px;position:relative}
-  /* Birky's reaction on the person's message, like a WhatsApp reaction */
+  /* Oiva's reaction on the person's message, like a WhatsApp reaction */
   .me.reacted{margin-bottom:18px}
   .react{position:absolute;right:8px;bottom:-15px;background:var(--card);border:1px solid var(--line);border-radius:99px;
     padding:1px 6px;font-size:14px;line-height:20px;box-shadow:0 1px 2px rgba(0,0,0,.12);animation:pop .25s ease-out}
@@ -66,8 +66,8 @@
 <script src="/static/trace.js"></script>
 {% endblock %}
 {% block body %}
-<div id="log" aria-live="polite" aria-label="Conversation with Birky">
-  <div class="msg bot">Hi {{ name }} 👋 I'm <b>Birky</b>, your S-Pankki money coach. Ask me anything about your money.</div>
+<div id="log" aria-live="polite" aria-label="Conversation with Oiva">
+  <div class="msg bot">Hi {{ name }} 👋 I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.</div>
 </div>
 <!-- The three questions S-Pankki's mentors say matter most: always in view, above the scrolling ideas -->
 <div class="chips top" id="top">
@@ -153,11 +153,11 @@ async function checkInbox() {
 }
 setInterval(checkInbox, 2500);
 
-// The reaction Birky put on the person's message: a small badge on their bubble.
+// The reaction Oiva put on the person's message: a small badge on their bubble.
 function react(mine, emoji) {
   if (!mine || !emoji) return;
   const b = document.createElement("span");
-  b.className = "react"; b.textContent = emoji; b.setAttribute("aria-label", "Birky reacted " + emoji);
+  b.className = "react"; b.textContent = emoji; b.setAttribute("aria-label", "Oiva reacted " + emoji);
   mine.classList.add("reacted"); mine.appendChild(b);
 }
 const pause = ms => new Promise(r => setTimeout(r, ms));
@@ -166,7 +166,7 @@ async function send(text, shown, image) {
   if (!text && !image) return;
   const mine = image ? add("me", '<img alt="Your photo" src="' + image + '">' + esc(text || ""))
                      : shown !== null ? add("me", esc(shown || text)) : null;
-  const t = add("typing", 'Birky is thinking <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
+  const t = add("typing", 'Oiva is thinking <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
   t.setAttribute("role", "status");
   try {
     const r = await fetch("/api/chat", {method: "POST", headers: {"content-type": "application/json"},
@@ -213,7 +213,7 @@ async function send(text, shown, image) {
       btn.dataset.quick = "1";
       d.appendChild(btn);
     }
-    const how = window.birkyTrace(j.trace);  // collapsed under the bubble: what Birky looked up and checked
+    const how = window.birkyTrace(j.trace);  // collapsed under the bubble: what Oiva looked up and checked
     if (how) d.insertAdjacentHTML("afterend", how);
     reveal(d);
   } catch (e) { t.remove(); add("bot", "Connection problem, try again."); }

@@ -281,7 +281,7 @@ def switch_off(to: str):
     quiz.forget(engine, to)
     learn.forget(engine, to)
     names.pop(to, None)
-    wa.send_text(to, "Done ✅ Birky is switched off for this number and our chat history is deleted. "
+    wa.send_text(to, "Done ✅ Oiva is switched off for this number and our chat history is deleted. "
                      "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
 
 
@@ -379,13 +379,13 @@ LATER = re.compile(r"^\W*(maybe later|later|not now|not today|another time|some 
 
 
 def note_later(e: Engine, user: str, key: str, offer: str | None = None):
-    """A "maybe later": the open thread Birky comes back to once, the next day (rules.open_threads)."""
+    """A "maybe later": the open thread Oiva comes back to once, the next day (rules.open_threads)."""
     e.state.setdefault("later", {})[user] = {"key": key, "offer": offer, "at": time.time()}
     e._save()
 
 
 def note_chat_later(e: Engine, user: str, text: str, last_said: str):
-    """"maybe later" typed right after Birky offered something: remember the offer (its last bubble, a question)."""
+    """"maybe later" typed right after Oiva offered something: remember the offer (its last bubble, a question)."""
     if not LATER.match(text or ""):
         return
     offer = (wa.bubbles(last_said)[-1] if last_said.strip() else "").strip()
@@ -529,7 +529,7 @@ def handle_message(m: dict):
             except voice.VoiceError as e:
                 wa.send_text(to, str(e))
                 return
-            wa.send_text(to, f"🎙️ _{wa.short(m['text'].replace('_', ' '), 300)}_")  # what Birky heard, so a mishearing is visible
+            wa.send_text(to, f"🎙️ _{wa.short(m['text'].replace('_', ' '), 300)}_")  # what Oiva heard, so a mishearing is visible
         word = (m["text"] or "").strip().lower().strip(".!")
         # mid-game or mid-course, a bare "stop" pauses it
         stop = word in ("stop", "lopeta") and (quiz.active(engine, to) or learn.active(engine, to))
@@ -544,7 +544,7 @@ def handle_message(m: dict):
         if not connected(to):
             wa.send_url_button(
                 to,
-                f"Hi {name} 👋 I'm *Birky* 🐿️, your S-Pankki money coach. I answer questions about your spending, remind you "
+                f"Hi {name} 👋 I'm *Oiva* 🐿️, your S-Pankki money coach. I answer questions about your spending, remind you "
                 "before bills and help you save.\n\nTo start, connect your S-Pankki account. You choose what I can see, "
                 "and you can switch me off any time.",
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
@@ -591,7 +591,7 @@ def handle_message(m: dict):
                                "Add a bank", f"{public_url()}/bank?t={enable_banking.sign(to)}")
             return
         if text.strip().lower() in ("my data", "download my data", "export"):
-            wa.send_url_button(to, "Your data, yours to keep (MyData): every transaction and what Birky "
+            wa.send_url_button(to, "Your data, yours to keep (MyData): every transaction and what Oiva "
                                    "calculated from it, as a file.", "Download my data", f"{public_url()}/app/export.json")
             return
         if not asked:
@@ -644,8 +644,8 @@ def bank_submit(request: Request, u: str = Form(""), scope: list[str] = Form([])
         "title": f"{DEMO_BANK['name']} linked",
         "lines": [f"Savings {money(f['banks'][1]['accounts'][0]['balance_eur'])} · card to repay "
                   f"{money(bill['amount_eur'])} by {nice_date(bill['due_date'])}.",
-                  "Birky now counts the card bill in safe to spend. Synthetic demo bank, no real data.",
-                  "Ask Birky: \"Show my money across all my banks\"."],
+                  "Oiva now counts the card bill in safe to spend. Synthetic demo bank, no real data.",
+                  "Ask Oiva: \"Show my money across all my banks\"."],
         "wa": wa_back(request) if u else ""})
 
 
@@ -668,7 +668,7 @@ def _set_login(response, token: str):
 
 @app.get("/login", response_class=HTMLResponse)
 def login(request: Request, next: str = "/app"):
-    """Login with WhatsApp: ?t= comes from the link Birky sends when you write "login"; without it, the way there."""
+    """Login with WhatsApp: ?t= comes from the link Oiva sends when you write "login"; without it, the way there."""
     nxt = next if next.startswith("/") and not next.startswith("//") else "/app"
     t = request.query_params.get("t")
     if t and enable_banking.verify(t):
@@ -681,12 +681,12 @@ def login(request: Request, next: str = "/app"):
 
 
 PRIVACY = [
-    ("What Birky sees", "Your S-Pankki demo data, and, only if you link it, your other bank through Enable Banking "
-     "(PSD2, read only): account balances and the last 90 days of transactions. Birky can't move money there."),
+    ("What Oiva sees", "Your S-Pankki demo data, and, only if you link it, your other bank through Enable Banking "
+     "(PSD2, read only): account balances and the last 90 days of transactions. Oiva can't move money there."),
     ("Who sees it", "Only you: linked banks are tied to your WhatsApp number and shown only after you log in with it. "
      "To answer you, your messages and the numbers they need go to Anthropic (the AI) and, on WhatsApp, through Meta."),
     ("How long", "Bank access lasts 90 days, then you confirm again. Remove a bank any time on the Add a bank page; "
-     "write STOP on WhatsApp to switch Birky off and delete the chat history."),
+     "write STOP on WhatsApp to switch Oiva off and delete the chat history."),
 ]
 TERMS = [
     ("What this is", "A hackathon prototype. Information and education about your own money, not financial advice, "
@@ -763,7 +763,7 @@ def real_bank_callback(request: Request, code: str = "", state: str = "", error:
     p = enable_banking.pending(state)
     if not p:
         return templates.TemplateResponse(request, "done.html", {"title": "Link expired", "failed": True, "wa": wa_no,
-                                                                 "lines": ["Write \"add bank\" to Birky again."]})
+                                                                 "lines": ["Write \"add bank\" to Oiva again."]})
     phone, bank = p
     if not code:
         return templates.TemplateResponse(request, "done.html", {"title": f"{bank} not linked", "failed": True,
@@ -788,7 +788,7 @@ def real_bank_callback(request: Request, code: str = "", state: str = "", error:
     except Exception:
         log.exception("bank linked message failed")
     return templates.TemplateResponse(request, "done.html", {"title": f"{bank} linked", "wa": wa_no, "lines": [
-        line, "Read only, last 90 days. Birky now adds it to your full picture."]})
+        line, "Read only, last 90 days. Oiva now adds it to your full picture."]})
 
 
 @app.post("/connect", response_class=HTMLResponse)
@@ -826,8 +826,8 @@ def _pending_or_404(pid: str, kind: str) -> tuple[Engine, dict]:
 # ---------------- Friendly error pages: a browser gets a page, an API caller keeps JSON ----------------
 CONFIRM_PATHS = ("/pay/", "/invest/", "/save/", "/stop/", "/s-mobiili/")
 ERRORS = {
-    "expired": ("This link has expired", "Payment and saving links from Birky work once, and this one is no longer valid. "
-                                         "Nothing was paid or moved. Ask Birky again for a fresh link."),
+    "expired": ("This link has expired", "Payment and saving links from Oiva work once, and this one is no longer valid. "
+                                         "Nothing was paid or moved. Ask Oiva again for a fresh link."),
     404: ("Page not found", "This page doesn't exist. It may have moved, or the link has a typo."),
     400: ("That didn't work", "Something in the link or the form wasn't right. Go back and try again."),
     500: ("Something went wrong on our side", "Nothing was paid or moved. Try again in a minute."),
@@ -1048,7 +1048,7 @@ def save_confirm(request: Request, pid: str, pin: str = Form("")):
     return pin_confirm(request, f"/save/{pid}", "saving", pid, pin)
 
 
-# ---------------- S-mobiili mock: Birky's buttons open the bank app with the move filled in ----------------
+# ---------------- S-mobiili mock: Oiva's buttons open the bank app with the move filled in ----------------
 # A concept prototype, clearly labelled: our own screens, not S-Bank's. Review -> Face ID (simulated) -> receipt.
 SM_ROUTES = {"pay": "payment", "save": "saving", "invest": "investment", "stop": "pause_investing"}
 RISK_WORDS = {"low": "Low risk: small ups and downs, and slow growth.",
@@ -1064,7 +1064,7 @@ def demo_reference(seed: str) -> str:
 
 
 def short_money(x: float) -> str:
-    """97 € rather than 97.00 € in Birky's bubbles."""
+    """97 € rather than 97.00 € in Oiva's bubbles."""
     return nb(money(x).replace(".00 €", " €"))
 
 
@@ -1086,7 +1086,7 @@ def accounts(e: Engine) -> dict:
 
 
 def sm_flow(route: str, e: Engine, p: dict) -> dict:
-    """A flow's review screen and Birky's lines on it. Guide targets are element ids on the page."""
+    """A flow's review screen and Oiva's lines on it. Guide targets are element ids on the page."""
     amt = short_money(p["amount"])
     if route == "pay":
         photo = p.get("source") == "photo"  # a bill photo (bills.py): the bill's own IBAN and reference
@@ -1424,7 +1424,7 @@ def wake_one(to: str, dry: bool, force: bool = False) -> dict:
         out["via"] = "inbox"
     elif window_open(to):
         out["via"] = "text"
-    else:  # WhatsApp allows free messages only within 24 h of the person's last one; Birky waits to be asked
+    else:  # WhatsApp allows free messages only within 24 h of the person's last one; Oiva waits to be asked
         return {**out, "reason": "outside the 24-hour window: waits until the person writes"}
     if dry:
         return out
@@ -1722,7 +1722,7 @@ def widgets_api(request: Request):
 
 @app.get("/mobile-demo", response_class=HTMLResponse)
 def mobile_demo(request: Request):
-    """Concept mock: Birky's cards and chat inside a generic banking app home screen."""
+    """Concept mock: Oiva's cards and chat inside a generic banking app home screen."""
     persona = persona_of(request)
     e = engine_for(persona)
     return templates.TemplateResponse(request, "mobile_demo.html", _ctx(
