@@ -11,12 +11,12 @@ from datetime import date, timedelta
 
 from .engine import Engine, eur
 
-# Most urgent first: a payment they may not recognise > a bill or renewal charging tomorrow > a price rise >
-# a goal falling behind > good news (salary) > the weekly check-in.
+# Most urgent first: a payment they may not recognise > a bill or the monthly investing going out tomorrow >
+# a bill that went up > a goal falling behind > good news (salary) > the weekly check-in.
 PRIORITY = {
     "UNUSUAL_TRANSACTION": 1,
     "RECURRING_CHARGE_UPCOMING": 2,
-    "SUBSCRIPTION_PRICE_INCREASE": 3,
+    "BILL_INCREASE": 3,
     "GOAL_DRIFT": 4,
     "SALARY_RECEIVED": 5,
     "WEEKLY_CHECK_IN": 6,
@@ -57,19 +57,25 @@ def unusual(e: Engine) -> list[dict]:
     return [signal("UNUSUAL_TRANSACTION", f"unusual:{a['date']}:{a['amount_eur']}", a, a["amount_eur"])]
 
 
-def subscriptions(e: Engine) -> list[dict]:
+def commitments(e: Engine) -> list[dict]:
+    """Real regular payments: one that went up (last 3 months vs the 3 before), a utility bill well above the usual
+    range, and the monthly investing or a fixed-day utility bill going out tomorrow (rent is in bills())."""
     out = []
-    for x in e.subscriptions()["subscriptions"]:
-        if x["status"] != "active":
+    for x in e.commitments()["regular_payments"]:
+        if x["direction"] != "out" or x["status"] != "active":
             continue
-        inc = x["price_increase"]
-        if inc and _days_since(e.today, inc["since"]) <= PRICE_NEWS_DAYS:
-            extra = (inc["to_eur"] - inc["from_eur"]) * (12 if x["cadence"] == "monthly" else 1)
-            out.append(signal("SUBSCRIPTION_PRICE_INCREASE", f"price:{x['name']}:{inc['to_eur']}",
-                              {**x, "extra_per_year_eur": eur(extra)}, extra))
-        if x["days_to_next"] == 1:
-            out.append(signal("RECURRING_CHARGE_UPCOMING", f"renewal:{x['name']}:{x['next_charge']}",
-                              {**x, "source": "subscription"}, x["price_eur"]))
+        tr = x.get("trend") or {}
+        if tr.get("direction") == "up" and _days_since(e.today, x["last_payment"]["date"]) <= PRICE_NEWS_DAYS:
+            extra = tr["change_per_month_eur"] * 12
+            out.append(signal("BILL_INCREASE", f"increase:{x['id']}:{x['last_payment']['date']}",
+                              {**x, "increase": "trend", "extra_per_year_eur": eur(extra)}, extra))
+        odd = x.get("unusual_bill")
+        if odd and _days_since(e.today, odd["date"]) <= PRICE_NEWS_DAYS:
+            out.append(signal("BILL_INCREASE", f"bill:{x['id']}:{odd['date']}:{odd['amount_eur']}",
+                              {**x, "increase": "one_bill"}, odd["amount_eur"] - odd["usual_high_eur"]))
+        if x["id"] != "rent" and x["days_to_next"] == 1:
+            out.append(signal("RECURRING_CHARGE_UPCOMING", f"due:{x['id']}:{x['next_expected']}",
+                              {**x, "source": x["id"]}, x["per_month_eur"]))
     return out
 
 
@@ -118,7 +124,7 @@ def weekly(e: Engine) -> list[dict]:
         "next_payday": s["next_payday"]["date"], "bills_next_7d": coming})]
 
 
-RULES = (unusual, bills, subscriptions, goal_drift, salary, weekly)
+RULES = (unusual, bills, commitments, goal_drift, salary, weekly)
 
 
 def signals(e: Engine) -> list[dict]:

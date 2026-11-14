@@ -51,6 +51,7 @@ ASK = {
     "ask:unusual": "Tell me more about that big payment and how it fits my month.",
     "ask:pace": "My savings goal is behind plan. How can I catch up?",
     "ask:week": "What did I spend on in the last 7 days?",
+    "ask:bills": "What are my regular payments?",
     "ask:everyday": "Where does my 'slips through your fingers' money go? Explain that basket with my last month.",
 }
 names: dict[str, str] = {}  # WhatsApp number -> first name from the profile
@@ -259,15 +260,25 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
             return {"text": "Great, enjoy it 🙂 I'll keep an eye on your safe-to-spend."}
         if bid == "later:goal":
             return {"text": "Okay 👍 I'll look at your pace again next week."}
+        if bid == "later:bills":
+            return {"text": "Okay 👍 I'll keep an eye on your bills."}
         return {"text": "Sure ⏰ I'll remind you again tomorrow at 9:00."}
-    if bid.startswith("stop:"):
-        p = e.create_stop_subscription(bid[5:])
+    if bid == "pause:investing":
+        p = e.create_pause_investing()
         owner[p["pending_id"]] = user
-        per = "month" if p["cadence"] == "monthly" else "year"
-        return {"text": f"Stop future card payments to *{p['name']}* ({money(p['amount'])}/{per})? Confirm with your PIN.",
-                "url": (wa.short(f"Stop {p['name']}"), f"{public_url()}/stop/{p['pending_id']}{q}")}
+        nxt = f" The next one would go out on {nice_date(p['next_charge'])}." if p["next_charge"] else ""
+        return {"text": f"Pause your *monthly investing* of about *{money(p['amount'])}*?{nxt} What you've invested "
+                        "so far stays invested. Confirm with your PIN.",
+                "url": ("Pause investing", f"{public_url()}/stop/{p['pending_id']}{q}")}
     if bid.startswith("keep:"):
-        return {"text": f"Okay, {bid[5:]} stays on 👍 I'll tell you if the price changes again."}
+        return {"text": "Okay, your monthly investing stays on 👍 Paying yourself first, on autopilot."}
+    if bid.startswith("remind:"):
+        c = next((x for x in e.commitments()["regular_payments"] if x["id"] == bid[7:]), None)
+        if c and c["next_expected"]:
+            return {"text": f"Okay ⏰ I'll message you the day before your {c['name'].lower()} is due "
+                            f"({nice_date(c['next_expected'])})."}
+        return {"text": "Your utility bills come on different days, so there's no date to remind you of. I'll tell "
+                        "you when one is well above your usual range."}
     if bid == "learn:buffer" or bid.startswith("learn:save:"):  # a lesson's action: a goal, then the usual save
         goal_id, amount = learn.goal_for(e, bid)
         if amount < 1:
@@ -609,33 +620,34 @@ def order_text(order: dict) -> str:
 
 @app.get("/stop/{pid}", response_class=HTMLResponse)
 def stop_page(request: Request, pid: str):
-    e, p = _pending_or_404(pid, "stop_subscription")
+    e, p = _pending_or_404(pid, "pause_investing")
     return templates.TemplateResponse(request, "confirm.html", {
-        "p": p, "wa": wa_back(request), "action": f"/stop/{pid}", "title": "Stop recurring card payment",
-        "amount": money(p["amount"]) + (" / month" if p["cadence"] == "monthly" else " / year"),
-        "rows": [("Merchant", p["name"]), ("Next charge", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
-                 ("You save", f"{money(p['per_year_eur'])} a year"), ("Card", "S-Pankki Visa •• 4821 (demo)")],
-        "note": "Future charges from this merchant will be declined. Also cancel your account with the service.",
-        "button": f"Stop {p['name']}"})
+        "p": p, "wa": wa_back(request), "action": f"/stop/{pid}", "title": "Pause monthly investing",
+        "amount": money(p["amount"]) + " / month",
+        "rows": [("What", "Your monthly deposit to investments"), ("Usually on", f"day {p['usual_day']} of the month"),
+                 ("Next one", nice_date(p["next_charge"]) if p["next_charge"] else "-"),
+                 ("Already invested", "Stays invested")],
+        "note": "Only new monthly deposits stop. You can start investing again any time.",
+        "button": "Pause investing"})
 
 
 @app.post("/stop/{pid}", response_class=HTMLResponse)
 def stop_confirm(request: Request, pid: str, pin: str = Form("")):
-    e, p = _pending_or_404(pid, "stop_subscription")
+    e, p = _pending_or_404(pid, "pause_investing")
     if len(pin) != 4 or not pin.isdigit():
         return bad_pin(request, f"/stop/{pid}")
     try:
         done = e.confirm(pid)
     except ValueError as e:
         return not_done(request, e)
-    subs = e.subscriptions()
-    msg = (f"✅ *{done['name']} stopped.* No more charges of {money(done['amount'])}. "
-           f"That's {money(done['per_year_eur'])} a year back in your pocket.\n"
-           f"Active subscriptions now: {subs['active_count']}, {money(subs['active_per_month_eur'])} a month.")
+    when = f" on {nice_date(done['next_charge'])}" if done.get("next_charge") else ""
+    msg = (f"✅ *Monthly investing paused.* The deposit of about {money(done['amount'])} won't go out{when}. "
+           f"That's {money(done['per_year_eur'])} a year staying on your account.\n"
+           "What you've invested so far stays invested. Start again any time.")
     if done["first_time"]:
         notify(pid, msg)
     return templates.TemplateResponse(request, "done.html", {
-        "title": "Payment stopped", "lines": [msg.replace("✅ ", "").replace("*", "")],
+        "title": "Investing paused", "lines": [msg.replace("✅ ", "").replace("*", "")],
         "wa": wa_back(request)})
 
 
@@ -671,8 +683,8 @@ def save_confirm(request: Request, pid: str, pin: str = Form("")):
 
 # ---------------- Demo triggers (used while filming) ----------------
 def alert_message(kind: str, name: str, e: Engine | None = None) -> tuple[str, list] | None:
-    if kind not in ("salary", "unusual", "renewal"):
-        raise HTTPException(400, "kind must be salary, unusual or renewal")
+    if kind not in ("salary", "unusual", "bills"):
+        raise HTTPException(400, "kind must be salary, unusual or bills")
     a = (e or engine).alert(kind)
     if kind != "salary" and not a["found"]:
         return None
@@ -693,13 +705,37 @@ def alert_text(kind: str, a: dict, name: str) -> tuple[str, list]:
                 f"That's *{a['times_usual']}x* your usual {a['category'].lower()} payment ({money(a['usual_eur'])}).\n\n"
                 "It sits in your *slips through your fingers* basket. Was that planned?")
         return text, [("later:unusual", "Yes, all good"), ("ask:unusual", "Tell me more")]
-    inc = a.get("price_increase")
+    return bills_text(a)
+
+
+def bills_text(a: dict) -> tuple[str, list]:
+    """A real regular payment (engine.commitments()) that went up, a utility bill above the usual range, or the next
+    one coming up. a["type"] is increase, unusual_bill or upcoming."""
+    what = a["name"].lower()
+    if a["type"] == "increase":
+        tr = a["trend"]
+        text = (f"📈 Your *{what}* went up: *{money(tr['last_per_month_eur'])} a month* in {tr['last_months']}, "
+                f"from {money(tr['previous_per_month_eur'])} a month in {tr['previous_months']}.")
+        if a.get("extra_per_year_eur"):
+            text += f" That's {money(a['extra_per_year_eur'])} more a year."
+        if a["id"] == "investing":
+            return text + "\n\nKeep it, or pause it for now?", [("keep:investing", "Keep it"),
+                                                               ("pause:investing", "Pause investing")]
+        return text + "\n\nIt sits in your *mandatory & regular* basket.", [
+            ("ask:bills", "My regular payments"), ("ask:tight", "How do I stretch it?")]
+    if a["type"] == "unusual_bill":
+        odd = a["unusual_bill"]
+        return (f"🧾 Heads-up: a *{money(odd['amount_eur'])}* utility bill on {nice_date(odd['date'])}. One bill is "
+                f"usually {money(odd['usual_low_eur'])} to {money(odd['usual_high_eur'])}.\n\n"
+                f"Your utilities come to {money(a['per_month_eur'])} a month, about {round(a['bills_per_month'])} "
+                "bills.", [("ask:bills", "My regular payments"), ("later:bills", "OK, thanks")])
     when = "tomorrow" if a["days_to_next"] == 1 else f"in {a['days_to_next']} days"
-    text = f"🔁 *{a['name']}* renews {when}: {money(a['price_eur'])}."
-    if inc:
-        text += f"\nThe price went up from {money(inc['from_eur'])} to {money(inc['to_eur'])} on {nice_date(inc['since'])}."
-    text += f"\nThat's {money(a['per_year_eur'])} a year. Keep it?"
-    return text, [(f"keep:{a['name']}", "Keep it"), (f"stop:{a['name']}", "Stop payments")]
+    day = nice_date(a["next_expected"])
+    if a["id"] == "investing":
+        return (f"📈 Your *monthly investing* of about {money(a['per_month_eur'])} goes out {when} ({day}).\n\n"
+                "Keep it, or pause it for now?", [("keep:investing", "Keep it"), ("pause:investing", "Pause investing")])
+    return (f"🧾 Your *{what}* of about {money(a['per_month_eur'])} is due {when} ({day}).",
+            [("remind:" + a["id"], "Remind me before"), ("ask:bills", "My regular payments")])
 
 
 @app.post("/demo/alert")
@@ -762,19 +798,14 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
     if kind == "UNUSUAL_TRANSACTION":
         return alert_text("unusual", d, name)
     if kind == "RECURRING_CHARGE_UPCOMING":
-        if d["source"] == "subscription":
-            return alert_text("renewal", d, name)
+        if d["source"] != "bill":  # the monthly investing or a fixed-day utility bill (engine.commitments())
+            return bills_text({**d, "type": "upcoming"})
         b = d["bill"]
         return bill_text(b, d["safe"], name), [(f"pay:{b['bill_id']}", pay_label(b["name"])),
                                                (f"later:{b['bill_id']}", "Remind me later"),
                                                ("ask:tight", "How do I stretch it?")]
-    if kind == "SUBSCRIPTION_PRICE_INCREASE":
-        inc = d["price_increase"]
-        per = "month" if d["cadence"] == "monthly" else "year"
-        return (f"📈 *{d['name']}* went up from {money(inc['from_eur'])} to *{money(inc['to_eur'])}* a {per} "
-                f"on {nice_date(inc['since'])}. That's {money(d['extra_per_year_eur'])} more a year, "
-                f"{money(d['per_year_eur'])} a year in total.\n\nStill worth it?",
-                [(f"keep:{d['name']}", "Keep it"), (f"stop:{d['name']}", "Stop payments")])
+    if kind == "BILL_INCREASE":
+        return bills_text({**d, "type": "increase" if d["increase"] == "trend" else "unusual_bill"})
     if kind == "GOAL_DRIFT":
         return (f"🎯 {name}, your *{d['name']}* goal is a bit behind plan: {money(d['saved_eur'])} saved, "
                 f"while {money(d['expected_by_now_eur'])} would be on track by today. To reach {money(d['target_eur'])} "
@@ -876,15 +907,15 @@ def landing(request: Request):
     off = engine.official_benchmark() or {"comparison": []}
     rest = next((r for r in off["comparison"] if r["category"] == "Restaurants"), {"times": "-"})
     rent = next((b for b in engine.upcoming_bills(45) if b["category"] == "Housing"), {"amount_eur": 0})
-    subs = engine.subscriptions()["subscriptions"]
-    up = next((x for x in subs if x["price_increase"]), subs[0])
+    reg = engine.commitments()
+    util = next((x for x in reg["regular_payments"] if x["id"] == "utilities"), None) or {}
     cut = engine.simulate_cut("Restaurants", 20)
     growth = next((r for r in (cut.get("real_past_check") or {}).get("results", []) if r and "Growth" in r["fund"]),
                   {"value_today_eur": 0})
     L = {"rest": engine.monthly_avg("Restaurants", 3), "times": rest["times"], "rent": rent["amount_eur"],
-         "safe": engine.safe_to_spend()["safe_to_spend_until_payday_eur"], "sub_name": up["name"],
-         "sub_from": (up["price_increase"] or {}).get("from_eur", up["price_eur"]), "sub_to": up["price_eur"],
-         "sub_year": up["per_year_eur"], "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"]}
+         "safe": engine.safe_to_spend()["safe_to_spend_until_payday_eur"], "bills_year": reg["bills_per_year_eur"],
+         "util_month": util.get("per_month_eur", 0), "util_count": round(util.get("bills_per_month", 0)),
+         "odd": util.get("unusual_bill"), "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"]}
     return templates.TemplateResponse(request, "landing.html", _ctx(L=L))
 
 
@@ -1052,21 +1083,31 @@ def widgets(e: Engine | None = None) -> dict:
                   "baskets": [{"key": x["basket"], "label": x["label"], "share_pct": x["share_pct"],
                                "total_eur": x["total_eur"]} for x in b["baskets"]],
                   "deep_link": ask_link(f"Where did my money go {month}, basket by basket?")})
-    subs = e.subscriptions()["subscriptions"]
-    up = next((x for x in subs if x["status"] == "active" and x["price_increase"]), None)
-    off = next((x for x in subs if x["status"] == "inactive"), None)
+    reg = e.commitments()
+    outs = [x for x in reg["regular_payments"] if x["direction"] == "out" and x["status"] == "active"]
+    up = next((x for x in outs if (x.get("trend") or {}).get("direction") == "up"), None)
+    odd = next((x for x in outs if x.get("unusual_bill")), None)
     if up:
-        inc = up["price_increase"]
-        cards.append({"id": "subscription", "kind": "price_increase", "title": f"{up['name']} went up",
-                      "value": money(inc["to_eur"]), "subtitle": f"was {money(inc['from_eur'])} · {money(up['per_year_eur'])} a year",
-                      "name": up["name"], "from_eur": inc["from_eur"], "to_eur": inc["to_eur"],
-                      "per_year_eur": up["per_year_eur"],
-                      "deep_link": ask_link(f"{up['name']} went up in price. Is it still worth it?")})
-    elif off:
-        cards.append({"id": "subscription", "kind": "inactive", "title": f"{off['name']} looks unused",
-                      "value": money(off["price_eur"]), "subtitle": f"last charged {nice_date(off['last_charge'])}",
-                      "name": off["name"], "price_eur": off["price_eur"], "last_charge": off["last_charge"],
-                      "deep_link": ask_link("What subscriptions am I paying for?")})
+        tr = up["trend"]
+        cards.append({"id": "regular_payments", "kind": "increase", "title": f"{up['name']} went up",
+                      "value": f"{money(tr['last_per_month_eur'])}/mo",
+                      "subtitle": f"was {money(tr['previous_per_month_eur'])} a month ({tr['previous_months']})",
+                      "name": up["name"], "from_eur": tr["previous_per_month_eur"], "to_eur": tr["last_per_month_eur"],
+                      "deep_link": ask_link(f"Why did my {up['name'].lower()} go up?")})
+    elif odd:
+        u = odd["unusual_bill"]
+        cards.append({"id": "regular_payments", "kind": "unusual_bill", "title": "A bigger utility bill",
+                      "value": money(u["amount_eur"]),
+                      "subtitle": f"{nice_date(u['date'])} · usually {money(u['usual_low_eur'])} to {money(u['usual_high_eur'])}",
+                      "name": odd["name"], "amount_eur": u["amount_eur"], "date": u["date"],
+                      "usual_low_eur": u["usual_low_eur"], "usual_high_eur": u["usual_high_eur"],
+                      "deep_link": ask_link("What are my regular payments?")})
+    elif outs:
+        cards.append({"id": "regular_payments", "kind": "summary", "title": "Regular payments",
+                      "value": f"{money(reg['outgoing_per_month_eur'])}/mo",
+                      "subtitle": f"{len(outs)} found in your account · {money(reg['outgoing_per_year_eur'])} a year",
+                      "per_month_eur": reg["outgoing_per_month_eur"], "per_year_eur": reg["outgoing_per_year_eur"],
+                      "deep_link": ask_link("What are my regular payments?")})
     goals = e.goals()
     if goals:
         g = goals[0]

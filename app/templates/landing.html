@@ -48,8 +48,8 @@
       <div class="bub">You spend <b>{{ money(L.rest) }} a month</b> on restaurants, about {{ L.times }}× Finnish households your age (Statistics Finland).</div></div>
     <div class="card feat"><b>Safe to spend</b><span class="muted">Before rent, Birky tells you what's really left until payday, then you pay with one tap and your PIN.</span>
       <div class="bub">Rent of <b>{{ money(L.rent) }}</b> is due soon. After it you have <b>{{ money(L.safe) }}</b> safe to spend until payday.</div></div>
-    <div class="card feat"><b>Subscriptions, sorted</b><span class="muted">Active, forgotten and price rises in one list. Stop a card payment with your PIN.</span>
-      <div class="bub">{{ L.sub_name }} went up from {{ money(L.sub_from) }} to <b>{{ money(L.sub_to) }}</b>. That's {{ money(L.sub_year) }} a year. Keep it?</div></div>
+    <div class="card feat"><b>Regular payments, from your data</b><span class="muted">Rent, utility bills and your monthly investing, found in your own transactions: what each costs a month and a year, when it's due, and when a bill goes up.</span>
+      <div class="bub">{% if L.odd %}A <b>{{ money(L.odd.amount_eur) }}</b> utility bill on {{ nice(L.odd.date) }}: one bill is usually {{ money(L.odd.usual_low_eur) }} to {{ money(L.odd.usual_high_eur) }}.{% else %}About {{ L.util_count }} utility bills a month, <b>{{ money(L.util_month) }}</b> in total.{% endif %} Rent and bills come to {{ money(L.bills_year) }} a year.</div></div>
     <div class="card feat"><b>Save, then invest</b><span class="muted">Goals with real deadlines, savings pockets, and what investing would really have done, on real ETF prices.</span>
       <div class="bub">Cutting dining out by 20% frees <b>{{ money(L.cut) }} a month</b>. Over the last 2 years that would have grown to {{ money(L.cut_growth) }} in a global fund, on real prices.</div></div>
   </section>
