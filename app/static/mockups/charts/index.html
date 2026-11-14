@@ -51,9 +51,10 @@ section.pair>p{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.4
 .notes{background:var(--warn-bg);color:var(--ink);border-radius:8px;padding:10px 14px;margin:0 0 24px;font-size:13px;line-height:1.45}
 .notes b{color:var(--warn)}.notes ul{margin:4px 0 0;padding-left:18px}
 .chart-gap{height:12px}
-.src{font-size:11.5px;color:var(--faint);margin:12px 0 0;padding-top:8px;border-top:1px solid var(--line);line-height:1.4}
-svg.ch{display:block;width:100%;height:auto;overflow:visible;font-family:var(--font);touch-action:none}
-svg.ch text{font-size:10.5px;fill:var(--faint)}
+.src{font-size:11.5px;color:var(--muted);margin:12px 0 0;padding-top:8px;border-top:1px solid var(--line);line-height:1.4}
+svg.ch{display:block;width:100%;height:auto;overflow:visible;font-family:var(--font)}
+#trend svg.ch{touch-action:pan-y}
+svg.ch text{font-size:10.5px;fill:var(--muted)}
 .h3{font-size:16px;font-weight:700;color:var(--strong);margin:0}
 .seg{display:flex;gap:2px;height:14px;margin:14px 0 6px}
 .seg i{display:block;height:100%}.seg i:first-child{border-radius:4px 0 0 4px}.seg i:last-child{border-radius:0 4px 4px 0}
@@ -67,7 +68,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 .row .amt small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
 .track{position:relative;height:6px;border-radius:99px;background:var(--line);margin:7px 0 4px}
 .track>i{position:absolute;left:0;top:0;height:100%;border-radius:99px}
-.track>b{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;background:var(--strong);border-radius:1px}
+.track>b{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;background:var(--strong);border-radius:1px;box-shadow:0 0 0 1.5px var(--card)}
 .st{font-size:12px;font-weight:600}.st.ok{color:var(--brand)}.st.over,.st.fast{color:var(--warn)}.chips{display:flex;flex-wrap:wrap;column-gap:6px}
 .nob{font-size:13px;color:var(--muted);padding:10px 0 0;border-top:1px solid var(--line);margin-top:2px}
 .nob a{color:var(--brand);font-weight:600;text-decoration:none}
@@ -102,7 +103,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 
   <section class="pair" id="p-budget">
     <h2>3 · Budgets and pace (Budjetti)</h2>
-    <p>Copilot: each bar knows the date. The tick is where an even pace would be today; a darker bar means spending faster than an even pace. Monzo: one "left to spend" number with a per-day figure.</p>
+    <p>Copilot: each bar knows the date. The tick is where an even pace would be today; a bar in the warning colour means spending faster than an even pace. Monzo: one "left to spend" number with a per-day figure.</p>
     <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/budget-card1.png" alt="Today's budget list"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="budget"></div></div></div>
   </section>
@@ -194,7 +195,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
   if (Math.abs(catLim - B) >= 0.01) notes.push(`The overall budget is ${eur(B)}, but the ${catSet.length} category budgets add up to ${eur(catLim)} and ${budget.items.length - catSet.length} categories have none. Chart 1 uses the overall budget, chart 3 the category budgets; neither is adjusted.`);
   if (B > afterBills) notes.push(`The overall budget (${eur(B)}) is ${eur(B - afterBills)} more than is left after bills and investing in a typical month (${eur(afterBills)}, chart 6).`);
   notes.push(`The budget data's status is "${[...new Set(catSet.map(i => i.status))].join('", "')}", which the screens set as "not over the limit" (oiva/data.js). Pace is a separate reading, computed here: share of the budget spent against share of the month gone (${TODAY} of ${DAYS} days), the same rule spend.json uses for the overall pace.`);
-  notes.unshift(`Only recurring.json (charts 6 and 7) is computed from the hackathon data set: Antti's own transactions (data/personas/CUST01656.csv, to 30 Sep 2026). spend.json, budget.json and compare.json are hand-written samples, as their own "source" says; the data set has no October 2026, and compare.json's group (35–44 in Helsinki, ${compare.cohort.n} people) is not one of the groups in data/peer_benchmark.json.`);
+  notes.unshift(`From the hackathon data set: recurring.json's monthly amounts, payment counts and dates up to 30 Sep 2026 are computed from Antti's own transactions (data/personas/CUST01656.csv); the data set ends there, so its as-of date (${spend.as_of}) and "next expected" dates assume an October the data does not hold. Hand-written samples, as their own "source" says: spend.json, budget.json and compare.json, apart from the salary (${eur(by("salary").per_month_eur)}) they reuse. Chart 7 mixes both: today, the paid rent and the paid utility bill come from spend.json. compare.json's group (35–44 in Helsinki, ${compare.cohort.n} people) is not one of the groups in data/peer_benchmark.json.`);
   const notesEl = document.getElementById("notes");
   notesEl.innerHTML = `<b>About the data: where it comes from, and where it disagrees with itself</b><ul>${notes.map(n => `<li>${n}</li>`).join("")}</ul>`;
   notesEl.hidden = false;
@@ -211,7 +212,7 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
     const projCol = proj > B ? css("warn") : css("brand");
     const chip = spend.pace.status === "over" ? warnChip(`${eur(ahead)} over an even pace`)
       : `<span class="chip ok">${eur(-ahead)} under an even pace</span>`;
-    host.innerHTML = `<p class="k">Everyday spending in ${MONTH_NAME} so far (bills not included)</p><p class="hero">${hero(spent)}</p>
+    host.innerHTML = `<p class="k">Spending in ${MONTH_NAME} so far, all categories</p><p class="hero">${hero(spent)}</p>
       ${chip}
       <p class="sub"><b>${eur(left)}</b> left of your ${eur(B, 0)} overall budget · <b>${eur(left / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days</p><div class="chart-gap"></div>`;
     const W = 318, H = 176, L = 2, R = 40, T = 22, Bm = 22, pw = W - L - R, ph = H - T - Bm;
@@ -257,7 +258,8 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
       tip.style.display = "block"; tip.textContent = `${d} ${M} · ${eur(v, 0)}${known ? "" : " at this rate"}`;
       const hr = host.getBoundingClientRect(), half = tip.offsetWidth / 2;  // svg has no offsetLeft: measure against the card
       tip.style.left = Math.min(Math.max(r.left - hr.left + x(d) * r.width / W, half + 4), hr.width - half - 4) + "px";
-      tip.style.top = (r.top - hr.top + (T + ph * .45) * r.height / H) + "px";  // inside the plot
+      const dy = r.top - hr.top + y(v) * r.height / H, th = tip.offsetHeight;  // above the dot, or below it when there is no room
+      tip.style.top = (dy - 12 - th > r.top - hr.top ? dy - 12 : dy + 12 + th) + "px";
     };
     svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move);
     svg.addEventListener("pointerleave", () => { tip.style.display = "none"; cross.setAttribute("opacity", 0); dot.setAttribute("opacity", 0); });
@@ -292,13 +294,13 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
       <div class="chips"><span class="chip ok">${nWithin} of ${set.length} within budget</span>
       ${nFast ? warnChip(`${nFast} of ${set.length} faster than an even pace`) : ""}</div>
       <div style="margin-top:12px">${set.map(i => { const over = i.status === "over", f = Math.min(i.spent_eur / i.limit_eur, 1);
-        const fill = over ? css("warn") : fast(i) ? css("over") : css("bright");
+        const fill = over || fast(i) ? css("warn") : css("bright");
         return `<div class="row">${icon(i.category)}<div class="mid">
           <div style="display:flex;justify-content:space-between;gap:8px"><span class="nm">${i.label}</span><span class="nm" style="font-weight:600;white-space:nowrap">${eur(i.left_eur)} <span style="font-weight:400;color:var(--muted);font-size:13px">left</span></span></div>
           <div class="track"><i style="width:${(f * 100).toFixed(1)}%;background:${fill}"></i><b style="left:${(paceShare * 100).toFixed(1)}%"></b></div>
           <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)"><span class="st ${word(i)[0]}">${word(i)[1]}</span><span style="white-space:nowrap">${eur(i.spent_eur)} of ${eur(i.limit_eur, 0)}</span></div>
         </div></div>`; }).join("")}</div>
-      <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Even pace by today</span><span><i style="background:var(--bright)"></i>Within even pace</span><span><i style="background:var(--over)"></i>Faster than even pace</span></div>
+      <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Even pace by today</span>${set.some(i => i.spent_eur > 0 && !fast(i)) ? `<span><i style="background:var(--bright)"></i>Within even pace</span>` : ""}${set.some(fast) ? `<span><i style="background:var(--warn)"></i>Faster than even pace</span>` : ""}</div>
       ${unset.length ? `<p class="nob">No budget yet: ${unset.map(i => `${i.label} ${eur(i.spent_eur, 0)}`).join(" · ")}</p>` : ""}`;
   })();
 
@@ -416,8 +418,9 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
   const root = document.documentElement, mq = matchMedia("(prefers-color-scheme: dark)");
   const btns = [...document.querySelectorAll(".theme button")];
   function setTheme(t) {
-    if (t === "light" || t === "dark") root.dataset.theme = t; else delete root.dataset.theme;
-    btns.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === (t || "system"))));
+    if (t !== "light" && t !== "dark") t = "system";
+    if (t !== "system") root.dataset.theme = t; else delete root.dataset.theme;
+    btns.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === t)));
     render();
   }
   btns.forEach(b => b.addEventListener("click", () => setTheme(b.dataset.t)));
