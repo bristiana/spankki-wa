@@ -1,0 +1,110 @@
+{#- S-Etukortti sub-screens, included by smobiili.html (screen == "extra"): the digital card ("kortti"), the receipt
+    list ("kuitit") and one receipt, Kassakuitti ("kuitti"). Uses the page's tokens, .card/.li/.btn and icon(). -#}
+{% macro xi(name, cls="i") -%}
+<svg class="{{ cls }}" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == "nfc" %}<path d="M9 11.5a6.5 6.5 0 0 1 0 9M13.5 8a11.5 11.5 0 0 1 0 16M18 4.5a16.5 16.5 0 0 1 0 23"/><circle cx="5.5" cy="16" r="1.3" fill="currentColor" stroke="none"/>
+{%- elif name == "ext" %}<path d="M18.5 5.5h8v8M26.5 5.5L15 17M23 19v6.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 5 25.5v-15A1.5 1.5 0 0 1 6.5 9H13"/>
+{%- elif name == "share" %}<path d="M16 19.5V4.5M10.5 10L16 4.5l5.5 5.5M9 14.5H6.5v13h19v-13H23"/>
+{%- endif %}</svg>
+{%- endmacro %}
+{% macro store_logo() -%}
+<span class="x-logo" aria-hidden="true">{{ icon("s") }}</span>
+{%- endmacro %}
+<style>
+  .x-white{background:var(--bar);padding:6px 20px 18px;text-align:center}
+  .x-art{display:block;width:100%;max-width:300px;height:auto;margin:0 auto}
+  .x-use{display:inline-flex;align-items:center;gap:6px;margin-top:8px;color:var(--brand);font-size:17px;font-weight:600}
+  .x-use .i{width:24px;height:24px}
+  .x-steps{margin:0;padding:16px 18px 16px 38px;font-size:15.5px;color:#222;line-height:1.4}
+  .x-steps li{padding:5px 0}.x-steps li::marker{color:var(--brand);font-weight:700}
+  .x-set .li .txt{font-size:16px}.x-set .val{color:var(--muted);font-size:15px}
+  .x-tog{width:46px;height:26px;border-radius:99px;background:var(--bright);position:relative;flex:none}
+  .x-tog::after{content:"";position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+  .x-logo{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--bright);color:#fff;flex:none}
+  .x-logo .i{width:24px;height:24px}.x-logo .i path{stroke-width:2.4}
+  .x-rows .li{padding:12px 0}.x-rows .li>.i:not(.chev){width:28px;height:28px;color:var(--brand)}
+  .x-rows .li .txt{font-size:16px}.x-rows .tot{font-size:17px;font-weight:700;color:#222;white-space:nowrap}
+  .x-rows .li.tot-row .txt{font-weight:600}
+  .x-rec{background:#fff;border-radius:8px;padding:18px 16px 20px;margin-bottom:12px;font:13px/1.45 "Courier New",ui-monospace,Menlo,Consolas,monospace;color:#222;
+         box-shadow:0 1px 3px rgba(0,60,25,.05)}
+  .x-rec p{margin:0}.x-rec .c{text-align:center}
+  .x-rec .ln{display:flex;justify-content:space-between;gap:12px}.x-rec .ln span:first-child{overflow-wrap:anywhere}
+  .x-rec .ln span:last-child{white-space:nowrap}
+  .x-rec .sub{padding-left:2ch;color:#444;white-space:pre}.x-rec .pre{white-space:pre}
+  .x-rec .rule{border-top:1px dashed #9a9a9a;margin:8px 0}
+  .x-rec .big{font-weight:700;font-size:14px}
+  .x-list .li .amt{font-size:16px;color:#222;font-weight:600}
+</style>
+{% if extra == "kortti" %}
+  <section class="x-white" aria-label="Digitaalinen S-Etukortti">
+    <svg class="x-art" viewBox="0 0 320 190" role="img" aria-label="Maksupääte ja puhelin, lähimaksu · a card terminal and a phone">
+      <g fill="none" stroke="#9fd8a9" stroke-width="3"><circle cx="170" cy="102" r="16"/><circle cx="170" cy="102" r="30" opacity=".75"/><circle cx="170" cy="102" r="44" opacity=".5"/></g>
+      <rect x="40" y="16" width="106" height="164" rx="16" fill="#d5d8d6"/>
+      <rect x="46" y="22" width="94" height="152" rx="12" fill="#e2e4e3"/>
+      <rect x="54" y="32" width="78" height="54" rx="6" fill="#f7f8f7" stroke="#b5b9b7" stroke-width="2"/>
+      <g fill="none" stroke="#8d9290" stroke-width="2.6" stroke-linecap="round"><path d="M88 52a7 7 0 0 1 0 10"/><path d="M93 47.5a13 13 0 0 1 0 19"/><path d="M98 43a19 19 0 0 1 0 28"/></g>
+      <circle cx="82.5" cy="57" r="1.8" fill="#8d9290"/>
+      <g fill="#b7bbb9">{% for y in (98, 115, 132) %}{% for x in (58, 83, 108) %}<rect x="{{ x }}" y="{{ y }}" width="20" height="11" rx="3"/>{% endfor %}{% endfor %}</g>
+      <rect x="58" y="151" width="20" height="12" rx="3" fill="#e2453c"/><rect x="83" y="151" width="20" height="12" rx="3" fill="#f2c230"/><rect x="108" y="151" width="20" height="12" rx="3" fill="#2fae4e"/>
+      <rect x="196" y="30" width="80" height="146" rx="14" fill="#00aa46" stroke="#007841" stroke-width="3"/>
+      <rect x="224" y="37" width="24" height="5" rx="2.5" fill="#007841"/>
+      <g transform="translate(207 74) scale(1.8)" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M24.6 3.6h-4.4c-3 0-4.7 1.6-5.3 4.6l-2.7 14.1c-.4 2-1.5 3.1-3.3 3.1H6.6"/><path d="M24.6 3.6v4.6h-1.4c-1.6 0-2.5.8-2.8 2.4l-2.8 14.2c-.6 3-2.4 4.6-5.2 4.6H6.6v-4.4"/></g>
+    </svg>
+    <span class="x-use" id="card-status">{{ xi("nfc") }}Käytössä</span>
+  </section>
+  <div class="pad">
+    <h2 class="sec">Näin käytät</h2>
+    <section class="card">
+      <ol class="x-steps">
+        <li>Avaa S-mobiili kassalla - kirjautumista ei tarvita!</li>
+        <li>Vie puhelin rauhallisesti maksupäätteelle ja seuraa maksupäätteen kuittausta Bonuksen kirjautumisesta</li>
+        <li>Siirry maksusovellukseen linkistä tai maksa muulla haluamallasi tavalla</li>
+      </ol>
+    </section>
+    <a class="btn" href="#" title="Demo: ei avaa sivua" onclick="return false">Tarkemmat ohjeet S-Etukortti.fi{{ xi("ext") }}</a>
+    <h2 class="sec">Asetukset</h2>
+    <section class="card list x-set">
+      <div class="li"><span class="txt">S-Etukortti puhelimessa<small>Bonus kirjautuu, kun viet puhelimen maksupäätteelle</small></span><span class="x-tog" role="img" aria-label="Päällä · on"></span></div>
+      <div class="li tap"><span class="txt">Maksusovellus</span><span class="val">Kysy aina</span>{{ icon("chevron", "i chev") }}</div>
+      <div class="li tap"><span class="txt">Kortin numero</span><span class="val">**** 2847</span></div>
+    </section>
+    <p class="demo">Demo: the phone does not talk to a real terminal.</p>
+  </div>
+{% elif extra == "kuitit" %}
+  <div class="pad">
+    <h2 class="sec">Ruokaostokset <small>Grocery receipts</small></h2>
+    <section class="card list x-list" id="receipts">
+      {% for k in receipts %}<a class="li tap" href="/s-mobiili/kuitit/{{ k.id }}{{ keep }}">{{ store_logo() }}<span class="txt">{{ k.store }}<small>{{ k.date.day }}.{{ k.date.month }}.{{ k.date.year }}</small></span>
+        <span class="amt">{{ k.total_eur|fimoney }}</span>{{ icon("chevron", "i chev") }}</a>
+      {% else %}<p class="muted">Ei kuitteja · no grocery purchases yet.</p>{% endfor %}
+    </section>
+    <p class="demo">Dates and totals are your real grocery purchases; the stores and items are demo.</p>
+  </div>
+{% elif extra == "kuitti" %}
+  <div class="pad">
+    <section class="card list x-rows">
+      <div class="li tap">{{ store_logo() }}<span class="txt">{{ r.store.name }}</span>{{ icon("chevron", "i chev") }}</div>
+      <div class="li tot-row"><span class="txt">Yhteensä</span><span class="tot" id="receipt-total">{{ r.total_eur|fimoney }}</span></div>
+      <div class="li tap">{{ icon("barcode") }}<span class="txt">Avaa kuitin viivakoodi</span>{{ icon("chevron", "i chev") }}</div>
+      <div class="li tap">{{ xi("share") }}<span class="txt">Jaa tai lataa PDF-kuitti</span></div>
+    </section>
+    <section class="x-rec" id="receipt" aria-label="Kuitti · receipt">
+      <p class="c">{{ r.store.header }} {{ r.store.phone }}</p>
+      <p class="c">{{ r.coop }}</p>
+      <p class="c pre">{{ r.code }}  {{ r.date.day }}.{{ r.date.month }}.{{ r.date.year }} {{ r.time }}</p>
+      <div class="rule"></div>
+      {% for x in r.lines %}<p class="ln" data-cents="{{ x.cents }}"><span>{{ x.name }}</span><span>{{ x.price }}</span></p>
+      {% if x.sub %}<p class="sub">{{ x.sub }}</p>{% endif %}
+      {% endfor %}
+      <div class="rule"></div>
+      <p class="ln big"><span>YHTEENSÄ</span><span>{{ r.total }}</span></p>
+      <p class="ln"><span>S-ETUKORTTI VISA</span><span>{{ r.total }}</span></p>
+      <p>{{ r.count }} TUOTETTA</p>
+      <div class="rule"></div>
+      <p class="c">BONUKSEEN OIKEUTTAVAT OSTOT {{ r.total }}</p>
+      <p class="c">KIITOS KÄYNNISTÄ</p>
+    </section>
+    <p class="demo" id="receipt-demo">Demo receipt: the date and total are your real purchase, the items are made up.</p>
+  </div>
+{% endif %}

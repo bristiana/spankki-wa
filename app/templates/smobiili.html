@@ -52,7 +52,7 @@
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex">
 <link rel="icon" href="/static/birky/penny.png" type="image/png">
-<title>{% if screen == "home" %}S-mobiili concept{% elif screen == "tab" %}{{ top_title[tab] }} · S-mobiili concept{% else %}{{ f.title }} · S-mobiili concept{% endif %}</title>
+<title>{% if screen == "home" %}S-mobiili concept{% elif screen == "tab" %}{{ top_title[tab] }} · S-mobiili concept{% elif screen == "extra" %}{{ page_title }} · S-mobiili concept{% else %}{{ f.title }} · S-mobiili concept{% endif %}</title>
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <link rel="stylesheet" href="/static/birky/birky.css">
 <link rel="stylesheet" href="/static/birky/guide.css">
@@ -199,7 +199,7 @@
   .eh .bc{width:46px;height:46px;border-radius:50%;background:#fff;color:var(--brand);display:grid;place-items:center}
   .eh .bc .i{width:26px;height:26px}
   .tiles2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .tiles2>div{background:var(--card);border-radius:10px;text-align:center;padding:20px 8px;font-size:16px;color:#222;box-shadow:0 1px 3px rgba(0,60,25,.05)}
+  .tiles2>*{background:var(--card);border-radius:10px;text-align:center;padding:20px 8px;font-size:16px;color:#222;box-shadow:0 1px 3px rgba(0,60,25,.05)}
   .tiles2 .i{display:block;margin:0 auto 10px;color:var(--bright);width:30px;height:30px}
   .offer{padding:16px}.offer small{display:block;color:var(--muted);font-size:13px}.offer b{display:block;font-size:17px;color:#222;margin-top:2px}
   .offer .pct{display:block;color:var(--brand);font-size:30px;font-weight:700;margin-top:6px}
@@ -278,6 +278,8 @@
     <a class="chat" id="ask" href="{{ '/chat' ~ ('?embed=1' if web else '') }}" aria-label="Viestit · ask Oiva">{{ icon("chat") }}</a>
   </header>
   {% elif screen == "tab" and tab == "etukortti" %}
+  {% elif screen == "extra" %}
+  <header class="top"><a href="{{ back_url or tab_urls.etukortti }}" aria-label="Takaisin · back">{{ icon("back") }}</a><h1>{{ page_title }}</h1></header>
   {% else %}
   <header class="top{{ ' sub' if screen == 'flow' or tab == 'kortti' }}">
     {% if screen == "flow" or tab == "kortti" %}<a href="{{ home_url if screen == 'flow' else tab_urls.pankki }}" aria-label="Takaisin · back">{{ icon("back") }}</a>{% endif %}
@@ -396,12 +398,15 @@
       <div class="li tap"><span class="txt">Visa Secure</span><span class="val">Kyllä</span></div>
     </section>
   {% elif screen == "tab" and tab == "etukortti" %}
-    <div class="eh">{{ icon("s") }}<b>S-ETUKORTTI</b><span class="bc">{{ icon("barcode") }}</span></div>
+    {% set kq = request.query_params|dictsort|selectattr(0, 'in', ['persona', 'web'])|list %}{% set kq = ('?' ~ kq|urlencode) if kq else '' %}
+    <div class="eh">{{ icon("s") }}<b>S-ETUKORTTI</b><a class="bc" id="open-card" href="/s-mobiili/etukortti{{ kq }}" aria-label="Näytä S-Etukortti · show the card">{{ icon("barcode") }}</a></div>
     <div class="pad">
-      <div class="tiles2"><div>{{ icon("bag") }}Bonus ja ostot</div><div>{{ icon("receipt") }}Kuitit</div></div>
+      <div class="tiles2"><div>{{ icon("bag") }}Bonus ja ostot</div><a id="open-receipts" href="/s-mobiili/kuitit{{ kq }}">{{ icon("receipt") }}Kuitit</a></div>
       <h2 class="sec">Etuja sinulle <small style="color:var(--brand);font-size:15px">Näytä kaikki</small></h2>
       <div class="card offer"><small>Etukuponki</small><b>Esimerkkietu</b><span class="pct">-10%</span><p class="demo" style="text-align:left">Demo: offers are not part of this prototype.</p></div>
     </div>
+  {% elif screen == "extra" %}
+    {% include "smobiili_extra.html" %}
   {% else %}
     {% if f.first_pocket and not done %}
     <div class="pad">
