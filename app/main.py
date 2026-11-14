@@ -685,8 +685,8 @@ def bank_submit(request: Request, u: str = Form(""), scope: list[str] = Form([])
 
 
 # ---------------- another bank, for real (Enable Banking), login with WhatsApp ----------------
-ADD_BANK = re.compile(r"\b(add|link|connect|bring)\b(?!.*s-?pankki).*\b(bank|account)s?\b|\brevolut\b|"
-                      r"\benable\s*banking\b", re.I)
+ADD_BANK = re.compile(r"\b(add|link|connect|bring)\b(?!.*s-?pankki).*\b(banks?|accounts?|revolut|enable\s*banking)\b",
+                      re.I)
 
 
 LOGIN = re.compile(r"^\s*(log\s*in|login|sign\s*in)\b", re.I)

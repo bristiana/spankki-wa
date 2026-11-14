@@ -112,7 +112,9 @@ TOOLS = [
         "name": "get_full_picture",
         "description": "All the customer's accounts across banks (S-Pankki plus any bank linked through PSD2): total "
                        "balances, credit card debt, net position, the next card bill and how many months savings could "
-                       "cover the irregular basket. Tells you when no other bank is linked.",
+                       "cover the irregular basket. For a bank marked real data (e.g. Revolut): its balance, spending per month "
+                       "by category and recent transactions, so use it for any question about that bank's spending. "
+                       "Tells you when no other bank is linked.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
