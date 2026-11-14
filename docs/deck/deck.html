@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Kurre · S-Pankki Chat</title>
+<title>Oiva · S-Pankki Chat</title>
 <style>
   @page { size: 1920px 1080px; margin: 0; }
   :root {
@@ -140,84 +140,33 @@
   .link { flex: 1; background: var(--green); color: #fff; border-radius: 28px; padding: 30px 38px; }
   .link .mono { font-size: 24px; color: #bfe3cf; }
   .link .u { font-size: 38px; font-weight: 700; margin-top: 6px; }
+  img.oiva { display: block; object-fit: contain; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-bottom: 36px; }
+  .step { background: #fff; border: 1px solid var(--line); border-radius: 26px; padding: 26px 28px; }
+  .step .k { font-size: 24px; color: var(--green); font-weight: 700; }
+  .step b { display: block; font-size: 32px; margin: 8px 0 6px; }
+  .step span { font-size: 26px; color: var(--muted); line-height: 1.3; display: block; }
+  .qa { display: grid; gap: 22px; }
+  .qa .card { padding: 26px 34px; }
+  .qa .qq { font-size: 30px; color: var(--green); font-weight: 700; }
+  .qa .aa { font-size: 30px; line-height: 1.3; margin-top: 6px; }
 </style>
 </head>
 <body>
-
-<!-- Kurre mascot (app/static/kurre.svg), defined once and reused -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <radialGradient id="fur" cx="45%" cy="35%" r="70%">
-      <stop offset="0" stop-color="#F6A55B"/><stop offset="0.6" stop-color="#E07A2E"/><stop offset="1" stop-color="#B85A1C"/>
-    </radialGradient>
-    <radialGradient id="tail" cx="40%" cy="30%" r="75%">
-      <stop offset="0" stop-color="#F7B06A"/><stop offset="0.55" stop-color="#E27F33"/><stop offset="1" stop-color="#A84F17"/>
-    </radialGradient>
-    <radialGradient id="belly" cx="50%" cy="35%" r="65%">
-      <stop offset="0" stop-color="#FFF6E8"/><stop offset="1" stop-color="#F3D9B8"/>
-    </radialGradient>
-    <radialGradient id="coin" cx="40%" cy="35%" r="70%">
-      <stop offset="0" stop-color="#FFE38A"/><stop offset="0.7" stop-color="#F2B630"/><stop offset="1" stop-color="#C98A12"/>
-    </radialGradient>
-    <linearGradient id="scarf" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1F9A63"/><stop offset="1" stop-color="#00663D"/>
-    </linearGradient>
-  </defs>
-  <symbol id="kurre" viewBox="0 0 240 240">
-    <ellipse cx="118" cy="226" rx="62" ry="8" fill="#000" opacity=".12"/>
-    <path d="M150 196c38-6 70-40 64-86-5-38-36-60-60-50-20 8-20 34-6 44 12 9 26 2 30-8 5 22-6 44-30 54z" fill="url(#tail)"/>
-    <path d="M168 76c14 2 26 14 28 30" fill="none" stroke="#FFD6A6" stroke-width="5" stroke-linecap="round" opacity=".55"/>
-    <ellipse cx="112" cy="168" rx="50" ry="54" fill="url(#fur)"/>
-    <ellipse cx="110" cy="176" rx="31" ry="38" fill="url(#belly)"/>
-    <ellipse cx="88" cy="218" rx="17" ry="8" fill="#C9662A"/>
-    <ellipse cx="134" cy="218" rx="17" ry="8" fill="#C9662A"/>
-    <g>
-      <path d="M70 56 64 22c0-4 5-6 8-3l20 24z" fill="#D46C25"/>
-      <path d="M71 50 68 30l14 16z" fill="#F7C9A0"/>
-      <path d="M150 56 156 22c0-4-5-6-8-3l-20 24z" fill="#D46C25"/>
-      <path d="M149 50 152 30l-14 16z" fill="#F7C9A0"/>
-      <path d="M64 22l-6-10M66 20l-1-11M156 22l6-10M154 20l1-11" stroke="#B85A1C" stroke-width="3" stroke-linecap="round"/>
-      <ellipse cx="110" cy="88" rx="52" ry="46" fill="url(#fur)"/>
-      <ellipse cx="110" cy="104" rx="30" ry="22" fill="url(#belly)"/>
-      <ellipse cx="78" cy="104" rx="9" ry="6" fill="#F28C8C" opacity=".55"/>
-      <ellipse cx="142" cy="104" rx="9" ry="6" fill="#F28C8C" opacity=".55"/>
-      <ellipse cx="90" cy="84" rx="10" ry="12" fill="#1B1B1F"/>
-      <ellipse cx="130" cy="84" rx="10" ry="12" fill="#1B1B1F"/>
-      <circle cx="94" cy="79" r="4" fill="#fff"/>
-      <circle cx="134" cy="79" r="4" fill="#fff"/>
-      <circle cx="87" cy="89" r="1.8" fill="#fff" opacity=".8"/>
-      <circle cx="127" cy="89" r="1.8" fill="#fff" opacity=".8"/>
-      <path d="M80 68q10-6 19-1M121 67q9-5 19 1" stroke="#8E4513" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M104 98q6-5 12 0l-6 6z" fill="#5A2C12"/>
-      <path d="M110 104v5M99 110q11 9 22 0" stroke="#5A2C12" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <rect x="105.5" y="110" width="9" height="7" rx="2" fill="#fff" stroke="#E2D2C0" stroke-width="1"/>
-    </g>
-    <path d="M66 126q44 22 90 0l4 12q-48 26-98 0z" fill="url(#scarf)"/>
-    <path d="M132 136l12 32-14 2-6-30z" fill="url(#scarf)"/>
-    <path d="M136 150l9 2M138 158l8 2" stroke="#7CD7A6" stroke-width="2" stroke-linecap="round" opacity=".7"/>
-    <ellipse cx="80" cy="160" rx="12" ry="18" transform="rotate(30 80 160)" fill="#D97330"/>
-    <ellipse cx="142" cy="160" rx="12" ry="18" transform="rotate(-30 142 160)" fill="#D97330"/>
-    <circle cx="111" cy="164" r="25" fill="url(#coin)" stroke="#B57A0E" stroke-width="2.5"/>
-    <circle cx="111" cy="164" r="18" fill="none" stroke="#FFF1B8" stroke-width="2" opacity=".7"/>
-    <text x="111" y="173" text-anchor="middle" font-family="system-ui,Segoe UI,Arial" font-weight="800" font-size="25" fill="#8A5A06">€</text>
-    <ellipse cx="88" cy="168" rx="9" ry="7" fill="#E88A45"/>
-    <ellipse cx="134" cy="168" rx="9" ry="7" fill="#E88A45"/>
-  </symbol>
-</svg>
 
 <!-- 1 · Title -->
 <section class="slide s1">
   <div class="row">
     <div class="grow">
       <div class="mono kicker" style="color:#7cd7a6">Junction 2026 · S-Pankki challenge</div>
-      <h1>Kurre<br>S-Pankki Chat</h1>
-      <div class="line">Your money coach,<br>where you already chat.</div>
+      <h1>Oiva<br>S-Pankki Chat</h1>
+      <div class="line" style="font-size:46px">S-Pankki doesn't need another app.<br>It needs a friend in WhatsApp.</div>
       <div class="meta">
-        <span class="pill">WhatsApp</span><span class="pill">S-mobiili chat</span><span class="pill">One backend</span>
+        <span class="pill">WhatsApp</span><span class="pill">S-mobiili chat</span><span class="pill">Your real banks</span>
       </div>
       <div class="meta" style="margin-top:36px">Personal Economic Trainer</div>
     </div>
-    <div class="halo"><svg class="kurre" width="660" height="660"><use href="#kurre"/></svg></div>
+    <div class="halo"><img class="oiva" src="img/oiva.png" width="420" height="420" alt="Oiva the squirrel"></div>
   </div>
 </section>
 
@@ -239,173 +188,188 @@
       <div class="q">or what to do on <span>payday</span>.</div>
     </div>
     <div style="width:700px">
-      <div class="big-stat">1 in 3</div>
-      <p style="font-size:36px; margin:20px 0 0">Finnish adults open S-mobiili every week.</p>
-      <p class="muted" style="margin-top:28px">Almost everyone opens a chat app every day.</p>
-      <p style="margin-top:28px; font-weight:700">So why make them open another app?<br><span style="color:var(--green)">Bring the coach to the chat.</span></p>
+      <p style="font-size:44px; font-weight:800; line-height:1.15; margin:0">In a banking app you are a "customer": menus, forms, the feeling of being judged.</p>
+      <p class="muted" style="margin-top:32px">WhatsApp is where you talk to your friends. So that's where you ask, without embarrassment:</p>
+      <p style="margin-top:20px; font-size:40px; font-weight:700; color:var(--green)">"I'm out of money, what do I do?"</p>
     </div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">2</div>
+  <div class="brand"><span class="s">S</span>Oiva · S-Pankki Chat</div><div class="pn">2</div>
 </section>
 
-<!-- 3 · Meet Kurre -->
+<!-- 3 · Meet Oiva -->
 <section class="slide">
   <div class="row" style="gap:96px">
     <div class="grow">
-      <div style="display:flex; align-items:center; gap:28px; margin-bottom:40px">
-        <svg class="kurre" width="150" height="150"><use href="#kurre"/></svg>
+      <div style="display:flex; align-items:center; gap:28px; margin-bottom:36px">
+        <img class="oiva" src="img/oiva.png" width="140" height="140" alt="">
         <div>
-          <div class="mono kicker" style="margin:0 0 6px">Meet Kurre</div>
-          <h2 style="margin:0">The S-Pankki savings squirrel</h2>
+          <div class="mono kicker" style="margin:0 0 6px">AI · the three questions that matter</div>
+          <h2 style="margin:0">Real answers, real numbers</h2>
         </div>
       </div>
-      <div class="feats">
-        <div class="feat"><div class="ic">💬</div><b>Answers with your numbers</b><span>"What kind of spender am I?" in plain words, every figure computed by code.</span></div>
-        <div class="feat"><div class="ic">⏰</div><b>Warns before bills</b><span>Rent tomorrow? Here is what is safe to spend until payday.</span></div>
-        <div class="feat"><div class="ic">🧾</div><b>Knows your regular payments</b><span>Rent, bills and monthly investing, from your own data. Flags a bill that goes up.</span></div>
-        <div class="feat"><div class="ic">🎯</div><b>Saves &amp; invests</b><span>Goals, "pay yourself first" on payday, one tap and your PIN.</span></div>
+      <div class="qa">
+        <div class="card"><div class="qq">"What kind of spender am I?"</div><div class="aa">An experience spender: <b>31%</b> slips through his fingers, a bit above 228 S-Pankki customers aged 30-39 around Vantaa.</div></div>
+        <div class="card"><div class="qq">"What can I safely spend this week?"</div><div class="aa"><b>183.31&nbsp;€</b> this week, 235.68&nbsp;€ until payday, after bills, usual needs and a buffer.</div></div>
+        <div class="card"><div class="qq">"How could I save more?"</div><div class="aa">20% less on shopping = <b>1 224.50&nbsp;€ a year</b>. And 6 249.03&nbsp;€ has built up beyond this pay cycle: an emergency buffer.</div></div>
       </div>
+      <p class="muted" style="font-size:26px; margin:22px 0 0">Antti, 38: the demo customer, picked by rule near the median S-Pankki customer age (44).</p>
     </div>
-    <div>
-      <div class="phone"><img src="img/chat_spender.png" alt="Kurre answering: What kind of spender am I?"></div>
-    </div>
+    <div><div class="phone"><img src="img/chat_spender.png" alt="Oiva answering: What kind of spender am I?"></div></div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">3</div>
+  <div class="brand"><span class="s">S</span>Oiva · S-Pankki Chat</div><div class="pn">3</div>
 </section>
 
 <!-- 4 · Three baskets -->
 <section class="slide">
   <div class="mono kicker">Financial literacy · the three baskets</div>
-  <h2 style="margin-bottom:12px">Where Aino's money goes</h2>
-  <p class="muted" style="margin:0 0 44px">Demo customer CUST04831, 24 years old · monthly average, Jul to Sep 2026</p>
+  <h2 style="margin-bottom:12px">Where Antti's money goes</h2>
+  <p class="muted" style="margin:0 0 44px">Monthly average, Jul to Sep 2026 · S-Pankki challenge dataset</p>
   <div class="row" style="align-items:flex-start; gap:96px">
     <div class="grow">
       <div class="bk">
-        <div class="top"><span class="name">Mandatory &amp; regular</span><span class="val">1,178.18 € <small>· 55%</small></span></div>
-        <div class="bar"><i style="width:55%; background:var(--green)"></i></div>
-        <div class="sub">Rent 771.82 · groceries 178.26 · utilities · transport</div>
+        <div class="top"><span class="name">Mandatory &amp; regular</span><span class="val">2 178.44&nbsp;€ <small>· 61%</small></span></div>
+        <div class="bar"><i style="width:61%; background:var(--green)"></i></div>
+        <div class="sub">Housing 1 065.17 · groceries 775.99 · utilities 206.37 · transport 130.91</div>
       </div>
       <div class="bk">
-        <div class="top"><span class="name">Mandatory &amp; irregular</span><span class="val">151.07 € <small>· 7%</small></span></div>
-        <div class="bar"><i style="width:7%; background:var(--gold)"></i></div>
-        <div class="sub">Home &amp; tech, health · Kurre keeps a buffer for these</div>
+        <div class="top"><span class="name">Mandatory &amp; irregular</span><span class="val">282.23&nbsp;€ <small>· 8%</small></span></div>
+        <div class="bar"><i style="width:8%; background:var(--gold)"></i></div>
+        <div class="sub">Travel 198.09 · health 84.14 · Oiva keeps a buffer for these</div>
       </div>
       <div class="bk">
-        <div class="top"><span class="name" style="color:var(--orange)">Slips through your fingers</span><span class="val">809.91 € <small>· 38%</small></span></div>
-        <div class="bar"><i style="width:38%; background:var(--orange)"></i></div>
-        <div class="sub">Restaurants 485.90 · lifestyle 324.01</div>
+        <div class="top"><span class="name" style="color:var(--orange)">Slips through your fingers</span><span class="val">1 083.99&nbsp;€ <small>· 31%</small></span></div>
+        <div class="bar"><i style="width:31%; background:var(--orange)"></i></div>
+        <div class="sub">Shopping 510.21 · restaurants 432.39 · entertainment 141.39</div>
       </div>
     </div>
-    <div style="width:560px" class="take" >
+    <div style="width:560px" class="take">
       <div style="display:grid; gap:28px; width:100%">
-        <div class="card"><div class="n g">68.60 €</div><div class="l">safe to spend until payday, 7.62&nbsp;€ a&nbsp;day</div></div>
-        <div class="card"><div class="n">97.18 €</div><div class="l">a month back by cutting dining out 20%</div></div>
-        <div class="card"><div class="n" style="color:#b3261e">−970.85 €</div><div class="l">left over in 3 months, after investing 1,493.53&nbsp;€</div></div>
+        <div class="card"><div class="n g">235.68&nbsp;€</div><div class="l">safe to spend until payday, 26.19&nbsp;€ a&nbsp;day</div></div>
+        <div class="card"><div class="n">1 224.50&nbsp;€</div><div class="l">a year back with 20% less on shopping</div></div>
+        <div class="card"><div class="n g" style="font-size:44px">Learn in 2 minutes</div><div class="l">5 lessons and a basket game, on your own payments</div></div>
       </div>
     </div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">4</div>
+  <div class="brand"><span class="s">S</span>Oiva · S-Pankki Chat</div><div class="pn">4</div>
 </section>
 
-<!-- 5 · Proactive moments -->
+<!-- 5 · Proactive -->
 <section class="slide">
-  <div class="mono kicker">Proactive, not just reactive</div>
-  <h2>Kurre speaks first, at the right moment</h2>
+  <div class="mono kicker">Mobile · it speaks first, like a friend</div>
+  <h2>Oiva writes at the right moment</h2>
   <div class="moments">
-    <div class="mom">
-      <div class="mono tag">⏰ The day before rent</div>
-      <div class="wa">
-        <div class="bub">Hi Aino 👋 Your <b>rent of 771.82 €</b> is due <b>tomorrow</b> (Wed 07 Oct).<br><br>After rent and your usual bills you have <b>68.60 €</b> safe to spend until payday on Thu 15 Oct. That's about <b>7.62 € a day</b>.</div>
-        <div class="btns"><div>Pay rent now</div><div>How do I stretch it?</div></div>
-      </div>
-    </div>
-    <div class="mom">
-      <div class="mono tag">🧾 A bill that stands out</div>
-      <div class="wa">
-        <div class="bub">🧾 Heads-up: a <b>75.00 €</b> utility bill on Fri 28 Aug. One bill is usually 19.94 € to 60.09 €.<br><br>Your utilities come to 122.65 € a month, about 3 bills.</div>
-        <div class="btns"><div>My regular payments</div><div>OK, thanks</div></div>
-      </div>
-      <div class="why">Rent and bills: <b>894.47 € a month</b>, 10 733.64 € a year. No subscriptions in the data.</div>
-    </div>
     <div class="mom">
       <div class="mono tag">💰 Salary day</div>
       <div class="wa">
-        <div class="bub">💰 Aino, your salary of <b>2 313.39 €</b> just landed.<br><br>Pay yourself first: put <b>97.00 €</b> aside now, before it slips through your fingers?</div>
+        <div class="bub">Antti, your salary of <b>3 215.97 €</b> just landed.<br><br>Pay yourself first: put <b>86.00 €</b> aside now, before it slips through your fingers?</div>
         <div class="btns"><div>Set a savings goal</div><div>Invest instead</div></div>
       </div>
+    </div>
+    <div class="mom">
+      <div class="mono tag">🍽️ Unusual spend</div>
+      <div class="wa">
+        <div class="bub">Heads-up: <b>74.89 €</b> at Restaurant #63 on Sat 12 Sep. That's <b>1.7x</b> your usual restaurants payment (45.02 €).<br><br>Was that planned?</div>
+        <div class="btns"><div>Yes, all good</div><div>Tell me more</div></div>
+      </div>
+    </div>
+    <div class="mom">
+      <div class="mono tag">🧾 Before a payment</div>
+      <div class="wa">
+        <div class="bub">Your <b>monthly investing</b> of about 203.25 € goes out in 11 days (Sat 17 Oct).<br><br>Keep it, or pause it for now?</div>
+        <div class="btns"><div>Keep it</div><div>Pause investing</div></div>
+      </div>
+      <div class="why">Voice notes, bill photos, a reaction on your message, and it comes back the next day on what you left open.</div>
     </div>
   </div>
   <div class="brand"><span class="s">S</span>Real message text from the app, demo date Tue 6 Oct 2026</div><div class="pn">5</div>
 </section>
 
-<!-- 6 · Real data -->
+<!-- 6 · MyData: real banks -->
+<section class="slide" style="padding-top:80px">
+  <div class="row" style="gap:80px">
+    <div class="grow">
+      <div class="mono kicker">MyData · your other banks, for real</div>
+      <h2 style="margin-bottom:32px; font-size:64px">S-Pankki stays home. Oiva sees the rest.</h2>
+      <div class="steps">
+        <div class="step"><div class="k">1</div><b>"add bank"</b><span>on WhatsApp or the site</span></div>
+        <div class="step"><div class="k">2</div><b>Pick a bank</b><span>Revolut first, every Finnish bank</span></div>
+        <div class="step"><div class="k">3</div><b>Approve</b><span>in your own bank's app, read only, 90 days</span></div>
+        <div class="step"><div class="k">4</div><b>One picture</b><span>all banks, in chat and My money</span></div>
+      </div>
+      <div class="pillars">
+        <div class="pillar"><div class="ic">💱</div><div><b>Every currency, in euros</b><span>RON, USD and more at the day's ECB rate. Only you see it, logged in with a link from WhatsApp.</span></div></div>
+        <div class="pillar"><div class="ic">↔️</div><div><b>Spending is not transfers</b><span>Moves between your own accounts are left out; money sent to people is kept apart from card spending.</span></div></div>
+      </div>
+    </div>
+    <div style="width:412px"><div class="phone"><img src="img/login.png" alt="Log in: demo account or WhatsApp"></div><div class="cap">Live through <b>Enable Banking</b>,<br>a licensed PSD2 provider</div></div>
+  </div>
+  <div class="brand"><span class="s">S</span>Oiva · S-Pankki Chat</div><div class="pn">6</div>
+</section>
+
+<!-- 7 · Real data -->
 <section class="slide">
   <div class="mono kicker">Real data, not made up</div>
   <h2>Every number has a source</h2>
   <div class="tiles">
     <div class="tile">
       <div class="mono src">S-Pankki challenge dataset</div>
-      <div class="hero">535</div>
-      <div class="what">peers aged 20 to 29 to compare Aino with</div>
+      <div class="hero">228</div>
+      <div class="what">customers aged 30 to 39 around Vantaa, to compare Antti with</div>
       <div class="vs">
-        <div class="r"><span>Aino</span><i style="width:100%; background:var(--orange)"></i><b>485.90 €</b></div>
-        <div class="r"><span>Peers</span><i style="width:37%; background:var(--green)"></i><b>179.70 €</b></div>
+        <div class="r"><span>Antti</span><i style="width:100%; background:var(--orange)"></i><b>223.72 €</b></div>
+        <div class="r"><span>Peers</span><i style="width:46%; background:var(--green)"></i><b>101.80 €</b></div>
       </div>
-      <div class="foot">Restaurants per month, peer median</div>
+      <div class="foot">Entertainment a month, last 12 months, peer median</div>
     </div>
     <div class="tile">
       <div class="mono src">Statistics Finland 2022</div>
-      <div class="hero" style="color:var(--orange)">6.0×</div>
-      <div class="what">restaurants vs Finnish households aged 17 to 24</div>
+      <div class="hero" style="color:var(--orange)">3.9×</div>
+      <div class="what">restaurants vs the average Finnish household</div>
       <div class="vs">
-        <div class="r"><span>Aino</span><i style="width:100%; background:var(--orange)"></i><b>485.90 €</b></div>
-        <div class="r"><span>Finland</span><i style="width:17%; background:var(--green)"></i><b>81 €</b></div>
+        <div class="r"><span>Antti</span><i style="width:100%; background:var(--orange)"></i><b>432.39 €</b></div>
+        <div class="r"><span>Finland</span><i style="width:26%; background:var(--green)"></i><b>111 €</b></div>
       </div>
       <div class="foot">Household Budget Survey, 14q4</div>
     </div>
     <div class="tile">
       <div class="mono src">Real ETF prices</div>
-      <div class="hero" style="color:var(--green)">+10.1%</div>
-      <div class="what">Aino's real deposits, bought at real monthly prices</div>
+      <div class="hero" style="color:var(--green)">+10.0%</div>
+      <div class="what">Antti's real deposits, bought at real monthly prices</div>
       <div class="vs">
-        <div class="r"><span>Paid in</span><i style="width:91%; background:#c9d3ce"></i><b>11,627 €</b></div>
-        <div class="r"><span>Today</span><i style="width:100%; background:var(--green)"></i><b>12,799 €</b></div>
+        <div class="r"><span>Paid in</span><i style="width:91%; background:#c9d3ce"></i><b>4 881 €</b></div>
+        <div class="r"><span>Today</span><i style="width:100%; background:var(--green)"></i><b>5 369 €</b></div>
       </div>
-      <div class="foot">Balanced fund · all: +2.1% to +18.1%</div>
+      <div class="foot">Balanced fund · all: +2.1% to +17.8%</div>
     </div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">6</div>
+  <div class="brand"><span class="s">S</span>Oiva · S-Pankki Chat</div><div class="pn">7</div>
 </section>
 
-<!-- 7 · Trust -->
+<!-- 8 · Trust -->
 <section class="slide">
-  <div class="row" style="gap:96px">
-    <div class="grow">
-      <div class="mono kicker">Trust by design</div>
-      <div class="quote">Kurre <em>informs</em>.<br>It never advises.</div>
-      <div class="pillars">
-        <div class="pillar"><div class="ic">🧮</div><div><b>Numbers come from code</b><span>Claude calls 15 tools over a tested engine. No figure that is not in a tool result.</span></div></div>
-        <div class="pillar"><div class="ic">🔐</div><div><b>Your PIN for every money move</b><span>The AI only prepares. Double confirms and overdrafts are refused.</span></div></div>
-        <div class="pillar"><div class="ic">✅</div><div><b>Opt-in channel</b><span>You choose what Kurre sees, with a clear note that WhatsApp passes through Meta.</span></div></div>
-      </div>
-    </div>
-    <div><div class="phone"><img src="img/connect_consent.png" alt="Connect S-Pankki consent page"></div></div>
+  <div class="mono kicker">Trust by design</div>
+  <div class="quote">Oiva <em>informs</em>. It never advises.</div>
+  <div class="feats">
+    <div class="feat"><div class="ic">🧮</div><b>Numbers come from code</b><span>Claude calls 24 tools over a tested engine. A guard checks every figure in a reply against the tool results.</span></div>
+    <div class="feat"><div class="ic">🔐</div><b>Your PIN for every money move</b><span>The AI only prepares. Double confirms and overdrafts are refused.</span></div>
+    <div class="feat"><div class="ic">🏦</div><b>Your banks stay yours</b><span>Read only, your consent in your own bank, removed with one tap. Never shown to anyone else.</span></div>
+    <div class="feat"><div class="ic">✅</div><b>Opt-in channel</b><span>You choose what Oiva sees, with a clear note that WhatsApp passes through Meta.</span></div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">7</div>
+  <div class="brand"><span class="s">S</span>Oiva · S-Pankki Chat</div><div class="pn">8</div>
 </section>
 
-<!-- 8 · Product tour -->
+<!-- 9 · Product tour -->
 <section class="slide" style="padding-top:72px">
   <div class="mono kicker" style="text-align:center">Product tour · live at phone size</div>
   <div class="tour">
     <div><div class="phone sm"><img src="img/landing.png" alt="Landing page"></div><div class="cap"><b>Start</b> · WhatsApp or S-mobiili</div></div>
-    <div><div class="phone sm"><img src="img/dashboard.png" alt="My money dashboard"></div><div class="cap"><b>My money</b> · safe to spend, baskets</div></div>
+    <div><div class="phone sm"><img src="img/dashboard.png" alt="My money dashboard"></div><div class="cap"><b>My money</b> · safe to spend, all banks</div></div>
     <div><div class="phone sm"><img src="img/chat_spender.png" alt="Chat answering: What kind of spender am I?"></div><div class="cap"><b>Chat</b> · "What kind of spender am I?"</div></div>
   </div>
-  <div class="pn">8</div>
+  <div class="pn">9</div>
 </section>
 
-<!-- 9 · Architecture + S-mobiili fit -->
+<!-- 10 · Feasibility -->
 <section class="slide">
   <div class="mono kicker">Feasibility · S-mobiili fit</div>
   <h2>One API, two front doors</h2>
@@ -419,30 +383,30 @@
       <div class="line">
         <div class="node g">FastAPI<small>Cloudflare Containers</small></div>
         <div class="arrow" style="align-self:center">→</div>
-        <div class="node g">Claude tool use<small>Kurre persona, 15 tools</small></div>
+        <div class="node g">Claude tool use<small>Oiva, 24 tools</small></div>
         <div class="arrow" style="align-self:center">→</div>
-        <div class="node g">Engine<small>deterministic, 44 tests</small></div>
+        <div class="node g">Engine<small>deterministic, 662 tests</small></div>
       </div>
       <div class="line">
-        <div class="node">PIN confirm pages<small>pay · save · invest · pause investing</small></div>
-        <div class="node">My money dashboard<small>/app</small></div>
-        <div class="node">Proactive triggers<small>rent · salary · bills</small></div>
+        <div class="node">PIN confirm pages<small>pay · save · invest · pause</small></div>
+        <div class="node">Other banks<small>Enable Banking, PSD2, live</small></div>
+        <div class="node">Proactive triggers<small>salary · bills · unusual spend</small></div>
       </div>
     </div>
   </div>
   <div class="mono kicker" style="margin-top:56px; color:var(--orange)">Next</div>
   <div class="next" style="margin-top:0">
     <div class="chip"><b>PSD2 payment initiation</b>in place of the demo PIN pages</div>
-    <div class="chip"><b>Multi-bank view</b>Nordea, OP, Danske via PSD2</div>
+    <div class="chip"><b>S-Pankki's own APIs</b>live S-Pankki data in place of the dataset</div>
     <div class="chip"><b>Card data</b>the same detector finds card subscriptions</div>
   </div>
-  <div class="brand"><span class="s">S</span>Kurre · S-Pankki Chat</div><div class="pn">9</div>
+  <div class="brand"><span class="s">S</span>Oiva · S-Pankki Chat</div><div class="pn">10</div>
 </section>
 
-<!-- 10 · Simulated vs real -->
+<!-- 11 · Simulated vs real -->
 <section class="slide" style="justify-content:center">
   <div style="display:flex; align-items:center; gap:28px; margin-bottom:40px">
-    <svg class="kurre" width="130" height="130"><use href="#kurre"/></svg>
+    <img class="oiva" src="img/oiva.png" width="120" height="120" alt="">
     <div>
       <div class="mono kicker" style="margin:0 0 6px">Honest about the demo</div>
       <h2 style="margin:0">What is real, what is simulated</h2>
@@ -452,27 +416,27 @@
     <div class="card col" style="color:var(--green)">
       <h3 style="color:var(--ink)"><span class="dot" style="background:var(--green)"></span>Real</h3>
       <ul style="color:var(--ink)">
-        <li>S-Pankki transactions and 535 peers</li>
-        <li>Statistics Finland 2022 benchmarks</li>
-        <li>ETF prices (VWCE, XEON) for backtests</li>
+        <li>S-Pankki transactions and peer groups</li>
+        <li>Your other banks, live through Enable Banking</li>
+        <li>Statistics Finland 2022, ETF prices, ECB rates</li>
         <li>WhatsApp Cloud API, Claude, Cloudflare</li>
       </ul>
     </div>
     <div class="card col" style="color:var(--orange)">
       <h3 style="color:var(--ink)"><span class="dot" style="background:var(--orange)"></span>Simulated, and labelled</h3>
       <ul style="color:var(--ink)">
-        <li>PIN pages, a stand-in for PSD2</li>
-        <li>The linked "Demo Bank"</li>
+        <li>PIN pages, a stand-in for PSD2 payments</li>
+        <li>"Demo Bank" on the demo account only</li>
         <li>"Demo Fund" names</li>
         <li>Trading 212 on a Practice account</li>
       </ul>
     </div>
   </div>
   <div class="links">
-    <div class="link"><div class="mono">Try it live</div><div class="u">spankki-wa.bogdan-c-2206.workers.dev</div></div>
+    <div class="link"><div class="mono">Try it live · Log in → Use the demo account</div><div class="u">spankki-wa.bogdan-c-2206.workers.dev</div></div>
     <div class="link" style="background:#16201b; flex:.7"><div class="mono">Code</div><div class="u">github.com/bristiana/spankki-wa</div></div>
   </div>
-  <div class="pn">10</div>
+  <div class="pn">11</div>
 </section>
 
 </body>
