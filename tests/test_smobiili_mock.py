@@ -128,7 +128,7 @@ def test_pause_investing_flow(client):
     j = confirm(client, "stop", p["pending_id"]).json()
     assert j["title"] == "Investing paused" and "stays invested" in j["lines"][0]
     assert main.engine.balance() == before
-    assert main.engine.commitments()["regular_payments"] and "paused" in client.get("/app").text
+    assert main.engine.commitments()["regular_payments"] and main.engine.state["paused"]["investment_deposit"]
     assert confirm(client, "stop", p["pending_id"]).status_code == 409
 
 

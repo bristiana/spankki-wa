@@ -1,4 +1,4 @@
-"""The three baskets up front: S-mobiili home, the landing page, the chat chip and the WhatsApp welcome."""
+"""The three baskets up front: S-mobiili home, the chat chip and the WhatsApp welcome."""
 import json
 import re
 from datetime import date
@@ -63,16 +63,6 @@ def test_guide_points_at_the_baskets_card(client):
     steps = json.loads(re.search(r'id="guide-steps">(.*?)</script>', page, re.S).group(1))
     step = next(s for s in steps if s["target"] == "baskets")
     assert "3 baskets" in step["say"]
-
-
-def test_landing_shows_the_three_baskets_with_real_numbers(client):
-    page = client.get("/").text
-    sec = page[page.index('id="three-baskets"'):]
-    sec = sec[:sec.index("</section>")]
-    for b in baskets():
-        assert b["label"].replace("&", "&amp;") in sec and b["example"] in sec
-        assert main.money_nb(b["per_month_eur"]) in sec and f"{b['share_pct']}%" in sec
-    assert "The only basket you can change today" in sec
 
 
 def test_chat_has_no_suggestion_chips(client):

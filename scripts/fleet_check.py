@@ -52,7 +52,6 @@ CALLS = [
     ("home_readiness", lambda e: e.home_readiness()),
     ("salary_nudge", lambda e: e.salary_nudge()),
     ("alert_unusual", lambda e: e.alert("unusual")),
-    ("overview", lambda e: e.overview()),
     ("explore", lambda e: e.explore()),  # MyData explorer, when present
 ]
 

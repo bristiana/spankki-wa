@@ -189,7 +189,7 @@ def test_whatsapp_course_end_to_end(chat):
     chat.tap("learn:next:0")
     assert chat.interactive("button")[-1]["body"]["text"].startswith("*2/5 ·")
     chat.tap("quiz:money")
-    assert chat.url() == f"{BASE}/app"
+    assert chat.url() == f"{BASE}/s-mobiili/"
     chat.tap("learn:next:1").tap("learn:buffer")  # lesson 3: a buffer goal, then the PIN page
     assert "?ready=save:" in chat.url()
     chat.confirm()

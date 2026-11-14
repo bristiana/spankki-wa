@@ -8,7 +8,7 @@
     {% for l in lines %}<p class="muted">{{ l|nb }}</p>{% endfor %}
     {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}">Back to WhatsApp</a>
     {% else %}<a class="btn" href="/chat" data-back>Back to the chat</a>{% endif %}
-    {% if not request.query_params.get('web') %}<a class="btn ghost" href="/app" style="margin-top:8px">Open My money</a>{% endif %}
+    {% if not request.query_params.get('web') %}<a class="btn ghost" href="/s-mobiili/" style="margin-top:8px">Open S-mobiili</a>{% endif %}
   </div>
 </main>
 <script>if (window.parent !== window) window.parent.postMessage("done", "*");</script>

@@ -162,7 +162,7 @@ def summary(engine: Engine, r: dict) -> Turn:
         lines += ["", f"Slips through your fingers averaged {_money(per_month)} a month over the last 3 months. "
                       f"−{CUT_PCT}% on it would free about *{_money(per_year)} a year*."]
     return Turn("\n".join(lines), [("ask:everyday", "Where does it go?"), ("quiz:again", "Play again"),
-                                   ("quiz:money", "Open My money")], done=True)
+                                   ("quiz:money", "Open S-mobiili")], done=True)
 
 
 def _answer(engine: Engine, r: dict, guess: str) -> Turn:

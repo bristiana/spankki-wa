@@ -120,7 +120,7 @@ def test_summary_numbers_are_the_engines(e):
     month = round(sum(c["current_per_month_eur"] for c in cuts), 2)
     assert f"averaged {money(month)} a month" in t.text and f"*{money(year)} a year*" in t.text
     assert t.buttons == [("ask:everyday", "Where does it go?"), ("quiz:again", "Play again"),
-                         ("quiz:money", "Open My money")]
+                         ("quiz:money", "Open S-mobiili")]
     assert all(len(label) <= 20 for _, label in t.buttons)
     assert "?" not in t.text.split("\n")[0] and not any(w in t.text.lower() for w in SHAMING)
 
@@ -216,7 +216,7 @@ def test_web_chat_plays_the_whole_game(client):
         assert r["text"].startswith("Right.")
     assert "*5/5*" in r["text"] and "Your real split for September" in r["text"]
     assert [q["send"] for q in r["quick"]] == ["__btn__:ask:everyday", "__btn__:quiz:again", "__btn__:quiz:money"]
-    assert say("__btn__:quiz:money")["buttons"] == [{"label": "Open My money", "url": "/app?web=1"}]
+    assert say("__btn__:quiz:money")["buttons"] == [{"label": "Open S-mobiili", "url": "/s-mobiili/?web=1"}]
     say("__btn__:ask:everyday")
     assert main._coach.asked[-1] == main.ASK["ask:everyday"]
     assert say("__btn__:quiz:again")["quick"][0]["send"] == "__btn__:quiz:1:0:regular"

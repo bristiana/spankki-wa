@@ -128,8 +128,7 @@ def test_quick_reaction_and_redaction():
 def test_mydata_export(client):
     j = client.get("/app/export.json").json()
     assert j["transactions"] and j["balance_eur"] == main.engine.balance()
-    csv_text = client.get("/app/export.csv").text
-    assert csv_text.startswith("date,category,basket") and csv_text.count("\n") == len(j["transactions"]) + 1
+    assert client.get("/app/export.csv").status_code == 404
 
 
 def test_my_data_command(client):
