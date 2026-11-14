@@ -680,6 +680,33 @@ def login(request: Request, next: str = "/app"):
                                                               "expired": bool(t)})
 
 
+PRIVACY = [
+    ("What Birky sees", "Your S-Pankki demo data, and, only if you link it, your other bank through Enable Banking "
+     "(PSD2, read only): account balances and the last 90 days of transactions. Birky can't move money there."),
+    ("Who sees it", "Only you: linked banks are tied to your WhatsApp number and shown only after you log in with it. "
+     "To answer you, your messages and the numbers they need go to Anthropic (the AI) and, on WhatsApp, through Meta."),
+    ("How long", "Bank access lasts 90 days, then you confirm again. Remove a bank any time on the Add a bank page; "
+     "write STOP on WhatsApp to switch Birky off and delete the chat history."),
+]
+TERMS = [
+    ("What this is", "A hackathon prototype. Information and education about your own money, not financial advice, "
+     "not a loan offer."),
+    ("Other banks", "Read only, through Enable Banking. You approve access in your own bank and can withdraw it "
+     "there or here."),
+    ("No guarantees", "Numbers are estimates from your transactions. Check anything important with your bank."),
+]
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy(request: Request):
+    return templates.TemplateResponse(request, "legal.html", {"title": "Privacy", "sections": PRIVACY})
+
+
+@app.get("/terms", response_class=HTMLResponse)
+def terms(request: Request):
+    return templates.TemplateResponse(request, "legal.html", {"title": "Terms", "sections": TERMS})
+
+
 @app.get("/logout")
 def logout():
     r = RedirectResponse("/", status_code=303)
