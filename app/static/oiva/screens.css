@@ -22,7 +22,7 @@ circle.kc-arc.kc-c0{stroke:var(--c0);fill:none}circle.kc-arc.kc-c1{stroke:var(--
 circle.kc-arc.kc-c3{stroke:var(--c3);fill:none}circle.kc-arc.kc-c4{stroke:var(--c4);fill:none}circle.kc-arc.kc-c5{stroke:var(--c5);fill:none}
 
 /* shared bits of the Oiva screens */
-.sample-note{margin:0 4px 10px;font-size:12.5px;color:var(--warn);background:var(--warn-bg);border-radius:8px;padding:6px 10px}
+.sample-note{margin:0 2px 10px;font-size:12.5px;color:var(--muted)}
 .sc-h{margin:0 0 8px;font-size:17px;color:var(--head);letter-spacing:-.02em}
 .oiva-error p{margin:0 0 6px}
 a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand);font-weight:600;font-size:14px}
@@ -95,7 +95,8 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .call-demo{margin:0 0 6px;font-size:12.5px;font-weight:600;color:#004628;background:#91fa9b;border-radius:99px;padding:3px 12px;display:inline-block}
 .call-top{display:flex;align-items:baseline;gap:10px;font-size:14px}.call-top b{font-size:17px}
 .call-top #call-state{flex:1;color:#d2fcd5}.call-top #call-timer{font-variant-numeric:tabular-nums;color:#d2fcd5}
-.call-oiva{width:150px;height:150px;margin:2px auto 0}.call-oiva svg{width:100%;height:100%}
+.call-oiva{width:150px;height:150px;margin:2px auto 0}
+@media (max-height:900px){.call-oiva{width:112px;height:112px}}.call-oiva svg{width:100%;height:100%}
 .call-provider{margin:0 0 6px;font-size:12.5px;color:#d2fcd5}
 .call-captions{min-height:64px;font-size:15px;line-height:1.4}.call-captions p{margin:4px 0}
 .call-captions p.you{color:#d2fcd5}.call-captions b{font-weight:700}
@@ -117,3 +118,8 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 @media (prefers-color-scheme:dark){.call-panel{box-shadow:0 0 0 1px #2f7a52,0 -6px 30px rgba(0,0,0,.5)}}
 .bd-set{display:inline-block;margin-top:4px;font-size:13.5px;font-weight:700;color:var(--brand)}
 .phone:has(.bd-toast:not([hidden])) .talk-fab{display:none}
+
+/* on phones the floating button is Oiva's face only, so it covers less of the numbers */
+@media (max-width:420px){.talk-fab{padding:4px;min-width:56px;min-height:56px;justify-content:center}.talk-fab span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .talk-fab img{width:44px;height:44px}}
+.phone:has(#oiva-call:not([hidden])) #talk-oiva{visibility:hidden}

@@ -32,7 +32,7 @@
     let b = $("talk-oiva");
     if (!b) {
       b = document.createElement("button");
-      b.type = "button"; b.id = "talk-oiva"; b.className = "talk-fab";
+      b.type = "button"; b.id = "talk-oiva"; b.className = "talk-fab"; b.setAttribute("aria-label", "Talk to Oiva");
       b.innerHTML = '<img src="/static/oiva/idle.svg" alt="" width="36" height="36"><span>Talk to Oiva</span>';
       $("phone").appendChild(b);
     }
