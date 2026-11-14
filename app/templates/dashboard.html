@@ -26,7 +26,9 @@
   .cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
   .cta a{flex:1;min-width:150px}
   .src{font-size:12px;color:var(--muted);margin-top:8px}
-  .x{font-weight:700;color:#c0392b}
+  .x{font-weight:700;color:var(--neg)}
+  .row .l b{color:var(--ink)}
+  .row>span:last-child small{display:block;color:var(--muted);font-size:12px;text-align:right}
 </style>
 {% endblock %}
 {% block body %}
@@ -71,7 +73,7 @@
       <div class="k">Where your money goes · last 3 months</div>
       {% for b in o.baskets.baskets %}
       <div style="margin-top:10px">
-        <div class="row" style="border:0;padding:0"><span class="l"><b>{{ b.label }}</b><small>{{ b.explanation }}</small></span><span>{{ money(b.per_month_eur) }}/mo · {{ b.share_pct }}%</span></div>
+        <div class="row" style="border:0;padding:0"><span class="l"><b>{{ b.label }}</b><small>{{ b.explanation }}</small></span><span>{{ money(b.per_month_eur) }}<small>a month · {{ b.share_pct }}%</small></span></div>
         <div class="meter"><i class="b{{ loop.index }}" style="width:{{ b.share_pct }}%"></i></div>
       </div>
       {% endfor %}
@@ -86,7 +88,7 @@
         {% for w in flow_bars %}<rect x="{{ w.x }}" y="{{ w.yin }}" width="8" height="{{ w.hin }}" rx="2" style="fill:var(--brand)"/><rect x="{{ w.x + 9 }}" y="{{ w.yout }}" width="8" height="{{ w.hout }}" rx="2" fill="#e07a2e"/>{% endfor %}
         <line x1="0" y1="100" x2="300" y2="100" stroke="currentColor" opacity=".15"/>
       </svg>
-      <div class="src"><span style="color:#00663d">■</span> in &nbsp; <span style="color:#e07a2e">■</span> out</div>
+      <div class="src"><span style="color:var(--brand)" aria-hidden="true">■</span> in &nbsp; <span style="color:#e07a2e" aria-hidden="true">■</span> out</div>
     </div>
     <div class="card">
       <div class="k">Coming up</div>
@@ -98,7 +100,7 @@
 
     <div class="card">
       <div class="k">Subscriptions</div>
-      <div class="big" style="font-size:24px">{{ money(o.subs.active_per_month_eur) }}<span class="muted" style="font-size:15px"> / month · {{ money(o.subs.active_per_year_eur) }} a year</span></div>
+      <div class="big" style="font-size:24px">{{ money(o.subs.active_per_month_eur) }}<span class="muted" style="font-size:15px"> a month · {{ money(o.subs.active_per_year_eur) }} a year</span></div>
       {% for s in o.subs.subscriptions %}
       <div class="row"><span class="l">{{ s.name }}<small>{{ s.what }}{% if s.price_increase %} · was {{ money(s.price_increase.from_eur) }}{% endif %}</small></span>
         <span>{% if s.status == 'active' %}{% if s.price_increase %}<span class="pill warn">price up</span> {% endif %}{{ money(s.price_eur) }}{% elif s.status == 'inactive' %}<span class="pill off">inactive</span>{% else %}<span class="pill">stopped</span>{% endif %}</span></div>
@@ -145,7 +147,7 @@
   </div>
   <div class="card" style="margin-top:14px"><div class="k">Your data (MyData)</div><p class="muted" style="margin:0">Explore it your way, or take everything with you: every transaction, its basket and what Kurre calculated.</p>
     <div class="cta"><a class="btn" href="/app/explore">🔎 Explore my data</a></div>
-    <div class="cta"><a class="btn ghost" href="/app/export.csv">Download CSV</a><a class="btn ghost" href="/app/export.json">Download JSON</a></div></div>
+    <div class="cta"><a class="btn ghost" href="/app/export.csv" download>Download CSV</a><a class="btn ghost" href="/app/export.json" download>Download JSON</a></div></div>
   <div class="cta" style="margin:18px 0"><a class="btn" href="/chat">💬 Chat with Kurre</a>{% if wa %}<a class="btn ghost" href="https://wa.me/{{ wa }}?text=Hi">Open in WhatsApp</a>{% endif %}</div>
 </main>
 {% endblock %}

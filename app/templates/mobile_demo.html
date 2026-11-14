@@ -33,7 +33,7 @@
   .kcard .t{font-size:13px;color:var(--muted)}
   .kcard .v{font-size:22px;font-weight:700;letter-spacing:-.3px}
   .kcard .s{font-size:12.5px;color:var(--muted);line-height:1.35}
-  .kcard .pay{margin-top:auto;align-self:flex-start;border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 13px system-ui;padding:6px 14px;cursor:pointer}
+  .kcard .pay{margin-top:auto;align-self:flex-start;border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 14px system-ui;min-height:44px;padding:0 20px;cursor:pointer}
   .stack{display:flex;height:8px;border-radius:99px;overflow:hidden;margin:6px 0 4px;background:var(--line)}
   .legend{font-size:11.5px;color:var(--muted);line-height:1.4}
   .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
@@ -55,7 +55,7 @@
   .open .scrim{opacity:1;pointer-events:auto}.open .sheet{transform:none}
   .grab{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 6px 16px;background:var(--card);border-bottom:1px solid var(--line)}
   .grab b{display:flex;align-items:center;gap:8px;font-size:15px}.grab img{width:28px;height:28px}
-  .grab button{border:0;background:transparent;color:var(--ink);font-size:24px;width:40px;height:40px;cursor:pointer}
+  .grab button{border:0;background:transparent;color:var(--ink);font-size:24px;width:44px;height:44px;cursor:pointer}
   .sheet iframe{flex:1;border:0;width:100%;background:var(--bg)}
   @media (prefers-reduced-motion:reduce){.sheet,.scrim{transition:none}}
 
@@ -106,7 +106,8 @@
 </div>
 <script>
 const phone = document.getElementById("phone"), chat = document.getElementById("chat");
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))
+  .replace(/(\d) (?=\d{3}(?!\d))/g, "$1\u00a0").replace(/(\d) €/g, "$1\u00a0€");  // amounts never break
 
 function openSheet(link) {
   const url = (link || "/chat") + (link && link.includes("?") ? "&" : "?") + "embed=1";
@@ -117,6 +118,7 @@ function closeSheet() { phone.classList.remove("open"); }
 document.getElementById("ask").onclick = () => openSheet("");
 document.getElementById("close").onclick = closeSheet;
 document.getElementById("scrim").onclick = closeSheet;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
 
 function extra(w) {
   if (w.id === "baskets")
@@ -144,6 +146,6 @@ fetch("/api/widgets").then(r => r.json()).then(j => {
     c.onkeydown = e => { if (e.key === "Enter") openSheet(w.deep_link); };
     box.appendChild(c);
   }
-}).catch(() => { document.getElementById("cards").innerHTML = '<div class="kcard"><span class="t">Kurre is offline</span></div>'; });
+}).catch(() => { document.getElementById("cards").innerHTML = '<div class="kcard"><span class="t">Kurre\'s cards could not load</span><span class="s">Tap Ask below to chat instead.</span></div>'; });
 </script>
 {% endblock %}
