@@ -110,7 +110,7 @@ def test_chat_chrome_follows_the_language(client):
     fi = client.get("/chat").text
     assert "Kysy rahoistasi" in fi and ">Lähetä<" in fi and "Viestit · rahavalmentajasi" in fi
     en = client.get("/chat?lang=en").text
-    assert "Ask about your money" in en and ">Send<" in en and "Messages · your money coach" in en
+    assert "Ask about your money" in en and ">Send<" in en and "Messages · money coach" in en
     assert "Kysy rahoistasi" not in en and client.cookies.get("lang") == "en"
 
 
