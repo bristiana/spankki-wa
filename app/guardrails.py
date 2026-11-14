@@ -69,7 +69,7 @@ def secret_reply(kinds: list[str]) -> str:
     """The kind stop, in two bubbles: delete it, Birky never needs it; then the scam sign."""
     what = {"card number": "card number", "PIN": "PIN", "CVV": "security code", "code": "code",
             "password": "password"}[kinds[0]] if kinds else "that"
-    return (f"Please delete that message, I never need your {what} 🙏 I didn't keep it.\n---\n{SCAM_LINE}")
+    return (f"Please delete that message, I never need your {what}. I didn't keep it.\n---\n{SCAM_LINE}")
 
 
 def leftover_question(redacted: str) -> str | None:

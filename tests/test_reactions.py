@@ -184,9 +184,9 @@ def say(client, text, session="v"):
     return client.post("/api/chat", json={"session": session, "text": text}).json()
 
 
-def test_web_reply_has_bubbles_and_a_reaction(client):
-    r = say(client, "is my rent covered?")
-    assert r["bubbles"] == ["Rent is covered.", "Want the link?"] and r["reaction"] == "🏠"
+def test_web_reply_has_bubbles_and_no_reaction(client):
+    r = say(client, "is my rent covered?")  # the coach picked 🏠: a WhatsApp reaction, never shown on the web
+    assert r["bubbles"] == ["Rent is covered.", "Want the link?"] and "reaction" not in r
     assert r["text"] == "Rent is covered.\n\nWant the link?"
     assert main.engine.state["last_msg"]["web:v"] > time.time() - 60  # for the follow-up the next day
 
@@ -194,17 +194,17 @@ def test_web_reply_has_bubbles_and_a_reaction(client):
 def test_web_reaction_only(client):
     main._coach.text, main._coach.reaction = "[react]🙏", "🙏"
     r = say(client, "thanks")
-    assert r["bubbles"] == [] and r["reaction"] == "🙏"
+    assert r["bubbles"] == [] and "reaction" not in r
 
 
-def test_web_chat_page_shows_bubbles_and_the_reaction_badge(client):
+def test_web_chat_page_shows_bubbles_and_no_reaction_badge(client):
     page = client.get("/chat").text
-    assert "j.bubbles" in page and "j.reaction" in page and ".react{" in page
+    assert "j.bubbles" in page and "j.reaction" not in page and ".react{" not in page
 
 
 def test_web_secret_never_reaches_the_coach(client):
     r = say(client, "my pin is 4821")
-    assert r["reaction"] == "🔒" and r["bubbles"][0].startswith("Please delete that message")
+    assert "reaction" not in r and r["bubbles"][0].startswith("Please delete that message")
     assert main._coach.calls == []
     r = say(client, "card 4242 4242 4242 4242 why was I charged twice?")
     text, context = main._coach.calls[-1]
@@ -270,15 +270,59 @@ def test_web_open_thread_buttons_pick_things_up(client):
     say(client, "learn")
     say(client, "__btn__:learn:next:0")
     say(client, "stop")
-    assert "📚 *2/5" in say(client, "__btn__:learn:start")["text"]
+    assert "*2/5" in say(client, "__btn__:learn:start")["text"]
     say(client, "game")
     say(client, "stop")
     game = e.state["quiz"]["web:v"]["game"]
-    assert say(client, "__btn__:quiz:resume")["text"].startswith("🧺 Back to the game.")
+    assert say(client, "__btn__:quiz:resume")["text"].startswith("Back to the game.")
     assert quiz.active(e, "web:v") and e.state["quiz"]["web:v"]["game"] == game  # the same game, not a new one
     bill = next(b for b in e.upcoming_bills() if b["name"] == "Rent")
     p = e.create_payment(bill["bill_id"])
     r = say(client, f"__btn__:resume:{p['pending_id']}")
     assert r["buttons"][0]["url"] == f"/s-mobiili/?ready=pay:{p['pending_id']}&web=1" and "Face ID" in r["text"]
     e.confirm(p["pending_id"])
-    assert say(client, f"__btn__:resume:{p['pending_id']}")["text"] == "That one's already done ✅"
+    assert say(client, f"__btn__:resume:{p['pending_id']}")["text"] == "That one's already done."
+
+
+# ---------------- no emoji in the words: the reaction is the only one ----------------
+@pytest.mark.parametrize("raw, clean", [
+    ("Done ✅ Birky is switched off", "Done Birky is switched off"),
+    ("Hi Ana 👋 I'm *Birky* 🐿️, your coach", "Hi Ana I'm *Birky*, your coach"),
+    ("🧾 Heads-up: a bill", "Heads-up: a bill"),
+    ("Paid ✅", "Paid"),
+    ("👍", ""),
+    ("a 👩‍💻 b 👍🏽 c 🇫🇮 d 1️⃣", "a b c d 1"),
+    ("line one 🎉\n🎉 line two\n---\nthree", "line one\nline two\n---\nthree"),
+    ("(🌰 saved) 5 € → next › • ok", "(saved) 5 € → next › • ok"),
+    ("Säästäjä: 1 313.89 €, no emoji here", "Säästäjä: 1 313.89 €, no emoji here"),
+])
+def test_strip_emoji(raw, clean):
+    assert reactions.strip_emoji(raw) == clean
+
+
+def test_coach_words_carry_no_emoji_but_the_reaction_stays(e):
+    c = coach(e, "[react]🎉\n---\nYesss, congrats 🥳 That's huge!\n---\nWant a plan? 🌰")
+    r = c.ask("u", "GOT THE JOB")
+    assert r.text == "Yesss, congrats That's huge!\n---\nWant a plan?" and r.reaction == "🎉"
+
+
+def test_whatsapp_words_lose_their_emoji_and_the_reaction_goes_as_it_is(monkeypatch):
+    sent = []
+    monkeypatch.setattr(wa, "_send", lambda body: sent.append(body))
+    wa.send_text("1", "Paid ✅ rent 🏠")
+    wa.send_reaction("1", "wamid.1", "🏠")
+    wa.send_url_button("1", "Ready 🌰", "Open 📱", "https://example.com/x")
+    wa.send_text("1", "👍")  # nothing left to say: not sent
+    assert sent[0]["text"]["body"] == "Paid rent"
+    assert sent[1]["reaction"] == {"message_id": "wamid.1", "emoji": "🏠"}
+    assert sent[2]["interactive"]["body"]["text"] == "Ready"
+    assert sent[2]["interactive"]["action"]["parameters"] == {"display_text": "Open", "url": "https://example.com/x"}
+    assert len(sent) == 3
+
+
+def test_web_reply_words_have_no_emoji(client):
+    main._coach.text = "[react]🏠\n---\nRent is covered 🏠\n---\nWant the link? 🙂"
+    r = say(client, "is my rent covered?")
+    assert r["bubbles"] == ["Rent is covered", "Want the link?"] and "reaction" not in r
+    main.inbox["web:v"] = ["*Rent paid* ✅"]
+    assert client.get("/api/inbox?session=v").json() == {"messages": ["*Rent paid*"]}

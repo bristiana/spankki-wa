@@ -5,18 +5,18 @@
   <div class="card">
     <h1>Demo control</h1>
     <p class="muted">Sends a proactive WhatsApp message to {{ phone or "the demo phone (DEMO_PHONE not set)" }}. Write "Hi" to the bot first: WhatsApp only allows these within 24 hours of your last message.</p>
-    {% if open %}<div class="note" style="background:var(--soft);color:var(--brand)">✅ WhatsApp window open: the buttons below reach the phone.</div>
-    {% else %}<div class="note">⚠️ Write "Hi" to the bot from the phone first. WhatsApp only delivers these within 24 hours of your last message. Reload this page after.</div>{% endif %}
-    <p><button class="btn" data-u="/demo/remind">⏰ Rent reminder + pay</button></p>
-    <p><button class="btn" data-u="/demo/alert?kind=bills">🧾 Bill alert (a bill that went up, or the next one due)</button></p>
-    <p><button class="btn" data-u="/demo/alert?kind=salary">💰 Salary landed + save</button></p>
-    <p><button class="btn" data-u="/demo/alert?kind=unusual">👀 Unusual spend</button></p>
+    {% if open %}<div class="note" style="background:var(--soft);color:var(--brand)">WhatsApp window open: the buttons below reach the phone.</div>
+    {% else %}<div class="note">Write "Hi" to the bot from the phone first. WhatsApp only delivers these within 24 hours of your last message. Reload this page after.</div>{% endif %}
+    <p><button class="btn" data-u="/demo/remind">Rent reminder + pay</button></p>
+    <p><button class="btn" data-u="/demo/alert?kind=bills">Bill alert (a bill that went up, or the next one due)</button></p>
+    <p><button class="btn" data-u="/demo/alert?kind=salary">Salary landed + save</button></p>
+    <p><button class="btn" data-u="/demo/alert?kind=unusual">Unusual spend</button></p>
     {% set wake = "/cron/wake?force=1&key=" ~ (key|urlencode) ~ "&to=" ~ (phone|urlencode) %}
-    <p><button class="btn" data-u="{{ wake }}">🔔 Run proactive check now</button></p>
-    <p><button class="btn ghost" data-u="{{ wake }}&dry_run=1">🔍 Dry run: only show what would be sent</button></p>
+    <p><button class="btn" data-u="{{ wake }}">Run proactive check now</button></p>
+    <p><button class="btn ghost" data-u="{{ wake }}&dry_run=1">Dry run: only show what would be sent</button></p>
     <p class="muted" style="font-size:13px">Proactive check: picks the most urgent signal (7-day cooldown each). Outside the 24-hour window it sends a template and holds the full message until the next reply.
       {% if proactive %}DEMO_PROACTIVE=1: live, also on the cron (09/14/19 Helsinki).{% else %}DEMO_PROACTIVE is off: nothing is sent, the check is always a dry run.{% endif %}</p>
-    <p><button class="btn ghost" data-u="/demo/reset">↺ Reset demo (balance, goals, connection)</button></p>
+    <p><button class="btn ghost" data-u="/demo/reset">Reset demo (balance, goals, connection)</button></p>
     <pre id="out" class="muted" style="white-space:pre-wrap;font-size:13px"></pre>
   </div>
 </main>

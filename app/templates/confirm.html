@@ -8,7 +8,7 @@
     {% for k, v in rows %}<div class="row"><span>{{ k }}</span><span>{{ v|nb }}</span></div>{% endfor %}
     {% if note %}<div class="note">{{ note }}</div>{% endif %}
     {% if p.status == "done" %}
-      <div class="ok">✓</div><p class="muted" style="text-align:center">Already confirmed. Nothing more to do.</p>
+      <div class="ok" aria-hidden="true"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><p class="muted" style="text-align:center">Already confirmed. Nothing more to do.</p>
       {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}">Back to WhatsApp</a>{% else %}<a class="btn" href="/chat" data-back>Back to the chat</a>{% endif %}
     {% else %}
       <label for="pin" class="muted" style="display:block;text-align:center;margin-top:16px">Enter your 4-digit PIN to confirm</label>

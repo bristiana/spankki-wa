@@ -230,7 +230,7 @@ def check_line(checked: int, unmatched: int, rewritten: bool) -> str:
     if not checked:
         line = "No figures to check in this answer"
     elif unmatched:
-        line = f"⚠ {checked - unmatched} of {checked} figures matched the calculations"
+        line = f"Only {checked - unmatched} of {checked} figures matched the calculations"
     else:
-        line = f"✓ {checked} of {checked} figures checked against the calculations"
+        line = f"{checked} of {checked} figures checked against the calculations"
     return line + (" (a first draft was rewritten to fix a figure)" if rewritten else "")

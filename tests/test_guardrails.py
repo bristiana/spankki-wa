@@ -35,7 +35,7 @@ def test_no_false_secrets(text):
 
 def test_secret_reply_and_what_is_left_to_answer():
     reply = guardrails.secret_reply(["PIN"])
-    assert reply.split("\n---\n") == ["Please delete that message, I never need your PIN 🙏 I didn't keep it.",
+    assert reply.split("\n---\n") == ["Please delete that message, I never need your PIN. I didn't keep it.",
                                       guardrails.SCAM_LINE]
     assert "number on your card" in guardrails.SCAM_LINE and "verify your account" in guardrails.SCAM_LINE
     assert guardrails.leftover_question(guardrails.redact("my pin is 1234")) is None

@@ -3,7 +3,7 @@
 The challenge's teaching model: every euro lands in one of three baskets (engine.BASKETS). The game picks five of
 the person's recent payments, spread across the baskets, asks which basket each one is in, explains the answer with
 their own numbers, and ends with their real split for last month and what -20% on the third basket frees in a year.
-Voice: a right answer gets ✅, a wrong one a kind 🤔 and the same explanation, never a grade on the person.
+Voice: a right answer gets "Right.", a wrong one a kind "Easy to mix up" and the same explanation, never a grade on the person.
 "stop" pauses; any other question pauses too, the coach answers, and *game* picks it up again.
 State: engine.state["quiz"][user] = {"game", "round", "picks", "right", "paused", "note", "done"}.
 """
@@ -131,7 +131,7 @@ def start(engine: Engine, user: str) -> Turn:
                        "done": False}
     engine._save()
     t = _question(r)
-    t.lead = [f"🧺 *The basket game.* Every euro you spend lands in one of three baskets. I'll show you "
+    t.lead = [f"*The basket game.* Every euro you spend lands in one of three baskets. I'll show you "
               f"{len(picks)} of your own payments, you pick the basket.\n"
               "• Regular must-pay: rent, bills, groceries\n"
               "• Irregular must-pay: needed, but not on a schedule\n"
@@ -142,8 +142,8 @@ def start(engine: Engine, user: str) -> Turn:
 def _feedback(p: dict, guess: str) -> str:
     why = WHY[p["basket"]].format(kind=p["kind"], amt=_money(p["total_eur"]), period=p["period"])
     if guess == p["basket"]:
-        return f"✅ Right. {why}"
-    return f"🤔 Easy to mix up: this one is *{ANSWER[p['basket']]}*. {why}"
+        return f"Right. {why}"
+    return f"Easy to mix up: this one is *{ANSWER[p['basket']]}*. {why}"
 
 
 def summary(engine: Engine, r: dict) -> Turn:
@@ -151,9 +151,9 @@ def summary(engine: Engine, r: dict) -> Turn:
     b = engine.baskets("last_month")
     month = date.fromisoformat(b["from"]).strftime("%B")
     n, right = len(r["picks"]), r["right"]
-    head = ("All right, you know your baskets 🌰" if right == n else "Nicely done 🌰" if right * 2 > n
-            else "Now you know where to look 🌰")
-    lines = [f"🏁 *{right}/{n}*. {head}", "", f"Your real split for {month}:"]
+    head = ("All right, you know your baskets." if right == n else "Nicely done." if right * 2 > n
+            else "Now you know where to look.")
+    lines = [f"*{right}/{n}*. {head}", "", f"Your real split for {month}:"]
     lines += [f"• {x['label']}: {_money(x['total_eur'])} ({x['share_pct']}%)" for x in b["baskets"]]
     cuts = [engine.simulate_cut(c, CUT_PCT) for c in BASKETS["everyday"]["categories"]]
     per_month = round(sum(c["current_per_month_eur"] for c in cuts), 2)
@@ -192,13 +192,13 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
             r["paused"] = r["note"] = False
             engine._save()
             t = _question(r)
-            t.lead = ["🧺 Back to the game."]
+            t.lead = ["Back to the game."]
             return t
         return start(engine, user)
     if button_id.startswith("quiz:") and button_id.count(":") == 3:
         _, game, rnd, guess = button_id.split(":")
         if not r or r["done"] or int(game) != r["game"]:
-            return Turn("That game is over 🙂 Want another round?", [("quiz:again", "Play again")])
+            return Turn("That game is over. Want another round?", [("quiz:again", "Play again")])
         r["paused"] = r["note"] = False
         if int(rnd) != r["round"] or guess not in BASKETS:
             engine._save()
@@ -209,7 +209,7 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
     if EXIT.match(text):
         r["paused"] = True
         engine._save()
-        return Turn(f"👍 Paused at {r['round'] + 1}/{len(r['picks'])}. Write *game* when you want to pick it up.")
+        return Turn(f"Paused at {r['round'] + 1}/{len(r['picks'])}. Write *game* when you want to pick it up.")
     guess = next((b for b, rx in TYPED if rx.match(text)), None)
     if guess:
         return _answer(engine, r, guess)
@@ -233,4 +233,4 @@ def paused_note(engine: Engine, user: str) -> str | None:
         return None
     r["note"] = False
     engine._save()
-    return f"🧺 The basket game is paused at {r['round'] + 1}/{len(r['picks'])}. Write *game* to pick it up."
+    return f"The basket game is paused at {r['round'] + 1}/{len(r['picks'])}. Write *game* to pick it up."

@@ -94,7 +94,7 @@ def test_coach_trace_counts_the_checked_figures(engine):
     r = coach.ask("u", "What is safe for me to spend this week?")
     tool, check = r.trace
     assert tool["tool"] == "get_safe_to_spend" and tool["args"] == {}
-    assert check == {"check": "✓ 4 of 4 figures checked against the calculations", "checked": 4, "matched": 4,
+    assert check == {"check": "4 of 4 figures checked against the calculations", "checked": 4, "matched": 4,
                      "rewritten": False}  # "9 days" needs no source
 
 
@@ -102,7 +102,7 @@ def test_coach_trace_notes_a_rewrite(engine):
     client = TraceClient("get_safe_to_spend", {}, safe_answer, draft="You have 99.99 € safe.")
     r = Coach(engine, client=client).ask("u", "what is safe?")
     assert client.calls == 3 and len(r.trace) == 2  # the same tool call is listed once
-    assert r.trace[-1]["rewritten"] and "rewritten" in r.trace[-1]["check"] and r.trace[-1]["check"].startswith("✓")
+    assert r.trace[-1]["rewritten"] and "rewritten" in r.trace[-1]["check"] and "figures checked against" in r.trace[-1]["check"]
 
 
 def test_no_tools_no_trace(engine):
@@ -154,4 +154,4 @@ def test_panel_escapes_what_the_customer_typed(client):
     assert html.startswith('<details class="how"><summary>') and "<details class=\"how\" open" not in html
     assert "<script" not in html and "<img" not in html and 'onerror="' not in html
     assert "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&lt;script&gt;" in html
-    assert "120.00 €" in html and "✓ 1 of 1 figures checked" in html
+    assert "120.00 €" in html and "1 of 1 figures checked" in html

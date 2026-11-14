@@ -140,7 +140,7 @@ def test_first_contact_gets_the_connect_button(chat):
 
 def test_connect_sends_welcome_and_first_question(chat):
     chat.connect()
-    assert [t for t in chat.texts() if t.startswith("Connected ✅")]
+    assert [t for t in chat.texts() if t.startswith("Connected. ")]
     assert chat.url() == f"{BASE}/app"
     assert [i for i, _ in chat.buttons()] == ["ob:goal:trip", "ob:goal:buffer", "ob:goal:home"]
 
@@ -152,7 +152,7 @@ def test_onboarding_all_buttons_then_save(chat):
     chat.tap(bid)
     assert "?ready=save:" in chat.url()
     chat.confirm()
-    assert any(t.startswith("✅ *Saved") for t in chat.texts())
+    assert any(t.startswith("*Saved") for t in chat.texts())
 
 
 def test_onboarding_typed_answers(chat):
@@ -432,7 +432,7 @@ def test_fresh_start_clears_the_chat(chat):
 def test_hello_at_the_goal_question_is_not_a_goal(chat):
     chat.connect().say("hello")
     body = chat.interactive("button")[-1]["body"]["text"]
-    assert "Saving for" not in body and body.startswith("Hey 👋") and body.endswith("What would you like to put money aside for?")
+    assert "Saving for" not in body and body.startswith("Hey, good to see you.") and body.endswith("What would you like to put money aside for?")
     assert [i for i, _ in chat.buttons()] == ["ob:goal:trip", "ob:goal:buffer", "ob:goal:home"]
     chat.say("a trip to Rome")
     assert chat.interactive("button")[-1]["body"]["text"].startswith("Saving for a trip to Rome.")
@@ -448,10 +448,10 @@ def test_open_thread_comes_back_the_next_day_with_one_button(chat, monkeypatch):
     main.engine.state["wa_last"][chat.phone] = main.last_seen[chat.phone] = ago
     r = chat.client.post("/cron/wake", params={"key": "vt"}).json()["results"][0]
     assert r["signal"] == "OPEN_THREAD" and r["via"] == "text" and r["dedup_key"] == "thread:learn:1:1"
-    assert "Lesson 2/5" in r["text"] and "1 of 5 done 🌰" in r["text"]
+    assert "Lesson 2/5" in r["text"] and "1 of 5 done" in r["text"]
     assert chat.buttons() == [("learn:start", "Continue lesson")]
     chat.tap("learn:start", "Continue lesson")
-    assert "📚 *2/5" in chat.interactive("button")[-1]["body"]["text"]
+    assert "*2/5" in chat.interactive("button")[-1]["body"]["text"]
     main.engine.state["wa_last"][chat.phone] = main.last_seen[chat.phone] = ago  # quiet again, same lesson
     main.engine.state["sent"][chat.phone] = {k: "2026-09-01" for k in main.engine.state["sent"][chat.phone]}
     again = chat.client.post("/cron/wake", params={"key": "vt"}).json()["results"][0]
@@ -474,7 +474,7 @@ def test_stop_switches_off_and_hi_reconnects(chat):
     connected(chat).say("game").say("stop")
     assert "Paused" in chat.texts()[-1]
     chat.say("STOP")
-    assert chat.texts()[-1].startswith("Done ✅")
+    assert chat.texts()[-1].startswith("Done. Birky is switched off")
     chat.say("Hi")
     assert "/connect?u=" in chat.url()
 
@@ -525,7 +525,7 @@ def test_bill_pdf_that_is_not_a_bill_and_one_that_cannot_be_opened(chat, monkeyp
 def test_voice_note_is_answered_like_text(chat, monkeypatch):
     monkeypatch.setattr(voice, "to_text", lambda media_id: "How much can I spend until payday?")
     connected(chat).media("audio")
-    assert chat.texts()[0] == "🎙️ _How much can I spend until payday?_"
+    assert chat.texts()[0] == "Heard: _How much can I spend until payday?_"
     assert main._coach.asked == ["How much can I spend until payday?"]
     assert "68.60" in chat.texts()[-1]
 
@@ -533,7 +533,7 @@ def test_voice_note_is_answered_like_text(chat, monkeypatch):
 def test_voice_note_stop_works_by_voice(chat, monkeypatch):
     monkeypatch.setattr(voice, "to_text", lambda media_id: "Stop.")
     connected(chat).media("audio")
-    assert chat.texts()[-1].startswith("Done ✅")
+    assert chat.texts()[-1].startswith("Done. Birky is switched off")
 
 
 def test_voice_note_that_cannot_be_heard(chat, monkeypatch):
@@ -578,7 +578,7 @@ def test_demo_phone_start_over_runs_onboarding(chat, monkeypatch, words):
     monkeypatch.setenv("DEMO_PHONE", chat.phone)
     chat.say(words)
     assert main._coach.asked == []
-    assert any(t.startswith("Connected ✅") for t in chat.texts())
+    assert any(t.startswith("Connected. ") for t in chat.texts())
     assert [i for i, _ in chat.buttons()] == ["ob:goal:trip", "ob:goal:buffer", "ob:goal:home"]
     chat.tap("ob:goal:trip").say("800 € by March")
     assert chat.buttons()[0][0] == "ob:risk:prudent"

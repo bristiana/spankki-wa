@@ -6,14 +6,14 @@
     {% if me %}
     <h1>Logged in</h1>
     <p class="muted">With WhatsApp {{ me }}.</p>
-    <a class="btn" href="/bank">🏦 Add a bank</a>
+    <a class="btn" href="/bank">Add a bank</a>
     <a class="btn ghost" href="/app" style="margin-top:8px">Open My money</a>
     <a class="btn ghost" href="/logout" style="margin-top:8px">Log out</a>
     {% else %}
     <h1>Log in with WhatsApp</h1>
     {% if expired %}<p class="err">That login link has expired. Ask Birky for a new one.</p>{% endif %}
     <p class="muted">No password. Send "login" to Birky on WhatsApp and tap the link it sends back. Then you can bring your other banks here (Revolut, OP, Nordea...).</p>
-    {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}?text=login">💬 Log in with WhatsApp</a>
+    {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}?text=login">Log in with WhatsApp</a>
     {% else %}<p class="muted">WhatsApp isn't set up on this server.</p>{% endif %}
     {% endif %}
   </div>

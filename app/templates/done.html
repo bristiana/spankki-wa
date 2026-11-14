@@ -3,7 +3,7 @@
 {% block body %}
 <main>
   <div class="card" style="text-align:center" role="status">
-    <div class="ok" aria-hidden="true">{{ "!" if failed else "✓" }}</div>
+    <div class="ok" aria-hidden="true">{% if failed %}!{% else %}<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>{% endif %}</div>
     <h1>{{ title }}</h1>
     {% for l in lines %}<p class="muted">{{ l|nb }}</p>{% endfor %}
     {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}">Back to WhatsApp</a>

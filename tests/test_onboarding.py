@@ -215,13 +215,13 @@ def test_small_talk_at_later_questions_reasks_warmly(e, hello):
     ob.start(e, "u")
     ob.turn(e, "u", "", "ob:goal:trip")
     t = ob.turn(e, "u", hello)
-    assert t.text.startswith("Hey 👋") and t.text.endswith(ob.ASK["amount"][1])
+    assert t.text.startswith("Hey, good to see you.") and t.text.endswith(ob.ASK["amount"][1])
     assert e.state["onboarding"]["u"]["step"] == "amount"
 
 
 def test_small_talk_words():
-    assert ob.small_talk("how are you") == "All good here, thanks for asking 🐿️"
-    assert ob.small_talk("hello") == "Hey 👋 Good to see you."
+    assert ob.small_talk("how are you") == "All good here, thanks for asking!"
+    assert ob.small_talk("hello") == "Hey, good to see you."
     for real in ("a trip to Rome", "Hello Kitty plush collection", "?", "what does prudent mean", "1500 by june", ""):
         assert ob.small_talk(real) is None, real
 
