@@ -133,6 +133,7 @@ def connected(chat):
 
 # ---------------- connect, welcome, onboarding ----------------
 def test_first_contact_gets_the_connect_button(chat):
+    main.engine.state.setdefault("switched_off", {})[chat.phone] = "2026-10-06"  # a new number goes into the demo
     chat.say("Hi")
     assert chat.url() == f"{BASE}/connect?u={chat.phone}"
     assert chat.interactive("cta_url")[-1]["action"]["parameters"]["display_text"] == "Connect S-Pankki"
@@ -585,6 +586,7 @@ def test_demo_phone_start_over_runs_onboarding(chat, monkeypatch, words):
 
 
 def test_start_over_when_not_connected_asks_to_connect(chat):
+    main.engine.state.setdefault("switched_off", {})[chat.phone] = "2026-10-06"  # new numbers go into the demo
     chat.say("start over")
     assert "/connect?u=" in chat.url() and not chat.interactive("button")
 

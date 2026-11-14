@@ -52,6 +52,7 @@ def test_bad_signature_rejected(client):
 
 
 def test_unconnected_user_gets_connect_button(client):
+    main.engine.state.setdefault("switched_off", {})["40700000000"] = "2026-10-06"  # new numbers go into the demo
     assert post_signed(client, wa_payload()).status_code == 200
     cta = [b for b in client.sent if b.get("type") == "interactive"]
     assert cta and cta[0]["interactive"]["action"]["parameters"]["url"].endswith("/connect?u=40700000000")

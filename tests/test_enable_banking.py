@@ -157,3 +157,27 @@ def test_private_key_from_parts(monkeypatch):
     monkeypatch.setenv("EB_KEY_1", "B" * 10)
     key = eb._private_key()
     assert key.startswith("-----BEGIN PRIVATE KEY-----\n") and "A" * 64 + "\n" in key and "A" * 40 + "B" * 10 + "\n-----END" in key
+
+
+def test_new_whatsapp_number_can_add_a_bank_before_connecting(monkeypatch):
+    sent = []
+    monkeypatch.setenv("EB_APP_ID", "app")
+    monkeypatch.setenv("EB_PRIVATE_KEY", "key")
+    monkeypatch.setattr(main.wa, "mark_read_typing", lambda *a: None)
+    monkeypatch.setattr(main.wa, "send_url_button", lambda to, text, label, url: sent.append((label, url)))
+    monkeypatch.setattr(main.wa, "send_text", lambda *a: sent.append(("text", a[1])))
+    for text, label in [("I want to connect my bank", "Add a bank"), ("login", "Log in")]:
+        sent.clear()
+        main.handle_message({"from": "40700000001", "name": "Test", "id": "m1", "text": text})
+        assert sent and sent[0][0] == label, (text, sent)
+
+
+def test_new_number_lands_in_the_demo(monkeypatch):
+    calls = []
+    monkeypatch.setattr(main.wa, "mark_read_typing", lambda *a: None)
+    monkeypatch.setattr(main, "welcome", lambda to: calls.append(("welcome", to)))
+    main.engine.state.get("connected", {}).pop("40700000002", None)
+    main.engine.state.get("switched_off", {}).pop("40700000002", None)
+    main.handle_message({"from": "40700000002", "name": "Jury", "id": "m2", "text": "Hi"})
+    assert calls == [("welcome", "40700000002")] and main.connected("40700000002")
+    main.engine.state["connected"].pop("40700000002", None)
