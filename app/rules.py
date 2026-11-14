@@ -143,7 +143,7 @@ def _thread(key: str, data: dict, rank: int) -> dict:
 
 def open_threads(e: Engine, who: str, now: float | None = None, force: bool = False) -> list[dict]:
     """What `who` started and left unfinished, for the "comes back a day later" message: the Learn course, the
-    interview, the basket game, a PIN link not confirmed, a goal with nothing in it, a "maybe later". Only after
+    basket game, a PIN link not confirmed, a goal with nothing in it, a "maybe later". Only after
     THREAD_QUIET_H hours of quiet and inside the 24-hour window (force, from the demo panel, skips the wait).
     At most one per kind, the most useful first (rank). Read only."""
     from .learn import COUNT, TITLES
@@ -156,9 +156,7 @@ def open_threads(e: Engine, who: str, now: float | None = None, force: bool = Fa
         out.append(_thread(f"learn:{lr.get('run', 1)}:{lr['lesson']}", {
             "thread": "learn", "lesson": lr["lesson"] + 1, "of": COUNT, "title": TITLES[lr["lesson"]],
             "done": lr["lesson"]}, 6))
-    ob = e.state.get("onboarding", {}).get(who)
-    if ob and ob["step"] != "done":
-        out.append(_thread(f"onboarding:{ob['step']}", {"thread": "onboarding", "step": ob["step"]}, 5))
+    # a paused goal interview never comes back by itself: they moved on, Oiva follows their lead ("continue" resumes)
     q = e.state.get("quiz", {}).get(who)
     if q and not q["done"]:
         out.append(_thread(f"quiz:{q['game']}:{q['round']}", {"thread": "quiz", "round": q["round"] + 1,
@@ -213,6 +211,8 @@ def pick(e: Engine, who: str, force: bool = False, now: float | None = None) -> 
     sent = e.state.get("sent", {}).get(who, {})
     if not force and e.today.isoformat() in sent.values():
         return None
-    no_checkin = (e.state.get("onboarding", {}).get(who) or {}).get("answers", {}).get("weekly_checkin") is False
+    # the weekly check-in is opt-in: only for someone who asked for it ("remind me weekly"), or forced (demo panel)
+    said = (e.state.get("onboarding", {}).get(who) or {}).get("answers", {}).get("weekly_checkin")
+    wants_checkin = said is True or (force and said is not False)
     return next((s for s in signals(e, who, now, force) if cooled(sent, s["dedup_key"], e.today)
-                 and not (no_checkin and s["type"] == "WEEKLY_CHECK_IN")), None)
+                 and (wants_checkin or s["type"] != "WEEKLY_CHECK_IN")), None)

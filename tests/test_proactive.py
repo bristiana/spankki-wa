@@ -52,7 +52,10 @@ def test_monthly_investing_the_day_before(tmp_path):
 def test_cooldown_and_one_a_day(tmp_path):
     e = engine(tmp_path)
     e.state["sent"] = {PHONE: {"due:housing_payment-2026-10-07": "2026-10-05"}}
-    assert rules.pick(e, PHONE)["dedup_key"] == "checkin"  # rent cooling down; no subscription renewals any more
+    assert rules.pick(e, PHONE) is None  # rent cooling down, and the weekly check-in is opt-in
+    e.state.setdefault("onboarding", {})[PHONE] = {"step": "done", "paused": False, "skipped": [],
+                                                   "answers": {"weekly_checkin": True}}  # "remind me weekly"
+    assert rules.pick(e, PHONE)["dedup_key"] == "checkin"
     e.state["sent"][PHONE]["salary:2026-10"] = "2026-10-06"
     assert rules.pick(e, PHONE) is None  # already had one today
     assert rules.pick(e, PHONE, force=True)["type"] == "WEEKLY_CHECK_IN"

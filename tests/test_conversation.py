@@ -198,19 +198,19 @@ def client(tmp_path, monkeypatch):
     return c
 
 
-def test_side_question_mid_interview_gets_the_waiting_question_as_context(client):
+def test_question_about_the_waiting_question_gets_it_as_context_and_no_resend(client):
     say = lambda text: client.post("/api/chat", json={"session": "cx", "text": text}).json()
     say("__start__")
-    say("__btn__:ob:goal:trip")
-    say("1500 by june")
+    say("set my risk profile")
     r = say("what does prudent mean")
     text, context = main._coach.calls[-1]
     assert text == "what does prudent mean"
-    assert ob.ASK["risk"][1] in context and "end without a question" in context
-    assert r["text"].endswith(ob.ASK["risk"][1])  # the interview question comes back after the answer
+    assert "Which is closest to you?" in context and "don't ask that question again" in context
+    assert r["text"] == "Prudent means your money barely moves." and r["quick"] == []  # nothing re-sent
     said = [s for s, _ in main._coach.remembered]
-    assert said == ["[connected S-Pankki]", "[tapped ob:goal:trip]", "1500 by june"]
+    assert said == ["[connected S-Pankki]", "set my risk profile"]
     assert "Prudent" in main._coach.remembered[-1][1]  # the risk question the person saw
+    assert say("balanced")["text"].startswith(ob.RISK_LINE["balanced"])
 
 
 def test_question_mid_game_gets_the_paused_question_as_context(client):
@@ -242,8 +242,8 @@ def _risk_question_count(client, since=0):
     return sum(any(k in json.dumps(b, ensure_ascii=False) for k in keys) for b in client.sent[since:])
 
 
-def test_whatsapp_two_side_questions_send_the_interview_question_at_most_once(client, monkeypatch):
-    """The demo bug: after 'start over', every unrelated question got the risk question (and its buttons) again."""
+def test_whatsapp_start_over_and_side_questions_never_push_the_interview(client, monkeypatch):
+    """The demo bug: after 'start over', every unrelated question got the Prudent/Balanced/Growth question again."""
     import hashlib
     import hmac
     monkeypatch.setenv("WA_APP_SECRET", "secret")
@@ -260,31 +260,29 @@ def test_whatsapp_two_side_questions_send_the_interview_question_at_most_once(cl
         r = client.post("/webhook", content=raw, headers={"x-hub-signature-256": sig, "content-type": "application/json"})
         assert r.status_code == 200
 
-    ob.start(main.engine, to)
-    msg("college fund", "a1")
-    msg("", "a2", "ob:skip")
-    assert main.engine.state["onboarding"][to]["step"] == "risk"
+    msg("start over", "a0")
+    assert client.sent[-1]["text"]["body"] == ob.HELLO  # a hello, no interview
+    assert not ob.active(main.engine, to) and not any(b.get("type") == "interactive" for b in client.sent)
+    msg("set my risk profile", "a1")  # asked for: the question once, with its buttons
     since, calls = len(client.sent), len(main._coach.calls)
     msg("How can I spend less?", "a3")
     msg("Do people my age save more?", "a4")
     msg("Can you explain how savings works?", "a5")
-    assert _risk_question_count(client, since) <= 1
-    assert sum("ob:risk:prudent" in json.dumps(b) for b in client.sent[since:]) <= 1  # buttons not re-sent
-    assert len(main._coach.calls) - calls == 3  # every side question still got its answer
+    assert _risk_question_count(client, since) == 0  # never re-sent
+    assert not any("ob:risk:prudent" in json.dumps(b) for b in client.sent[since:])  # buttons not re-sent
+    assert len(main._coach.calls) - calls == 3  # every question got its answer
     assert not ob.active(main.engine, to)
-    # the later side questions are not told the risk question comes back
-    assert all(ob.ASK["risk"][1] not in (ctx or "") for _, ctx in main._coach.calls[calls + 1:])
-    msg("continue", "a6")
-    assert ob.active(main.engine, to) and _risk_question_count(client, since) == 2
+    assert all(ob.ASK["risk"][1] not in (ctx or "") for _, ctx in main._coach.calls[calls:])
+    msg("continue", "a6")  # on request, it picks up
+    assert ob.active(main.engine, to) and _risk_question_count(client, since) == 1
 
 
-def test_web_chat_two_side_questions_send_the_interview_question_at_most_once(client):
+def test_web_chat_side_questions_never_resend_the_question(client):
     say = lambda text: client.post("/api/chat", json={"session": "cy", "text": text}).json()
     say("__start__")
-    say("college fund")
-    say("__btn__:ob:skip")
+    say("set my risk profile")
     replies = [say(q) for q in ("How can I spend less?", "Do people my age save more?",
                                 "Can you explain how savings works?")]
-    assert sum(ob.ASK["risk"][1] in r["text"] for r in replies) == 1
-    assert sum(bool(r.get("quick")) for r in replies) <= 1
+    assert not any(ob.ASK["risk"][1] in r["text"] or ob.ASK["risk"][0] in r["text"] for r in replies)
+    assert not any(r.get("quick") for r in replies)
     assert say("continue")["text"] == ob.ASK["risk"][1]
