@@ -12,7 +12,7 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 
 | Moment | What the customer sees |
 |---|---|
-| Opt-in | "Connect S-Pankki": choose what Kurre may see, with a clear note that WhatsApp messages pass through Meta. Then Kurre gives a three-basket overview and asks what you're saving for |
+| Opt-in | "Connect S-Pankki": choose what Kurre may see, with a clear note that WhatsApp messages pass through Meta. Then Kurre gives a three-basket overview and a short interview, one question per message with reply buttons: what you're saving for, how much and by when, how you feel about risk (only used to label investment info), weekly check-in yes/no. It ends with the goal plan from the engine. Skip any question, say "later" to pause, ask a money question in between and it resumes (`app/onboarding.py`, no AI) |
 | Rent reminder | "Your rent of 771.82 € is due tomorrow. After rent and your usual bills you have 68.60 € safe to spend until payday, about 7.62 € a day." [Pay rent now] [Remind me later] [How do I stretch it?] |
 | One-tap pay | Button → S-Pankki confirm page → 4-digit PIN → "✅ Rent paid, balance now …" back in the chat |
 | Ask anything | "How much did I spend on taxis last month?" · "What kind of spender am I?" (vs 535 S-Pankki peers aged 20-29 **and** Statistics Finland households aged 17-24) · "What is safe to spend this week?" |
@@ -57,7 +57,7 @@ Trading 212 Practice API <─────────┘      (one-off investmen
 ```
 
 - `app/engine.py`: three baskets, recurring payments (rent day 7 and salary day 15 found from history), safe to spend, subscriptions, goals, what-if, real-price backtests, benchmarks.
-- `app/agent.py` + `app/tools.py`: Kurre's persona and 15 tools; Claude Opus 5.5 at low effort for fast chat replies.
+- `app/agent.py` + `app/tools.py`: Kurre's persona and 16 tools, incl. `get_money_guide` over `content/finland-money-guide.md` (checked facts with official sources: Kela, vero.fi, ASP, deposit guarantee, KKV); Claude Opus 5.5 at low effort for fast chat replies.
 - `app/main.py`: WhatsApp webhook (signature checked), web chat API, confirm pages, dashboard, demo triggers.
 - `worker/index.ts` + `Dockerfile`: the same Python app as a Cloudflare Container behind a Worker.
 
@@ -72,7 +72,7 @@ uvicorn app.main:app --port 8000
 - Landing http://127.0.0.1:8000 · chat `/chat` · dashboard `/app`
 - From the terminal: `python -m app.agent "What is safe for me to spend this week?"`
 - End to end, every flow in a phone-sized browser: `python scripts/demo_walkthrough.py --url http://127.0.0.1:8000`
-- Tests: `python -m pytest` (44)
+- Tests: `python -m pytest` (55)
 - Refresh real data: `python scripts/fetch_market.py`, `python scripts/fetch_statfin.py`; rebuild the persona with `python scripts/extract_persona.py --data-dir <dataset>`
 - WhatsApp: set `<url>/webhook` and `WA_VERIFY_TOKEN` in the Meta app, subscribe to `messages`. Proactive messages: `POST /demo/remind`, `POST /demo/alert?kind=salary|unusual|renewal`
 - Deploy: `wrangler deploy` (bump `INSTANCE` in `wrangler.jsonc` for a fresh container)
