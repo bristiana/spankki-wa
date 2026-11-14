@@ -192,6 +192,9 @@ def money_nb(x: float) -> str:
 
 
 templates.env.filters["nb"] = nb
+# The squirrel shown inside S-mobiili (the /mobile-demo concept and the chat embedded there). The name is not final
+# (Oiva Orava, Pähkinä or Eino): change it here. Avatars: app/static/oiva/<mood>.svg, from design/mascot/avatar/red.
+templates.env.globals["sm_coach"] = "Oiva"
 
 
 def connected(phone: str) -> bool:
