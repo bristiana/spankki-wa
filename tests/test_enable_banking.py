@@ -203,3 +203,12 @@ def test_dashboard_shows_real_banks_not_demo_bank():
     page = c.get("/app").text
     assert "Demo Bank" not in page and "Revolut: your real accounts" in page
     main.engine.state["linked_banks"].clear()
+def test_demo_login_for_the_jury():
+    from fastapi.testclient import TestClient
+    c = TestClient(main.app)
+    assert "Use the demo account" in c.get("/login").text
+    r = c.get("/login", params={"demo": 1, "next": "/chat"}, follow_redirects=False)
+    assert r.headers["location"] == "/chat" and "birky_demo=1" in r.headers["set-cookie"]
+    c.cookies.set("birky_demo", "1")
+    assert c.get("/bank", follow_redirects=False).headers["location"] == "/connect/bank?demo=1"
+    assert ">Demo</a>" in c.get("/chat").text
