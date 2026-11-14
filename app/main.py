@@ -165,7 +165,10 @@ def handle_message(m: dict):
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
             return
         bid = m.get("button_id") or ""
-        direct = button_reply(to, bid)
+        try:
+            direct = button_reply(to, bid)
+        except ValueError as e:  # e.g. tapping "Pay rent now" again after paying
+            direct = {"text": f"I can't do that: {e}"}
         if direct:
             if direct.get("url"):
                 wa.send_url_button(to, direct["text"], direct["url"][0], direct["url"][1])
@@ -217,6 +220,18 @@ def _pending_or_404(pid: str, kind: str) -> dict:
     return p
 
 
+def bad_pin(request: Request, path: str):
+    web = "&web=1" if request.query_params.get("web") else ""
+    return RedirectResponse(f"{path}?err=1{web}", status_code=303)
+
+
+def not_done(request: Request, err: Exception):
+    """The bank said no (bill already paid, not enough money): a page, not a 500."""
+    msg = str(err)
+    return templates.TemplateResponse(request, "done.html", {
+        "title": "Not done", "failed": True, "lines": [msg[:1].upper() + msg[1:] + "."], "wa": wa_back(request)})
+
+
 @app.get("/pay/{pid}", response_class=HTMLResponse)
 def pay_page(request: Request, pid: str):
     p = _pending_or_404(pid, "payment")
@@ -232,11 +247,13 @@ def pay_page(request: Request, pid: str):
 def pay_confirm(request: Request, pid: str, pin: str = Form("")):
     p = _pending_or_404(pid, "payment")
     if len(pin) != 4 or not pin.isdigit():
-        return RedirectResponse(f"/pay/{pid}?err=1", status_code=303)
-    first_time = p["status"] != "done"
-    done = engine.confirm(pid)
+        return bad_pin(request, f"/pay/{pid}")
+    try:
+        done = engine.confirm(pid)
+    except ValueError as e:
+        return not_done(request, e)
     s = engine.safe_to_spend()
-    if first_time:
+    if done["first_time"]:
         notify(pid, f"✅ *{done['name']} paid*: {money(done['amount'])}\n"
                          f"Balance now {money(done['balance_eur'])}.\n"
                          f"Safe to spend until payday ({nice_date(s['next_payday']['date'])}): "
@@ -264,9 +281,12 @@ def invest_page(request: Request, pid: str):
 def invest_confirm(request: Request, pid: str, pin: str = Form("")):
     p = _pending_or_404(pid, "investment")
     if len(pin) != 4 or not pin.isdigit():
-        return RedirectResponse(f"/invest/{pid}?err=1", status_code=303)
-    first_time = p["status"] != "done"
-    done = engine.confirm(pid)
+        return bad_pin(request, f"/invest/{pid}")
+    try:
+        done = engine.confirm(pid)
+    except ValueError as e:
+        return not_done(request, e)
+    first_time = done["first_time"]
     if done.get("monthly"):
         msg = (f"✅ *Monthly saving started*: {money(done['amount'])} into {done['name']} every payday, "
                f"first on {nice_date(done['starts'])}. You can change or stop it any time.")
@@ -309,14 +329,13 @@ def stop_page(request: Request, pid: str):
 def stop_confirm(request: Request, pid: str, pin: str = Form("")):
     p = _pending_or_404(pid, "stop_subscription")
     if len(pin) != 4 or not pin.isdigit():
-        return RedirectResponse(f"/stop/{pid}?err=1", status_code=303)
-    first_time = p["status"] != "done"
+        return bad_pin(request, f"/stop/{pid}")
     done = engine.confirm(pid)
     subs = engine.subscriptions()
     msg = (f"✅ *{done['name']} stopped.* No more charges of {money(done['amount'])}. "
            f"That's {money(done['per_year_eur'])} a year back in your pocket.\n"
            f"Active subscriptions now: {subs['active_count']}, {money(subs['active_per_month_eur'])} a month.")
-    if first_time:
+    if done["first_time"]:
         notify(pid, msg)
     return templates.TemplateResponse(request, "done.html", {
         "title": "Payment stopped", "lines": [msg.replace("✅ ", "").replace("*", "")],
@@ -338,14 +357,16 @@ def save_page(request: Request, pid: str):
 def save_confirm(request: Request, pid: str, pin: str = Form("")):
     p = _pending_or_404(pid, "saving")
     if len(pin) != 4 or not pin.isdigit():
-        return RedirectResponse(f"/save/{pid}?err=1", status_code=303)
-    first_time = p["status"] != "done"
-    done = engine.confirm(pid)
+        return bad_pin(request, f"/save/{pid}")
+    try:
+        done = engine.confirm(pid)
+    except ValueError as e:
+        return not_done(request, e)
     g = engine.state["goals"][p["goal_id"]]
     pct = round(g["saved"] / g["target"] * 100)
     msg = (f"✅ *Saved {money(done['amount'])}* for {g['name']}.\n"
            f"{money(g['saved'])} of {money(g['target'])} ({pct}%). Balance now {money(done['balance_eur'])}.")
-    if first_time:
+    if done["first_time"]:
         notify(pid, msg)
     return templates.TemplateResponse(request, "done.html", {
         "title": "Saved", "lines": [msg.replace("✅ ", "").replace("*", "")], "wa": wa_back(request)})
@@ -353,6 +374,8 @@ def save_confirm(request: Request, pid: str, pin: str = Form("")):
 
 # ---------------- Demo triggers (used while filming) ----------------
 def alert_message(kind: str, name: str) -> tuple[str, list] | None:
+    if kind not in ("salary", "unusual", "renewal"):
+        raise HTTPException(400, "kind must be salary, unusual or renewal")
     a = engine.alert(kind)
     if kind == "salary":
         goals = a["goals"]
@@ -369,6 +392,8 @@ def alert_message(kind: str, name: str) -> tuple[str, list] | None:
                 "It sits in your *slips through your fingers* basket. Was that planned?")
         return text, [("later:unusual", "Yes, all good"), ("ask:unusual", "Tell me more")]
     if kind == "renewal":
+        if not a["found"]:
+            return None
         inc = a.get("price_increase")
         when = "tomorrow" if a["days_to_next"] == 1 else f"in {a['days_to_next']} days"
         text = f"🔁 *{a['name']}* renews {when}: {money(a['price_eur'])}."
@@ -376,7 +401,6 @@ def alert_message(kind: str, name: str) -> tuple[str, list] | None:
             text += f"\nThe price went up from {money(inc['from_eur'])} to {money(inc['to_eur'])} on {nice_date(inc['since'])}."
         text += f"\nThat's {money(a['per_year_eur'])} a year. Keep it?"
         return text, [(f"keep:{a['name']}", "Keep it"), (f"stop:{a['name']}", "Stop payments")]
-    raise HTTPException(400, "kind must be salary, unusual or renewal")
 
 
 @app.post("/demo/alert")
@@ -391,7 +415,7 @@ def demo_alert(kind: str, to: str | None = None):
     return {"sent": True, "text": m[0]}
 
 def reminder_text(name: str = DEMO_NAME) -> tuple[str, dict]:
-    rent = next(b for b in engine.upcoming_bills() if b["category"] == "Housing")
+    rent = next(b for b in engine.upcoming_bills(45) if b["category"] == "Housing")  # next month's once paid
     s = engine.safe_to_spend()
     when = "tomorrow" if rent["days_away"] == 1 else f"in {rent['days_away']} days"
     text = (f"Hi {name} 👋 Your *rent of {money(rent['amount_eur'])}* is due *{when}* ({nice_date(rent['due_date'])}).\n\n"
@@ -418,6 +442,7 @@ def demo_reset():
     coach().reset()
     seen.clear()
     owner.clear()
+    inbox.clear()
     return {"reset": True}
 
 
@@ -487,7 +512,7 @@ async def chat_api(request: Request):
                                                           ("ask:tight", "How do I stretch it?")])}
     if text.startswith("__alert__:"):
         m = alert_message(text.split(":", 1)[1], DEMO_NAME)
-        return {"text": m[0], "buttons": [], "quick": quick(m[1])} if m else {"text": "Nothing unusual right now.", "buttons": []}
+        return {"text": m[0], "buttons": [], "quick": quick(m[1])} if m else {"text": "Nothing to flag right now.", "buttons": []}
     if text.startswith("__btn__:"):
         bid = text.split(":", 1)[1]
         try:

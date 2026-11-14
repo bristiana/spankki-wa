@@ -6,6 +6,7 @@ Works on one customer's transactions (data/persona.csv) plus the actions taken d
 from __future__ import annotations
 
 import json
+import threading
 import uuid
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -133,6 +134,7 @@ class Engine:
         mp = ROOT / "data" / "market.json"
         self.market = json.loads(mp.read_text()) if mp.exists() else None
         self.state = self._load_state()
+        self._lock = threading.Lock()  # confirm pages run in a thread pool
 
     # ---------- state (demo actions) ----------
     def _load_state(self) -> dict:
@@ -332,6 +334,14 @@ class Engine:
         bal = self.balance()
         committed = [b for b in self.upcoming_bills(days) if b["bill_id"] and b["days_away"] < days
                      and b["category"] != "Invest Deposit"]
+        # A monthly bill can fall due more than once before payday (e.g. right after salary landed).
+        for b in list(committed):
+            d = date.fromisoformat(b["due_date"])
+            while True:
+                d = add_months(month_start(d), 1).replace(day=d.day)
+                if (d - self.today).days >= days:
+                    break
+                committed.append({**b, "due_date": d.isoformat(), "days_away": (d - self.today).days})
         bills = sum(b["amount_eur"] for b in committed)
         util = self.monthly_avg("Utilities", 6) * frac
         needs = sum(self.monthly_avg(c, 3) for c in ("Groceries", "Transportation")) * frac
@@ -517,12 +527,12 @@ class Engine:
     def create_payment(self, bill_id: str) -> dict:
         bill = next((b for b in self.upcoming_bills(45) if b["bill_id"] == bill_id), None)
         if not bill:
-            raise ValueError(f"no upcoming bill {bill_id!r}")
+            raise ValueError(f"bill {bill_id!r} is already paid or not due; see get_upcoming_bills")
         pid = uuid.uuid4().hex[:10]
         self.state["pending"][pid] = {"kind": "payment", "bill_id": bill_id, "name": bill["name"],
                                       "category": bill["category"], "amount": bill["amount_eur"],
-                                      "due_date": bill["due_date"], "transaction_type": "housing_payment"
-                                      if bill["category"] == "Housing" else "utilities_payment", "status": "pending"}
+                                      "due_date": bill["due_date"], "transaction_type": bill_id.rsplit("-", 3)[0],
+                                      "status": "pending"}
         self._save()
         return {"pending_id": pid, **self.state["pending"][pid]}
 
@@ -544,12 +554,22 @@ class Engine:
         return {"pending_id": pid, **p} if p else None
 
     def confirm(self, pid: str) -> dict:
+        """Carry out a pending move once. first_time is False when it was already done (double submit)."""
+        with self._lock:
+            return self._confirm(pid)
+
+    def _confirm(self, pid: str) -> dict:
         p = self.state["pending"].get(pid)
         if not p:
             raise KeyError(pid)
         if p["status"] == "done":
-            return {"pending_id": pid, **p, "balance_eur": self.balance()}
+            return {"pending_id": pid, **p, "balance_eur": self.balance(), "first_time": False}
         kind = p["kind"]
+        if kind == "payment" and not any(b["bill_id"] == p["bill_id"] for b in self.upcoming_bills(45)):
+            raise ValueError(f"{p['name']} due {p['due_date']} is already paid")
+        moves_now = kind in ("payment", "saving") or (kind == "investment" and not p.get("monthly"))
+        if moves_now and p["amount"] > self.balance():
+            raise ValueError(f"not enough money: your balance is {self.balance():.2f} EUR")
         if kind == "stop_subscription":
             self.state.setdefault("stopped", {})[p["name"]] = self.today.isoformat()
         elif kind == "investment" and p.get("monthly"):
@@ -566,7 +586,7 @@ class Engine:
                     g["saved"] = eur(g["saved"] + p["amount"])
         p["status"] = "done"
         self._save()
-        return {"pending_id": pid, **p, "balance_eur": self.balance()}
+        return {"pending_id": pid, **p, "balance_eur": self.balance(), "first_time": True}
 
     def _pend(self, entry: dict) -> dict:
         pid = uuid.uuid4().hex[:10]
@@ -665,9 +685,10 @@ class Engine:
         if deadline:
             date.fromisoformat(deadline)
         gid = "".join(ch for ch in name.lower() if ch.isalnum())[:20] or uuid.uuid4().hex[:6]
-        self.state.setdefault("goals", {})[gid] = {"id": gid, "name": name.strip()[:40], "target": eur(target_eur),
-                                                 "deadline": deadline, "saved": 0.0,
-                                                 "created": self.today.isoformat()}
+        old = self.state.setdefault("goals", {}).get(gid, {})  # same name again = update it, keep what's saved
+        self.state["goals"][gid] = {"id": gid, "name": name.strip()[:40], "target": eur(target_eur),
+                                    "deadline": deadline, "saved": old.get("saved", 0.0),
+                                    "created": old.get("created", self.today.isoformat())}
         self._save()
         return self.goal_plan(gid)
 
@@ -765,5 +786,7 @@ class Engine:
                     "times_usual": float(round(-row["tx_amount_eur"] / u, 1))}
         if kind == "renewal":
             subs = [x for x in self.subscriptions()["subscriptions"] if x["status"] == "active"]
-            return {"kind": kind, **min(subs, key=lambda x: x["days_to_next"])}
+            if not subs:
+                return {"kind": kind, "found": False}
+            return {"kind": kind, "found": True, **min(subs, key=lambda x: x["days_to_next"])}
         raise ValueError("kind must be salary, unusual or renewal")
