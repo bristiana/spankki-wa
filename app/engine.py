@@ -5,6 +5,7 @@ Works on one customer's transactions (data/persona.csv) plus the actions taken d
 """
 from __future__ import annotations
 
+import calendar
 import json
 import threading
 import uuid
@@ -35,6 +36,7 @@ BASKETS = {
     },
 }
 CATEGORY_BASKET = {c: k for k, b in BASKETS.items() for c in b["categories"]}
+NO_PAYDAY_DAYS = 30  # safe-to-spend horizon when no regular salary is found
 INCOME_TYPES = {"salary", "other_income", "investment_withdrawal"}
 SPEND_CATEGORIES = list(CATEGORY_BASKET)
 
@@ -164,6 +166,11 @@ def add_months(d: date, n: int) -> date:
     return date(d.year + y, m + 1, 1)
 
 
+def on_day(d: date, day: int) -> date:
+    """Day `day` of d's month, or its last day (a salary on the 31st lands on 30 Nov, not 28 Nov)."""
+    return d.replace(day=min(day, calendar.monthrange(d.year, d.month)[1]))
+
+
 @dataclass
 class Recurring:
     key: str
@@ -177,13 +184,22 @@ class Recurring:
 
 class Engine:
     def __init__(self, csv_path: Path | None = None, today: date | None = None,
-                 state_path: Path | None = None, benchmark_path: Path | None = None):
+                 state_path: Path | None = None, benchmark_path: Path | None = None, frame: pd.DataFrame | None = None,
+                 age: int | None = None):
+        """frame: one customer's rows (dataset columns, oldest first) instead of reading csv_path; age: that
+        customer's age (default: the persona's, from the benchmark)."""
         self.csv_path = csv_path or ROOT / "data" / "persona.csv"
         self.state_path = state_path or ROOT / "data" / "state.json"
         self.today = today or date(2026, 10, 6)
         bp = benchmark_path or ROOT / "data" / "benchmark.json"
         self.benchmark = json.loads(bp.read_text()) if bp.exists() else None
-        base = pd.read_csv(self.csv_path, dtype={"merchant_id": "string", "mcc_code": "string"})
+        self.age = age if age is not None else (self.benchmark or {}).get("persona_age")
+        if self.benchmark and self.age is not None:
+            lo, hi = map(int, self.benchmark["age_band"].split("-"))
+            if not lo <= self.age <= hi:
+                self.benchmark = None  # the peer group is another age band: comparing would mislead
+        base = (frame.reset_index(drop=True).astype({"merchant_id": "string", "mcc_code": "string"}) if frame is not None
+                else pd.read_csv(self.csv_path, dtype={"merchant_id": "string", "mcc_code": "string"}))
         base["date"] = pd.to_datetime(base["tx_date"]).dt.date
         self.base = base[["date", "category", "tx_amount_eur", "transaction_type", "merchant_id", "mcc_code",
                           "balance_after_eur"]]
@@ -262,10 +278,20 @@ class Engine:
         d1 = month_start(self.today) - timedelta(days=1)
         return add_months(month_start(self.today), -n), d1
 
+    def _covered(self, d0: date, months: int) -> int:
+        """How many of the `months` months from d0 the history reaches, so a short history does not dilute averages."""
+        first = month_start(self.base["date"].min())
+        return sum(1 for i in range(months) if add_months(d0, i) >= first)
+
     def monthly_avg(self, category: str, months: int = 3) -> float:
         d0, d1 = self._full_months(months)
+        n = self._covered(d0, months)
         s = self._slice(d0, d1)
-        return eur(-s[s["category"] == category]["tx_amount_eur"].sum() / months)
+        return eur(-s[s["category"] == category]["tx_amount_eur"].sum() / n) if n else 0.0
+
+    def _month_after(self, n: int) -> str | None:
+        """'YYYY-MM' n months from now; None past 50 years (a pace of cents a month never gets there)."""
+        return add_months(month_start(self.today), n).isoformat()[:7] if n <= 600 else None
 
     # ---------- questions ----------
     def spending(self, category: str | None = None, period: str = "last_month",
@@ -332,7 +358,8 @@ class Engine:
     def baskets(self, period: str = "last_3_months", start: str | None = None, end: str | None = None) -> dict:
         d0, d1 = self.period_range(period, start, end)
         s = self._slice(d0, d1)
-        months = max(1, round(((d1 - d0).days + 1) / 30.4))
+        first = month_start(self.base["date"].min())  # a short history must not dilute per-month amounts
+        months = max(1, round(((d1 - max(d0, first)).days + 1) / 30.4))
         spend = s[(s["tx_amount_eur"] < 0) & s["category"].isin(SPEND_CATEGORIES)]
         total = -spend["tx_amount_eur"].sum()
         out = {"from": d0.isoformat(), "to": d1.isoformat(), "months": months, "total_spent_eur": eur(total),
@@ -506,15 +533,19 @@ class Engine:
     def _next_due(self, r: Recurring) -> date:
         """Next date this recurring item is due, skipping a month already paid."""
         t = self.today
-        this = t.replace(day=min(r.typical_day, 28))
+        this = on_day(t, r.typical_day)
         paid_this_month = ((self.tx["transaction_type"] == r.transaction_type)
                            & (self.tx["date"] >= month_start(t))).any()
         if paid_this_month or this < t:
-            return add_months(month_start(t), 1).replace(day=min(r.typical_day, 28))
+            return on_day(add_months(month_start(t), 1), r.typical_day)
         return this
 
     def next_payday(self) -> dict:
         r = self._rec("salary")
+        if not r:
+            return {"date": None, "days_away": None, "expected_eur": None,
+                    "not_enough_data": "No regular monthly salary in the last 6 full months (needs 4 months with one "
+                                       "payment of a similar amount), so the next payday is not known. Never guess it."}
         d = self._next_due(r)
         return {"date": d.isoformat(), "days_away": (d - self.today).days, "expected_eur": r.avg_amount}
 
@@ -543,7 +574,7 @@ class Engine:
 
     def safe_to_spend(self) -> dict:
         pay = self.next_payday()
-        days = max(1, pay["days_away"])
+        days = max(1, pay["days_away"]) if pay["date"] else NO_PAYDAY_DAYS
         frac = days / 30.4
         bal = self.balance()
         committed = [b for b in self.upcoming_bills(days) if b["bill_id"] and b["days_away"] < days
@@ -552,7 +583,7 @@ class Engine:
         for b in list(committed):
             d = date.fromisoformat(b["due_date"])
             while True:
-                d = add_months(month_start(d), 1).replace(day=d.day)
+                d = on_day(add_months(month_start(d), 1), d.day)
                 if (d - self.today).days >= days:
                     break
                 committed.append({**b, "due_date": d.isoformat(), "days_away": (d - self.today).days})
@@ -562,7 +593,7 @@ class Engine:
         buffer = sum(self.monthly_avg(c, 6) for c in BASKETS["irregular"]["categories"]) * frac
         free = bal - bills - util - needs - buffer
         per_day = max(0.0, free) / days
-        return {
+        out = {
             "balance_eur": eur(bal),
             "next_payday": pay,
             "bills_before_payday": [{"name": b["name"], "amount_eur": b["amount_eur"], "due_date": b["due_date"]} for b in committed],
@@ -576,12 +607,17 @@ class Engine:
             "method": "balance - bills due before payday (incl. a linked bank's card bill) - usual utilities, groceries "
                       "and transport until payday - a buffer for irregular costs (your average health, home & tech and "
                       "travel spend)",
+            "horizon_days": days,
         }
+        if not pay["date"]:
+            out["not_enough_data"] = (f"No regular payday found, so this covers the next {days} days instead of "
+                                      "'until payday'. Say so; never name a payday.")
+        return out
 
     def safe_to_save(self) -> dict:
         """What can go to savings now without touching bills before payday or the irregular buffer, and per month."""
         safe = self.safe_to_spend()
-        days = max(1, safe["next_payday"]["days_away"])
+        days = safe["horizon_days"]
         free = safe["safe_to_spend_until_payday_eur"]
         fun = sum(self.monthly_avg(c, 3) for c in BASKETS["everyday"]["categories"]) * days / 30.4
         flow = self.monthly_flow()
@@ -697,7 +733,7 @@ class Engine:
         if not 0 < amount <= 1_000_000:
             raise ValueError("amount must be between 0 and 1,000,000 EUR")
         safe = self.safe_to_spend()
-        days = max(1, safe["next_payday"]["days_away"])
+        days = safe["horizon_days"]
         cats = BASKETS["everyday"]["categories"]
         budget = sum(self.monthly_avg(c, 3) for c in cats)
         s = self._slice(month_start(self.today), self.today)
@@ -727,7 +763,8 @@ class Engine:
             "flexible_left_after_eur": eur(left - amount),
             "safe_to_spend_until_payday_eur": eur(safe_left),
             "safe_left_after_eur": eur(safe_left - amount),
-            "days_to_payday": days,
+            "days_to_payday": days if safe["next_payday"]["date"] else None,
+            **({"not_enough_data": safe["not_enough_data"]} if "not_enough_data" in safe else {}),
             "per_day_after_eur": eur(max(0.0, safe_left - amount) / days),
             "goals": goals,
             "method": "flexible budget = your average monthly 'slips through your fingers' spending (last 3 months) "
@@ -766,7 +803,7 @@ class Engine:
 
     def backtest(self, deposits: list[tuple[date, float]], fund_id: str) -> dict | None:
         """What these deposits would be worth today if each had bought the fund at that month's real price."""
-        if not self.market or not deposits:
+        if not self.market or not deposits or sum(a for _, a in deposits) <= 0:
             return None
         units = {}
         for d, amt in deposits:
@@ -782,7 +819,7 @@ class Engine:
 
     def backtest_monthly(self, monthly: float, months: int) -> dict | None:
         """The same monthly amount invested over the last `months` real months, valued at today's real price."""
-        if not self.market:
+        if not self.market or monthly <= 0:
             return None
         last = max(self.market["symbols"]["VWCE.DE"]["monthly_close"])
         y, m = map(int, last.split("-"))
@@ -808,12 +845,12 @@ class Engine:
                                         "vs_peers_pct": round((mine - m) / m * 100),
                                         "in_top_quarter_of_spenders": mine > -p25.get(c, 0.0)})
             comparisons.sort(key=lambda x: -x["vs_peers_pct"])
-        inc = b["income_eur"] or 1
-        save_rate = round(b["invested_eur"] / inc * 100)
+        # No income in the window: a savings rate would be invented (or divide by zero).
+        save_rate = round(b["invested_eur"] / b["income_eur"] * 100) if b["income_eur"] > 0 else None
         r = self.spending("Restaurants", "last_3_months")
         if everyday_share >= 30:
             traits.append("Experience spender: a big part of your money goes to eating out and fun.")
-        if save_rate >= 10:
+        if save_rate is not None and save_rate >= 10:
             traits.append(f"Steady saver: you invest about {save_rate}% of what comes in.")
         late = self._slice(*self._full_months(3))
         late = late[(late["category"] == "Restaurants")]
@@ -836,9 +873,9 @@ class Engine:
 
     def official_benchmark(self) -> dict | None:
         """Monthly spend vs Finnish households of the same age group (Statistics Finland, real open data)."""
-        if not self.statfin or not self.benchmark:
+        if not self.statfin or self.age is None:
             return None
-        age = self.benchmark.get("persona_age", 25)
+        age = self.age
         band = "17-24" if age <= 24 else "25-34" if age <= 34 else "all"
         ref = self.statfin["by_age"][band]
         rows = []
@@ -1057,12 +1094,17 @@ class Engine:
     # ---------- savings goals (F2) ----------
     def monthly_flow(self, months: int = 3) -> dict:
         d0, d1 = self._full_months(months)
+        n = self._covered(d0, months)
         s = self._slice(d0, d1)
-        inc = s[s["transaction_type"].isin(INCOME_TYPES)]["tx_amount_eur"].sum() / months
-        spend = -s[(s["tx_amount_eur"] < 0) & s["category"].isin(SPEND_CATEGORIES)]["tx_amount_eur"].sum() / months
-        inv = -s[s["category"] == "Invest Deposit"]["tx_amount_eur"].sum() / months
-        return {"income_per_month_eur": eur(inc), "spending_per_month_eur": eur(spend),
-                "investing_per_month_eur": eur(inv), "left_per_month_eur": eur(inc - spend - inv)}
+        inc = s[s["transaction_type"].isin(INCOME_TYPES)]["tx_amount_eur"].sum() / max(1, n)
+        spend = -s[(s["tx_amount_eur"] < 0) & s["category"].isin(SPEND_CATEGORIES)]["tx_amount_eur"].sum() / max(1, n)
+        inv = -s[s["category"] == "Invest Deposit"]["tx_amount_eur"].sum() / max(1, n)
+        out = {"income_per_month_eur": eur(inc), "spending_per_month_eur": eur(spend),
+               "investing_per_month_eur": eur(inv), "left_per_month_eur": eur(inc - spend - inv)}
+        if n < months:
+            out["not_enough_data"] = (f"Only {n} full month(s) of history; averages use those." if n else
+                                      "No full month of history yet, so there is no monthly average.")
+        return out
 
     def create_goal(self, name: str, target_eur: float, deadline: str | None = None) -> dict:
         if not 10 <= target_eur <= 1_000_000:
@@ -1095,7 +1137,7 @@ class Engine:
         for m in sorted({round(x, 2) for x in [monthly_eur or 0, cut, 50.0, 100.0] if x > 0}):
             n = int(-(-left // m)) if left else 0
             out["options"].append({"monthly_eur": eur(m), "months": n,
-                                   "reached_by": add_months(month_start(self.today), n).isoformat()[:7]})
+                                   "reached_by": self._month_after(n)})
         out["note"] = "Savings pocket keeps the money apart from everyday spending."
         if flow["left_per_month_eur"] <= 0:
             out["note"] += " The last 3 months left nothing over, so the saving has to come from a cut."
@@ -1214,7 +1256,12 @@ class Engine:
             raise ValueError("price must be between 10,000 and 5,000,000 EUR")
         sal = self._rec("salary")
         if not sal:
-            raise ValueError("no regular salary found in the account history")
+            return {"label": "Educational estimate from S-Pankki's challenge data. Not a loan offer.",
+                    "not_enough_data": "No regular monthly salary in the last 6 full months, and the estimate is "
+                                       "built on it. Say the loan range cannot be estimated yet; never guess an income.",
+                    "your_money": {"balance_eur": self.balance()},
+                    "asp": {"guide_topic": "asp", "note": "get_money_guide('asp') has the ASP rules."},
+                    "source": m["source"]}
         income, ratio = sal.avg_amount, m["required_income_per_loan_eur"]
         appr = m["approved_applications"]
         loan = income / ratio
@@ -1225,7 +1272,7 @@ class Engine:
         have = self.balance() + saved
         gap = max(0.0, need["total_needed_eur"] - have)
         need.update({"you_have_eur": eur(have), "still_to_save_eur": eur(gap),
-                     "covered_pct": min(100, round(have / need["total_needed_eur"] * 100))})
+                     "covered_pct": max(0, min(100, round(have / need["total_needed_eur"] * 100)))})
         port = self.portfolio()
         paces = [("Cut restaurants by 20%", self.simulate_cut("Restaurants", 20)["saving_per_month_eur"]),
                  ("Save 50 € a month", 50.0), ("Save 100 € a month", 100.0)]
@@ -1234,9 +1281,11 @@ class Engine:
                           port["monthly_plan_in_data"]["amount_eur"]))
         path = []
         for how, pace in paces:
+            if pace <= 0:  # e.g. no restaurant spending to cut
+                continue
             n = int(-(-gap // pace)) if gap else 0
             path.append({"how": how, "monthly_eur": eur(pace), "months": n, "years": round(n / 12, 1),
-                         "reached_by": add_months(month_start(self.today), n).isoformat()[:7]})
+                         "reached_by": self._month_after(n)})
         out = {
             "label": "Educational estimate from S-Pankki's challenge data (200 mortgage applications, synthetic but "
                      "modelled on real S-Bank data). Not a loan offer and not a loan decision.",
@@ -1268,7 +1317,7 @@ class Engine:
             "suggested_goal": {"name": "First home deposit", "target_eur": need["total_needed_eur"]},
             "source": m["source"],
         }
-        age = (self.benchmark or {}).get("persona_age")
+        age = self.age
         if age and age < appr["age"]["min"]:
             out["age_note"] = (f"Approved applicants in the data were aged {appr['age']['min']}-{appr['age']['max']}; "
                                f"nobody aged {age} is in it, so compare loosely.")

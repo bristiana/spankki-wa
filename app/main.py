@@ -72,7 +72,7 @@ def coach() -> Coach:
 
 
 def nice_date(iso: str) -> str:
-    return date.fromisoformat(iso).strftime("%a %d %b")
+    return date.fromisoformat(iso).strftime("%a %d %b") if iso else "not known yet"
 
 
 def money(x: float) -> str:
