@@ -54,6 +54,8 @@
   .kc-dot{fill:var(--brand);stroke:var(--card);stroke-width:1.5}
   /* inside a banking app's WebView: no site chrome, no outer margins, clear of notches */
   body.embed{padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+  /* the chat embedded in S-mobiili (/chat?embed=1): S-mobiili's mint and dark green, still WCAG AA */
+  @media (prefers-color-scheme:light){body.smobiili{--bg:#ebf7ec;--brand:#007841;--soft:#d9efdb}}
   .kc-empty{color:var(--muted);font-size:14px;margin:8px 0}
   /* "Viewing as": judges switch the demo to another real customer */
   .who{position:relative;max-width:440px;margin:10px auto 0;padding:0 16px;font-size:13px;z-index:5}
@@ -68,7 +70,7 @@
 </style>
 {% block head %}{% endblock %}
 </head>
-<body{% if embed or request.query_params.get('web') %} class="embed"{% endif %}>
+<body{% if embed or request.query_params.get('web') %} class="embed{% if embed %} smobiili{% endif %}"{% endif %}>
 {% if not embed and not request.query_params.get('web') %}{% set here = request.url.path %}<div class="bar"><a class="home" href="/" aria-label="S-Pankki home"><div class="logo" aria-hidden="true">S</div><b>S-Pankki</b></a><nav><a href="/chat"{% if here == "/chat" %} aria-current="page"{% endif %}>Chat</a><a href="/app"{% if here == "/app" %} aria-current="page"{% endif %}>My money</a><a href="/app/explore"{% if here == "/app/explore" %} aria-current="page"{% endif %}>Explore</a></nav><small>demo</small></div>
 {% if persona %}<details class="who"><summary>Viewing as <b>{{ persona.name }}</b> · {{ persona.label }}</summary>
 <div class="who-menu">{% for p in personas %}<a href="?as={{ p.id }}"{% if p.id == persona.id %} aria-current="true"{% endif %}><b>{{ p.name }}</b> · {{ p.label }}<small>{{ p.description }}</small></a>{% endfor %}

@@ -78,7 +78,10 @@ def test_embed_hides_site_chrome(client):
     plain, embed = client.get("/chat").text, client.get("/chat?embed=1").text
     assert 'class="bar"' in plain and "<footer>" in plain
     assert 'class="bar"' not in embed and "<footer>" not in embed
-    assert '<body class="embed">' in embed and "safe-area-inset-top" in embed
+    assert '<body class="embed smobiili">' in embed and "safe-area-inset-top" in embed
+    # S-mobiili's mint and green only in the real embed, not on PIN pages opened from Birky's own web chat
+    assert "body.smobiili{--bg:#ebf7ec" in embed
+    assert '<body class="embed">' in client.get("/connect?web=1").text
 
 
 def test_deep_link_question_is_escaped(client):
@@ -99,3 +102,7 @@ def test_mobile_demo_page(client):
     assert main.engine.recent(6)[0]["what"] in html
     assert "/api/widgets" in html and "embed=1" in html
     assert 'href="/mobile-demo"' in client.get("/").text
+    # styled after S-mobiili: the help bubble top right opens Birky, and the four bottom tabs
+    assert 'id="help"' in html and 'getElementById("help").onclick' in html
+    for tab in ("Home", "S-Etukortti", "Bank", "Me"):
+        assert f"{tab}</span>" in html

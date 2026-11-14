@@ -10,53 +10,69 @@
   .notes code,.notes a{font-size:13px;color:var(--brand)}
   @media (max-width:820px){.notes{display:none}}
 
-  /* the phone: CSS only, about 390 x 844 */
-  .phone{position:relative;width:390px;height:844px;flex:none;border:12px solid #101412;border-radius:52px;overflow:hidden;
-         background:var(--bg);display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.25)}
-  .status{display:flex;justify-content:space-between;align-items:center;padding:12px 26px 6px;font-size:14px;font-weight:600}
+  /* the phone: CSS only, about 390 x 844, styled after S-mobiili's public App Store screenshots
+     (mint background, white rounded rows, green titles, 4 bottom tabs, a help bubble top right) */
+  .phone{--sm:#00aa46;--sm-dark:#007841;--sm-deep:#003f20;--sm-text:#007841;--sm-on:#fff;--sm-bg:#ebf7ec;--sm-card:#fff;--sm-ink:#14201b;--sm-muted:#5d6b65;--sm-line:#dcebdd;
+         position:relative;width:390px;height:844px;flex:none;border:12px solid #101412;border-radius:52px;overflow:hidden;
+         background:var(--sm-bg);color:var(--sm-ink);display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+  @media (prefers-color-scheme:dark){
+    .phone{--sm:#2fc46c;--sm-dark:#0f5c34;--sm-deep:#0b3a22;--sm-text:#2fc46c;--sm-on:#06140d;--sm-bg:#0f1714;--sm-card:#18211d;--sm-ink:#e8efeb;--sm-muted:#9aa8a1;--sm-line:#26332d;
+           border-color:#2b3631;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+    .status i{background:#000}}
+  .status{display:flex;justify-content:space-between;align-items:center;padding:12px 26px 2px;font-size:14px;font-weight:600}
   .status i{width:96px;height:26px;border-radius:99px;background:#101412}
-  @media (prefers-color-scheme:dark){.phone{border-color:#2b3631;box-shadow:0 24px 60px rgba(0,0,0,.6)}.status i{background:#000}}
-  .screen{flex:1;overflow-y:auto;padding:4px 16px 88px;scrollbar-width:none}
-  .hi{display:flex;align-items:center;justify-content:space-between;margin:6px 0 14px}
-  .hi b{font-size:20px}.hi .av{width:36px;height:36px;border-radius:50%;background:var(--soft);color:var(--brand);display:grid;place-items:center;font-weight:700}
-  .acct{background:var(--brand);color:var(--brand-ink);border-radius:20px;padding:16px 18px}
+  .top{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;padding:2px 10px}
+  .top b{text-align:center;font-size:16px}
+  .help{position:relative;width:44px;height:44px;border:0;background:transparent;color:var(--sm-ink);display:grid;place-items:center;cursor:pointer;border-radius:12px}
+  .help svg{width:26px;height:26px}
+  .help img{position:absolute;right:3px;top:3px;width:17px;height:17px;border-radius:50%;background:#fff6e8;box-shadow:0 0 0 2px var(--sm-bg)}
+  .screen{flex:1;overflow-y:auto;padding:4px 16px 150px;scrollbar-width:none}
+  .acct{background:var(--sm-dark);color:#fff;border-radius:20px;padding:16px 18px}
   .acct small{opacity:.85;font-size:13px}.acct .big{font-size:32px;font-weight:750;letter-spacing:-.5px;margin:2px 0}
-  .quick{display:flex;justify-content:space-between;margin:14px 6px 4px}
-  .quick span{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted)}
-  .quick span i{width:46px;height:46px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;font-style:normal;font-size:18px;color:var(--ink)}
-  h2{font-size:16px;margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+  .quick{display:flex;justify-content:space-between;margin:14px 2px 4px}
+  .quick span{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;color:var(--sm-ink);width:72px;text-align:center;line-height:1.2}
+  .quick span i{width:46px;height:46px;border-radius:50%;background:var(--sm-card);border:1.5px solid var(--sm);display:grid;place-items:center;color:var(--sm)}
+  .quick svg{width:22px;height:22px}
+  h2{font-size:16px;margin:18px 0 8px;display:flex;align-items:center;gap:8px;color:var(--sm-deep)}
+  @media (prefers-color-scheme:dark){h2{color:var(--sm-ink)}}
   h2 img{width:26px;height:26px}
   .cards{display:flex;gap:10px;overflow-x:auto;margin:0 -16px;padding:2px 16px 6px;scroll-snap-type:x mandatory;scroll-padding:0 16px;scrollbar-width:none}
   .kcard{flex:none;width:200px;min-height:132px;scroll-snap-align:start;text-align:left;font:inherit;color:inherit;cursor:pointer;
-         background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
-  .kcard:hover{border-color:var(--brand)}
-  .kcard .t{font-size:13px;color:var(--muted)}
+         background:var(--sm-card);border:0;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 2px rgba(0,60,30,.06)}
+  .kcard:hover{box-shadow:0 0 0 2px var(--sm)}
+  .kcard .t{font-size:14px;font-weight:650;color:var(--sm-text)}
   .kcard .v{font-size:22px;font-weight:700;letter-spacing:-.3px}
-  .kcard .s{font-size:12.5px;color:var(--muted);line-height:1.35}
-  .kcard .pay{margin-top:auto;align-self:flex-start;border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 14px system-ui;min-height:44px;padding:0 20px;cursor:pointer}
-  .stack{display:flex;height:8px;border-radius:99px;overflow:hidden;margin:6px 0 4px;background:var(--line)}
-  .legend{font-size:11.5px;color:var(--muted);line-height:1.4}
+  .kcard .s{font-size:12.5px;color:var(--sm-muted);line-height:1.35}
+  .kcard .pay{margin-top:auto;align-self:flex-start;border:0;border-radius:99px;background:var(--sm-text);color:var(--sm-on);font:600 14px system-ui;min-height:44px;padding:0 20px;cursor:pointer}
+  .stack{display:flex;height:8px;border-radius:99px;overflow:hidden;margin:6px 0 4px;background:var(--sm-line)}
+  .legend{font-size:11.5px;color:var(--sm-muted);line-height:1.4}
   .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
   .c0{background:#00663d}.c1{background:#c98a12}.c2{background:#e07a2e}
-  .prog{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:6px 0 2px}.prog i{display:block;height:100%;background:var(--brand)}
-  .tx{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:2px 14px}
-  .tx .row{font-size:14px;padding:9px 0}.tx .row:first-child{border-top:0}
-  .tx .row small{display:block;color:var(--muted);font-size:12px}
-  .ask{position:absolute;left:12px;right:12px;bottom:14px;display:flex;align-items:center;gap:10px;border:1px solid var(--line);
-       background:var(--card);color:var(--muted);border-radius:99px;padding:8px 8px 8px 10px;font:15px system-ui;cursor:pointer;
-       box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:2}
+  .prog{height:6px;border-radius:99px;background:var(--sm-line);overflow:hidden;margin:6px 0 2px}.prog i{display:block;height:100%;background:var(--sm)}
+  .tx{background:var(--sm-card);border-radius:16px;padding:2px 14px;box-shadow:0 1px 2px rgba(0,60,30,.06)}
+  .tx .row{font-size:14px;padding:10px 0;border-top:1px solid var(--sm-line)}.tx .row:first-child{border-top:0}
+  .tx .row .l{color:var(--sm-text);font-weight:600}
+  .tx .row small{display:block;color:var(--sm-muted);font-size:12px;font-weight:400}
+  .ask{position:absolute;left:12px;right:12px;bottom:84px;display:flex;align-items:center;gap:10px;border:0;
+       background:var(--sm-card);color:var(--sm-muted);border-radius:99px;padding:8px 8px 8px 10px;font:15px system-ui;cursor:pointer;
+       box-shadow:0 6px 20px rgba(0,40,20,.16);z-index:2}
   .ask img{width:34px;height:34px;border-radius:50%;background:#fff6e8}
-  .ask span{flex:1;text-align:left}.ask b{background:var(--brand);color:var(--brand-ink);border-radius:99px;padding:7px 14px;font-size:14px}
+  .ask span{flex:1;text-align:left}.ask b{background:var(--sm-text);color:var(--sm-on);border-radius:99px;padding:7px 14px;font-size:14px}
+  .tabs{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:var(--sm-card);
+        border-top:1px solid var(--sm-line);padding:8px 4px 22px;z-index:2}
+  .tabs span{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--sm-muted)}
+  .tabs span.on{color:var(--sm-text);font-weight:600}
+  .tabs svg{width:24px;height:24px}
 
   /* bottom sheet with the embedded chat (/chat?embed=1) */
   .scrim{position:absolute;inset:0;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .3s;z-index:3}
-  .sheet{position:absolute;left:0;right:0;bottom:0;height:92%;background:var(--bg);border-radius:22px 22px 0 0;overflow:hidden;
+  .sheet{position:absolute;left:0;right:0;bottom:0;height:92%;background:var(--sm-bg);border-radius:22px 22px 0 0;overflow:hidden;
          display:flex;flex-direction:column;transform:translateY(100%);transition:transform .38s cubic-bezier(.2,.8,.2,1);z-index:4}
   .open .scrim{opacity:1;pointer-events:auto}.open .sheet{transform:none}
-  .grab{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 6px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+  .grab{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 6px 16px;background:var(--sm-card);color:var(--sm-ink);border-bottom:1px solid var(--sm-line)}
   .grab b{display:flex;align-items:center;gap:8px;font-size:15px}.grab img{width:28px;height:28px}
-  .grab button{border:0;background:transparent;color:var(--ink);font-size:24px;width:44px;height:44px;cursor:pointer}
-  .sheet iframe{flex:1;border:0;width:100%;background:var(--bg)}
+  .grab button{border:0;background:transparent;color:var(--sm-ink);font-size:24px;width:44px;height:44px;cursor:pointer}
+  .sheet iframe{flex:1;border:0;width:100%;background:var(--sm-bg)}
   @media (prefers-reduced-motion:reduce){.sheet,.scrim{transition:none}}
 
   /* a real phone: no frame, the mock fills the screen */
@@ -68,7 +84,9 @@
     .stage{flex:1;min-height:0;width:100%;padding:0}
     .phone{width:100%;height:100%;border:0;border-radius:0;box-shadow:none}
     .status{display:none}
-    .ask{bottom:calc(12px + env(safe-area-inset-bottom))}
+    .top{padding-top:4px}
+    .tabs{padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+    .ask{bottom:calc(70px + env(safe-area-inset-bottom))}
   }
 </style>
 {% endblock %}
@@ -77,10 +95,18 @@
 <div class="stage">
   <div class="phone" id="phone">
     <div class="status"><span>9:41</span><i></i><span>5G ▮</span></div>
+    <div class="top">
+      <span></span><b>Home</b>
+      <button class="help" id="help" aria-label="Ask Birky"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg><img src="/static/birky.svg" alt=""></button>
+    </div>
     <div class="screen">
-      <div class="hi"><div><div class="muted">Good morning</div><b>{{ name }}</b></div><div class="av">{{ name[0] }}</div></div>
-      <div class="acct"><small>Current account · FI00 0000 0000 0000 00 (demo)</small><div class="big">{{ money(balance) }}</div><small>Available balance</small></div>
-      <div class="quick" aria-hidden="true"><span><i>↗</i>Pay</span><span><i>⇄</i>Transfer</span><span><i>▭</i>Cards</span><span><i>◔</i>Savings</span></div>
+      <div class="acct"><small>Good morning, {{ name }} · current account (demo)</small><div class="big">{{ money(balance) }}</div><small>Available balance</small></div>
+      <div class="quick" aria-hidden="true">
+        <span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></i>New payment</span>
+        <span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></i>Own transfer</span>
+        <span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></i>Cards</span>
+        <span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor"/></svg></i>Säästäjä</span>
+      </div>
       <h2><img src="/static/birky.svg" alt="">Birky for you</h2>
       <div class="cards" id="cards" aria-live="polite"><div class="kcard"><span class="t">Loading…</span></div></div>
       <h2>Recent</h2>
@@ -91,6 +117,12 @@
       </div>
     </div>
     <button class="ask" id="ask"><img src="/static/birky.svg" alt=""><span>Ask Birky about your money…</span><b>Ask</b></button>
+    <div class="tabs" aria-hidden="true">
+      <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Home</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h5"/></svg>S-Etukortti</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M19 10v8M9 10v8M15 10v8M3 20h18"/></svg>Bank</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Me</span>
+    </div>
     <div class="scrim" id="scrim"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Birky chat">
       <div class="grab"><b><img src="/static/birky.svg" alt="">Birky</b><button id="close" aria-label="Close">×</button></div>
@@ -100,7 +132,8 @@
   <div class="notes">
     <b>Native cards</b>The row of Birky cards is drawn from <code>/api/widgets</code>: engine numbers, no AI call, cacheable.
     <b>Deep links</b>Tapping a card opens the chat with its question: <code>/chat?q=…</code>
-    <b>Embedded chat</b>The sheet is the same web chat in a WebView: <code>/chat?embed=1</code>
+    <b>Embedded chat</b>The sheet is the same web chat in a WebView: <code>/chat?embed=1</code>. It opens from the Ask bar or from the help bubble in the top-right corner, where S-mobiili already has one.
+    <b>S-mobiili look</b>Mint background, white rows with green titles and the four tabs (Home, S-Etukortti, Bank, Me), after the app&#39;s public App Store screenshots.
     <b>One coach</b>The same backend answers on WhatsApp. <a href="https://github.com/bristiana/spankki-wa/blob/main/docs/integration.md">Integration notes</a>
   </div>
 </div>
@@ -116,6 +149,7 @@ function openSheet(link) {
 }
 function closeSheet() { phone.classList.remove("open"); }
 document.getElementById("ask").onclick = () => openSheet("");
+document.getElementById("help").onclick = () => openSheet("");
 document.getElementById("close").onclick = closeSheet;
 document.getElementById("scrim").onclick = closeSheet;
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
