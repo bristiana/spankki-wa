@@ -69,8 +69,14 @@ export class Coach extends DurableObject<any> {
     if (!container.running) {
       const env: Record<string, string> = { PUBLIC_URL: this.env.PUBLIC_URL, DEMO_TODAY: this.env.DEMO_TODAY,
         STATE_REMOTE: "1" };
-      // Multi-line values (the Enable Banking PEM key) don't reach the container: send newlines as "\n".
-      for (const k of SECRET_KEYS) if (this.env[k]) env[k] = String(this.env[k]).replace(/\r?\n/g, "\\n");
+      for (const k of SECRET_KEYS) if (this.env[k]) env[k] = this.env[k];
+      // The Enable Banking PEM key (3 KB, multi-line) doesn't reach the container as one variable: send its base64
+      // body in 1000-character parts, EB_KEY_0, EB_KEY_1, ... (app/enable_banking.py puts it back together).
+      if (this.env.EB_PRIVATE_KEY) {
+        delete env.EB_PRIVATE_KEY;
+        const body = String(this.env.EB_PRIVATE_KEY).replace(/-----[^-]+-----|\\n|\s/g, "");
+        for (let i = 0; i * 1000 < body.length; i++) env[`EB_KEY_${i}`] = body.slice(i * 1000, (i + 1) * 1000);
+      }
       container.start({ image: container.images.base, instance: "basic", enableInternet: true, env });
     }
     this.observeExit();
