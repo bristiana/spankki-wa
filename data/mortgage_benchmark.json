@@ -1,0 +1,166 @@
+{
+ "source": "S-Pankki Junction 2026 challenge dataset: 200 mortgage applications and their negotiation history (synthetic, modelled on real S-Bank data)",
+ "applications": 200,
+ "approved": 150,
+ "approval_rate_pct": 75.0,
+ "approved_applications": {
+  "property_price_eur": {
+   "p25": 204125.0,
+   "median": 256250.0,
+   "p75": 344500.0
+  },
+  "loan_eur": {
+   "p25": 175125.0,
+   "median": 231500.0,
+   "p75": 296375.0
+  },
+  "equity_eur": {
+   "p25": 21125.0,
+   "median": 38500.0,
+   "p75": 51875.0
+  },
+  "equity_share_pct": {
+   "p25": 8.7,
+   "median": 14.7,
+   "p75": 18.3
+  },
+  "loan_to_value_pct": {
+   "p25": 81.7,
+   "median": 85.3,
+   "p75": 91.3
+  },
+  "collateral_value_share_of_price_pct": {
+   "p25": 69.0,
+   "median": 71.9,
+   "p75": 76.3
+  },
+  "required_monthly_income_eur": {
+   "p25": 3224.0,
+   "median": 4262.0,
+   "p75": 5456.0
+  },
+  "age": {
+   "min": 32,
+   "median": 47,
+   "max": 77
+  }
+ },
+ "required_income_per_loan_eur": 0.018409,
+ "required_income_per_loan_spread": 0.0,
+ "rejection_reasons": [
+  {
+   "reason": "insufficient_collateral",
+   "count": 34,
+   "share_of_rejections_pct": 68
+  },
+  {
+   "reason": "insufficient_income",
+   "count": 8,
+   "share_of_rejections_pct": 16
+  },
+  {
+   "reason": "insufficient_equity",
+   "count": 6,
+   "share_of_rejections_pct": 12
+  },
+  {
+   "reason": "existing_debt",
+   "count": 2,
+   "share_of_rejections_pct": 4
+  }
+ ],
+ "additional_collateral_requested_pct": 96,
+ "expenses": {
+  "bank_fee": {
+   "applications": 64,
+   "median_eur": 200,
+   "median_share_of_price_pct": 0.07
+  },
+  "existing_loan": {
+   "applications": 74,
+   "median_eur": 125,
+   "median_share_of_price_pct": 0.03
+  },
+  "maintenance_fee": {
+   "applications": 68,
+   "median_eur": 330,
+   "median_share_of_price_pct": 0.14
+  },
+  "renovation": {
+   "applications": 72,
+   "median_eur": 15000,
+   "median_share_of_price_pct": 6.02
+  },
+  "transfer_tax": {
+   "applications": 70,
+   "median_eur": 6500,
+   "median_share_of_price_pct": 2.59
+  },
+  "valuation_fee": {
+   "applications": 78,
+   "median_eur": 350,
+   "median_share_of_price_pct": 0.12
+  }
+ },
+ "one_off_cost_types": [
+  "transfer_tax",
+  "valuation_fee",
+  "bank_fee"
+ ],
+ "property_types": {
+  "apartment": {
+   "applications": 93,
+   "approval_rate_pct": 74,
+   "median_price_eur": 242000
+  },
+  "detached_house": {
+   "applications": 39,
+   "approval_rate_pct": 67,
+   "median_price_eur": 310000
+  },
+  "terraced_house": {
+   "applications": 68,
+   "approval_rate_pct": 81,
+   "median_price_eur": 246500
+  }
+ },
+ "by_age": {
+  "30-39": {
+   "applications": 23,
+   "approval_rate_pct": 83,
+   "median_price_eur": 215500,
+   "median_equity_share_pct": 17.7
+  },
+  "40-49": {
+   "applications": 107,
+   "approval_rate_pct": 64,
+   "median_price_eur": 235750,
+   "median_equity_share_pct": 15.7
+  },
+  "50+": {
+   "applications": 70,
+   "approval_rate_pct": 90,
+   "median_price_eur": 317000,
+   "median_equity_share_pct": 13.5
+  }
+ },
+ "approved_vs_real_salary": {
+  "customers": 150,
+  "monthly_salary_eur": {
+   "p25": 3128.0,
+   "median": 4080.0,
+   "p75": 5201.0
+  },
+  "required_income_over_salary": {
+   "p25": 1.01,
+   "median": 1.04,
+   "p75": 1.08
+  },
+  "loan_over_monthly_salary": {
+   "p25": 54.8,
+   "median": 56.3,
+   "p75": 58.4
+  },
+  "note": "Median monthly salary credited to the account over the dataset period"
+ }
+}
