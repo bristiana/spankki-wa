@@ -366,7 +366,7 @@ def reply_problem(bill: dict) -> str | None:
     if is_document(bill):
         return None
     if not bill["is_bill"]:
-        return ("I can't see anything about money in that one 🙂 Send me a bill, a receipt, a payslip or a bank "
+        return ("I can't see anything about money in that one. Send me a bill, a receipt, a payslip or a bank "
                 "statement and I'll explain it.")
     if not bill["readable"] or bill["amount_eur"] is None:
         return "I couldn't read that bill clearly. Could you take the photo again, flat and in good light?"

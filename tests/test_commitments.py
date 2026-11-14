@@ -194,7 +194,7 @@ def test_pause_investing_button_then_pin(client):
 
 def test_remind_buttons(client):
     rent = client.post("/api/chat", json={"text": "__btn__:remind:rent"}).json()["text"]
-    assert rent == "Okay ⏰ I'll message you the day before your rent is due (Wed 07 Oct)."
+    assert rent == "Okay, I'll message you the day before your rent is due (Wed 07 Oct)."
     util = client.post("/api/chat", json={"text": "__btn__:remind:utilities"}).json()["text"]
     assert "different days" in util
 

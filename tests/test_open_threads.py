@@ -118,16 +118,16 @@ def test_quiz_resume_button_keeps_the_same_game(e):
     quiz.start(e, "u")
     quiz.turn(e, "u", "", "quiz:0:0:regular")
     t = quiz.turn(e, "u", "", "quiz:resume")
-    assert t.lead == ["🧺 Back to the game."] and t.text.startswith("*2/")
+    assert t.lead == ["Back to the game."] and t.text.startswith("*2/")
     assert e.state["quiz"]["u"]["game"] == 0
 
 
 # ---------------- learning streak ----------------
 def test_learn_progress_and_finish_celebration(e):
     learn.start(e, "u")
-    assert learn.turn(e, "u", "", "learn:next:0").lead == ["✅ 1 of 5 done 🌰"]
-    assert learn.turn(e, "u", "", "learn:next:1").lead == ["✅ 2 of 5 done 🌰"]
-    assert learn.turn(e, "u", "", "learn:next:2").lead == ["✅ 3 of 5 done 🌰 Past halfway 🙌"]
-    assert learn.turn(e, "u", "next").lead == ["✅ 4 of 5 done 🌰 Last one, 30 seconds 💪"]
+    assert learn.turn(e, "u", "", "learn:next:0").lead == ["1 of 5 done."]
+    assert learn.turn(e, "u", "", "learn:next:1").lead == ["2 of 5 done."]
+    assert learn.turn(e, "u", "", "learn:next:2").lead == ["3 of 5 done. Past halfway."]
+    assert learn.turn(e, "u", "next").lead == ["4 of 5 done. Last one, 30 seconds."]
     done = learn.turn(e, "u", "", "learn:finish")
-    assert done.lead == ["🌰 5 of 5 done!"] and "course done! 🎉" in done.text
+    assert done.lead == ["5 of 5 done!"] and "course done!" in done.text

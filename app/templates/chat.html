@@ -7,12 +7,6 @@
   #log{flex:1;overflow-y:auto;padding:16px;max-width:560px;width:100%;margin:0 auto}
   .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
   .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px;position:relative}
-  /* Birky's reaction on the person's message, like a WhatsApp reaction */
-  .me.reacted{margin-bottom:18px}
-  .react{position:absolute;right:8px;bottom:-15px;background:var(--card);border:1px solid var(--line);border-radius:99px;
-    padding:1px 6px;font-size:14px;line-height:20px;box-shadow:0 1px 2px rgba(0,0,0,.12);animation:pop .25s ease-out}
-  @keyframes pop{0%{transform:scale(.4);opacity:0}80%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
-  @media (prefers-reduced-motion:reduce){.react{animation:none}}
   .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;margin-left:40px;position:relative}
   .bot::before{content:"";position:absolute;left:-40px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:#fff6e8 url(/static/birky.svg) center/120% no-repeat;border:1px solid var(--line)}
   .bot .btn{margin-top:10px;padding:11px;min-height:44px;font-size:15px}
@@ -31,11 +25,11 @@
   .chips.top{display:grid;grid-template-columns:1fr 1fr;gap:6px;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-bottom:6px}
   .chips.top button{font-weight:600;border-color:var(--brand);white-space:normal;line-height:1.2;border-radius:14px;
     padding:6px 10px;font-size:13px;text-align:center}  .chips button[data-more]{color:var(--brand);font-weight:600}
-  .chips button{flex:none;min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 14px;font:14px system-ui;cursor:pointer;white-space:nowrap}
+  .chips button{flex:none;min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 14px;font:14px var(--font);cursor:pointer;white-space:nowrap}
   form#f{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
-  form#f input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px system-ui;background:var(--bg);color:var(--ink)}
-  form#f button{border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 15px system-ui;padding:0 18px;min-height:44px;cursor:pointer}
-  #attach{flex:none;display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;border:1px solid var(--line);border-radius:50%;background:var(--bg);font-size:20px;cursor:pointer}
+  form#f input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px var(--font);background:var(--bg);color:var(--ink)}
+  form#f button{border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 15px var(--font);padding:0 18px;min-height:44px;cursor:pointer}
+  #attach{flex:none;display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;border:1px solid var(--line);border-radius:50%;background:var(--bg);color:var(--brand);cursor:pointer}
   .me img{display:block;max-width:180px;max-height:220px;border-radius:10px;margin-bottom:4px}
   #sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
   #sheet.open{display:flex}
@@ -67,7 +61,7 @@
 {% endblock %}
 {% block body %}
 <div id="log" aria-live="polite" aria-label="Conversation with Birky">
-  <div class="msg bot">Hi {{ name }} 👋 I'm <b>Birky</b>, your S-Pankki money coach. Ask me anything about your money.</div>
+  <div class="msg bot">Hi {{ name }}! I'm <b>Birky</b>, your S-Pankki money coach. Ask me anything about your money.</div>
 </div>
 <!-- The three questions S-Pankki's mentors say matter most: always in view, above the scrolling ideas -->
 <div class="chips top" id="top">
@@ -77,19 +71,19 @@
   <button>Where does my money go?</button>
 </div>
 <div class="chips" id="chips">
-  <button data-q="__start__">🐿️ Get started</button>
-  <button>📚 Learn in 2 minutes</button>
-  <button>🧺 Play the basket game</button>
-  <button data-q="__remind__">⏰ Rent reminder</button>
+  <button data-q="__start__">Get started</button>
+  <button>Learn in 2 minutes</button>
+  <button>Play the basket game</button>
+  <button data-q="__remind__">Rent reminder</button>
   <button>When do I spend most on restaurants?</button>
   <button class="more">Show my groceries by month</button>
   <button>How much do I need a month here?</button>
   <button class="more">How much did I spend on taxis last month?</button>
   <button class="more">How much can I safely save?</button>
   <button class="more">Could I afford a home of my own?</button>
-  <button class="more" data-q="__alert__:bills">🧾 Bill alert</button>
-  <button class="more" data-q="__alert__:salary">💰 Salary landed</button>
-  <button class="more" data-q="__alert__:unusual">👀 Unusual spend</button>
+  <button class="more" data-q="__alert__:bills">Bill alert</button>
+  <button class="more" data-q="__alert__:salary">Salary landed</button>
+  <button class="more" data-q="__alert__:unusual">Unusual spend</button>
   <button class="more">Show my money across all my banks</button>
   <button class="more">Can I afford a 120€ jacket?</button>
   <button class="more">What are my regular payments?</button>
@@ -99,12 +93,12 @@
   <button data-more aria-expanded="false" aria-controls="chips">More ideas ›</button>
 </div>
 <form id="f" autocomplete="off">
-  <label id="attach" title="Send a photo of a bill" aria-label="Send a photo of a bill">📷<input id="photo" type="file" accept="image/*" hidden></label>
+  <label id="attach" title="Send a photo of a bill" aria-label="Send a photo of a bill"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><input id="photo" type="file" accept="image/*" hidden></label>
   <input id="q" placeholder="Ask about your money…" aria-label="Message" enterkeyhint="send">
   <button id="send">Send</button>
 </form>
 <div id="sheet" role="dialog" aria-modal="true" aria-label="Confirm in S-Pankki">
-  <div class="panel"><div class="top"><span>🔒 S-Pankki</span><button id="close" aria-label="Close and go back to the chat">×</button></div><iframe id="frame" title="Confirm"></iframe></div>
+  <div class="panel"><div class="top"><span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>S-Pankki</span><button id="close" aria-label="Close and go back to the chat">×</button></div><iframe id="frame" title="Confirm"></iframe></div>
 </div>
 <script>
 const log = document.getElementById("log"), q = document.getElementById("q");
@@ -153,13 +147,6 @@ async function checkInbox() {
 }
 setInterval(checkInbox, 2500);
 
-// The reaction Birky put on the person's message: a small badge on their bubble.
-function react(mine, emoji) {
-  if (!mine || !emoji) return;
-  const b = document.createElement("span");
-  b.className = "react"; b.textContent = emoji; b.setAttribute("aria-label", "Birky reacted " + emoji);
-  mine.classList.add("reacted"); mine.appendChild(b);
-}
 const pause = ms => new Promise(r => setTimeout(r, ms));
 
 async function send(text, shown, image) {
@@ -174,13 +161,12 @@ async function send(text, shown, image) {
     const j = r.ok ? await r.json() : {text: r.status === 413 ? "That photo is too big for me. Could you try a smaller one?"
                                              : "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
     t.remove();
-    react(mine, j.reaction);
     // One bubble per part, a beat apart, like a person typing; buttons and charts ride on the last one.
     const parts = (j.bubbles && j.bubbles.length) ? j.bubbles : (j.text ? [j.text] : []);
     const extras = (j.charts || []).length || (j.buttons || []).length || (j.quick || []).length;
-    if (!parts.length && !extras) { if (mine) reveal(mine); return; }  // only a reaction ("thanks" -> 🙏)
+    if (!parts.length && !extras) { if (mine) reveal(mine); return; }  // nothing to say (on WhatsApp this is a reaction only)
     let d = null;
-    for (const [i, p] of (parts.length ? parts : ["👇"]).entries()) {
+    for (const [i, p] of (parts.length ? parts : ["Here you go:"]).entries()) {
       if (i) await pause(450);
       d = add("bot", fmt(p));
     }

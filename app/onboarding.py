@@ -170,11 +170,11 @@ def small_talk(text: str) -> str | None:
     if not (text or "").strip():
         return None
     if HOW_ARE_YOU.match(text):
-        return "All good here, thanks for asking 🐿️"
+        return "All good here, thanks for asking!"
     if GREETING.match(text):
-        return "Hey 👋 Good to see you."
+        return "Hey, good to see you."
     if CHATTER.match(text):
-        return "😄"
+        return "Ha, I like that."
     return None
 
 
@@ -189,7 +189,7 @@ def start(engine: Engine, user: str) -> Turn:
     engine._save()
     b = engine.baskets("last_3_months")
     lines = "\n".join(f"• {x['label']} (e.g. {x['example']}): {_money(x['per_month_eur'])} a month" for x in b["baskets"])
-    lead = [f"Connected ✅ Everything you spend falls in 3 baskets. Over the last 3 months, a month:\n{lines}",
+    lead = [f"Connected. Everything you spend falls in 3 baskets. Over the last 3 months, a month:\n{lines}",
             "A few short questions so I can help with *your* plan. Skip any of them."]
     t = _ask("goal")
     t.lead = lead
@@ -210,7 +210,7 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
     if not r or r["step"] == "done":
         if not ob:
             return None
-        return start(engine, user) if not r else Turn("Your goal is already set up 👍 Ask me anything about your money.")
+        return start(engine, user) if not r else Turn("Your goal is already set up. Ask me anything about your money.")
     if button_id and not ob:
         return None  # another quick reply (pay, ask:...) is handled elsewhere
     if r["paused"]:
@@ -228,7 +228,7 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
     if not ob and WIND_DOWN.match(text):
         r["paused"] = True
         engine._save()
-        return Turn("👍 Later then. Write *continue* when you want to pick this up.")
+        return Turn("Okay, later then. Write *continue* when you want to pick this up.")
     hello = None if ob else small_talk(text)
     if hello:  # never parsed as an answer: a warm word, then the same question in other words
         return _ask(step, hello, again=True)

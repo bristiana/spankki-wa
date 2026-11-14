@@ -120,7 +120,7 @@ def _when(d: str, today: date) -> str:
 def lesson(engine: Engine, i: int, n: dict | None = None) -> tuple[str, tuple[str, str]]:
     """(message, action button) for lesson i (0-based)."""
     n = n or numbers(engine)
-    head = f"📚 *{i + 1}/{COUNT} · {TITLES[i]}*\n"
+    head = f"*{i + 1}/{COUNT} · {TITLES[i]}*\n"
     if i == 0:
         rows = "\n".join(f"• {x['label']}: {eur(x['per_month_eur'])} ({x['share_pct']}%)" for x in n["baskets"])
         return (head + f"Every euro lands in one of three baskets. Yours, per month over the last {n['months']} "
@@ -205,7 +205,7 @@ def start(engine: Engine, user: str) -> Turn:
     r = engine.state["learn"][user] = {"lesson": 0, "paused": False, "note": False, "done": False, "seen": [],
                                        "run": runs + 1}  # run: each go at the course comes back at most once
     t = _show(engine, r)
-    t.lead = [f"📚 *Learn in 2 minutes*: {COUNT} short lessons, each with your own numbers. Write *stop* to pause "
+    t.lead = [f"*Learn in 2 minutes*: {COUNT} short lessons, each with your own numbers. Write *stop* to pause "
               "and *learn* to pick it up."]
     return t
 
@@ -213,17 +213,17 @@ def start(engine: Engine, user: str) -> Turn:
 def finish(engine: Engine, r: dict) -> Turn:
     r["done"] = True
     engine._save()
-    return Turn("🎓 That's all five, course done! 🎉 The short version: plan for basket 1, keep a buffer for "
+    return Turn("That's all five, course done! The short version: plan for basket 1, keep a buffer for "
                 "basket 2, choose basket 3, and pay yourself first. Write *learn* any time to go again.",
                 [("quiz:start", "Play basket game"), ("quiz:money", "Open My money")],
-                lead=[f"🌰 {COUNT} of {COUNT} done!"], done=True)
+                lead=[f"{COUNT} of {COUNT} done!"], done=True)
 
 
 def progress(done: int) -> str:
-    """The streak line between lessons: "2 of 5 done 🌰", with a nudge as the end comes closer."""
+    """The streak line between lessons: "2 of 5 done", with a nudge as the end comes closer."""
     left = COUNT - done
-    tail = " Last one, 30 seconds 💪" if left == 1 else " Past halfway 🙌" if done == (COUNT + 1) // 2 else ""
-    return f"✅ {done} of {COUNT} done 🌰{tail}"
+    tail = " Last one, 30 seconds." if left == 1 else " Past halfway." if done == (COUNT + 1) // 2 else ""
+    return f"{done} of {COUNT} done.{tail}"
 
 
 def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | None:
@@ -235,12 +235,12 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
             r["paused"] = r["note"] = False
             _hold_game(engine, user)
             t = _show(engine, r)
-            t.lead = [f"📚 Back to lesson {r['lesson'] + 1}/{COUNT}."]
+            t.lead = [f"Back to lesson {r['lesson'] + 1}/{COUNT}."]
             return t
         return start(engine, user)
     if button_id.startswith(FLOW):
         if not r or r["done"]:
-            return Turn("That course is finished 🙂 Want to go through it again?", [("learn:start", "Start again")])
+            return Turn("That course is finished. Want to go through it again?", [("learn:start", "Start again")])
         r["paused"] = r["note"] = False
         _hold_game(engine, user)
         if button_id == "learn:finish":
@@ -259,7 +259,7 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
     if EXIT.match(text):
         r["paused"] = True
         engine._save()
-        return Turn(f"👍 Paused at lesson {r['lesson'] + 1}/{COUNT}. Write *learn* when you want to pick it up.")
+        return Turn(f"Paused at lesson {r['lesson'] + 1}/{COUNT}. Write *learn* when you want to pick it up.")
     if NEXT.match(text):
         return finish(engine, r) if r["lesson"] == COUNT - 1 else _next(engine, r)
     r["paused"] = True
@@ -290,7 +290,7 @@ def paused_note(engine: Engine, user: str) -> str | None:
         return None
     r["note"] = False
     engine._save()
-    return f"📚 Lesson {r['lesson'] + 1}/{COUNT} is waiting. Write *learn* to pick it up."
+    return f"Lesson {r['lesson'] + 1}/{COUNT} is waiting. Write *learn* to pick it up."
 
 
 def goal_for(engine: Engine, button_id: str) -> tuple[str, float]:

@@ -11,7 +11,7 @@ import time
 import httpx
 
 from .guardrails import redact  # noqa: F401  (kept here: the webhook path redacts before the coach)
-from .reactions import SEPARATOR, quick_reaction  # noqa: F401
+from .reactions import SEPARATOR, quick_reaction, strip_emoji  # noqa: F401
 
 log = logging.getLogger("whatsapp")
 GRAPH = "https://graph.facebook.com/v25.0"
@@ -82,7 +82,7 @@ ROWS_MAX = SECTIONS_MAX = 10
 ROW_TITLE_MAX = SECTION_TITLE_MAX = 24
 ROW_DESC_MAX = 72
 ROW_ID_MAX = 200
-OVERFLOW_BODY = "👇"  # the interactive part of a body whose last paragraph alone was too long to carry the buttons
+OVERFLOW_BODY = "Tap the button below."  # the interactive part of a body whose last paragraph alone was too long to carry the buttons
 _DEV_HOSTS = ("http://localhost", "http://127.0.0.1")
 _EMOJI_MODIFIERS = re.compile("[️⃣\U0001F3FB-\U0001F3FF\U000E0020-\U000E007F]")
 
@@ -252,8 +252,33 @@ def repair(body: dict) -> list[dict]:
             + [{**body, "interactive": i}])
 
 
+def _no_emoji(v):
+    """Every string in a message part with its emoji taken out (strip_emoji)."""
+    if isinstance(v, str):
+        return strip_emoji(v)
+    if isinstance(v, list):
+        return [_no_emoji(x) for x in v]
+    if isinstance(v, dict):
+        return {k: v[k] if k in ("id", "url", "message_id") else _no_emoji(v[k]) for k in v}
+    return v
+
+
+def words_only(body: dict) -> dict:
+    """The words Birky sends carry no emoji: a reaction on the person's message is the only one. Texts and
+    interactive messages lose theirs (strip_emoji); a reaction, a read receipt or a template goes as it is."""
+    if body.get("type") == "text":
+        return {**body, "text": _no_emoji(body.get("text") or {})}
+    if body.get("type") == "interactive":
+        return {**body, "interactive": _no_emoji(body.get("interactive") or {})}
+    return body
+
+
 def _post(body: dict) -> dict | None:
-    """Send one message. An invalid body is logged and repaired (see repair) instead of being rejected by Meta."""
+    """Send one message. An invalid body is logged and repaired (see repair) instead of being rejected by Meta.
+    Its words go without emoji (words_only); a text left empty by that is not sent."""
+    body = words_only(body)
+    if body.get("type") == "text" and not ((body.get("text") or {}).get("body") or "").strip():
+        return None
     problems = validate_payload(body)
     if not problems:
         return _send(body)

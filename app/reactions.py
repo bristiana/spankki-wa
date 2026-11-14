@@ -3,6 +3,9 @@
 The model opens a reply with "[react]<emoji>" and splits bubbles with a line that is only "---". split_reaction() takes
 the reaction out of the text; pace() decides whether it reaches the person, so about two replies in three carry one,
 never the same emoji twice in a row. A reply that is only a reaction ("thanks" -> 🙏) always goes.
+
+The reaction is the only emoji Birky sends: strip_emoji() takes every emoji out of the words that go out, on WhatsApp
+and on the web, and the web chat shows no reaction at all.
 """
 from __future__ import annotations
 
@@ -16,6 +19,30 @@ PAST = 6  # replies the pace is judged over
 # when a reaction-only reply would repeat the last emoji: a close neighbour instead
 NEIGHBOUR = {"🙏": "🥰", "🥰": "🙏", "👍": "🙌", "🙌": "👍", "✅": "👏", "👏": "✅", "🎉": "🥳", "🥳": "🎉",
              "👀": "🤔", "🤔": "👀", "❤️": "🫶", "🫶": "❤️", "💪": "🔥", "🔥": "💪", "😂": "😄", "😄": "😂"}
+
+
+# One emoji "piece": pictographs, symbols and dingbats, plus the glue of emoji sequences (VS15/VS16, ZWJ, keycap,
+# tag characters; skin tones and regional-indicator flags sit inside U+1F000-1FAFF). An arrow or a letterlike symbol
+# only counts when a VS16 makes it an emoji, so plain typography (arrows, "›", "€", "•") is left alone.
+_EMOJI = (r"(?:[℀-⇿⬀-⯿]️|[\U0001F000-\U0001FAFF⌀-⏿☀-➿"
+          r"⬅-⬇⬛⬜⭐⭕‼⁉〰〽㊗㊙"
+          r"︎️‍⃣\U000E0020-\U000E007F])+")
+_RUN = re.compile(r"[ \t]*" + _EMOJI + r"[ \t]*")
+GAP = "\x00"
+
+
+def strip_emoji(text: str | None) -> str:
+    """The text with every emoji taken out, and the gaps it leaves tidied: "Done ✅ Paid" -> "Done Paid",
+    "*Birky* 🐿️, hi" -> "*Birky*, hi", "🧾 Heads-up" -> "Heads-up". Deterministic, no model involved."""
+    if not text:
+        return text or ""
+    s = _RUN.sub(GAP, text)
+    if GAP not in s:
+        return text
+    s = re.sub(r"(^|\n)\x00+", r"\1", s)            # at the start of a line
+    s = re.sub(r"\x00+(?=$|\n|[.,!?:;)\]])", "", s)  # at the end of a line, or before punctuation
+    s = re.sub(r"(?<=[(\[])\x00+", "", s)           # right after an opening bracket
+    return s.replace(GAP, " ").strip()
 
 
 def single_emoji(e: str) -> bool:

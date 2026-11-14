@@ -120,7 +120,7 @@ def test_reminder_uses_the_persona_name_and_numbers(client):
     pid = OTHERS[-1]
     e = main.engine_for(pid)
     t = client.post("/api/chat", json={"session": "s2", "text": "__remind__", "as": pid}).json()["text"]
-    assert t.startswith(f"Hi {main.name_for(pid)} ")
+    assert t.startswith(f"Hi {main.name_for(pid)}, ")
     assert main.money(e.safe_to_spend()["safe_to_spend_until_payday_eur"]) in t
 
 

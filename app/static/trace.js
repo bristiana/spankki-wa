@@ -16,7 +16,7 @@
   function traceHtml(trace) {
     const steps = (trace || []).filter(t => t && t.tool), check = (trace || []).find(t => t && t.check);
     if (!steps.length) return "";
-    let h = '<details class="how"><summary><span aria-hidden="true">🔍</span> How I worked this out</summary>' +
+    let h = '<details class="how"><summary>How I worked this out</summary>' +
             '<div class="how-body"><ol class="how-steps">';
     for (const s of steps) {
       h += "<li><p>" + nb(esc(s.step)) + "</p>";

@@ -38,10 +38,10 @@
       <h1>You don't need another app. You need a friend in WhatsApp.</h1>
       <p>In a banking app you're a customer. In WhatsApp you talk to friends, so you can ask "I'm out of money, what do I do?" without feeling judged. Birky, the S-Pankki savings squirrel, answers with your real numbers and helps you finish what you start. For everyday money at any age, from a first salary to a family budget.</p>
       <div class="cta">
-        {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}?text=Hi%20Birky">💬 Chat on WhatsApp</a>{% endif %}
+        {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}?text=Hi%20Birky">Chat on WhatsApp</a>{% endif %}
         <a class="btn {{ 'ghost' if wa else '' }}" href="/chat">Try it in S-mobiili</a>
       </div>
-      <div class="also"><a href="/app">📊 See the money dashboard ›</a><a href="/mobile-demo">📱 See it inside a banking app ›</a></div>
+      <div class="also"><a href="/app">See the money dashboard ›</a><a href="/mobile-demo">See it inside a banking app ›</a></div>
       <p class="muted" style="font-size:13px;margin:4px 0 0">Demo customer {{ who.name }}, {{ who.age }}, on synthetic S-Pankki data.</p>
     </div>
     <img src="/static/birky.svg" alt="Birky the squirrel holding a euro coin">

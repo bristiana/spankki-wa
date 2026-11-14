@@ -82,7 +82,7 @@ def test_right_answer_teaches_with_her_numbers(e):
     p = e.state["quiz"]["u"]["picks"][0]
     t = quiz.turn(e, "u", "", f"quiz:0:0:{p['basket']}")
     fb = t.lead[0]
-    assert fb.startswith("✅ ") and p["kind"] in fb and f"{money(p['total_eur'])} of yours {p['period']}." in fb
+    assert fb.startswith("Right. ") and p["kind"] in fb and f"{money(p['total_eur'])} of yours {p['period']}." in fb
     assert t.text.startswith("*2/5* ") and e.state["quiz"]["u"]["right"] == 1
 
 
@@ -91,7 +91,7 @@ def test_wrong_answer_is_kind_and_names_the_basket(e):
     p = e.state["quiz"]["u"]["picks"][0]
     wrong = next(b for b in BASKETS if b != p["basket"])
     fb = quiz.turn(e, "u", "", f"quiz:0:0:{wrong}").lead[0]
-    assert fb.startswith("🤔 ") and f"*{quiz.ANSWER[p['basket']]}*" in fb and money(p["total_eur"]) in fb
+    assert fb.startswith("Easy to mix up: ") and f"*{quiz.ANSWER[p['basket']]}*" in fb and money(p["total_eur"]) in fb
     assert not any(w in fb.lower() for w in SHAMING)
     assert e.state["quiz"]["u"]["right"] == 0 and e.state["quiz"]["u"]["picks"][0]["guess"] == wrong
 
@@ -110,7 +110,7 @@ def test_summary_numbers_are_the_engines(e):
     quiz.start(e, "u")
     turns = play(e, "u", lambda p: p["basket"] if p["basket"] != "irregular" else "everyday")  # 4 right
     t = turns[-1]
-    assert t.done and not quiz.active(e, "u") and t.text.startswith("🏁 *4/5*")
+    assert t.done and not quiz.active(e, "u") and t.text.startswith("*4/5*")
     b = e.baskets("last_month")
     assert "Your real split for September:" in t.text
     for x in b["baskets"]:
@@ -128,7 +128,7 @@ def test_summary_numbers_are_the_engines(e):
 def test_low_score_is_never_shamed(e):
     quiz.start(e, "u")
     t = play(e, "u", lambda p: next(b for b in BASKETS if b != p["basket"]))[-1]
-    assert t.text.startswith("🏁 *0/5*. Now you know where to look") and all("🤔" in x.lead[0] for x in [t])
+    assert t.text.startswith("*0/5*. Now you know where to look") and all("Easy to mix up" in x.lead[0] for x in [t])
 
 
 def test_play_again_starts_a_new_game_and_old_buttons_are_safe(e):
@@ -147,11 +147,11 @@ def test_stop_pauses_and_game_resumes_where_it_was(e):
     p = e.state["quiz"]["u"]["picks"][0]
     quiz.turn(e, "u", "", f"quiz:0:0:{p['basket']}")
     t = quiz.turn(e, "u", "stop")
-    assert t.text.startswith("👍 Paused at 2/5") and not t.buttons and not quiz.active(e, "u")
+    assert t.text.startswith("Paused at 2/5") and not t.buttons and not quiz.active(e, "u")
     assert quiz.paused_note(e, "u") is None  # a pause they asked for needs no reminder
     assert quiz.turn(e, "u", "How much did I spend on taxis?") is None  # paused: the coach answers
     t = quiz.turn(e, "u", "game")
-    assert t.lead == ["🧺 Back to the game."] and t.text.startswith("*2/5* ") and quiz.active(e, "u")
+    assert t.lead == ["Back to the game."] and t.text.startswith("*2/5* ") and quiz.active(e, "u")
     assert e.state["quiz"]["u"]["right"] == 1
 
 
@@ -159,18 +159,18 @@ def test_a_side_question_pauses_and_the_coach_answers(e):
     quiz.start(e, "u")
     assert quiz.turn(e, "u", "what is safe to spend this week?") is None
     assert not quiz.active(e, "u")
-    assert quiz.paused_note(e, "u") == "🧺 The basket game is paused at 1/5. Write *game* to pick it up."
+    assert quiz.paused_note(e, "u") == "The basket game is paused at 1/5. Write *game* to pick it up."
     assert quiz.paused_note(e, "u") is None  # said once
     r = e.state["quiz"]["u"]
     t = quiz.turn(e, "u", "", f"quiz:0:0:{r['picks'][0]['basket']}")  # tapping an answer resumes too
-    assert t.lead[0].startswith("✅") and quiz.active(e, "u")
+    assert t.lead[0].startswith("Right.") and quiz.active(e, "u")
 
 
 def test_not_a_game_message_is_left_alone(e):
     assert quiz.turn(e, "u", "how much did I spend on taxis?") is None
     assert quiz.turn(e, "u", "", "ob:goal:trip") is None
     assert quiz.turn(e, "u", "1") is None  # no game running
-    assert quiz.turn(e, "u", "🧺 Play the basket game").text.startswith("*1/5*")
+    assert quiz.turn(e, "u", "Play the basket game").text.startswith("*1/5*")
 
 
 # ---------------- web chat and WhatsApp ----------------
@@ -201,21 +201,21 @@ def client(tmp_path, monkeypatch):
 
 def test_web_chat_plays_the_whole_game(client):
     say = lambda text, **kw: client.post("/api/chat", json={"session": "t", "text": text, **kw}).json()
-    assert "🧺 Play the basket game" in client.get("/chat").text
-    r = say("🧺 Play the basket game")
+    assert "Play the basket game" in client.get("/chat").text
+    r = say("Play the basket game")
     assert "basket game" in r["text"] and r["text"].endswith("Which basket?")
     assert [q["send"] for q in r["quick"]] == ["__btn__:quiz:0:0:regular", "__btn__:quiz:0:0:irregular",
                                                "__btn__:quiz:0:0:everyday"]
     r = say("how much do I earn?")  # a side question: the coach answers and the game waits
-    assert r["text"] == "You can spend 50 € this week.\n\n🧺 The basket game is paused at 1/5. Write *game* to pick it up."
+    assert r["text"] == "You can spend 50 € this week.\n\nThe basket game is paused at 1/5. Write *game* to pick it up."
     assert main._coach.asked == ["how much do I earn?"]
     r = say("game")
-    assert r["text"].startswith("🧺 Back to the game.") and r["quick"][0]["send"] == "__btn__:quiz:0:0:regular"
+    assert r["text"].startswith("Back to the game.") and r["quick"][0]["send"] == "__btn__:quiz:0:0:regular"
     picks = main.engine.state["quiz"]["web:t"]["picks"]
     for i, p in enumerate(picks):
         r = say(f"__btn__:quiz:0:{i}:{p['basket']}")
-        assert r["text"].startswith("✅ Right.")
-    assert "🏁 *5/5*" in r["text"] and "Your real split for September" in r["text"]
+        assert r["text"].startswith("Right.")
+    assert "*5/5*" in r["text"] and "Your real split for September" in r["text"]
     assert [q["send"] for q in r["quick"]] == ["__btn__:ask:everyday", "__btn__:quiz:again", "__btn__:quiz:money"]
     assert say("__btn__:quiz:money")["buttons"] == [{"label": "Open My money", "url": "/app?web=1"}]
     say("__btn__:ask:everyday")
@@ -243,10 +243,10 @@ def test_whatsapp_game_with_reply_buttons_and_stop(client):
     assert q["type"] == "button" and q["body"]["text"].startswith("*1/5* ")
     assert [b["reply"]["title"] for b in q["action"]["buttons"]] == ["Regular must-pay", "Irregular must-pay",
                                                                       "Slips through"]
-    assert client.sent[-2]["text"]["body"].startswith("🧺 *The basket game.*")
+    assert client.sent[-2]["text"]["body"].startswith("*The basket game.*")
     p = main.engine.state["quiz"][to]["picks"][0]
     main.handle_message(msg("Slips through", f"quiz:0:0:{p['basket']}", "m2"))
-    assert client.sent[-2]["text"]["body"].startswith("✅ Right.")
+    assert client.sent[-2]["text"]["body"].startswith("Right.")
     main.handle_message(msg("stop", mid="m3"))  # mid-game, STOP pauses the game, Birky stays on
     assert main.connected(to) and not quiz.active(main.engine, to)
     assert "Paused at 2/5" in client.sent[-1]["text"]["body"] and "write *STOP* again" in client.sent[-1]["text"]["body"]

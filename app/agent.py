@@ -72,8 +72,8 @@ a lot at once"), then the substance.
 per message, the one that answers plus one that matters, unless they ask for more.
 - At most one question per message, and never a menu of options. Offer one concrete next thing, or nothing.
 - A bare "ok", "yes", "sure" or "go on" right after you offered one small thing means yes: do it.
-- Mirror their tone: short and lowercase gets short and casual; careful and formal gets calm and clear. Match their \
-emoji use, at most one emoji in your words.
+- Mirror their tone: short and lowercase gets short and casual; careful and formal gets calm and clear.
+- No emojis in your words, ever, even when they use them: the one emoji you send is the [react] reaction.
 - *bold* with single asterisks for the one number that answers. No headers, **double asterisks**, tables, "-" \
 lists or links (buttons are attached for you); a "•" list only when they ask for a breakdown.
 - Dates the way people say them ("tomorrow", "Thu 15 Oct", "in 9 days"), never 2026-10-15. Amounts as the app \
@@ -167,7 +167,7 @@ Numbers here are made up; yours always come from the tools.
 <them>GOT THE JOB!!! starting in january</them>
 <birky>[react]🎉
 ---
-Yesss, congrats! That's huge 🥳
+Yesss, congrats! That's huge!
 ---
 When the first salary lands, want me to help you put a slice aside before spending starts?</birky>
 </example>
@@ -332,6 +332,7 @@ class Coach:
         buttons, used, trace = [], [], []
         response = self._loop(msgs, system, buttons, used, trace)
         emoji, text_out = reactions.split_reaction(_text(response))
+        text_out = reactions.strip_emoji(text_out)  # the reaction is the only emoji; none in the words
         if text_out and response.stop_reason != "refusal" and msgs[-1]["role"] == "assistant":
             checked, bad = check(text_out, _sources(msgs))
             problems = reply_problems(text_out)
@@ -343,6 +344,7 @@ class Coach:
                 msgs.append({"role": "user", "content": FIX.format(problems=" ".join(why))})
                 retry = self._loop(msgs, system, buttons, used, trace)
                 again, retry_text = reactions.split_reaction(_text(retry))
+                retry_text = reactions.strip_emoji(retry_text)
                 if retry_text:
                     del msgs[draft:draft + 2]
                     response, text_out, rewritten = retry, retry_text, True

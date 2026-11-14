@@ -81,7 +81,7 @@ def all_lessons(e, user="u"):
 
 def test_five_lessons_use_the_engines_numbers(e):
     t = all_lessons(e)
-    assert t[0].lead[0].startswith("📚 *Learn in 2 minutes*")
+    assert t[0].lead[0].startswith("*Learn in 2 minutes*")
     b = {x["basket"]: x for x in e.baskets("last_3_months")["baskets"]}
     for k in ("regular", "irregular", "everyday"):
         assert f"{eur(b[k]['per_month_eur'])} ({b[k]['share_pct']}%)" in t[0].text
@@ -100,7 +100,7 @@ def test_five_lessons_use_the_engines_numbers(e):
     assert eur(balanced["paid_in_eur"]) in t[4].text and eur(balanced["value_eur"]) in t[4].text
     assert "scenario, not a promise" in t[4].text
     assert [b[1] for b in t[4].buttons] == ["I'm done", "Save 34 € now", "Ask Birky"]  # half of 68.60 € free now
-    assert learn.turn(e, "u", "", "learn:finish").text.startswith("🎓 That's all five")
+    assert learn.turn(e, "u", "", "learn:finish").text.startswith("That's all five")
     assert e.state["learn"]["u"]["done"] and e.state["learn"]["u"]["seen"] == [0, 1, 2, 3, 4]
 
 
@@ -122,15 +122,15 @@ def test_stop_pauses_learn_resumes_and_old_buttons_are_safe(e):
     learn.turn(e, "u", "teach me")
     learn.turn(e, "u", "", "learn:next:0")
     t = learn.turn(e, "u", "stop")
-    assert t.text == "👍 Paused at lesson 2/5. Write *learn* when you want to pick it up."
+    assert t.text == "Paused at lesson 2/5. Write *learn* when you want to pick it up."
     assert not learn.active(e, "u") and learn.turn(e, "u", "how much is rent?") is None
     t = learn.turn(e, "u", "learn")
-    assert t.lead == ["📚 Back to lesson 2/5."] and t.text.startswith("📚 *2/5 ·")
-    assert learn.turn(e, "u", "", "learn:next:0").text.startswith("📚 *2/5 ·")  # a button from lesson 1
-    assert learn.turn(e, "u", "next").text.startswith("📚 *3/5 ·")
+    assert t.lead == ["Back to lesson 2/5."] and t.text.startswith("*2/5 ·")
+    assert learn.turn(e, "u", "", "learn:next:0").text.startswith("*2/5 ·")  # a button from lesson 1
+    assert learn.turn(e, "u", "next").text.startswith("*3/5 ·")
     ask = learn.turn(e, "u", "", "learn:ask:2")
     assert "*the buffer*" in ask.text and "lesson 3/5" in ask.text and not learn.active(e, "u")
-    assert learn.turn(e, "u", "", "learn:next:2").text.startswith("📚 *4/5 ·")  # its Next lesson carries on
+    assert learn.turn(e, "u", "", "learn:next:2").text.startswith("*4/5 ·")  # its Next lesson carries on
 
 
 def test_a_side_question_pauses_once_and_the_coach_gets_the_lesson(e):
@@ -138,7 +138,7 @@ def test_a_side_question_pauses_once_and_the_coach_gets_the_lesson(e):
     assert learn.turn(e, "u", "why is rent in basket one?") is None
     assert "The three baskets" in learn.waiting_lesson(e, "u")
     assert "the short money course" in main.flow_context(e, "u")
-    assert learn.paused_note(e, "u") == "📚 Lesson 1/5 is waiting. Write *learn* to pick it up."
+    assert learn.paused_note(e, "u") == "Lesson 1/5 is waiting. Write *learn* to pick it up."
     assert learn.paused_note(e, "u") is None and learn.waiting_lesson(e, "u") is None
 
 
@@ -148,7 +148,7 @@ def test_starting_learn_pauses_the_game_and_the_game_pauses_learn(e):
     assert not quiz.active(e, "u") and learn.active(e, "u")
     learn.step_away(e, "u", "quiz:start")  # a lesson's action button
     assert not learn.active(e, "u") and not e.state["learn"]["u"]["note"]
-    assert learn.turn(e, "u", "", "learn:next:0").text.startswith("📚 *2/5 ·")
+    assert learn.turn(e, "u", "", "learn:next:0").text.startswith("*2/5 ·")
 
 
 def test_progress_is_per_user_and_per_persona(e, tmp_path):
@@ -167,7 +167,7 @@ def test_finished_course_restarts_and_stale_buttons_say_so(e):
     all_lessons(e)
     learn.turn(e, "u", "", "learn:finish")
     assert learn.turn(e, "u", "", "learn:next:4").buttons == [("learn:start", "Start again")]
-    assert learn.turn(e, "u", "learn").text.startswith("📚 *1/5 ·")
+    assert learn.turn(e, "u", "learn").text.startswith("*1/5 ·")
 
 
 def test_goal_for_buffer_and_pay_yourself_first(e):
@@ -182,18 +182,18 @@ def test_goal_for_buffer_and_pay_yourself_first(e):
 # ---------------- WhatsApp: signed webhooks, every payload valid ----------------
 def test_whatsapp_course_end_to_end(chat):
     connected(chat).say("learn")
-    assert any(t.startswith("📚 *Learn in 2 minutes*") for t in chat.texts())
+    assert any(t.startswith("*Learn in 2 minutes*") for t in chat.texts())
     assert [i for i, _ in chat.buttons()] == ["learn:next:0", "quiz:start", "learn:ask:0"]
     chat.tap("quiz:start")  # lesson 1's action: the basket game, the course waits
     assert chat.interactive("button")[-1]["body"]["text"].startswith("*1/5* ")
     chat.tap("learn:next:0")
-    assert chat.interactive("button")[-1]["body"]["text"].startswith("📚 *2/5 ·")
+    assert chat.interactive("button")[-1]["body"]["text"].startswith("*2/5 ·")
     chat.tap("quiz:money")
     assert chat.url() == f"{BASE}/app"
     chat.tap("learn:next:1").tap("learn:buffer")  # lesson 3: a buffer goal, then the PIN page
     assert "?ready=save:" in chat.url()
     chat.confirm()
-    assert any(t.startswith("✅ *Saved") for t in chat.texts())
+    assert any(t.startswith("*Saved") for t in chat.texts())
     chat.tap("learn:next:2")
     chat.say("stop")
     assert "Paused at lesson 4/5" in chat.texts()[-1] and main.connected(chat.phone)
@@ -201,15 +201,15 @@ def test_whatsapp_course_end_to_end(chat):
     assert main._coach.asked == ["How much did I spend on coffee?"]
     assert chat.texts()[-1] == "You have 68.60 € safe to spend until payday."  # a chosen pause: no note
     chat.say("learn")
-    assert chat.interactive("button")[-1]["body"]["text"].startswith("📚 *4/5 ·")
+    assert chat.interactive("button")[-1]["body"]["text"].startswith("*4/5 ·")
     chat.say("what does that mean")  # a side question: the coach answers, then the way back
-    assert chat.texts()[-1] == "📚 Lesson 4/5 is waiting. Write *learn* to pick it up."
+    assert chat.texts()[-1] == "Lesson 4/5 is waiting. Write *learn* to pick it up."
     chat.tap("learn:next:3")
     (save_id, title), = [b for b in chat.buttons() if b[0].startswith("learn:save:")]
     chat.tap(save_id)
     assert "?ready=save:" in chat.url()
     chat.tap("learn:finish")
-    assert chat.interactive("button")[-1]["body"]["text"].startswith("🎓")
+    assert chat.interactive("button")[-1]["body"]["text"].startswith("That's all five")
 
 
 # ---------------- web chat ----------------
@@ -235,17 +235,17 @@ def client(tmp_path, monkeypatch):
 
 def test_web_chip_runs_the_course_with_quick_replies(client):
     say = lambda text, **kw: client.post("/api/chat", json={"session": "l", "text": text, **kw}).json()
-    assert "📚 Learn in 2 minutes" in client.get("/chat").text
-    r = say("📚 Learn in 2 minutes")
-    assert "📚 *1/5 · The three baskets*" in r["text"]
+    assert "Learn in 2 minutes" in client.get("/chat").text
+    r = say("Learn in 2 minutes")
+    assert "*1/5 · The three baskets*" in r["text"]
     assert [q["send"] for q in r["quick"]] == ["__btn__:learn:next:0", "__btn__:quiz:start", "__btn__:learn:ask:0"]
     r = say("why is rent there?")
-    assert r["text"].endswith("📚 Lesson 1/5 is waiting. Write *learn* to pick it up.")
+    assert r["text"].endswith("Lesson 1/5 is waiting. Write *learn* to pick it up.")
     assert "The three baskets" in main._coach.asked[-1][1]
     say("learn")
     for i in range(1, 4):
         r = say(f"__btn__:learn:next:{i - 1}")
-        assert r["text"].startswith(f"✅ {i} of 5 done 🌰") and f"\n\n📚 *{i + 1}/5 ·" in r["text"]
+        assert r["text"].startswith(f"{i} of 5 done.") and f"\n\n*{i + 1}/5 ·" in r["text"]
     r = say("__btn__:learn:next:3")
     save = next(q["send"] for q in r["quick"] if "learn:save:" in q["send"])
     out = say(save)
