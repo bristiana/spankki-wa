@@ -38,6 +38,7 @@ BASKETS = {
     },
 }
 CATEGORY_BASKET = {c: k for k, b in BASKETS.items() for c in b["categories"]}
+EVERYDAY_WORDS = {"Restaurants": "eating out", "Entertainment": "entertainment", "Lifestyle": "shopping"}
 NO_PAYDAY_DAYS = 30  # safe-to-spend horizon when no regular salary is found
 INCOME_TYPES = {"salary", "other_income", "investment_withdrawal"}
 CYCLE_INCOME_TYPES = {"salary", "other_income"}  # what a pay cycle earns (the cycle budget in safe to spend)
@@ -716,6 +717,76 @@ class Engine:
                            + (f"; investing already takes {flow['investing_per_month_eur']} EUR a month."
                               if flow["investing_per_month_eur"] > 0 else "."))
         return out
+
+    def save_more(self) -> dict:
+        """'How could I save more?': at most three ideas, each with one number. The biggest real lever (a 20% cut on
+        the largest 'slips through your fingers' category), what can go to savings now or every payday, and one
+        regular payment worth a review."""
+        ideas = []
+        cuts = [self.simulate_cut(c, 20) for c in BASKETS["everyday"]["categories"] if self.monthly_avg(c, 3) > 0]
+        top = max(cuts, key=lambda c: c["saving_per_month_eur"]) if cuts else None
+        if top and top["saving_per_year_eur"] >= 60:
+            ideas.append({"idea": "biggest_lever", "category": top["category"],
+                          "in_words": EVERYDAY_WORDS[top["category"]], "basket": BASKETS["everyday"]["label"],
+                          "cut_pct": 20, "now_per_month_eur": top["current_per_month_eur"],
+                          "saving_per_month_eur": top["saving_per_month_eur"],
+                          "saving_per_year_eur": top["saving_per_year_eur"],
+                          "number_to_say": "saving_per_year_eur",
+                          "why": "the largest category in the 'slips through your fingers' basket over the last 3 full "
+                                 "months; a fifth less there is a habit change, not a sacrifice"})
+        save = self.safe_to_save()
+        m = save["monthly"]
+        if save["reserve_eur"] >= RESERVE_NOTE_EUR:
+            ideas.append({"idea": "move_what_built_up", "amount_eur": save["reserve_eur"], "number_to_say": "amount_eur",
+                          "why": "money on the current account beyond what this pay cycle needs: in a savings goal "
+                                 "(an emergency buffer first) it stops being spendable by accident",
+                          "how": "create_goal, then create_saving_link (the person confirms with their PIN)"})
+        elif m["sustainable_saving_per_month_eur"] > 0:
+            ideas.append({"idea": "pay_yourself_first", "per_month_eur": m["sustainable_saving_per_month_eur"],
+                          "number_to_say": "per_month_eur",
+                          "why": "the average monthly surplus of the last 3 full months, moved on payday before "
+                                 "spending starts"})
+        review = self._payment_to_review()
+        if review:
+            ideas.append(review)
+        out = {
+            "ideas": ideas[:3],
+            "monthly_picture": {k: m[k] for k in ("income_per_month_eur", "spending_per_month_eur",
+                                                  "investing_per_month_eur", "left_per_month_eur")},
+            "goals": save["goals"],
+            "next_step": ("Offer one thing: an 'Emergency buffer' savings goal to move part of what has built up into "
+                          "(create_goal, then create_saving_link; the PIN is theirs)."
+                          if any(i["idea"] == "move_what_built_up" for i in ideas) and not save["goals"] else
+                          f"Offer one thing: try {EVERYDAY_WORDS[top['category']]} 20% lighter for one month."
+                          if top else "Offer one thing: a savings goal to give the money a name."),
+            "method": "biggest lever = simulate_cut(20%) on the largest 'slips through your fingers' category, last 3 "
+                      "full months; what built up = the reserve from get_safe_to_save; the review = a regular payment "
+                      "from get_regular_payments (one that went up, else the utility bills)",
+        }
+        if m["left_per_month_eur"] < 0:
+            out["note"] = ("The last 3 full months spent and invested more than came in. Say it kindly in a few words "
+                           "('lately a bit more has gone out than came in'), without the number unless they ask; the "
+                           "lever is what turns it around.")
+        return out
+
+    def _payment_to_review(self) -> dict | None:
+        """One regular payment worth a look: one that went up (old and new numbers), else the utility bills. Monthly
+        investing is saving, so it is never the one to cut; rent changes only with the lease."""
+        items = [x for x in self.commitments()["regular_payments"]
+                 if x["direction"] == "out" and x["status"] == "active" and x["id"] != "investing"]
+        up = next((x for x in items if (x.get("trend") or {}).get("direction") == "up"), None)
+        if up:
+            t = up["trend"]
+            return {"idea": "review_payment", "name": up["name"], "per_month_eur": t["last_per_month_eur"],
+                    "before_per_month_eur": t["previous_per_month_eur"], "number_to_say": "per_month_eur",
+                    "why": f"went up from {t['previous_months']} to {t['last_months']}; worth checking why"}
+        util = next((x for x in items if x["id"] == "utilities"), None)
+        if util and util["per_month_eur"] >= 30:
+            return {"idea": "review_payment", "name": util["name"], "per_month_eur": util["per_month_eur"],
+                    "per_year_eur": util["per_year_eur"], "number_to_say": "per_year_eur",
+                    "why": "a regular payment that runs on its own; comparing the contracts behind it once a year "
+                           "(the data names no company) is a quick check"}
+        return None
 
     # ---------- other banks (PSD2 account information, mock) ----------
     def link_bank(self, scope: list[str] | None = None) -> dict:

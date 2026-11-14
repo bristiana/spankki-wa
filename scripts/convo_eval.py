@@ -7,7 +7,8 @@ Runs against a LOCAL server only (it calls /demo/reset first). Every AI turn is 
     python scripts/convo_eval.py --label after --only taxi,subs_all  # a few scenarios
     python scripts/convo_eval.py --report before after               # averages of the scores files
     python scripts/convo_eval.py --label instinct-after --only instinct   # the Instinct-voice subset (~30 AI turns)
-    python scripts/convo_eval.py --compose instinct-before           # the same subset from the stored transcripts
+    python scripts/convo_eval.py --label mentor --only mentor        # the three mentor questions (3 AI turns)
+    python scripts/convo_eval.py --compose instinct-before          # the same subset from the stored transcripts
 
 Each reply gets automatic phone checks (words, WhatsApp bubbles from whatsapp.bubbles, questions asked, markdown that
 WhatsApp can't show, the number guard's verdict) and Instinct checks (the reaction on the person's message, bubbles
@@ -129,7 +130,14 @@ SCENARIOS += [
     {"id": "secret", "probe": "instinct: a PIN in the message, with a question",
      "turns": ["my pin is 4821, why is my safe to spend so low?"]},
 ]
-PEDAGOGY = ["taxi", "safe_week", "typo_safe", "afford", "subs_then_all", "learn_course", "why_matters", "buffer",
+SCENARIOS += [
+    # The three questions S-Pankki's mentors say matter most, in the chips' exact wording, on the default persona.
+    {"id": "mentor_spender", "probe": "mentor Q1: what kind of spender", "turns": ["What kind of spender am I?"]},
+    {"id": "mentor_safe_week", "probe": "mentor Q2: safe this week", "turns": ["What can I safely spend this week?"]},
+    {"id": "mentor_save_more", "probe": "mentor Q3: save more", "turns": ["How could I save more?"]},
+]
+MENTOR = ["mentor_spender", "mentor_safe_week", "mentor_save_more"]  # --only mentor
+PEDAGOGY =["taxi", "safe_week", "typo_safe", "afford", "subs_then_all", "learn_course", "why_matters", "buffer",
             "pay_first", "coffee", "no_repeat"]  # --only pedagogy: the subset re-run for the why-it-matters change
 # --only instinct: the subset re-run for the Instinct voice (about 30 AI turns). Their "before" transcripts are the
 # latest stored ones: the pedagogy run where it has the scenario, else the conversation-quality "after" run.
@@ -297,6 +305,8 @@ def main():
         only = (only - {"pedagogy"}) | set(PEDAGOGY)
     if "instinct" in only:
         only = (only - {"instinct"}) | set(INSTINCT_SET)
+    if "mentor" in only:
+        only = (only - {"mentor"}) | set(MENTOR)
     run(a.url, a.label, only or None, a.max_ai)
 
 

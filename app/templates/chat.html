@@ -67,23 +67,25 @@
   <div class="msg bot">Hi {{ name }} 👋 I'm <b>Birky</b>, your S-Pankki money coach. Ask me anything about your money.</div>
 </div>
 <div class="chips" id="chips">
+  <!-- The three questions S-Pankki's mentors say matter most come first -->
+  <button>What kind of spender am I?</button>
+  <button>What can I safely spend this week?</button>
+  <button>How could I save more?</button>
   <button data-q="__start__">🐿️ Get started</button>
-  <button data-q="__remind__">⏰ Rent reminder</button>
-  <button>🧺 Play the basket game</button>
   <button>📚 Learn in 2 minutes</button>
-  <button>What is safe for me to spend this week?</button>
+  <button>🧺 Play the basket game</button>
+  <button data-q="__remind__">⏰ Rent reminder</button>
   <button>When do I spend most on restaurants?</button>
   <button class="more">Show my groceries by month</button>
   <button>How much do I need a month here?</button>
   <button class="more">How much did I spend on taxis last month?</button>
-  <button>How much can I safely save?</button>
-  <button>Could I afford my first home?</button>
+  <button class="more">How much can I safely save?</button>
+  <button class="more">Could I afford a home of my own?</button>
   <button class="more" data-q="__alert__:bills">🧾 Bill alert</button>
   <button class="more" data-q="__alert__:salary">💰 Salary landed</button>
   <button class="more" data-q="__alert__:unusual">👀 Unusual spend</button>
   <button class="more">Show my money across all my banks</button>
   <button class="more">Can I afford a 120€ jacket?</button>
-  <button class="more">What kind of spender am I?</button>
   <button class="more">What are my regular payments?</button>
   <button class="more">How much could I save if I cut dining out by 20%?</button>
   <button class="more">I want to save 1500 euros for a trip to Lapland by next summer</button>
@@ -229,7 +231,7 @@ photo.onchange = async () => {
 };
 const chips = document.getElementById("chips");
 chips.querySelectorAll("button").forEach(b => b.onclick = () => {
-  if (b.hasAttribute("data-more")) {  // 8 ideas at first; the rest one tap away
+  if (b.hasAttribute("data-more")) {  // 9 ideas at first; the rest one tap away
     const all = chips.classList.toggle("all");
     b.textContent = all ? "Fewer ‹" : "More ideas ›"; b.setAttribute("aria-expanded", all);
     return;

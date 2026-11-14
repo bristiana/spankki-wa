@@ -178,6 +178,24 @@ def people_like_me(a, o):
 
 EXPLAIN["get_people_like_me"] = people_like_me
 
+
+def save_more(a, o):
+    figs = []
+    for i in o.get("ideas") or []:
+        if i.get("idea") == "biggest_lever":
+            figs.append({"label": f"20% less on {i['in_words']}, a year", "value": eur(i["saving_per_year_eur"])})
+        elif i.get("idea") == "move_what_built_up":
+            figs.append({"label": "Built up beyond the pay cycle", "value": eur(i["amount_eur"])})
+        elif i.get("idea") == "pay_yourself_first":
+            figs.append({"label": "Steady surplus a month", "value": eur(i["per_month_eur"])})
+        elif i.get("idea") == "review_payment":
+            k = i.get("number_to_say", "per_month_eur")
+            figs.append({"label": f"{i['name']}, {'a year' if k == 'per_year_eur' else 'a month'}", "value": eur(i[k])})
+    return "Looked for where you could save more", figs, [TX]
+
+
+EXPLAIN["get_save_more_ideas"] = save_more
+
 STEPS = {"list_funds": "Looked up the demo funds", "get_goals": "Looked up your savings goals",
          "create_goal": "Made a savings plan", "create_payment_link": "Prepared a payment for your PIN",
          "create_investment_link": "Prepared an investment for your PIN",

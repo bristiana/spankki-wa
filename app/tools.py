@@ -101,6 +101,14 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
+        "name": "get_save_more_ideas",
+        "description": "'How could I save more?': up to three ideas from the customer's own data, best first, each "
+                       "with the one number to say (number_to_say): the biggest lever (20% less on the largest 'slips "
+                       "through your fingers' category, per year), money that can go to savings now (or every "
+                       "payday), and one regular payment worth a review. Plus the monthly picture and one next step.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
         "name": "get_full_picture",
         "description": "All the customer's accounts across banks (S-Pankki plus any bank linked through PSD2): total "
                        "balances, credit card debt, net position, the next card bill and how many months savings could "
@@ -349,6 +357,8 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out = engine.safe_to_spend()
     elif name == "get_safe_to_save":
         out = engine.safe_to_save()
+    elif name == "get_save_more_ideas":
+        out = engine.save_more()
     elif name == "get_full_picture":
         out = engine.full_picture()
     elif name == "can_i_afford":
