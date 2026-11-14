@@ -5,6 +5,8 @@ import hashlib
 import hmac
 import logging
 import os
+import re
+import time
 
 import httpx
 
@@ -85,3 +87,59 @@ def send_reply_buttons(to: str, text: str, buttons: list[tuple[str, str]]):
     return _post({"to": to, "type": "interactive", "interactive": {
         "type": "button", "body": {"text": text[:1024]},
         "action": {"buttons": [{"type": "reply", "reply": {"id": i, "title": t[:20]}} for i, t in buttons[:3]]}}})
+
+
+# ---------------- conversation feel and privacy (ideas from Moni) ----------------
+
+BUBBLE_PAUSE_S = 0.8
+
+
+def quick_reaction(text: str | None) -> str | None:
+    """An instant receipt on the person's message: 👀 question, 🙏 thanks, 💰 money news, 👋 hello."""
+    t = (text or "").lower()
+    if re.search(r"\b(thanks|thank you|thx|kiitos|mersi)\b", t):
+        return "🙏"
+    if re.search(r"\b(salary|paid|bonus|raise|palkka)\b", t):
+        return "💰"
+    if re.match(r"^\s*(hi|hey|hello|moi|hei|terve|salut)\b", t) and len(t) < 25:
+        return "👋"
+    if "?" in t or re.match(r"^\s*(how|what|why|where|when|can|should|is|am|do)\b", t):
+        return "👀"
+    return None
+
+
+def send_reaction(to: str, message_id: str, emoji: str):
+    return _post({"to": to, "type": "reaction", "reaction": {"message_id": message_id, "emoji": emoji}})
+
+
+def bubbles(text: str, max_bubbles: int = 3) -> list[str]:
+    """Split a reply on blank lines into at most 3 chat bubbles (the last one takes the rest)."""
+    parts = [p.strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
+    if len(parts) <= max_bubbles:
+        return parts or [text]
+    return parts[: max_bubbles - 1] + ["\n\n".join(parts[max_bubbles - 1:])]
+
+
+def send_bubbles(to: str, parts: list[str]):
+    for i, p in enumerate(parts):
+        if i:
+            time.sleep(BUBBLE_PAUSE_S)
+        send_text(to, p)
+
+
+def _luhn(digits: str) -> bool:
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        d = int(ch)
+        if i % 2:
+            d = d * 2 - 9 if d * 2 > 9 else d * 2
+        total += d
+    return total % 10 == 0
+
+
+def redact(text: str) -> str:
+    """Remove what the coach never needs before it reaches the AI: card numbers, IBANs, Finnish personal IDs."""
+    t = re.sub(r"\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,3})?\b", "[IBAN removed]", text)
+    t = re.sub(r"\b\d{6}[-+AaBCDEFYXWVU]\d{3}[0-9A-Ya-y]\b", "[personal ID removed]", t)
+    return re.sub(r"\b\d(?:[ -]?\d){12,18}\b",
+                  lambda m: "[card number removed]" if _luhn(re.sub(r"\D", "", m.group())) else m.group(), t)
