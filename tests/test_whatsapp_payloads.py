@@ -10,7 +10,7 @@ from itertools import count
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main, rules, voice
+from app import bills, main, rules, voice
 from app import whatsapp as wa
 from app.agent import Reply
 from app.engine import Engine
@@ -69,8 +69,9 @@ class Chat:
         return self._post({"type": "interactive", "interactive": {
             "type": "list_reply", "list_reply": {"id": row_id, "title": title}}})
 
-    def media(self, kind):
-        return self._post({"type": kind, kind: {"id": "media-1", "mime_type": "image/jpeg"}})
+    def media(self, kind, mime="image/jpeg", caption=None):
+        return self._post({"type": kind, kind: {"id": "media-1", "mime_type": mime}
+                                               | ({"caption": caption} if caption else {})})
 
     # what came back
     def interactive(self, itype=None):
@@ -472,10 +473,47 @@ def test_stop_switches_off_and_hi_reconnects(chat):
     assert "/connect?u=" in chat.url()
 
 
-@pytest.mark.parametrize("kind", ["image", "video", "sticker", "document", "location"])
-def test_media_messages(chat, kind):
-    connected(chat).media(kind)
-    assert chat.texts()[-1].startswith("I can read text and listen to voice notes")
+@pytest.mark.parametrize("kind,mime", [("video", "video/mp4"), ("sticker", "image/webp"), ("document", "text/plain"),
+                                       ("location", "")])
+def test_media_messages(chat, kind, mime):
+    connected(chat).media(kind, mime)
+    assert chat.texts()[-1].startswith("I can read text, voice notes and photos of bills")
+
+
+def test_bill_photo_explain_then_pay(chat, monkeypatch):
+    from tests.test_bills import PNG, VOLTTI
+    monkeypatch.setattr(bills, "download", lambda media_id: PNG)
+    monkeypatch.setattr(bills, "extract", lambda client, data, media_type: bills.clean(VOLTTI))
+    errors = []
+
+    def eager(e, text, buttons):  # tries to pay on every turn: only "pay it" may
+        try:
+            run_tool(e, "create_bill_payment_link", {}, buttons)
+            return "Ready: *57.08 €* to Voltti Energia Oy (demo), due 20 Oct. Confirm it in the bank."
+        except ValueError as err:
+            errors.append(str(err))
+            return "It's your September electricity bill: *57.08 €*, due Tue 20 Oct. Want me to prepare the payment?"
+    main._coach.script = eager
+    connected(chat).media("image", caption="explain it to me")
+    assert "<bill_photo>" in main._coach.asked[-1] and main.engine.state["pending"] == {}
+    assert not chat.interactive("cta_url") and "only asked to understand" in errors[-1]
+    chat.say("ok let's pay it")
+    [(pid, p)] = main.engine.state["pending"].items()
+    assert chat.url() == f"{BASE}/pay/{pid}" and p["iban"] == "FI5979900020451187"
+    chat.confirm()
+    assert any("Voltti Energia Oy (demo) paid" in t for t in chat.texts())
+
+
+def test_bill_pdf_that_is_not_a_bill_and_one_that_cannot_be_opened(chat, monkeypatch):
+    from tests.test_bills import NOT_A_BILL
+    download = bills.download
+    monkeypatch.setattr(bills, "download", lambda media_id: b"%PDF-1.7 ...")
+    monkeypatch.setattr(bills, "extract", lambda client, data, media_type: bills.clean(NOT_A_BILL))
+    connected(chat).media("document", "application/pdf")
+    assert "doesn't look like a bill" in chat.texts()[-1] and main._coach.asked == []
+    monkeypatch.setattr(bills, "download", download)
+    chat.media("image")  # no WA_TOKEN in tests: the download fails and Birky says so
+    assert chat.texts()[-1].startswith("Sorry, I couldn't open that photo")
 
 
 def test_voice_note_is_answered_like_text(chat, monkeypatch):
