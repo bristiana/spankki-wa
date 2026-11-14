@@ -149,3 +149,11 @@ def test_add_another_bank_goes_to_the_real_one(monkeypatch):
     c = TestClient(main.app)
     assert c.get("/connect/bank", follow_redirects=False).headers["location"] == "/bank"
     assert "Demo Bank" in c.get("/connect/bank", params={"demo": 1}).text
+
+
+def test_private_key_from_parts(monkeypatch):
+    monkeypatch.delenv("EB_PRIVATE_KEY", raising=False)
+    monkeypatch.setenv("EB_KEY_0", "A" * 1000)
+    monkeypatch.setenv("EB_KEY_1", "B" * 10)
+    key = eb._private_key()
+    assert key.startswith("-----BEGIN PRIVATE KEY-----\n") and "A" * 64 + "\n" in key and "A" * 40 + "B" * 10 + "\n-----END" in key

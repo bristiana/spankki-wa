@@ -50,14 +50,29 @@ _pending: dict[str, tuple[str, str, float]] = {}  # state -> (phone, bank, creat
 viewer: contextvars.ContextVar[str | None] = contextvars.ContextVar("eb_viewer", default=None)
 
 
+def _private_key() -> str | None:
+    """EB_PRIVATE_KEY (PEM), or its base64 body in parts EB_KEY_0, EB_KEY_1... (how the worker sends it)."""
+    if os.environ.get("EB_PRIVATE_KEY"):
+        return os.environ["EB_PRIVATE_KEY"].replace("\\n", "\n")
+    parts, i = [], 0
+    while os.environ.get(f"EB_KEY_{i}"):
+        parts.append(os.environ[f"EB_KEY_{i}"])
+        i += 1
+    if not parts:
+        return None
+    body = "".join(parts)
+    lines = "\n".join(body[j:j + 64] for j in range(0, len(body), 64))
+    return f"-----BEGIN PRIVATE KEY-----\n{lines}\n-----END PRIVATE KEY-----\n"
+
+
 def configured() -> bool:
-    return bool(os.environ.get("EB_APP_ID") and os.environ.get("EB_PRIVATE_KEY"))
+    return bool(os.environ.get("EB_APP_ID") and _private_key())
 
 
 # ---------- API ----------
 def _token() -> str:
     now = int(time.time())
-    key = os.environ["EB_PRIVATE_KEY"].replace("\\n", "\n")
+    key = _private_key()
     return jwt.encode({"iss": "enablebanking.com", "aud": "api.enablebanking.com", "iat": now, "exp": now + 3600},
                       key, algorithm="RS256", headers={"kid": os.environ["EB_APP_ID"]})
 
