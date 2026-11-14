@@ -204,8 +204,9 @@ def connect_submit(request: Request, bg: BackgroundTasks, u: str = Form(""), sco
 
 def welcome(to: str):
     reply = coach().ask(to, "I just connected my account. Give me a very short first look at where my money went in the "
-                            "last 3 months using the three baskets, then tell me what you can help with.", name=name_of(to))
+                            "last 3 months using the three baskets. Then ask me one short question: what am I saving for, with an amount and when.", name=name_of(to))
     send_reply(to, reply)
+    wa.send_url_button(to, "Your whole money picture, any time 📊", "Open My money", f"{public_url()}/app")
 
 
 # ---------------- Confirm pages ----------------
@@ -421,9 +422,46 @@ def demo_reset():
 
 
 # ---------------- Web chat (same coach, embeddable in S-mobiili) ----------------
-@app.get("/", include_in_schema=False)
-def root():
-    return RedirectResponse("/chat")
+def _ctx(**extra) -> dict:
+    return {"money": money, "nice": nice_date, "wa": os.environ.get("WA_DISPLAY_NUMBER", ""), **extra}
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def landing(request: Request):
+    off = engine.official_benchmark() or {"comparison": []}
+    rest = next((r for r in off["comparison"] if r["category"] == "Restaurants"), {"times": "-"})
+    rent = next((b for b in engine.upcoming_bills(45) if b["category"] == "Housing"), {"amount_eur": 0})
+    subs = engine.subscriptions()["subscriptions"]
+    up = next((x for x in subs if x["price_increase"]), subs[0])
+    cut = engine.simulate_cut("Restaurants", 20)
+    growth = next((r for r in (cut.get("real_past_check") or {}).get("results", []) if r and "Growth" in r["fund"]),
+                  {"value_today_eur": 0})
+    L = {"rest": engine.monthly_avg("Restaurants", 3), "times": rest["times"], "rent": rent["amount_eur"],
+         "safe": engine.safe_to_spend()["safe_to_spend_until_payday_eur"], "sub_name": up["name"],
+         "sub_from": (up["price_increase"] or {}).get("from_eur", up["price_eur"]), "sub_to": up["price_eur"],
+         "sub_year": up["per_year_eur"], "cut": cut["saving_per_month_eur"], "cut_growth": growth["value_today_eur"]}
+    return templates.TemplateResponse(request, "landing.html", _ctx(L=L))
+
+
+def _chart(o: dict) -> dict:
+    vals = [v for _, v in o["series"]]
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or 1
+    pts = [(round(i * 300 / (len(vals) - 1), 1), round(64 - (v - lo) / span * 58, 1)) for i, v in enumerate(vals)]
+    line = " ".join(f"{x},{y}" for x, y in pts)
+    top = max(max(w["in"], w["out"]) for w in o["flow"]) or 1
+    bars = []
+    for i, w in enumerate(o["flow"]):
+        hin, hout = round(w["in"] / top * 95, 1), round(w["out"] / top * 95, 1)
+        bars.append({"x": round(i * 25 + 3, 1), "hin": hin, "yin": round(100 - hin, 1), "hout": hout, "yout": round(100 - hout, 1)})
+    return {"series_pts": line, "series_area": f"0,70 {line} 300,70", "flow_bars": bars}
+
+
+@app.get("/app", response_class=HTMLResponse)
+def dashboard(request: Request):
+    o = engine.overview()
+    return templates.TemplateResponse(request, "dashboard.html", _ctx(
+        o=o, name=DEMO_NAME, today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o)))
 
 
 @app.get("/chat", response_class=HTMLResponse)

@@ -470,6 +470,49 @@ class Engine:
                 "source": self.statfin["source"], "comparison": rows,
                 "note": "Household figures; a household can be more than one person."}
 
+    # ---------- dashboard ----------
+    def balance_series(self, days: int = 90) -> list[tuple[str, float]]:
+        """End-of-day balance for the last `days` days (dataset balances, then demo actions today)."""
+        b = self.base[self.base["date"] <= self.today].groupby("date")["balance_after_eur"].last()
+        start = self.today - timedelta(days=days - 1)
+        before = b[b.index < start]
+        cur = float(before.iloc[-1]) if len(before) else float(b.iloc[0])
+        out = []
+        for i in range(days):
+            d = start + timedelta(days=i)
+            if d in b.index:
+                cur = float(b[d])
+            out.append((d.isoformat(), eur(cur)))
+        out[-1] = (out[-1][0], self.balance())
+        return out
+
+    def weekly_flow(self, weeks: int = 12) -> list[dict]:
+        t = self.tx
+        start = self.today - timedelta(days=self.today.weekday()) - timedelta(weeks=weeks - 1)
+        rows = []
+        for i in range(weeks):
+            w0 = start + timedelta(weeks=i)
+            s = t[(t["date"] >= w0) & (t["date"] < w0 + timedelta(days=7))]
+            rows.append({"week": w0.isoformat(), "in": eur(s[s["tx_amount_eur"] > 0]["tx_amount_eur"].sum()),
+                         "out": eur(-s[s["tx_amount_eur"] < 0]["tx_amount_eur"].sum())})
+        return rows
+
+    def recent(self, n: int = 12) -> list[dict]:
+        t = self.tx.tail(n).iloc[::-1]
+        return [{"date": r["date"].isoformat(), "what": merchant_name(r["merchant_id"]) or r["category"],
+                 "category": r["category"], "basket": BASKETS[CATEGORY_BASKET[r["category"]]]["label"]
+                 if r["category"] in CATEGORY_BASKET else None, "amount_eur": eur(r["tx_amount_eur"])}
+                for _, r in t.iterrows()]
+
+    def overview(self) -> dict:
+        port = self.portfolio()
+        return {"today": self.today.isoformat(), "balance_eur": self.balance(), "safe": self.safe_to_spend(),
+                "baskets": self.baskets("last_3_months"), "flow": self.weekly_flow(), "series": self.balance_series(),
+                "bills": self.upcoming_bills(), "subs": self.subscriptions(), "goals": self.goals(),
+                "invest": {"put_in": port["net_put_in_eur"], "plan": port["monthly_plan_in_data"],
+                           "real": port["if_your_deposits_were_in_each_fund"]},
+                "official": self.official_benchmark(), "recent": self.recent()}
+
     # ---------- money moves (only after the user confirms) ----------
     def create_payment(self, bill_id: str) -> dict:
         bill = next((b for b in self.upcoming_bills(45) if b["bill_id"] == bill_id), None)
