@@ -12,6 +12,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import broker
@@ -28,6 +29,7 @@ engine = Engine(today=date.fromisoformat(os.environ.get("DEMO_TODAY", "2026-10-0
 _coach: Coach | None = None
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 app = FastAPI(title="S-Pankki Chat")
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 seen: set[str] = set()
 owner: dict[str, str] = {}
 inbox: dict[str, list[str]] = {}  # web chat session -> confirmations waiting to be shown  # pending_id -> WhatsApp number that asked for it
@@ -157,7 +159,7 @@ def handle_message(m: dict):
         if not connected(to):
             wa.send_url_button(
                 to,
-                f"Hi {name} 👋 I'm your S-Pankki money coach. I can answer questions about your spending, remind you "
+                f"Hi {name} 👋 I'm *Kurre* 🐿️, your S-Pankki money coach. I answer questions about your spending, remind you "
                 "before bills and help you save.\n\nTo start, connect your S-Pankki account. You choose what I can see, "
                 "and you can switch me off any time.",
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
