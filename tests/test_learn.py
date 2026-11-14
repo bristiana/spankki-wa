@@ -66,9 +66,9 @@ def test_lesson_with_a_linked_bank_counts_months_of_buffer(e):
     assert check(r["lesson"], [out])[1] == []
 
 
-def test_system_prompt_asks_for_one_short_why_line():
-    assert "at most ONE short line" in agent.SYSTEM and '"lesson"' in agent.SYSTEM
-    assert "Never the same idea twice" in agent.SYSTEM and "small talk" in agent.SYSTEM
+def test_system_prompt_keeps_the_lesson_for_a_why():
+    assert '"why?" after an answer' in agent.SYSTEM and '"lesson"' in agent.SYSTEM
+    assert "never the same idea twice" in agent.SYSTEM and "never a lecture" in agent.SYSTEM
 
 
 # ---------------- the course: five lessons on her own numbers ----------------

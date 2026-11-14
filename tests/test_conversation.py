@@ -56,12 +56,18 @@ def test_iso_dates_read_like_people_say_them():
 def test_prompt_sets_phone_rules():
     for rule in ("Answer what they asked in your first bubble", "split by a line with only ---",
                  "At most one question per message", "never a menu", "never 2026-10-15",
-                 "explain your LAST message again", "never name or invent one", "Say who you are only when", "[react]",
-                 "Mirror their tone", "Never mention tools", "means yes"):
+                 "explain your LAST message again", "Say who you are only when", "[react]",
+                 "Mirror their tone", "Never mention tools", "means yes", "Call the tool again",
+                 "also as their very first message"):
         assert rule in SYSTEM, rule
     for section in ("role", "never", "style", "how_you_help", "examples"):
         assert f"<{section}>" in SYSTEM and f"</{section}>" in SYSTEM, section
-    assert 5 <= SYSTEM.count("<example>") <= 7
+    assert 8 <= SYSTEM.count("<example>") <= 12
+    # one rule per pair: no longer exception for save-more, no self-introduction for a bare first "ok"
+    assert "80 words" not in SYSTEM and "first message with nothing to answer" not in SYSTEM
+    assert "[PIN removed]" in SYSTEM and "<before>Nothing: this is their first message.</before>" in SYSTEM
+    how = {t["name"]: t["description"] for t in TOOLS}
+    assert "never name or invent one" in how["get_regular_payments"] and "get_regular_payments" not in SYSTEM
 
 
 class Recorder:
