@@ -3,7 +3,7 @@
 Răspunsurile vin din starea reală a contului, citită prin Graph API pe 14 nov 2026 (`health_status` pe contul WhatsApp „Test Messaging Account”, portofoliul „Criss”). Fișierul nu conține secrete.
 
 ## Pe scurt
-Pe contul nostru, **mesajele inițiate de firmă sunt BLOCATE** și noi nu am rezolvat nimic din ce cere Meta pentru ele. Birky merge pentru că folosim **doar fereastra de 24h**: omul scrie primul, iar în următoarele 24h botul poate răspunde liber (text, butoane, linkuri), fără template-uri și fără plată. Dacă la tine „Meta blochează trimiterea”, verifică întâi dacă trimiți primul (sau un template). Dacă da, acolo e blocajul.
+Pe contul nostru, **mesajele inițiate de firmă sunt BLOCATE** și noi nu am rezolvat nimic din ce cere Meta pentru ele. Oiva merge pentru că folosim **doar fereastra de 24h**: omul scrie primul, iar în următoarele 24h botul poate răspunde liber (text, butoane, linkuri), fără template-uri și fără plată. Dacă la tine „Meta blochează trimiterea”, verifică întâi dacă trimiți primul (sau un template). Dacă da, acolo e blocajul.
 
 ## Răspunsuri
 

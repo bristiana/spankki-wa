@@ -173,7 +173,7 @@ def validate_payload(body: dict) -> list[str]:
             errs.append("reaction without message_id")
         if not single_emoji(r.get("emoji") or ""):
             errs.append(f"reaction {r.get('emoji')!r} is not a single emoji")
-    elif kind == "template":  # on its way out: Birky only writes inside the 24-hour window
+    elif kind == "template":  # on its way out: Oiva only writes inside the 24-hour window
         if not (body.get("template") or {}).get("name"):
             errs.append("template without name")
     else:
@@ -264,7 +264,7 @@ def _no_emoji(v):
 
 
 def words_only(body: dict) -> dict:
-    """The words Birky sends carry no emoji: a reaction on the person's message is the only one. Texts and
+    """The words Oiva sends carry no emoji: a reaction on the person's message is the only one. Texts and
     interactive messages lose theirs (strip_emoji); a reaction, a read receipt or a template goes as it is."""
     if body.get("type") == "text":
         return {**body, "text": _no_emoji(body.get("text") or {})}

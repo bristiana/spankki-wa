@@ -1,7 +1,7 @@
 """Learn in 2 minutes: five 30-second money lessons, each built on the person's own numbers. No AI.
 
 1 The three baskets · 2 Safe to spend vs. your balance · 3 The buffer · 4 Small things add up · 5 Pay yourself first.
-Each lesson is one short message (under 500 characters) with three reply buttons: the next lesson, "Ask Birky" and
+Each lesson is one short message (under 500 characters) with three reply buttons: the next lesson, "Ask Oiva" and
 one action that uses the existing handlers (the basket game, My money, a goal + savings pocket with PIN, the coach).
 Started with "learn", "teach me" or the web chip. "stop" pauses, any other question pauses too (the coach answers),
 "learn" picks it up where it was. Tapping a lesson's action steps away quietly; its "Next lesson" carries on.
@@ -189,7 +189,7 @@ def _show(engine: Engine, r: dict) -> Turn:
     if i not in r["seen"]:
         r["seen"].append(i)
     engine._save()
-    return Turn(text, [nxt, action, (f"learn:ask:{i}", "Ask Birky")])
+    return Turn(text, [nxt, action, (f"learn:ask:{i}", "Ask Oiva")])
 
 
 def _hold_game(engine: Engine, user: str):

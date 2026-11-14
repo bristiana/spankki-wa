@@ -1,4 +1,4 @@
-"""What is worth a message when Birky wakes up on its own (the cron, or the demo panel).
+"""What is worth a message when Oiva wakes up on its own (the cron, or the demo panel).
 
 Pure: reads the engine and never changes it. Every signal carries all the numbers its message may quote, computed
 by the engine, plus a priority (1 = most urgent) and a dedup_key. pick() keeps the most urgent signal whose

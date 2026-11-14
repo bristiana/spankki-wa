@@ -1,6 +1,6 @@
-# Birky inside S-mobiili
+# Oiva inside S-mobiili
 
-How S-Pankki's mobile app could carry Birky without rebuilding it. Concept page: `/mobile-demo` (a generic banking-app mock, not the real S-mobiili).
+How S-Pankki's mobile app could carry Oiva without rebuilding it. Concept page: `/mobile-demo` (a generic banking-app mock, not the real S-mobiili).
 
 There are three parts, and each one works on its own:
 

@@ -1,0 +1,64 @@
+{
+  "image": "penny.webp",
+  "cols": 8,
+  "rows": 11,
+  "cell": [
+    144,
+    156
+  ],
+  "moods": {
+    "idle": {
+      "row": 0,
+      "frames": 6,
+      "loop": 1.2
+    },
+    "walk-r": {
+      "row": 1,
+      "frames": 8,
+      "loop": 0.64
+    },
+    "walk-l": {
+      "row": 2,
+      "frames": 8,
+      "loop": 0.64
+    },
+    "wave": {
+      "row": 3,
+      "frames": 4,
+      "loop": 0.6
+    },
+    "happy": {
+      "row": 4,
+      "frames": 5,
+      "loop": 0.7
+    },
+    "worried": {
+      "row": 5,
+      "frames": 8,
+      "loop": 1.2
+    },
+    "talk": {
+      "row": 6,
+      "frames": 6,
+      "loop": 0.9
+    },
+    "busy": {
+      "row": 7,
+      "frames": 6,
+      "loop": 0.6
+    },
+    "think": {
+      "row": 8,
+      "frames": 6,
+      "loop": 1.2
+    }
+  },
+  "look": {
+    "rows": [
+      9,
+      10
+    ],
+    "directions": 16,
+    "step_deg": 22.5
+  }
+}

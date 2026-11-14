@@ -52,7 +52,7 @@ def test_thread_comes_back_once(e):
     (t,) = threads(e)
     sent = e.state.setdefault("sent", {}).setdefault("u", {})
     picked = []
-    for _ in range(12):  # everything Birky would send, one after the other
+    for _ in range(12):  # everything Oiva would send, one after the other
         s = rules.pick(e, "u", force=True)
         if not s:
             break

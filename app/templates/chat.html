@@ -8,7 +8,7 @@
   .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
   .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px;position:relative}
   .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;margin-left:40px;position:relative}
-  .bot::before{content:"";position:absolute;left:-40px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:#fff6e8 url(/static/birky.svg) center/120% no-repeat;border:1px solid var(--line)}
+  .bot::before{content:"";position:absolute;left:-40px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:#fff6e8 url(/static/birky/penny.png) center/92% no-repeat;border:1px solid var(--line)}
   .bot .btn{margin-top:10px;padding:11px;min-height:44px;font-size:15px}
   .bot .btn:disabled{opacity:.45;cursor:default}.bot .btn.picked{opacity:1;background:var(--soft);border-color:var(--brand)}
   .typing{color:var(--muted);font-size:14px;padding:6px 2px 6px 40px;display:flex;align-items:center;gap:8px}
@@ -60,8 +60,8 @@
 <script src="/static/trace.js"></script>
 {% endblock %}
 {% block body %}
-<div id="log" aria-live="polite" aria-label="Conversation with Birky">
-  <div class="msg bot">Hi {{ name }}! I'm <b>Birky</b>, your S-Pankki money coach. Ask me anything about your money.</div>
+<div id="log" aria-live="polite" aria-label="Conversation with Oiva">
+  <div class="msg bot">Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.</div>
 </div>
 <!-- The three questions S-Pankki's mentors say matter most: always in view, above the scrolling ideas -->
 <div class="chips top" id="top">
@@ -153,7 +153,7 @@ async function send(text, shown, image) {
   if (!text && !image) return;
   const mine = image ? add("me", '<img alt="Your photo" src="' + image + '">' + esc(text || ""))
                      : shown !== null ? add("me", esc(shown || text)) : null;
-  const t = add("typing", 'Birky is thinking <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
+  const t = add("typing", 'Oiva is thinking <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
   t.setAttribute("role", "status");
   try {
     const r = await fetch("/api/chat", {method: "POST", headers: {"content-type": "application/json"},
@@ -199,7 +199,7 @@ async function send(text, shown, image) {
       btn.dataset.quick = "1";
       d.appendChild(btn);
     }
-    const how = window.birkyTrace(j.trace);  // collapsed under the bubble: what Birky looked up and checked
+    const how = window.birkyTrace(j.trace);  // collapsed under the bubble: what Oiva looked up and checked
     if (how) d.insertAdjacentHTML("afterend", how);
     reveal(d);
   } catch (e) { t.remove(); add("bot", "Connection problem, try again."); }

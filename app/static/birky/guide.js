@@ -1,19 +1,20 @@
-/* Birky as an on-screen guide: the squirrel hops to each key element in turn and says one line about it.
+/* Oiva as an on-screen guide: the squirrel hops to each key element in turn and says one line about it.
 
    Steps are data: a JSON list [{target: "element-id", say: "...", mood: "talk"}] (e.g. from a
    <script type="application/json">), or, when the list is empty, every [data-guide] element in the root, in the
    order of its value: <div data-guide="1" data-say="Your balance" data-mood="talk">.
 
-     const g = BirkyGuide.create(phoneEl, {autoplay: false, dwell: 2600, onEnd() {}});
+     const g = OivaGuide.create(phoneEl, {autoplay: false, dwell: 2600, onEnd() {}});
      g.start(steps)          walk through the steps; tap anywhere or "Next" to advance, "Skip guide" to hide
      g.point(id, say, mood)  move next to one element and say something (a promise, resolved when it is there)
      g.hide()
 
-   Birky never covers what it points at: it stands below the target, or above it when there is no room below.
-   With prefers-reduced-motion it does not walk: it just appears next to each target. Moods are the rows of
-   /static/birky/sprite.svg (birky.css): idle talk happy think worried wave. */
+   Oiva never covers what it points at: it stands below the target, or above it when there is no room below.
+   It runs there (left or right, the Penny run cycles), glances at the target (one of the 16 look directions),
+   then plays the step's mood. With prefers-reduced-motion it does not walk: it just appears next to each target.
+   Moods are the rows of /static/birky/penny.webp (birky.css): idle talk happy think worried wave busy. */
 (function () {
-  const MOODS = ["idle", "talk", "happy", "think", "worried", "wave"];
+  const MOODS = ["idle", "talk", "happy", "think", "worried", "wave", "busy", "walk-r", "walk-l", "look"];
   const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -31,7 +32,7 @@
     el.innerHTML = '<div class="g-bubble" role="status" aria-live="polite"><p class="g-say"></p>' +
       '<div class="g-btns"><button type="button" class="g-skip">Skip guide</button>' +
       '<button type="button" class="g-next">Next</button></div></div>' +
-      '<span class="g-hop"><span class="birky idle" role="img" aria-label="Birky the squirrel"></span></span>';
+      '<span class="g-hop"><span class="birky idle" role="img" aria-label="Oiva the squirrel"></span></span>';
     root.appendChild(el);
     const sprite = el.querySelector(".birky"), say = el.querySelector(".g-say"), btns = el.querySelector(".g-btns");
     const nextBtn = el.querySelector(".g-next");
@@ -39,14 +40,31 @@
 
     function mood(m) {
       sprite.classList.remove(...MOODS);
+      sprite.style.removeProperty("--row");
+      sprite.style.removeProperty("--col");
       sprite.classList.add(MOODS.includes(m) ? m : "idle");
+    }
+
+    // Turn the head towards the target: 16 directions, 22.5 deg apart, clockwise from straight up.
+    function lookAt(target) {
+      const s = sprite.getBoundingClientRect(), t = target.getBoundingClientRect();
+      const dx = t.left + t.width / 2 - (s.left + s.width / 2), dy = t.top + t.height / 2 - (s.top + s.height / 2);
+      const n = Math.round(((Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360) / 22.5) % 16;
+      mood("look");
+      sprite.style.setProperty("--row", 9 + Math.floor(n / 8));
+      sprite.style.setProperty("--col", n % 8);
+    }
+
+    function position() {
+      const m = /translate\((-?[\d.]+)px/.exec(el.style.transform);
+      return m ? +m[1] : 0;
     }
 
     function resolve(t) {
       return typeof t === "string" ? document.getElementById(t) || root.querySelector(t) : t;
     }
 
-    // Where Birky stands: below the target, right-aligned, or above it. Never on top of it.
+    // Where Oiva stands: below the target, right-aligned, or above it. Never on top of it.
     function spot(target) {
       const R = root.getBoundingClientRect(), t = target.getBoundingClientRect();
       const w = el.offsetWidth, h = el.offsetHeight, pad = 8, gap = 8;
@@ -86,7 +104,7 @@
       const moving = !still() && el.dataset.placed && el.style.transform !== `translate(${x}px, ${y}px)`;
       el.classList.toggle("moving", !!moving);
       el.classList.toggle("instant", !el.dataset.placed || still());
-      if (moving) mood("idle");
+      if (moving) mood(x < position() - 2 ? "walk-l" : x > position() + 2 ? "walk-r" : "busy");
       el.style.transform = `translate(${x}px, ${y}px)`;
       el.dataset.placed = "1";
       root.querySelectorAll(".g-target").forEach(n => n.classList.remove("g-target"));
@@ -95,6 +113,11 @@
       if (id !== moveId) return;
       el.classList.remove("moving");
       if (m) lastMood = m;
+      if (!still()) {
+        lookAt(t);
+        await wait(moving ? 420 : 260);
+        if (id !== moveId) return;
+      }
       mood(lastMood);
     }
 
@@ -133,11 +156,11 @@
       clearTimeout(timer);
       moveId++;
       el.hidden = true;
-      delete el.dataset.placed;  // back on screen, Birky appears at the next target instead of walking across
+      delete el.dataset.placed;  // back on screen, Oiva appears at the next target instead of walking across
       root.querySelectorAll(".g-target").forEach(n => n.classList.remove("g-target"));
     }
 
-    // Tap anywhere (but on a real control) to advance; "Skip guide" hides Birky for this screen.
+    // Tap anywhere (but on a real control) to advance; "Skip guide" hides Oiva for this screen.
     el.querySelector(".g-skip").addEventListener("click", ev => { ev.stopPropagation(); hide(); o.onSkip && o.onSkip(); });
     root.addEventListener("click", ev => {
       if (!active) return;
@@ -149,5 +172,5 @@
     return {start, next, point, hide, mood, get active() { return active; }, get el() { return el; }};
   }
 
-  window.BirkyGuide = {create};
+  window.OivaGuide = {create};
 })();

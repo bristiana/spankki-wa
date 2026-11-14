@@ -113,7 +113,7 @@ def test_wake_inside_window_sends_full_message(client, monkeypatch):
 
 
 def test_outside_window_sends_nothing_and_waits(client, monkeypatch):
-    """No templates: after 24 h of silence Birky does not write first; it waits for the person."""
+    """No templates: after 24 h of silence Oiva does not write first; it waits for the person."""
     monkeypatch.setenv("DEMO_PROACTIVE", "1")
     r = client.post("/cron/wake?key=vt").json()["results"][0]
     assert r["via"] is None and "24-hour window" in r["reason"]

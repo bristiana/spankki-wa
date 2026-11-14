@@ -247,10 +247,10 @@ def test_whatsapp_game_with_reply_buttons_and_stop(client):
     p = main.engine.state["quiz"][to]["picks"][0]
     main.handle_message(msg("Slips through", f"quiz:0:0:{p['basket']}", "m2"))
     assert client.sent[-2]["text"]["body"].startswith("Right.")
-    main.handle_message(msg("stop", mid="m3"))  # mid-game, STOP pauses the game, Birky stays on
+    main.handle_message(msg("stop", mid="m3"))  # mid-game, STOP pauses the game, Oiva stays on
     assert main.connected(to) and not quiz.active(main.engine, to)
     assert "Paused at 2/5" in client.sent[-1]["text"]["body"] and "write *STOP* again" in client.sent[-1]["text"]["body"]
     main.handle_message(msg("What is safe to spend?", mid="m4"))
     assert client.sent[-1]["text"]["body"] == "You can spend 50 € this week."  # no game note after a chosen pause
-    main.handle_message(msg("stop", mid="m5"))  # no game running: STOP switches Birky off as before
+    main.handle_message(msg("stop", mid="m5"))  # no game running: STOP switches Oiva off as before
     assert not main.connected(to) and to not in main.engine.state["quiz"]

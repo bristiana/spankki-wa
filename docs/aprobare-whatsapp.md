@@ -1,6 +1,6 @@
 # Aprobare WhatsApp: checklist
 
-Cum am pus Birky pe WhatsApp Cloud API (Meta) și ce mai e de făcut pentru producție.
+Cum am pus Oiva pe WhatsApp Cloud API (Meta) și ce mai e de făcut pentru producție.
 Niciun secret nu stă în acest fișier: token-urile și cheile sunt doar în `.env` (local, ignorat de git) și în secretele Cloudflare.
 
 ## 1. Aplicația Meta
@@ -17,15 +17,15 @@ Niciun secret nu stă în acest fișier: token-urile și cheile sunt doar în `.
 
 ## 3. Token de acces (de ce „tot expira”)
 - [x] ~~Token temporar din API Setup („Generate access token”)~~: ține doar câteva ore. Primul a expirat pe 14 nov la ~05:00, al doilea la 15:00.
-- [x] **Utilizator de sistem** în Business Settings → Utilizatori de sistem: **Birky-bot**, rol **Admin**.
-- [x] Active atribuite lui Birky-bot, cu **Acces deplin**: aplicația „S-Pankki Junction” și contul WhatsApp „Test Messaging Account”.
+- [x] **Utilizator de sistem** în Business Settings → Utilizatori de sistem: **Oiva-bot**, rol **Admin**.
+- [x] Active atribuite lui Oiva-bot, cu **Acces deplin**: aplicația „S-Pankki Junction” și contul WhatsApp „Test Messaging Account”.
 - [x] „Generează un cod”: aplicația S-Pankki Junction, permisiuni `whatsapp_business_messaging` + `whatsapp_business_management`.
 - [x] Verificat cu `debug_token`: `type: SYSTEM_USER`, valid până pe **13 ian 2027**.
 - [x] Pus în `.env` și în Cloudflare (`wrangler secret bulk`), container repornit (`/admin/restart`).
-- [ ] Înainte de 13 ian 2027: generează un cod nou pentru Birky-bot (același loc) și repetă pasul de mai sus.
+- [ ] Înainte de 13 ian 2027: generează un cod nou pentru Oiva-bot (același loc) și repetă pasul de mai sus.
 
 ## 4. Template-uri: renunțat (14 nov)
-Decizie: **fără template-uri**. Pe WhatsApp, în 24h de la ultimul mesaj al omului, Birky poate trimite orice mesaj liber (text, butoane, linkuri), fără aprobare. După 24h de tăcere, Birky nu scrie primul: așteaptă să-i scrie omul.
+Decizie: **fără template-uri**. Pe WhatsApp, în 24h de la ultimul mesaj al omului, Oiva poate trimite orice mesaj liber (text, butoane, linkuri), fără aprobare. După 24h de tăcere, Oiva nu scrie primul: așteaptă să-i scrie omul.
 - [x] Cele 7 template-uri trimise inițial la Meta au fost **șterse** (`DELETE /<WABA_ID>/message_templates?name=…`).
 - [x] Codul de template-uri scos din aplicație (`templates_wa.py`, `send_template`, mesajele „ținute”).
 - [x] Pentru demo: scrii „hi” botului, apoi din panoul demo pornești reminderul, alertele etc., toate în fereastra de 24h.
@@ -43,7 +43,7 @@ Decizie: **fără template-uri**. Pe WhatsApp, în 24h de la ultimul mesaj al om
 ## 7. Pentru producție (nu e în demo)
 - [ ] Număr WhatsApp Business propriu, verificat (nu numărul de test), cu nume afișat aprobat.
 - [ ] Business verification în Meta Business Settings.
-- [ ] Doar dacă Birky trebuie să scrie primul după 24h: template-uri aprobate de Meta; opt-in documentat.
+- [ ] Doar dacă Oiva trebuie să scrie primul după 24h: template-uri aprobate de Meta; opt-in documentat.
 - [ ] Politica de confidențialitate și termenii pe un URL public, în setările aplicației.
 - [ ] App Review / modul Live pentru aplicație.
 - [ ] Autentificare reală în S-mobiili (SCA) în locul PIN-ului demo.

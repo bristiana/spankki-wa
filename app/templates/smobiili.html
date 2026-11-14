@@ -51,7 +51,7 @@
 <meta name="theme-color" content="#ffffff">
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex">
-<link rel="icon" href="/static/birky.svg" type="image/svg+xml">
+<link rel="icon" href="/static/birky/penny.png" type="image/png">
 <title>{% if screen == "home" %}S-mobiili concept{% elif screen == "tab" %}{{ top_title[tab] }} · S-mobiili concept{% else %}{{ f.title }} · S-mobiili concept{% endif %}</title>
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <link rel="stylesheet" href="/static/birky/birky.css">
@@ -129,7 +129,7 @@
   .li .amt small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
   .li.tap .chev{width:20px;height:20px;color:var(--faint)}
   .hide-link{display:block;text-align:center;color:var(--brand);font-size:15px;font-weight:500;padding:10px 0 12px;border-top:1px solid var(--line)}
-  /* ---- Birky's additions, as native cards ---- */
+  /* ---- Oiva's additions, as native cards ---- */
   .ready{padding:16px 16px 0;border-left:4px solid var(--bright)}
   .ready .kick{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--brand)}
   .ready .kick img{width:22px;height:22px}
@@ -275,14 +275,14 @@
   <header class="top koti">
     <span class="ic" aria-label="Lukitse sovellus (demo)" role="img">{{ icon("lock") }}</span>
     <span class="dots" aria-hidden="true"><i></i><i></i></span>
-    <a class="chat" id="ask" href="{{ '/chat' ~ ('?embed=1' if web else '') }}" aria-label="Viestit · ask Birky">{{ icon("chat") }}</a>
+    <a class="chat" id="ask" href="{{ '/chat' ~ ('?embed=1' if web else '') }}" aria-label="Viestit · ask Oiva">{{ icon("chat") }}</a>
   </header>
   {% elif screen == "tab" and tab == "etukortti" %}
   {% else %}
   <header class="top{{ ' sub' if screen == 'flow' or tab == 'kortti' }}">
     {% if screen == "flow" or tab == "kortti" %}<a href="{{ home_url if screen == 'flow' else tab_urls.pankki }}" aria-label="Takaisin · back">{{ icon("back") }}</a>{% endif %}
     <h1>{% if screen == "flow" %}{{ fi_title[route] }}<small>{{ f.title }}</small>{% else %}{{ top_title[tab] }}{% if tab == "kortti" %}<small>S-Etukortti Visa Credit Debit Online</small>{% endif %}{% endif %}</h1>
-    <a class="chat" id="ask" href="{{ '/chat' ~ ('?embed=1' if web else '') }}" aria-label="Viestit · ask Birky">{{ icon("chat") }}</a>
+    <a class="chat" id="ask" href="{{ '/chat' ~ ('?embed=1' if web else '') }}" aria-label="Viestit · ask Oiva">{{ icon("chat") }}</a>
   </header>
   {% endif %}
   <main class="screen" id="screen">
@@ -305,7 +305,7 @@
     <div class="pad">
     {% if ready and not ready.done %}
     <a class="card ready" id="ready" href="{{ ready.url }}">
-      <span class="kick"><img src="/static/birky.svg" alt="">Valmiina sinulle · Ready for you, from Birky</span>
+      <span class="kick"><img src="/static/birky/penny.png" alt="">Valmiina sinulle · Ready for you, from Oiva</span>
       <span class="what">{{ ready.what|nb }}</span>
       <span class="sub">{{ ready.sub|nb }}</span>
       <span class="go">Check and confirm{{ icon("chevron") }}</span>
@@ -327,7 +327,7 @@
         <span><b>{{ k.label }}</b><small>e.g. {{ k.example }}</small>{% if k.basket == "everyday" %}<span class="bk-hint">the only basket you can change today</span>{% endif %}</span>
         <span class="n">{{ k.per_month_eur|fimoney }}<small>a month · {{ k.share_pct }}%</small></span></span>
       {% endfor %}
-      <span class="bk-ask">Where does my money go? Ask Birky{{ icon("chevron") }}</span>
+      <span class="bk-ask">Where does my money go? Ask Oiva{{ icon("chevron") }}</span>
     </a>
     <h2 class="sec">Säästöt ja sijoitukset <small>Savings and funds</small></h2>
     <section class="card list">
@@ -339,7 +339,7 @@
         {% for pl in a.plans %}<small>Monthly plan: {{ pl.amount|fimoney }} into {{ pl.name }}</small>{% endfor %}</span>
         <span class="amt">{{ a.funds|fimoney }}</span></div>
     </section>
-    <a class="card row-card birky-row" id="ask-card" href="{{ '/chat' ~ ('?embed=1' if web else '') }}"><img src="/static/birky.svg" alt=""><span class="txt"><b>Kysy Birkyltä</b>
+    <a class="card row-card birky-row" id="ask-card" href="{{ '/chat' ~ ('?embed=1' if web else '') }}"><img src="/static/birky/penny.png" alt=""><span class="txt"><b>Kysy Oivalta</b>
       <small>Your money coach, here and in WhatsApp</small></span>{{ icon("chevron", "i chev") }}</a>
     <h2 class="sec">Tapahtumat <small>Recent</small></h2>
     <section class="card tx" id="recent">
@@ -479,7 +479,7 @@
   const flow = json("flow"), ready = $("ready");
   let phase = flow && $("step-pocket") ? "pocket" : "review";
   const press = async btn => { btn.classList.add("pressed"); await wait(260); btn.classList.remove("pressed"); btn.click(); };
-  const guide = BirkyGuide.create($("phone"), {
+  const guide = OivaGuide.create($("phone"), {
     autoplay, dwell: 2600,
     onSkip() { off = true; try { sessionStorage.setItem("birky-guide", "off"); } catch (e) {} },
     onEnd() {
