@@ -436,6 +436,14 @@ def demo_remind(to: str | None = None):
     return {"sent": True, "text": text}
 
 
+@app.get("/demo", response_class=HTMLResponse, include_in_schema=False)
+def demo_panel(request: Request, key: str = ""):
+    """Filming helper: buttons that send each proactive message to the demo phone."""
+    if not key or key != os.environ.get("WA_VERIFY_TOKEN"):
+        raise HTTPException(404)
+    return templates.TemplateResponse(request, "demo.html", _ctx(phone=os.environ.get("DEMO_PHONE", "")))
+
+
 @app.post("/demo/reset")
 def demo_reset():
     engine.reset()
@@ -496,7 +504,12 @@ def chat_page(request: Request):
 
 @app.post("/api/chat")
 async def chat_api(request: Request):
-    body = await request.json()
+    try:
+        body = await request.json()
+    except ValueError:
+        body = None
+    if not isinstance(body, dict):
+        raise HTTPException(400, "send a JSON object")
     sid = "web:" + str(body.get("session", "default"))[:40]
     text = str(body.get("text", "")).strip()[:1000]
     if not text:

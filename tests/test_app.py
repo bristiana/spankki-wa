@@ -97,3 +97,12 @@ def test_agent_loop_uses_tool_numbers(tmp_path):
     coach = Coach(Engine(today=date(2026, 10, 6), state_path=tmp_path / "s.json"), client=FakeClient())
     r = coach.ask("u", "restaurants last month?")
     assert r.text == "You spent 644.63 €" and r.tools_used == ["get_spending"]
+
+
+def test_demo_panel_needs_key(client):
+    assert client.get("/demo").status_code == 404
+    assert "Demo control" in client.get("/demo", params={"key": "vt"}).text
+
+
+def test_chat_api_rejects_non_object(client):
+    assert client.post("/api/chat", json=["x"]).status_code == 400
