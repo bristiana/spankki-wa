@@ -100,3 +100,21 @@ def test_mobile_demo_page(client):
     assert main.engine.recent(6)[0]["what"] in html
     assert "/api/widgets" in html and "embed=1" in html
     assert 'href="/mobile-demo"' in client.get("/").text
+
+
+def test_your_money_screen(client):
+    """Pankki -> Your money: the seven Oiva charts, on Antti's own figures, so the tile is on his account only."""
+    from pathlib import Path
+    pankki = client.get("/s-mobiili/?tab=pankki&persona=CUST01656&lang=en").text
+    assert 'id="your-money"' in pankki and "tab=raha" in pankki
+    assert 'id="your-money"' not in client.get("/s-mobiili/?tab=pankki&persona=CUST04831&lang=en").text
+    r = client.get("/s-mobiili/?tab=raha&persona=CUST01656&lang=en")
+    assert r.status_code == 200
+    for card in ("trend", "cats", "budget", "sit", "fig", "income", "cal"):
+        assert f'id="{card}"' in r.text
+    assert "/static/oiva/money.js" in r.text and "/static/oiva/money.css" in r.text
+    src = r.text.split('data-src="')[1].split('"')[0]
+    static = Path(main.__file__).parent / "static"
+    for name in ("spend", "budget", "compare", "recurring"):
+        assert (static / src.removeprefix("/static/") / f"{name}.json").is_file()
+        assert client.get(f"{src}{name}.json").status_code == 200
