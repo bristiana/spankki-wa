@@ -24,6 +24,7 @@ export class Coach extends DurableObject<any> {
   async fetch(request: Request): Promise<Response> {
     // /admin/restart?key=<WA_VERIFY_TOKEN>: stop the container so the next request starts it with fresh secrets.
     const u = new URL(request.url);
+    if (u.pathname.startsWith("/__state/")) return this.state(request, u);
     if (u.pathname === "/admin/restart") {
       if (!this.env.WA_VERIFY_TOKEN || u.searchParams.get("key") !== this.env.WA_VERIFY_TOKEN) {
         return new Response("forbidden", { status: 403 });
@@ -42,10 +43,32 @@ export class Coach extends DurableObject<any> {
     return (this.ctx as any).container.getTcpPort(PORT).fetch(forwarded);
   }
 
+  // The app's state files, kept in this object's storage so a redeploy (a new container) picks them up again.
+  // Served only by the "state" object, which never starts a container; guarded by WA_VERIFY_TOKEN.
+  private async state(request: Request, u: URL): Promise<Response> {
+    if (!this.env.WA_VERIFY_TOKEN || u.searchParams.get("key") !== this.env.WA_VERIFY_TOKEN) {
+      return new Response("forbidden", { status: 403 });
+    }
+    const name = u.pathname.slice("/__state/".length);
+    if (!/^[A-Za-z0-9_.-]{1,80}$/.test(name)) return new Response("bad name", { status: 400 });
+    if (request.method === "GET") {
+      const v = await this.ctx.storage.get<string>(`state:${name}`);
+      return v === undefined ? new Response("not found", { status: 404 }) : new Response(v);
+    }
+    if (request.method === "PUT") {
+      const body = await request.text();
+      if (body.length > 1_500_000) return new Response("too large", { status: 413 });
+      await this.ctx.storage.put(`state:${name}`, body);
+      return new Response("ok");
+    }
+    return new Response("method not allowed", { status: 405 });
+  }
+
   private async startAndWait(): Promise<void> {
     const container = (this.ctx as any).container;
     if (!container.running) {
-      const env: Record<string, string> = { PUBLIC_URL: this.env.PUBLIC_URL, DEMO_TODAY: this.env.DEMO_TODAY };
+      const env: Record<string, string> = { PUBLIC_URL: this.env.PUBLIC_URL, DEMO_TODAY: this.env.DEMO_TODAY,
+        STATE_REMOTE: "1" };
       for (const k of SECRET_KEYS) if (this.env[k]) env[k] = this.env[k];
       container.start({ image: container.images.base, instance: "basic", enableInternet: true, env });
     }
@@ -77,6 +100,8 @@ export class Coach extends DurableObject<any> {
 
 export default {
   async fetch(request: Request, env: any): Promise<Response> {
+    // State lives in one object that outlasts every container, whatever INSTANCE is running.
+    if (new URL(request.url).pathname.startsWith("/__state/")) return env.COACH.getByName("state").fetch(request);
     // Bump INSTANCE (wrangler.jsonc) to start a fresh container with new secrets or a new image.
     return env.COACH.getByName(`main-${env.INSTANCE || "1"}`).fetch(request);
   },

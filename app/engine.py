@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from . import store
+
 ROOT = Path(__file__).resolve().parents[1]
 
 # The pedagogical frame from the challenge: every euro you spend lands in one of three baskets.
@@ -219,14 +221,29 @@ class Engine:
         self._lock = threading.Lock()  # confirm pages run in a thread pool
 
     # ---------- state (demo actions) ----------
+    def _store_name(self) -> str:
+        try:
+            return str(self.state_path.resolve().relative_to((ROOT / "data").resolve())).replace("\\", "/")
+        except ValueError:
+            return self.state_path.name
+
     def _load_state(self) -> dict:
         if self.state_path.exists():
             return json.loads(self.state_path.read_text())
+        mirrored = store.load(self._store_name())  # a fresh container after a deploy: pick up where we were
+        if mirrored:
+            try:
+                return json.loads(mirrored)
+            except ValueError:
+                pass
         return {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": [],
                 "linked_banks": {}}
 
     def _save(self):
-        self.state_path.write_text(json.dumps(self.state, indent=2, default=str))
+        text = json.dumps(self.state, indent=2, default=str)
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        self.state_path.write_text(text)
+        store.save(self._store_name(), text)
 
     def reset(self):
         self.state = {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": [],
