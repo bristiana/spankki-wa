@@ -4,6 +4,7 @@ Run: uvicorn app.main:app --port 8000
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -21,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import broker, guardrails, learn, onboarding, quiz, rules, voice
+from . import bills, broker, guardrails, learn, onboarding, quiz, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -439,12 +440,50 @@ def wa_back(request: Request) -> str:
     return "" if request.query_params.get("web") else os.environ.get("WA_DISPLAY_NUMBER", "")
 
 
+def ask(persona: str | None, user: str, text: str, name: str, context: str | None = None, may_pay: bool = True,
+        photo: bool = False):
+    """coach.ask, telling the bill tool whose turn it is and whether it may prepare the bill payment."""
+    hint = None if photo else bills.context_line(engine_for(persona), user)
+    token = bills.turn.set((user, may_pay))
+    try:
+        return coach(persona).ask(user, text, name=name, context=" ".join(x for x in (context, hint) if x) or None)
+    finally:
+        bills.turn.reset(token)
+
+
+def ask_about_bill(persona: str | None, user: str, bill: dict, caption: str | None, name: str):
+    """A bill photo just read: explain it, or, only when the caption asks to pay, prepare the payment."""
+    e, pay = engine_for(persona), bills.asks_to_pay(caption)
+    context = " ".join(x for x in (bills.PAY if pay else bills.EXPLAIN, flow_context(e, user)) if x)
+    return ask(persona, user, bills.coach_text(e, bill, caption), name, context, may_pay=pay, photo=True)
+
+
+def bill_photo(to: str, name: str, m: dict):
+    try:
+        bill = bills.read(engine, to, getattr(coach(), "client", None), bills.download(m["media_id"]), None)
+    except bills.BillError as e:
+        wa.send_text(to, str(e))
+        return
+    except Exception as e:  # no WA token, Meta or the AI down: say so plainly, keep the details in the log
+        log.warning("bill photo %s failed: %s", m["media_id"], e)
+        wa.send_text(to, "Sorry, I couldn't open that photo. Could you send it again in a moment?")
+        return
+    problem = bills.reply_problem(bill)
+    if problem:
+        wa.send_text(to, problem)
+        return
+    reply = ask_about_bill(None, to, bill, m["text"] and wa.redact(m["text"]), name)
+    for b in reply.buttons:
+        owner[b["url"].rsplit("/", 1)[-1]] = to
+    send_reply(to, reply, m["id"])
+
+
 def handle_message(m: dict):
     to, name = m["from"], first_name(m["name"])
     names[to] = name
     try:
         wa.mark_read_typing(m["id"])
-        if m.get("media_id") and not m["text"]:  # a voice note: from here on it is handled like typed text
+        if m.get("kind") == "audio" and m.get("media_id") and not m["text"]:  # a voice note: handled like typed text
             try:
                 m["text"] = voice.to_text(m["media_id"])
             except voice.VoiceError as e:
@@ -476,6 +515,9 @@ def handle_message(m: dict):
         if guardrails.FRESH.match(m["text"] or ""):
             wa.send_text(to, fresh_start(engine, to))
             return
+        if m.get("kind") in bills.KINDS and m.get("media_id"):  # a bill photo: explain it, pay only when asked
+            bill_photo(to, name, m)
+            return
         learn.step_away(engine, to, bid)
         try:
             direct = button_reply(to, bid)
@@ -488,7 +530,8 @@ def handle_message(m: dict):
                 wa.send_text(to, direct["text"])
             return
         if m["text"] is None:
-            wa.send_text(to, "I can read text and listen to voice notes, but not photos or files yet. What would you like to know?")
+            wa.send_text(to, "I can read text, voice notes and photos of bills, but not this kind of message yet. "
+                             "What would you like to know?")
             return
         asked = ask_text(engine, to, bid)
         text = asked or wa.redact(m["text"])
@@ -513,7 +556,7 @@ def handle_message(m: dict):
         c = coach()
         if hasattr(c, "last_said"):
             note_chat_later(engine, to, text, c.last_said(to))
-        reply = c.ask(to, text, name=name, context=coach_context(engine, to, text, extra))
+        reply = ask(None, to, text, name, coach_context(engine, to, text, extra))
         for b in reply.buttons:
             if "chart" not in b:
                 owner[b["url"].rsplit("/", 1)[-1]] = to
@@ -643,7 +686,10 @@ def pay_page(request: Request, pid: str):
     e, p = _pending_or_404(pid, "payment")
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "wa": wa_back(request), "action": f"/pay/{pid}", "title": "Confirm payment", "amount": money(p["amount"]),
-        "rows": [("To", "Landlord · Asunto Oy Demo" if p["category"] == "Housing" else p["name"]),
+        "rows": [("To", p["name"]), ("Account", " ".join(re.findall(".{1,4}", p["iban"]))),
+                 ("Reference", p.get("reference") or "none on the bill"), ("Due", nice_date(p["due_date"])),
+                 ("From", "S-Pankki current account")] if p.get("source") == "photo" else  # a bill photo (bills.py)
+                [("To", "Landlord · Asunto Oy Demo" if p["category"] == "Housing" else p["name"]),
                  ("Account", "FI00 0000 0000 0000 00 (demo)"), ("For", p["name"]),
                  ("Due", nice_date(p["due_date"])), ("From", "S-Pankki current account")],
         "button": f"Pay {money(p['amount'])}"})
@@ -1275,8 +1321,13 @@ def mobile_demo(request: Request):
         name=name_for(persona), balance=e.balance(), recent=e.recent(6)))
 
 
+WEB_UPLOAD_MAX = bills.MAX_BYTES * 4 // 3 + 64_000  # a 5 MB photo as base64, plus the rest of the JSON
+
+
 @app.post("/api/chat")
 async def chat_api(request: Request):
+    if int(request.headers.get("content-length") or 0) > WEB_UPLOAD_MAX:  # before reading it
+        raise HTTPException(413, "image too large (max 5 MB)")
     try:
         body = await request.json()
     except ValueError:
@@ -1285,7 +1336,7 @@ async def chat_api(request: Request):
         raise HTTPException(400, "send a JSON object")
     sid = "web:" + str(body.get("session", "default"))[:40]
     text = str(body.get("text", "")).strip()[:1000]
-    if not text:
+    if not text and not body.get("image"):
         raise HTTPException(400)
     web_sessions.add(sid)
     # The page sends the persona it was drawn for; the cookie covers other callers.
@@ -1296,6 +1347,8 @@ async def chat_api(request: Request):
     def quick(buttons):
         return [{"label": t, "send": f"__btn__:{i}"} for i, t in buttons]
 
+    if body.get("image"):
+        return await web_bill(persona, sid, e, name, body["image"], wa.redact(text), quick)
     if text == "__remind__":
         t, rent = reminder_text(name, e)
         if not rent:
@@ -1350,13 +1403,42 @@ async def chat_api(request: Request):
         if t:
             remember(persona, sid, typed or f"[tapped {bid}]", t)
             return interview(t)
-    import anyio
     c = coach(persona)
     if not bid and hasattr(c, "last_said"):
         note_chat_later(e, sid, text, c.last_said(sid))
     context = coach_context(e, sid, text, extra)
+    return await web_answer(e, sid, lambda: ask(persona, sid, text, name, context), quick, secret)
+
+
+async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption: str, quick):
+    """A bill photo from the web chat (base64, or a data: URL): read it, then explain it or, if asked, pay it."""
+    import anyio
     try:
-        reply = await anyio.to_thread.run_sync(lambda: c.ask(sid, text, name=name, context=context))
+        data = base64.b64decode(str(image).split(",", 1)[-1], validate=True)
+    except ValueError:
+        raise HTTPException(400, "image is not base64")
+    if len(data) > bills.MAX_BYTES:
+        raise HTTPException(413, "image too large (max 5 MB)")
+    try:
+        bill = await anyio.to_thread.run_sync(lambda: bills.read(e, sid, getattr(coach(persona), "client", None),
+                                                                 data, None))
+    except bills.BillError as err:
+        return {"text": str(err), "buttons": []}
+    except Exception:
+        log.exception("bill photo failed")
+        return JSONResponse({"text": "Sorry, I couldn't read that photo just now. Could you try again in a moment?",
+                             "buttons": []})
+    problem = bills.reply_problem(bill)
+    if problem:
+        return {"text": problem, "buttons": []}
+    return await web_answer(e, sid, lambda: ask_about_bill(persona, sid, bill, caption, name), quick)
+
+
+async def web_answer(e: Engine, sid: str, run, quick, secret=()):
+    """The coach's reply for the web chat: bubbles, buttons, charts, and any paused flow's note."""
+    import anyio
+    try:
+        reply = await anyio.to_thread.run_sync(run)
     except Exception:
         log.exception("coach failed")
         return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
