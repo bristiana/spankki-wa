@@ -134,3 +134,9 @@ def test_web_chat_viewer_reaches_tool():
         assert "real data" in run_tool(main.engine, "get_full_picture", {}, [])
     finally:
         eb.viewer.reset(tok)
+
+
+def test_privacy_and_terms_pages():
+    from fastapi.testclient import TestClient
+    c = TestClient(main.app)
+    assert "Enable Banking" in c.get("/privacy").text and c.get("/terms").status_code == 200
