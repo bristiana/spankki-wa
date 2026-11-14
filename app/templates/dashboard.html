@@ -9,7 +9,6 @@
   .k{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
   .big{font-size:32px;font-weight:750;letter-spacing:-.5px}
   .hello{display:flex;align-items:center;gap:14px;margin:4px 0 14px}
-  .hello img{width:64px;height:64px}
   .hello b{font-size:20px}
   .pill{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--brand);font-weight:600}
   .pill.warn{background:var(--warn-bg);color:var(--warn)}
@@ -33,7 +32,7 @@
 {% endblock %}
 {% block body %}
 <main>
-  <div class="hello"><img src="/static/birky.svg" alt=""><div><b>Hi {{ name }} 👋</b><div class="muted">Here's your money today, {{ today }}. Ask me anything about it.</div></div></div>
+  <div class="hello"><span class="birky idle" aria-hidden="true"></span><div><b>Hi {{ name }} 👋</b><div class="muted">Here's your money today, {{ today }}. Ask me anything about it.</div></div></div>
   <div class="grid">
     <div class="card">
       <div class="k">Balance</div>
