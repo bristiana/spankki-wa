@@ -10,7 +10,7 @@ from itertools import count
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main, rules
+from app import main, rules, voice
 from app import whatsapp as wa
 from app.agent import Reply
 from app.engine import Engine
@@ -361,10 +361,38 @@ def test_stop_switches_off_and_hi_reconnects(chat):
     assert "/connect?u=" in chat.url()
 
 
-@pytest.mark.parametrize("kind", ["image", "audio", "video", "sticker", "document", "location"])
+@pytest.mark.parametrize("kind", ["image", "video", "sticker", "document", "location"])
 def test_media_messages(chat, kind):
     connected(chat).media(kind)
-    assert chat.texts()[-1].startswith("For now I can read text messages only")
+    assert chat.texts()[-1].startswith("I can read text and listen to voice notes")
+
+
+def test_voice_note_is_answered_like_text(chat, monkeypatch):
+    monkeypatch.setattr(voice, "to_text", lambda media_id: "How much can I spend until payday?")
+    connected(chat).media("audio")
+    assert chat.texts()[0] == "🎙️ _How much can I spend until payday?_"
+    assert main._coach.asked == ["How much can I spend until payday?"]
+    assert "68.60" in chat.texts()[-1]
+
+
+def test_voice_note_stop_works_by_voice(chat, monkeypatch):
+    monkeypatch.setattr(voice, "to_text", lambda media_id: "Stop.")
+    connected(chat).media("audio")
+    assert chat.texts()[-1].startswith("Done ✅")
+
+
+def test_voice_note_that_cannot_be_heard(chat, monkeypatch):
+    def fail(media_id):
+        raise voice.VoiceError("Sorry, I couldn't hear that voice note. Could you send it again, or type it?")
+    monkeypatch.setattr(voice, "to_text", fail)
+    connected(chat).media("audio")
+    assert chat.texts() == ["Sorry, I couldn't hear that voice note. Could you send it again, or type it?"]
+    assert main._coach.asked == []
+
+
+def test_voice_note_without_speech_to_text(chat):
+    connected(chat).media("audio")  # no WA_TOKEN in tests, so the download fails and Birky says so
+    assert chat.texts()[-1].startswith("Sorry, I couldn't hear that voice note")
 
 
 def test_list_reply_and_my_data(chat):
