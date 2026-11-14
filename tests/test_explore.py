@@ -228,7 +228,7 @@ def test_explore_is_linked_and_chips_exist(client):
     chat = client.get("/chat").text
     assert "When do I spend most on restaurants?" in chat and "Show my groceries by month" in chat
     assert "/static/kchart.js" in chat and client.get("/static/kchart.js").status_code == 200
-    assert "data-more" in chat and chat.count('class="more"') == chat.count("<button") - 9 - 2  # 8 shown + More
+    assert "data-more" in chat and chat.count('class="more"') == chat.count("<button") - 10 - 2  # 9 shown + More
 
 
 def test_explore_page_kind_of_place_uses_the_mcc_labels(client):
