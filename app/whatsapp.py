@@ -33,6 +33,11 @@ def verify_signature(raw: bytes, header: str | None) -> bool:
     return hmac.compare_digest(expected, header[7:])
 
 
+DOC_MIMES = ("text/csv", "text/comma-separated-values", "application/csv", "text/plain",
+             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+             "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
 def parse(payload: dict) -> list[dict]:
     """Incoming user messages, oldest first: {id, from, name, kind, text, button_id, media_id}."""
     out = []
@@ -57,7 +62,8 @@ def parse(payload: dict) -> list[dict]:
                 elif kind in ("image", "document"):  # a bill photo or PDF (app.bills); the caption is their text
                     media = m[kind]
                     mime = (media.get("mime_type") or "").split(";")[0].strip().lower()
-                    if kind == "image" or mime == "application/pdf" or mime.startswith("image/"):
+                    if kind == "image" or mime == "application/pdf" or mime.startswith("image/") \
+                            or mime in DOC_MIMES:  # also Word, Excel and CSV (a bank's export)
                         media_id, text = media.get("id"), media.get("caption")
                 out.append({"id": m["id"], "from": m["from"], "name": names.get(m["from"], ""), "kind": kind,
                             "text": text, "button_id": button_id, "media_id": media_id, "ts": int(m.get("timestamp", 0))})

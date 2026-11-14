@@ -475,11 +475,11 @@ def test_stop_switches_off_and_hi_reconnects(chat):
     assert "/connect?u=" in chat.url()
 
 
-@pytest.mark.parametrize("kind,mime", [("video", "video/mp4"), ("sticker", "image/webp"), ("document", "text/plain"),
+@pytest.mark.parametrize("kind,mime", [("video", "video/mp4"), ("sticker", "image/webp"), ("document", "application/zip"),
                                        ("location", "")])
 def test_media_messages(chat, kind, mime):
     connected(chat).media(kind, mime)
-    assert chat.texts()[-1].startswith("I can read text, voice notes and photos of bills")
+    assert chat.texts()[-1].startswith("I can read text, voice notes, photos, PDFs")
 
 
 def test_bill_photo_explain_then_pay(chat, monkeypatch):

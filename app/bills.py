@@ -8,11 +8,14 @@ from __future__ import annotations
 
 import base64
 import contextvars
+import html
+import io
 import json
 import logging
 import os
 import re
 import time
+import zipfile
 
 import httpx
 
@@ -27,6 +30,13 @@ MAX_BYTES = 5_000_000  # Claude's limit for one image; a phone photo of a bill i
 BILL_TTL_S = 24 * 3600
 KINDS = ("image", "document")
 PDF = "application/pdf"
+# Files that are sent to the reader as plain text (a bank's CSV export, an Excel sheet, a Word letter)
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+TEXT = "text/plain"
+TEXT_KINDS = (XLSX, DOCX, TEXT)
+TEXT_MIMES = (TEXT, "text/csv", "text/comma-separated-values", "application/csv", XLSX, DOCX)
+MAX_TEXT_CHARS = 150_000
 IMAGE_TYPES = ("image/jpeg", "image/png", "image/webp", "image/gif")
 PAY_WORDS = re.compile(r"\b(pay|paying|maksa|maksaa|maksetaan|betala)\b", re.I)
 NOT_YET = re.compile(r"\b(don'?t|do not|not|never|before|without|älä|ennen)\W+(\w+\W+)?(pay|maksa)", re.I)
@@ -37,7 +47,7 @@ class BillError(Exception):
 
 
 def accepted_mime(mime: str | None) -> bool:
-    return (mime or "").split(";")[0].strip().lower() in IMAGE_TYPES + (PDF,)
+    return (mime or "").split(";")[0].strip().lower() in IMAGE_TYPES + (PDF,) + TEXT_MIMES
 
 
 def sniff(data: bytes) -> str | None:
@@ -52,7 +62,47 @@ def sniff(data: bytes) -> str | None:
         return "image/gif"
     if data[:5] == b"%PDF-":
         return PDF
+    if data[:4] == b"PK\x03\x04":  # a zip: Word or Excel
+        try:
+            names = set(zipfile.ZipFile(io.BytesIO(data)).namelist())
+        except zipfile.BadZipFile:
+            return None
+        return DOCX if "word/document.xml" in names else XLSX if "xl/workbook.xml" in names else None
+    head = data[:4096]
+    if b"\x00" not in head and b"\n" in head and len(data) >= 20:  # CSV or text: lines, no binary
+        try:
+            head.decode("utf-8")
+            return TEXT
+        except UnicodeDecodeError:
+            return TEXT if all(32 <= c or c in (9, 10, 13) for c in head) else None
     return None
+
+
+def to_text(data: bytes, kind: str) -> str:
+    """Word, Excel or CSV as plain text for the reader, capped; nothing is kept."""
+    if kind == DOCX:
+        xml = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode("utf-8", "replace")
+        xml = re.sub(r"<w:tab/>", "\t", re.sub(r"</w:p>|<w:br/>", "\n", xml))
+        text = html.unescape(re.sub(r"<[^>]+>", "", xml))
+    elif kind == XLSX:
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        lines, size = [], 0
+        for ws in wb.worksheets:
+            lines.append(f"# sheet: {ws.title}")
+            for row in ws.iter_rows(values_only=True):
+                if any(v not in (None, "") for v in row):
+                    lines.append(";".join("" if v is None else str(v) for v in row))
+                    size += len(lines[-1])
+                if size > MAX_TEXT_CHARS:
+                    break
+        text = "\n".join(lines)
+    else:
+        try:
+            text = data.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = data.decode("cp1252", "replace")
+    return text[:MAX_TEXT_CHARS]
 
 
 def too_big() -> BillError:
@@ -142,9 +192,14 @@ image, summary is null."""
 
 
 def extract(client, data: bytes, media_type: str) -> dict:
-    """The bill's fields from an image or PDF, checked and cleaned (see clean)."""
-    block = {"type": "document" if media_type == PDF else "image",
-             "source": {"type": "base64", "media_type": media_type, "data": base64.standard_b64encode(data).decode()}}
+    """The bill's fields from an image, a PDF, or a Word, Excel or CSV file, checked and cleaned (see clean)."""
+    if media_type in TEXT_KINDS:
+        block = {"type": "document", "source": {"type": "text", "media_type": "text/plain",
+                                                "data": to_text(data, media_type) or "(empty)"}}
+    else:
+        block = {"type": "document" if media_type == PDF else "image",
+                 "source": {"type": "base64", "media_type": media_type,
+                            "data": base64.standard_b64encode(data).decode()}}
     r = client.beta.messages.create(
         model=MODEL,
         max_tokens=4000,
@@ -387,7 +442,8 @@ def read(engine: Engine, user: str, client, data: bytes, mime: str | None) -> di
         raise too_big()
     kind = sniff(data)
     if kind is None:
-        raise BillError("I can read photos (JPEG, PNG) and PDFs of bills. Could you send it as one of those?")
+        raise BillError("I can read photos (JPEG, PNG), PDFs, Word, Excel and CSV files. Could you send it as one of "
+                        "those?")
     bill = extract(client, data, kind)
     if bill["is_bill"] and not reply_problem(bill):  # only a bill can be paid later; a statement is not kept
         store(engine, user, bill)

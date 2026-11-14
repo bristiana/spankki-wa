@@ -566,7 +566,7 @@ def handle_message(m: dict):
                 wa.send_text(to, direct["text"])
             return
         if m["text"] is None:
-            wa.send_text(to, "I can read text, voice notes and photos of bills, but not this kind of message yet. "
+            wa.send_text(to, "I can read text, voice notes, photos, PDFs, Word, Excel and CSV files, but not this one yet. "
                              "What would you like to know?")
             return
         asked = ask_text(engine, to, bid)
