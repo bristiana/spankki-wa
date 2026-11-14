@@ -1,0 +1,25 @@
+{
+ "note": "The app's demo customers' own postal area (first two digits) and age, so 'people like you' starts from their own group. No transactions.",
+ "customers": {
+  "CUST04831": {
+   "area": "02",
+   "age": 24
+  },
+  "CUST01756": {
+   "area": "02",
+   "age": 18
+  },
+  "CUST00613": {
+   "area": "02",
+   "age": 55
+  },
+  "CUST05042": {
+   "area": "00",
+   "age": 40
+  },
+  "CUST03804": {
+   "area": "00",
+   "age": 60
+  }
+ }
+}
