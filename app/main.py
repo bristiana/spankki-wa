@@ -19,8 +19,9 @@ from fastapi.templating import Jinja2Templates
 from . import broker, onboarding, rules, templates_wa
 from . import whatsapp as wa
 from .agent import Coach
-from .engine import FUNDS_BY_ID, Engine
-from .tools import public_url
+from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MERCHANT_TYPES, PERIODS,
+                     SPEND_CATEGORIES, Engine)
+from .tools import explore_query, public_url
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -248,7 +249,8 @@ def handle_message(m: dict):
                 return
         reply = coach().ask(to, text, name=name)
         for b in reply.buttons:
-            owner[b["url"].rsplit("/", 1)[-1]] = to
+            if "chart" not in b:
+                owner[b["url"].rsplit("/", 1)[-1]] = to
         send_reply(to, reply)
         again = onboarding.reask(engine, to)  # a side question mid-interview: the waiting question comes back
         if again:
@@ -692,6 +694,73 @@ def export_csv():
                              headers={"content-disposition": 'attachment; filename="my-s-pankki-transactions.csv"'})
 
 
+# ---------------- MyData explorer: the customer builds their own view, no AI ----------------
+EXPLORE_KEYS = ("what", "category", "basket", "merchant_type", "group_by", "metric", "period", "start", "end")
+EXPLORE_LABELS = {
+    "what": {"spent": "Spending", "income": "Income"},
+    "metric": {"sum": "Euros", "count": "Number of payments", "average": "Average payment"},
+    "group_by": {"month": "Month", "week": "Week", "weekday": "Day of the week", "category": "Category",
+                 "basket": "Basket", "merchant": "Place", "merchant_type": "Kind of place"},
+    "period": {"last_12_months": "Last 12 months", "last_3_months": "Last 3 months", "last_month": "Last month",
+               "this_month": "This month", "last_30_days": "Last 30 days", "last_7_days": "Last 7 days",
+               "all": "Everything"},
+}
+
+
+def explore_args(request: Request) -> dict:
+    """Query string -> explore() arguments. `filter=category:Restaurants` (the page's single filter dropdown) or the
+    separate category / basket / merchant_type parameters (links from the chat)."""
+    q = request.query_params
+    args = {k: q.get(k) for k in EXPLORE_KEYS}
+    kind, _, value = (q.get("filter") or "").partition(":")
+    if kind in ("category", "basket", "merchant_type") and value:
+        args[kind] = value
+    return {k: v[:40] for k, v in args.items() if v}
+
+
+def explore_filters() -> list[tuple[str, list[tuple[str, str]]]]:
+    return [("Category", [(f"category:{c}", c) for c in SPEND_CATEGORIES]),
+            ("Basket", [(f"basket:{k}", b["label"]) for k, b in BASKETS.items()]),
+            ("Kind of place", [(f"merchant_type:{k}", label) for k, (label, _) in MERCHANT_TYPES.items()])]
+
+
+@app.get("/app/explore", response_class=HTMLResponse)
+def explore_page(request: Request):
+    try:
+        view, error = engine.explore(**explore_args(request)), None
+    except ValueError as e:  # a hand-edited link: show the default view and say why
+        view, error = engine.explore(), str(e)
+    q = view["query"]
+    current = next((f"{k}:{q[k]}" for k in ("category", "basket", "merchant_type") if q[k]), "")
+    return templates.TemplateResponse(request, "explore.html", _ctx(
+        v=view, error=error, current=current, filters=explore_filters(), labels=EXPLORE_LABELS,
+        options={"what": EXPLORE_WHAT, "metric": EXPLORE_METRICS, "group_by": EXPLORE_GROUP_BY, "period": PERIODS},
+        csv_url="/app/explore.csv?" + explore_query(q)))
+
+
+@app.get("/app/explore.csv")
+def explore_csv(request: Request):
+    """Exactly the rows and the total shown on the Explore page for the same query."""
+    import csv
+    import io
+    try:
+        v = engine.explore(**explore_args(request))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    q = v["query"]
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow([q["group_by"], {"sum": "amount_eur", "count": "payments", "average": "average_payment_eur"}[q["metric"]],
+                "payments", "total_eur"])
+    for r in v["rows"]:
+        w.writerow([r["label"], r["value"], r["transactions"], r["total_eur"]])
+    w.writerow(["Total", v["totals"]["value"], v["totals"]["transactions"], v["totals"]["total_eur"]])
+    parts = [q["what"], q["category"] or q["basket"] or q["merchant_type"], "by", q["group_by"], q["period"]]
+    name = "".join(ch if ch.isalnum() else "-" for ch in "-".join(p for p in parts if p).lower())
+    return PlainTextResponse(buf.getvalue(), media_type="text/csv",
+                             headers={"content-disposition": f'attachment; filename="my-s-pankki-{name}.csv"'})
+
+
 @app.get("/app", response_class=HTMLResponse)
 def dashboard(request: Request):
     o = engine.overview()
@@ -756,13 +825,16 @@ async def chat_api(request: Request):
         log.exception("coach failed")
         return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
                                      "Bill reminders and payments still work.", "buttons": []})
-    out = []
+    out, charts = [], []
     for b in reply.buttons:
+        if "chart" in b:  # drawn inside the bubble; its link opens the same view on the Explore page
+            charts.append({**b["chart"], "url": b["url"].replace(public_url(), "")})
+            continue
         owner[b["url"].rsplit("/", 1)[-1]] = sid
         out.append({"label": b["label"], "url": b["url"].replace(public_url(), "") + "?web=1"})
     again = onboarding.reask(engine, sid)  # a side question mid-interview: the waiting question comes back
     return JSONResponse({"text": reply.text + (f"\n\n{again.text}" if again else ""), "tools": reply.tools_used,
-                         "buttons": out, "quick": quick(again.buttons) if again else []})
+                         "buttons": out, "charts": charts, "quick": quick(again.buttons) if again else []})
 
 
 @app.get("/api/inbox")

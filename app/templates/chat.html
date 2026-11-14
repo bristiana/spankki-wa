@@ -22,7 +22,12 @@
   #sheet .top{display:flex;justify-content:flex-end;padding:6px 8px;background:var(--brand)}
   #sheet .top button{border:0;background:transparent;color:var(--brand-ink);font-size:22px;cursor:pointer;width:40px;height:40px}
   #sheet iframe{flex:1;border:0;width:100%}
+  .msg.has-chart{width:85%}
+  .chart{white-space:normal;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+  .chart b{display:block;font-size:14px}.chart small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
+  .chart .plot{width:100%}
 </style>
+<script src="/static/kchart.js"></script>
 {% endblock %}
 {% block body %}
 <div id="log" aria-live="polite">
@@ -36,6 +41,8 @@
   <button data-q="__alert__:unusual">👀 Unusual spend</button>
   <button>What is safe for me to spend this week?</button>
   <button>Can I afford a 120€ jacket?</button>
+  <button>When do I spend most on restaurants?</button>
+  <button>Show my groceries by month</button>
   <button>What kind of spender am I?</button>
   <button>What subscriptions am I paying for?</button>
   <button>How much could I save if I cut dining out by 20%?</button>
@@ -88,6 +95,18 @@ async function send(text, shown) {
     const j = await r.json();
     t.remove();
     const d = add("bot", fmt(j.text || "…"));
+    for (const c of j.charts || []) {  // explore_my_data: the engine's numbers, drawn right in the bubble
+      d.classList.add("has-chart");
+      const box = document.createElement("div"), plot = document.createElement("div");
+      box.className = "chart"; plot.className = "plot";
+      box.innerHTML = "<b>" + esc(c.title) + "</b><small>" + esc(c.subtitle) + "</small>";
+      box.appendChild(plot); d.appendChild(box);
+      window.kurreChart(plot, c);
+      const a = document.createElement("button");
+      a.className = "btn ghost"; a.textContent = "Open in Explore";
+      a.onclick = () => openSheet(c.url + (c.url.includes("?") ? "&" : "?") + "web=1");
+      box.appendChild(a);
+    }
     for (const b of j.buttons || []) {
       const a = document.createElement("button");
       a.className = "btn"; a.textContent = b.label;
