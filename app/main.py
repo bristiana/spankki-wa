@@ -26,7 +26,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import bills, broker, enable_banking, guardrails, learn, onboarding, quiz, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
-from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
+from .engine import (BASKETS, DEMO_BANK, HIDE_DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
                      RESERVE_NOTE_EUR, SPEND_CATEGORIES, Engine, merchant_codes)
 from .tools import confirm_url, explore_query, pending_id_of, public_url, with_web
 
@@ -484,12 +484,15 @@ def ask(persona: str | None, user: str, text: str, name: str, context: str | Non
     WhatsApp number whose real linked banks may be used (default: the WhatsApp sender; none for a web visitor)."""
     hint = None if photo else bills.context_line(engine_for(persona), user)
     token = bills.turn.set((user, may_pay))
-    vtoken = enable_banking.viewer.set(viewer or (None if user.startswith("web:") else user))
+    who = viewer or (None if user.startswith("web:") else user)
+    vtoken = enable_banking.viewer.set(who)
+    htoken = HIDE_DEMO_BANK.set(bool(enable_banking.load(who)) if who else False)
     try:
         return coach(persona).ask(user, text, name=name, context=" ".join(x for x in (context, hint) if x) or None)
     finally:
         bills.turn.reset(token)
         enable_banking.viewer.reset(vtoken)
+        HIDE_DEMO_BANK.reset(htoken)
 
 
 def ask_about_bill(persona: str | None, user: str, bill: dict, caption: str | None, name: str):
@@ -1717,7 +1720,13 @@ def explore_csv(request: Request):
 @app.get("/app", response_class=HTMLResponse)
 def dashboard(request: Request):
     persona = persona_of(request)
-    o = engine_for(persona).overview()
+    me = wa_phone(request)
+    token = HIDE_DEMO_BANK.set(bool(me and enable_banking.load(me)))  # your real banks instead of the Demo Bank
+    try:
+        o = engine_for(persona).overview()
+    finally:
+        HIDE_DEMO_BANK.reset(token)
+    o["full"] = enable_banking.merge(o["full"], me)
     return templates.TemplateResponse(request, "dashboard.html", _ctx(
         o=o, name=name_for(persona), today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o),
         peers=_peers_card(engine_for(persona)), **persona_ctx(persona),

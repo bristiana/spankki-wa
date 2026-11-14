@@ -74,7 +74,8 @@
       {% if o.full.next_card_bill and o.full.next_card_bill.amount_eur > 0 %}
       <div class="row"><span class="l">Card bill<small>due {{ nice(o.full.next_card_bill.due_date) }}</small></span><span>{{ money(o.full.next_card_bill.amount_eur) }}</span></div>
       {% endif %}
-      <div class="src"><span class="pill">demo</span> {{ o.full.banks[1].bank.split(' (')[0] }} is a synthetic bank linked through a mock PSD2 consent. Its savings cover about {{ o.full.savings_cover_irregular_months }} months of your irregular basket.</div>
+      {% if o.full.banks[1].real %}<div class="src">{{ o.full.banks[1:]|map(attribute='bank')|map('replace', ' (linked via Enable Banking, real data)', '')|join(', ') }}: your real accounts through Enable Banking, read only.</div>
+      {% else %}<div class="src"><span class="pill">demo</span> {{ o.full.banks[1].bank.split(' (')[0] }} is a synthetic bank linked through a mock PSD2 consent. Its savings cover about {{ o.full.savings_cover_irregular_months }} months of your irregular basket.</div>{% endif %}
       {% else %}
       <div class="row"><span class="l">S-Pankki<small>current account</small></span><span>{{ money(o.balance_eur) }}</span></div>
       <p class="muted" style="margin:8px 0 0">Savings or a credit card at another bank? Link it (PSD2, read only) and Oiva counts it in safe to spend.</p>

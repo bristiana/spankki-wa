@@ -302,15 +302,18 @@ def picture(phone: str | None) -> list[dict]:
 
 
 def merge(full: dict, phone: str | None) -> dict:
-    """Engine.full_picture() plus the person's real banks. The S-Pankki part (and any demo bank) is unchanged."""
+    """Engine.full_picture() plus the person's real banks. Someone with a real bank sees S-Pankki and their real
+    banks only: the synthetic Demo Bank (shared by everyone on the demo customer) is left out, with its savings and
+    card debt."""
     real = picture(phone)
     if not real:
         return full
+    s_pankki = full["banks"][0]
+    own = sum(a.get("balance_eur") or 0 for a in s_pankki["accounts"])
     extra = sum(a["balance_eur"] for b in real for a in b["accounts"] if isinstance(a.get("balance_eur"), (int, float)))
-    out = {**full, "banks": full["banks"] + real, "linked": True,
-           "total_balances_eur": eur(full["total_balances_eur"] + extra),
-           "net_position_eur": eur(full["net_position_eur"] + extra)}
-    out["note"] = ((full.get("note") or "") + " Banks marked 'real data' are the customer's own accounts, read "
-                   "through Enable Banking (PSD2, read only), last 90 days. A negative balance there is money owed.").strip()
-    out.pop("how_to_link", None)
+    out = {"linked": True, "banks": [s_pankki] + real, "total_balances_eur": eur(own + extra),
+           "net_position_eur": eur(own + extra),
+           "note": "S-Pankki is the sample customer's data. Banks marked 'real data' are the customer's own "
+                   "accounts, read through Enable Banking (PSD2, read only), last 90 days. A negative balance there "
+                   "is money owed."}
     return out

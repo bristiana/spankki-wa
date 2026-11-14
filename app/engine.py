@@ -6,6 +6,7 @@ Works on one customer's transactions (data/persona.csv) plus the actions taken d
 from __future__ import annotations
 
 import calendar
+import contextvars
 import json
 import threading
 import uuid
@@ -132,6 +133,9 @@ DEMO_BANK = {
                      (22, "Cinema", "Entertainment", 12.00)],
     "note": "Synthetic demo bank linked through a mock PSD2 consent. Not a real bank, not real data.",
 }
+
+# Set per request/turn when the person has a real bank linked (app/enable_banking.py): the Demo Bank is then left out.
+HIDE_DEMO_BANK: contextvars.ContextVar[bool] = contextvars.ContextVar("hide_demo_bank", default=False)
 
 PERIODS = ["this_month", "last_month", "last_7_days", "last_30_days", "last_3_months", "last_12_months", "all"]
 
@@ -888,6 +892,8 @@ class Engine:
         return self.full_picture()
 
     def linked_bank(self) -> dict | None:
+        if HIDE_DEMO_BANK.get():  # this person has their own real bank linked: the shared Demo Bank isn't theirs
+            return None
         return self.state.get("linked_banks", {}).get(DEMO_BANK["id"])
 
     def _card_tx(self) -> list[dict]:
