@@ -282,6 +282,11 @@ def public_url() -> str:
     return os.environ.get("PUBLIC_URL", "http://localhost:8000").rstrip("/")
 
 
+def confirm_url(route: str, pid: str) -> str:
+    """Where a money-move button goes: the S-mobiili mock (review, then Face ID). Add ?pin=1 for the PIN page."""
+    return f"{public_url()}/s-mobiili/{route}/{pid}"
+
+
 def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
     """Run one tool. Returns JSON text; appends a URL button when a money move was prepared."""
     if name == "get_spending":
@@ -308,12 +313,12 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
                for f in FUNDS]
     elif name == "create_payment_link":
         p = engine.create_payment(args["bill_id"])
-        buttons.append({"label": f"Pay {p['amount']:.2f} €", "url": f"{public_url()}/pay/{p['pending_id']}"})
+        buttons.append({"label": f"Pay {p['amount']:.2f} €", "url": confirm_url("pay", p["pending_id"])})
         out = {**p, "note": "A 'Pay' button is attached to your message. Do not paste a link."}
     elif name == "create_investment_link":
         p = engine.create_investment(float(args["amount_eur"]), args["fund_id"], bool(args["monthly"]))
         label = f"Invest {p['amount']:.0f} €" + ("/month" if p["monthly"] else "")
-        buttons.append({"label": label, "url": f"{public_url()}/invest/{p['pending_id']}"})
+        buttons.append({"label": label, "url": confirm_url("invest", p["pending_id"])})
         out = {**p, "note": "An 'Invest' button is attached to your message. Do not paste a link."}
     elif name == "get_subscriptions":
         out = engine.subscriptions()
@@ -322,7 +327,7 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
             active = [s["name"] for s in engine.subscriptions()["subscriptions"] if s["status"] == "active"]
             stops = [engine.create_stop_subscription(n) for n in active]
             for p in stops:
-                buttons.append({"label": short(f"Stop {p['name']}"), "url": f"{public_url()}/stop/{p['pending_id']}"})
+                buttons.append({"label": short(f"Stop {p['name']}"), "url": confirm_url("stop", p["pending_id"])})
             out = {"prepared": stops, "count": len(stops),
                    "per_month_eur": round(sum(p["amount"] if p["cadence"] == "monthly" else p["per_year_eur"] / 12
                                               for p in stops), 2),
@@ -332,7 +337,7 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
                             "There are no active subscriptions to stop.")}
         else:
             p = engine.create_stop_subscription(args["name"])
-            buttons.append({"label": short(f"Stop {p['name']}"), "url": f"{public_url()}/stop/{p['pending_id']}"})
+            buttons.append({"label": short(f"Stop {p['name']}"), "url": confirm_url("stop", p["pending_id"])})
             out = {**p, "note": "A 'Stop' button is attached to your message. Do not paste a link."}
     elif name == "create_goal":
         out = engine.create_goal(args["name"], float(args["target_eur"]), args.get("deadline"))
@@ -340,7 +345,7 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out = engine.goals() or {"goals": [], "note": "No goals yet."}
     elif name == "create_saving_link":
         p = engine.create_saving(args["goal_id"], float(args["amount_eur"]))
-        buttons.append({"label": f"Save {p['amount']:.0f} €", "url": f"{public_url()}/save/{p['pending_id']}"})
+        buttons.append({"label": f"Save {p['amount']:.0f} €", "url": confirm_url("save", p["pending_id"])})
         out = {**p, "note": "A 'Save' button is attached to your message. Do not paste a link."}
     elif name == "get_portfolio":
         out = engine.portfolio()
