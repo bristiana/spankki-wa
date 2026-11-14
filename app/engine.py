@@ -38,6 +38,8 @@ BASKETS = {
 CATEGORY_BASKET = {c: k for k, b in BASKETS.items() for c in b["categories"]}
 NO_PAYDAY_DAYS = 30  # safe-to-spend horizon when no regular salary is found
 INCOME_TYPES = {"salary", "other_income", "investment_withdrawal"}
+CYCLE_INCOME_TYPES = {"salary", "other_income"}  # what a pay cycle earns (the cycle budget in safe to spend)
+RESERVE_NOTE_EUR = 100  # messages mention the reserve from this much
 SPEND_CATEGORIES = list(CATEGORY_BASKET)
 
 # Demo funds. Clearly labelled as demo products; the assistant explains them but never picks one.
@@ -588,11 +590,34 @@ class Engine:
                     break
                 committed.append({**b, "due_date": d.isoformat(), "days_away": (d - self.today).days})
         bills = sum(b["amount_eur"] for b in committed)
-        util = self.monthly_avg("Utilities", 6) * frac
-        needs = sum(self.monthly_avg(c, 3) for c in ("Groceries", "Transportation")) * frac
-        buffer = sum(self.monthly_avg(c, 6) for c in BASKETS["irregular"]["categories"]) * frac
-        free = bal - bills - util - needs - buffer
+        util_m = self.monthly_avg("Utilities", 6)
+        needs_m = sum(self.monthly_avg(c, 3) for c in ("Groceries", "Transportation"))
+        irregular_m = sum(self.monthly_avg(c, 6) for c in BASKETS["irregular"]["categories"])
+        util, needs, buffer = util_m * frac, needs_m * frac, irregular_m * frac
+        after = bal - bills - util - needs - buffer
+        # The balance is not all this cycle's money: what usually comes in minus the usual mandatory costs is what
+        # a pay cycle can sustain for flexible spending. Anything on the account beyond that is reserve (savings).
+        income_m = self.monthly_income(6)
+        mandatory_m = self.monthly_avg("Housing", 3) + util_m + needs_m + irregular_m
+        cycle = max(0.0, income_m - mandatory_m) * frac
+        free = min(after, cycle)
+        reserve = max(0.0, after - cycle)
         per_day = max(0.0, free) / days
+        span = "until payday" if pay["date"] else f"in the next {days} days"
+        if after < 0:
+            basis = (f"Bills, usual needs and the buffer {span} come to more than the balance, so nothing is free "
+                     "to spend.")
+        elif after <= cycle:
+            basis = (f"Limited by the balance: after bills, usual needs and the buffer, {after:.2f} EUR is left, "
+                     f"less than the {cycle:.2f} EUR your usual income leaves for flexible spending {span}.")
+        elif not cycle:
+            basis = (f"Usual income ({income_m:.2f} EUR a month) does not cover usual mandatory costs ({mandatory_m:.2f} "
+                     f"EUR a month), so the pay cycle leaves nothing for flexible spending; any spending {span} comes "
+                     f"out of the {reserve:.2f} EUR reserve that has built up on the account (see get_safe_to_save).")
+        else:
+            basis = (f"Limited by your usual pay cycle: average income minus usual mandatory costs leaves {cycle:.2f} "
+                     f"EUR for flexible spending {span}; the other {reserve:.2f} EUR on the account has built up "
+                     "beyond the cycle and looks like savings (see get_safe_to_save).")
         out = {
             "balance_eur": eur(bal),
             "next_payday": pay,
@@ -604,9 +629,18 @@ class Engine:
             "safe_to_spend_until_payday_eur": eur(free),
             "safe_per_day_eur": eur(per_day),
             "safe_this_week_eur": eur(per_day * min(7, days)),
-            "method": "balance - bills due before payday (incl. a linked bank's card bill) - usual utilities, groceries "
-                      "and transport until payday - a buffer for irregular costs (your average health, home & tech and "
-                      "travel spend)",
+            "left_after_bills_eur": eur(after),
+            "income_per_month_eur": eur(income_m),
+            "mandatory_costs_per_month_eur": eur(mandatory_m),
+            "cycle_budget_eur": eur(cycle),
+            "reserve_eur": eur(reserve),
+            "limited_by": "balance" if after <= cycle else "pay_cycle",
+            "basis": basis,
+            "method": "the smaller of (a) balance - bills due before payday (incl. a linked bank's card bill) - usual "
+                      "utilities, groceries and transport until payday - a buffer for irregular costs (your average "
+                      "health, home & tech and travel spend) and (b) the cycle budget: average monthly income (last 6 "
+                      "months) - average housing, utilities, groceries, transport and irregular costs, for the days "
+                      "until payday. What (a) has beyond (b) is the reserve: money built up beyond the pay cycle",
             "horizon_days": days,
         }
         if not pay["date"]:
@@ -624,11 +658,14 @@ class Engine:
         card = self.linked_bank()
         card_monthly = self.card_spend_per_month() if card else 0.0
         surplus = flow["left_per_month_eur"] - card_monthly
+        reserve = safe["reserve_eur"]
         out = {
-            "now_max_eur": eur(max(0.0, free)),
-            "now_keeping_usual_fun_eur": eur(max(0.0, free - fun)),
+            "now_max_eur": eur(max(0.0, free) + reserve),
+            "now_keeping_usual_fun_eur": eur(max(0.0, free - fun) + reserve),
             "usual_fun_until_payday_eur": eur(fun),
+            "reserve_eur": reserve,
             "safe_to_spend_until_payday_eur": free,
+            "cycle_budget_eur": safe["cycle_budget_eur"],
             "next_payday": safe["next_payday"],
             "bills_before_payday": safe["bills_before_payday"],
             "surprise_buffer_kept_eur": safe["surprise_buffer_eur"],
@@ -639,10 +676,16 @@ class Engine:
                       for g in self.goals()],
             "how_to_act": "create_saving_link(goal_id, amount) prepares a move to a goal's savings pocket; the person "
                           "confirms with their PIN. With no goal yet, create_goal first.",
-            "method": "now = safe to spend until payday (bills, usual needs and the irregular buffer already kept aside); "
-                      "per month = average income - spending - investing over the last 3 full months"
+            "method": "now = the reserve (money on the account beyond this pay cycle) + safe to spend until payday "
+                      "(bills, usual needs and the irregular buffer already kept aside); per month = average income - "
+                      "spending - investing over the last 3 full months"
                       + (" - card spending at the linked bank" if card else ""),
         }
+        if reserve > 0:
+            out["reserve_note"] = (f"{reserve:.2f} EUR has built up on the current account beyond what this pay cycle "
+                                   "needs. It could move to a savings goal or be invested; that is the person's "
+                                   "choice. Investing can lose value, so money that may be needed soon (an emergency "
+                                   "fund) usually stays in savings.")
         if surplus <= 0:
             cuts = [self.simulate_cut(c, 20) for c in BASKETS["everyday"]["categories"] if self.monthly_avg(c, 3) > 0]
             out["where_a_cut_could_come_from"] = sorted(
@@ -763,12 +806,16 @@ class Engine:
             "flexible_left_after_eur": eur(left - amount),
             "safe_to_spend_until_payday_eur": eur(safe_left),
             "safe_left_after_eur": eur(safe_left - amount),
+            "reserve_eur": safe["reserve_eur"],
+            "fits_with_reserve": bool(amount <= max(0.0, safe_left) + safe["reserve_eur"]),
             "days_to_payday": days if safe["next_payday"]["date"] else None,
             **({"not_enough_data": safe["not_enough_data"]} if "not_enough_data" in safe else {}),
             "per_day_after_eur": eur(max(0.0, safe_left - amount) / days),
             "goals": goals,
             "method": "flexible budget = your average monthly 'slips through your fingers' spending (last 3 months) "
-                      "- spent on it this month - subscriptions due before payday; safe to spend as in get_safe_to_spend",
+                      "- spent on it this month - subscriptions due before payday; safe to spend as in get_safe_to_spend; "
+                      "fits_with_reserve: it could be paid by also using the reserve (savings built up beyond the "
+                      "pay cycle), which shrinks those savings",
         }
 
     def simulate_cut(self, category: str, cut_pct: float, fund_id: str | None = None, years: int = 5) -> dict:
@@ -1105,6 +1152,14 @@ class Engine:
             out["not_enough_data"] = (f"Only {n} full month(s) of history; averages use those." if n else
                                       "No full month of history yet, so there is no monthly average.")
         return out
+
+    def monthly_income(self, months: int = 6) -> float:
+        """Average salary and other income per full month. Investment withdrawals are left out: they are savings
+        coming back, not money a pay cycle earns."""
+        d0, d1 = self._full_months(months)
+        n = self._covered(d0, months)
+        s = self._slice(d0, d1)
+        return eur(s[s["transaction_type"].isin(CYCLE_INCOME_TYPES)]["tx_amount_eur"].sum() / n) if n else 0.0
 
     def create_goal(self, name: str, target_eur: float, deadline: str | None = None) -> dict:
         if not 10 <= target_eur <= 1_000_000:

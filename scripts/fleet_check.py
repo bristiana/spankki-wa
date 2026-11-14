@@ -99,6 +99,11 @@ def sanity(out: dict, age: int | None = None) -> list[str]:
             bad.append("safe_to_spend: negative total shown as a positive daily amount")
         if any(b["due_date"] < TODAY.isoformat() for b in s["bills_before_payday"]):
             bad.append("safe_to_spend: bill due in the past")
+        if s["safe_to_spend_until_payday_eur"] > s["cycle_budget_eur"] + 0.01:
+            bad.append("safe_to_spend: more than the pay cycle sustains")
+        if s["reserve_eur"] < 0 or (s["reserve_eur"] > 0 and abs(
+                s["safe_to_spend_until_payday_eur"] + s["reserve_eur"] - s["left_after_bills_eur"]) > 0.02):
+            bad.append("safe_to_spend: safe + reserve is not what is left after bills")
     for b in out.get("upcoming_bills") or []:
         if b["due_date"] and b["due_date"] < TODAY.isoformat():
             bad.append("upcoming_bills: bill due in the past")
@@ -112,8 +117,8 @@ def sanity(out: dict, age: int | None = None) -> list[str]:
     if a and safe and a["fits_safe_to_spend"] and safe["safe_to_spend_until_payday_eur"] < a["price_eur"]:
         bad.append("afford: says it fits while safe to spend is lower")
     ss = out.get("safe_to_save")
-    if ss and ss["now_max_eur"] > max(0.0, ss["safe_to_spend_until_payday_eur"]) + 0.01:
-        bad.append("safe_to_save: more than safe to spend")
+    if ss and ss["now_max_eur"] > max(0.0, ss["safe_to_spend_until_payday_eur"]) + ss["reserve_eur"] + 0.01:
+        bad.append("safe_to_save: more than safe to spend plus the reserve")
     h = out.get("home_readiness")
     if h and "deposit" in h and not 0 <= h["deposit"]["covered_pct"] <= 100:
         bad.append("home_readiness: covered share outside 0-100%")
@@ -164,6 +169,10 @@ def check_customer(cid: str, rows: pd.DataFrame, state_dir: str, age: int | None
         "balance_eur": e.balance() if s else None,
         "safe_to_spend_eur": s["safe_to_spend_until_payday_eur"] if s else None,
         "safe_per_day_eur": s["safe_per_day_eur"] if s else None,
+        "safe_this_week_eur": s["safe_this_week_eur"] if s else None,
+        "cycle_budget_eur": s["cycle_budget_eur"] if s else None,
+        "reserve_eur": s["reserve_eur"] if s else None,
+        "limited_by_cycle": bool(s and s["limited_by"] == "pay_cycle"),
         "days_to_payday": s["next_payday"]["days_away"] if s else None,
         "payday_found": bool(s and s["next_payday"].get("date")),
         "rent_found": any(r.transaction_type == "housing_payment" for r in e.recurring()),
@@ -220,10 +229,13 @@ def summarise(recs: list[dict], seconds: float) -> dict:
             "rent_found": sum(1 for f in fig if f.get("rent_found")),
             "negative_balance": sum(1 for f in fig if (f.get("balance_eur") or 0) < 0),
             "negative_safe_to_spend": sum(1 for f in fig if (f.get("safe_to_spend_eur") or 0) < 0),
+            "safe_to_spend_limited_by_pay_cycle": sum(1 for f in fig if f.get("limited_by_cycle")),
+            "zero_cycle_budget": sum(1 for f in fig if f.get("cycle_budget_eur") == 0),
             "not_enough_data_notes": dict(Counter(n for f in fig for n in f.get("notes", []))),
         },
         "distribution": {k: stats([f.get(k) for f in fig]) for k in (
-            "balance_eur", "safe_to_spend_eur", "safe_per_day_eur", "days_to_payday", "left_per_month_eur",
+            "balance_eur", "safe_to_spend_eur", "safe_per_day_eur", "safe_this_week_eur", "cycle_budget_eur",
+            "reserve_eur", "days_to_payday", "left_per_month_eur",
             "share_regular_pct", "share_irregular_pct", "share_everyday_pct")},
         "timing": {"wall_seconds": round(seconds, 1),
                    "per_customer_ms": stats([r.get("total_ms") for r in recs]),

@@ -85,13 +85,15 @@ TOOLS = [
     {
         "name": "get_safe_to_spend",
         "description": "How much is safe to spend until next payday, per day and this week, after bills, usual needs and a "
-                       "buffer for surprises. Also returns the current balance.",
+                       "buffer for surprises, and never more than the usual pay cycle sustains (cycle_budget_eur). "
+                       "Also returns the current balance, the reserve (money built up beyond the cycle, likely "
+                       "savings) and a one-line basis.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
         "name": "get_safe_to_save",
         "description": "How much can go to savings now without touching bills before payday or the buffer for irregular "
-                       "costs, and a sustainable monthly amount from the average monthly surplus. When there is no "
+                       "costs (including the reserve built up beyond the pay cycle), and a sustainable monthly amount from the average monthly surplus. When there is no "
                        "surplus, where a cut could come from. Includes goal ids for create_saving_link.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
