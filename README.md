@@ -2,7 +2,7 @@
 
 Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 
-**Live:** https://spankki-wa.bogdan-c-2206.workers.dev · web chat [/chat](https://spankki-wa.bogdan-c-2206.workers.dev/chat) · dashboard [/app](https://spankki-wa.bogdan-c-2206.workers.dev/app) · WhatsApp (test number, on request)
+**Live:** https://spankki-wa.bogdan-c-2206.workers.dev · web chat [/chat](https://spankki-wa.bogdan-c-2206.workers.dev/chat) · dashboard [/app](https://spankki-wa.bogdan-c-2206.workers.dev/app) · WhatsApp (test number, on request) · no WhatsApp? [/login](https://spankki-wa.bogdan-c-2206.workers.dev/login) → *Use the demo account*
 
 <img src="app/static/oiva/oiva.png" width="120" align="right" alt="Oiva the squirrel">
 
@@ -36,7 +36,7 @@ Oiva is for everyday money at any age: the median S-Pankki customer in the chall
 | People like you | "How much does someone like me need a month here?" · "Is 400 € on food normal for my area?" · "What does a first flat in Espoo cost?" → a typical month (middle half and median per basket and category) for S-Pankki customers of your postal area and age, and where yours sits: "in line" on most things, "a bit above" or "below" said gently, only to reassure or help a choice. Only averages of at least 30 customers; a smaller group falls back to a wider age band, then the whole capital region. A card on `/app` draws it as range bars (`app/peers.py`, `get_people_like_me`) |
 | Safe to spend is not your balance | Safe to spend is the smaller of what the balance leaves after bills, usual needs and a buffer, and what the usual pay cycle sustains (average income minus usual mandatory costs, for the days until payday). Money beyond that is the *reserve*: "You have 82 799.61 € on your account, but your usual cycle leaves about 1 313.89 € for flexible spending; the other 81 025.00 € looks like savings" |
 | Safe to save | "How much can I safely save?": what can move now (the reserve plus what is left of safe to spend) without touching bills before payday or the irregular buffer, a sustainable monthly amount from the real surplus, and, when there is none, which cut would free money; one tap to the savings pocket with PIN |
-| All my banks | "Add another bank" on the Connect page: a mock PSD2 consent links a synthetic **Demo Bank** (savings + credit card). Oiva then shows total balances, net position after card debt, how many months those savings cover the irregular basket, and counts the card bill in safe to spend |
+| All my banks | S-Pankki stays the main bank; "add bank" on WhatsApp or *Add a bank* on the site links your **real** other accounts through [Enable Banking](https://enablebanking.com) (licensed PSD2 account access, read only, 90 days). Revolut first, then every Finnish bank; you approve in your own bank's app. Accounts in RON, USD or any currency are converted to EUR at the day's ECB rate (Frankfurter), a repeated account is counted once, money moved between your own accounts is left out, and transfers to people are kept apart from card spending ("1 668.76 € on cards and shops, 2 965.38 € to people a month"). *refresh bank* pulls them again. My money adds an Other banks card and the total across banks. Only you see them: you log in to the site with a link Oiva sends you on WhatsApp (*login*). The demo account links a synthetic **Demo Bank** (savings + credit card) instead (`app/enable_banking.py`) |
 | Save | Goals with deadlines ("1,500 € for Lapland by June"), honest monthly options, salary-day nudge "pay yourself first", savings pocket with PIN |
 | Invest | What-if cuts ("dining out −20% = 97.18 €/month") checked against **real ETF prices** over the last 2 years; your real deposits valued in each fund; one-off investments can place a real order on a Trading 212 Practice account |
 | My money | Dashboard: balance trend, safe to spend, three baskets, weekly in/out, bills, regular payments, you vs Finland, goals, investing, latest transactions |
@@ -61,11 +61,13 @@ Every answer uses the challenge's teaching model:
 | S-Pankki mortgage applications (challenge dataset, 200 applications + negotiation history) | First-home estimate: income-to-loan rule, equity share, one-off costs, rejection reasons (`scripts/build_mortgage_benchmark.py` → `data/mortgage_benchmark.json`) |
 | S-Pankki transactions of all 5,100 customers (challenge dataset) | "People like you": p25 / median / p75 of monthly income and spending by postal area (00 Helsinki, 01 Vantaa area, 02 Espoo area) × age band, last 12 full months, groups of ≥ 30 customers only (`scripts/build_peer_benchmark.py` → `data/peer_benchmark.json`) |
 | Real monthly ETF prices (VWCE, XEON; Yahoo Finance) | Backtests of the customer's real deposits and of monthly savings (`scripts/fetch_market.py`) |
+| Your own other banks (Enable Banking, PSD2 account information) | Live balances and the last 90 days of transactions from Revolut and Finnish banks, read only, after your consent in your bank (`app/enable_banking.py`) |
+| ECB exchange rates (Frankfurter API) | Non-euro accounts converted to EUR |
 
 **Simulated, and labelled as such:**
 - the PIN pages, and the payments, savings, investments and the pause of the monthly investing they confirm (a stand-in for PSD2 payment initiation and strong customer authentication; they change the demo state, no real money moves). The demo payday ("Salary landed") adds the customer's usual salary once;
 - the "Demo Fund" names and their scenario returns (2%, 4.5%, 6.5% a year): the backtests use real ETF prices, the fund names are made up and no real S-Pankki fund is named;
-- the linked "Demo Bank" (optional, the challenge's multi-bank bonus; the dataset has one account per customer): a made-up bank, its savings, card and card purchases are generated;
+- the "Demo Bank" on the demo account (the dataset has one account per customer): a made-up bank, its savings, card and card purchases are generated. A person who logs in with WhatsApp links their real banks instead, and never sees the Demo Bank;
 - the persona first names (Antti, Aino, Eetu, …) and the demo date (6 Oct 2026); the banking-app home screen on `/mobile-demo` is a concept mock;
 - Trading 212 orders go to a Practice account (virtual money).
 
@@ -80,6 +82,7 @@ There are no subscriptions in the dataset (no merchant charges the same amount e
 - **Data is data.** Text in transactions, merchant names or tool results that reads like an instruction is defanged before it reaches the model, and the prompt says it is never an instruction.
 - **A person when it matters.** Fraud, disputed charges and debt trouble go to S-Pankki customer service in S-mobiili; Oiva never makes up a phone number (the number guard would catch one).
 - **Opt-in channel.** WhatsApp is enabled per customer with explicit consent; the web chat keeps everything inside S-mobiili.
+- **Your banks are yours.** Other banks are linked only with your consent in your own bank, read only, for 90 days, and *Remove all* on `/bank` deletes them. Their data is stored per phone number and shown only to the person logged in with that number (a signed link sent on WhatsApp); the demo account never sees it.
 
 ## How it works
 
@@ -94,14 +97,15 @@ Trading 212 Practice API <─────────┘      (one-off investmen
 
 - `app/engine.py`: three baskets, spending by merchant type (ISO 18245 MCC: taxis, fast food, parking…), recurring payments and regular commitments (rent, utility bills, monthly investing and salary found from history, with trends), safe to spend, goals, what-if, real-price backtests, benchmarks.
 - `app/agent.py` + `app/tools.py`: Oiva's persona and 24 tools, incl. `can_i_afford`, `get_safe_to_save`, `get_save_more_ideas`, `get_full_picture`, `get_home_readiness`, `explore_my_data` (only enum parameters, no code or SQL from the model) and `get_money_guide` over `content/finland-money-guide.md` (checked facts with official sources: Kela, vero.fi, ASP, deposit guarantee, KKV); `app/guard.py` checks every number in a reply against the tool results and asks for one rewrite if one is not there; Claude Opus 5.5 at low effort for fast chat replies.
-- `app/main.py`: WhatsApp webhook (signature checked), web chat API, confirm pages, dashboard, demo triggers.
+- `app/main.py`: WhatsApp webhook (signature checked), web chat API, confirm pages, dashboard, demo triggers, WhatsApp login and the demo login.
+- `app/enable_banking.py`: other banks through Enable Banking (signed JWT, consent, callback, balances and transactions), currency conversion, transfers between own accounts, the merged picture.
 - `worker/index.ts` + `Dockerfile`: the same Python app as a Cloudflare Container behind a Worker.
 
 ## Run it
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # ANTHROPIC_API_KEY, optional WhatsApp and Trading 212 keys
+cp .env.example .env          # ANTHROPIC_API_KEY, optional WhatsApp, Enable Banking and Trading 212 keys
 uvicorn app.main:app --port 8000
 ```
 
@@ -109,7 +113,7 @@ uvicorn app.main:app --port 8000
 - From the terminal: `python -m app.agent "What is safe for me to spend this week?"`
 - End to end, every flow in a phone-sized browser: `python scripts/demo_walkthrough.py --url http://127.0.0.1:8000`
 - Other customers: the "Viewing as" menu on `/chat`, `/app` and `/app/explore` (or `?as=<CUSTID>`) switches the web app between six real customers: Antti (the default, ~40, picked by rule as the age of the median customer with a regular life), Aino (24, the original first-job persona) and four more picked by rule from the dataset (student-age, high earner, irregular income, older homeowner; `data/personas/index.json` says why each). Each has its own engine, state file (`data/state/<CUSTID>.json`) and chat history. WhatsApp and every page without `?as=` use `DEMO_PERSONA` (default: Antti; `DEMO_PERSONA=CUST04831` brings back Aino). Rebuild with `python scripts/extract_personas.py --data-dir <dataset>`
-- Tests: `python -m pytest` (547). Conversation quality: `python scripts/convo_eval.py` (40 chats, read as WhatsApp bubbles with their reaction) → [docs/convo-eval.md](docs/convo-eval.md). Fleet check, every customer in the dataset: `python scripts/fleet_check.py --data-dir <dataset>` → `docs/fleet-check.md`
+- Tests: `python -m pytest` (653). Conversation quality: `python scripts/convo_eval.py` (40 chats, read as WhatsApp bubbles with their reaction) → [docs/convo-eval.md](docs/convo-eval.md). Fleet check, every customer in the dataset: `python scripts/fleet_check.py --data-dir <dataset>` → `docs/fleet-check.md`
 - Refresh real data: `python scripts/fetch_market.py`, `python scripts/fetch_statfin.py`; rebuild the persona with `python scripts/extract_persona.py --data-dir <dataset>`, the mortgage benchmark with `python scripts/build_mortgage_benchmark.py --data-dir <dataset>` and the peer benchmark with `python scripts/build_peer_benchmark.py --data-dir <dataset>`
 - WhatsApp: set `<url>/webhook` and `WA_VERIFY_TOKEN` in the Meta app, subscribe to `messages`. Proactive messages: `POST /demo/remind`, `POST /demo/alert?kind=salary|unusual|bills`
 - Proactive check: `POST /cron/wake?key=<WA_VERIFY_TOKEN>` (also on a Worker cron at 07, 12 and 17 UTC) picks the most urgent signal per person from `app/rules.py` and sends it inside WhatsApp's 24-hour window (no templates: after 24 h of silence Oiva waits for the person to write). It sends nothing unless `DEMO_PROACTIVE=1`; add `&dry_run=1` to only see what would go out
@@ -118,6 +122,7 @@ uvicorn app.main:app --port 8000
 ## Honest limits
 - Demo customers on synthetic data (one at a time; six to switch between); merchants are anonymous in the dataset ("Restaurant #22").
 - Payments and savings are simulated; investing uses demo fund names over real ETF prices; Trading 212 runs only on a Practice (virtual money) account.
+- Other banks: the Enable Banking app runs in restricted production mode, so only accounts we added there can link until it is activated.
 - Production needs S-Pankki's own APIs, a verified WhatsApp Business account (and, if Oiva should ever write first after 24 h of silence, approved template messages), and real PIN/strong customer authentication.
 
 Inspired by [Moni](https://github.com/Bogdan-ca/Moni) (NEXXT 2026); all code here was written from scratch for this challenge.
