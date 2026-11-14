@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bills, broker, enable_banking, guardrails, learn, onboarding, quiz, rules, voice
+from . import bills, broker, enable_banking, guardrails, learn, mirror, onboarding, quiz, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, HIDE_DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -157,6 +157,15 @@ def engine_for(persona: str | None) -> Engine:
 
 def name_for(persona: str | None) -> str:
     return PERSONAS[valid_persona(persona)]["name"]
+
+
+# Family names for the app's own profile (Minä); the dataset has none. Chat and WhatsApp keep first names.
+SURNAMES = {HERO: "Virtanen"}  # the hero, Antti
+
+
+def full_name(persona: str | None) -> str:
+    p = valid_persona(persona)
+    return " ".join(x for x in (PERSONAS[p]["name"], SURNAMES.get(p, "")) if x)
 
 
 def persona_ctx(persona: str) -> dict:
@@ -532,6 +541,7 @@ def bill_photo(to: str, name: str, m: dict):
 def handle_message(m: dict):
     to, name = m["from"], first_name(m["name"])
     names[to] = name
+    mirror.incoming(to, m)  # the owner's messages show in the app's chat too
     try:
         wa.mark_read_typing(m["id"])
         if m.get("kind") == "audio" and m.get("media_id") and not m["text"]:  # a voice note: handled like typed text
@@ -1189,7 +1199,7 @@ def sm_ctx(request: Request, persona: str, **extra) -> dict:
                                          if keep or t else "")
     return {"wa": wa_back(request), "web": bool(q.get("web")), "autoplay": q.get("autoplay") == "1",
             "home_url": tab_url(None), "tab_urls": {t: tab_url(t) for t in SM_TABS if t != "koti"},
-            "name": name_for(persona), "tab": "koti", **extra}
+            "name": name_for(persona), "full_name": full_name(persona), "tab": "koti", **extra}
 
 
 # The real app's bottom bar: Koti · S-Etukortti · (+) Maksu · Pankki · Minä. "kortti" is the card page under Pankki.
@@ -1756,8 +1766,12 @@ def _peers_card(eng: Engine) -> dict | None:
 def chat_page(request: Request, q: str = "", embed: str = ""):
     """?q= asks a question once on load (deep link); ?embed=1 drops the site chrome for a WebView."""
     persona = persona_of(request)
+    mirrored = bool(mirror.owner())
+    if mirrored:  # the app's chat is the owner's WhatsApp conversation, on the WhatsApp demo customer's data
+        persona = DEFAULT_PERSONA
     return templates.TemplateResponse(request, "chat.html", {"name": name_for(persona), "q": q[:500],
-                                                             "embed": embed == "1", **persona_ctx(persona)})
+                                                             "embed": True, "mirror": mirrored,
+                                                             "framed": embed != "1", **persona_ctx(persona)})
 
 
 # ---------------- S-mobiili integration: native home-screen cards, no AI ----------------
@@ -1876,8 +1890,27 @@ def web_words(out):
 
 @app.post("/api/chat")
 async def chat_api(request: Request):
-    """One turn of the web chat; its words carry no emoji and it has no reaction (web_words)."""
-    return web_words(await chat_turn(request))
+    """One turn of the web chat; its words carry no emoji and it has no reaction (web_words). With "mirror": true
+    (the app's chat) it is the owner's conversation: the same history as their WhatsApp, kept in the mirror log."""
+    out = web_words(await chat_turn(request))
+    body = await request.json()
+    if isinstance(body, dict) and body.get("mirror") and mirror.owner():
+        said = str(body.get("shown") or body.get("text") or "").strip()
+        if said and not said.startswith("__"):
+            mirror.add("me", said[:1000], source="app")
+        j = json.loads(out.body) if isinstance(out, JSONResponse) else out
+        if isinstance(j, dict):
+            parts = j.get("bubbles") or ([j["text"]] if j.get("text") else [])
+            links = [{"label": b["label"], "url": b["url"]} for b in j.get("buttons") or []]
+            for i, part in enumerate(parts):
+                mirror.add("oiva", part, links if i == len(parts) - 1 else None, source="app")
+    return out
+
+
+@app.get("/api/mirror")
+def mirror_api(after: int = 0):
+    """The owner's conversation, WhatsApp and app, from message `after` on; the app's chat polls it."""
+    return {"on": bool(mirror.owner()), "messages": mirror.since(after)}
 
 
 async def chat_turn(request: Request):
@@ -1890,6 +1923,10 @@ async def chat_turn(request: Request):
     if not isinstance(body, dict):
         raise HTTPException(400, "send a JSON object")
     sid = "web:" + str(body.get("session", "default"))[:40]
+    if body.get("mirror") and mirror.owner():  # the app's chat: the owner's WhatsApp conversation, same history
+        sid = mirror.APP_KEY
+        body["as"] = DEFAULT_PERSONA
+        coach(None).alias[sid] = mirror.owner()
     text = str(body.get("text", "")).strip()[:1000]
     if not text and not body.get("image"):
         raise HTTPException(400)
