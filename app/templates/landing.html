@@ -7,14 +7,12 @@
   @media (min-width:820px){.hero{grid-template-columns:1.2fr 1fr}}
   .hero h1{font-size:clamp(32px,7vw,54px);line-height:1.05;letter-spacing:-1px;margin:0 0 12px}
   .hero p{font-size:18px;color:var(--muted);margin:0 0 18px}
-  .hero img{width:min(320px,46vw);margin:0 auto;display:block;animation:bob 2.8s ease-in-out infinite}
-  @keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(2deg)}}
-  @media (prefers-reduced-motion:reduce){.hero img{animation:none}}
+  .hero .birky{--s:min(320px,46vw);margin:0 auto;display:block}
   .cta{display:flex;gap:10px;flex-wrap:wrap}
   .cta .btn{flex:1;min-width:200px}
   .also{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px;margin-top:10px}
   .also a{display:inline-flex;align-items:center;min-height:44px;font-weight:600;text-decoration:none}
-  @media (max-width:819px){.hero img{order:-1;margin:0 auto -4px}}
+  @media (max-width:819px){.hero .birky{order:-1;margin:0 auto -4px}}
   .feats{display:grid;grid-template-columns:1fr;gap:12px;margin:22px 0}
   @media (min-width:700px){.feats{grid-template-columns:1fr 1fr}}
   .feat{margin:0}
@@ -40,7 +38,7 @@
       <div class="also"><a href="/app">📊 See the money dashboard ›</a><a href="/mobile-demo">📱 See it inside a banking app ›</a></div>
       <p class="muted" style="font-size:13px;margin:4px 0 0">Demo customer on synthetic S-Pankki data.</p>
     </div>
-    <img src="/static/birky.svg" alt="Birky the squirrel holding a euro coin">
+    <span class="birky wave" role="img" aria-label="Birky the squirrel waving, holding a euro coin"></span>
   </section>
 
   <section class="feats">
