@@ -23,7 +23,9 @@ def client(tmp_path, monkeypatch):
     for d in (main.owner, main.inbox):
         d.clear()
     monkeypatch.setattr(main.wa, "_post", lambda body: None)
-    return TestClient(main.app)
+    c = TestClient(main.app)
+    c.cookies.set("lang", "en")  # these tests read the English screens; tests/test_lang.py covers Finnish
+    return c
 
 
 def rent():
@@ -66,17 +68,17 @@ def test_home_shows_accounts_and_recent_from_the_engine(client):
 def test_persona_override_works_like_as(client):
     other = next(p for p in main.PERSONAS if p != main.DEFAULT_PERSONA)
     page = client.get(f"/s-mobiili/?persona={other}").text
-    assert f"Hei {main.PERSONAS[other]['name']}" in page
+    assert f"Hi {main.PERSONAS[other]['name']}" in page
     assert main.fi_money(main.engine_for(other).balance()) in page
-    assert f"Hei {main.PERSONAS[main.DEFAULT_PERSONA]['name']}" in client.get("/s-mobiili/?persona=nobody").text
+    assert f"Hi {main.PERSONAS[main.DEFAULT_PERSONA]['name']}" in client.get("/s-mobiili/?persona=nobody").text
 
 
 def test_pay_review_is_prefilled_and_guided(client):
     _, pid = chat_pay(client)
     page = client.get(f"/s-mobiili/pay/{pid}").text
     r = rent()
-    assert LABEL not in page and "Pay a bill" in page and "Confirm with Face ID" in page and "no camera" in page
-    for text in ("Landlord · Asunto Oy Demo", "FI00 0000 0000 0000 00 (demo)", main.nice_date(r["due_date"]),
+    assert LABEL not in page and "Pay a bill" in page and "Confirm with Face ID" in page and "no camera" not in page
+    for text in ("Landlord · Asunto Oy Demo", "FI00 0000 0000 0000 00", main.nice_date(r["due_date"]),
                  main.fi_money(r["amount_eur"])):
         assert text in page
     ref = main.demo_reference(r["bill_id"])
@@ -269,7 +271,7 @@ def test_ready_card_shows_on_the_creators_home(client):
     bill = next(b for b in e.upcoming_bills(45) if b["category"] == "Housing")
     j = client.post("/api/chat", json={"session": "o", "text": f"__btn__:pay:{bill['bill_id']}", "as": other}).json()
     page = client.get(j["buttons"][0]["url"]).text  # no cookie: still the creator's home, with the card
-    assert ready_card(page) and f"Hei {main.PERSONAS[other]['name']}" in page
+    assert ready_card(page) and f"Hi {main.PERSONAS[other]['name']}" in page
     assert ready_card(client.get(j["buttons"][0]["url"] + f"&persona={main.DEFAULT_PERSONA}").text) is None
 
 

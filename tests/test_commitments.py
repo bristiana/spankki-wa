@@ -183,7 +183,8 @@ def test_pause_investing_button_then_pin(client):
     assert "monthly investing" in r["text"] and "Sun 18 Oct" in r["text"]
     url = r["buttons"][0]["url"]
     assert r["buttons"][0]["label"] == main.OPEN_APP and url.startswith("/s-mobiili/?ready=stop:") and "Face ID" in r["text"]
-    assert "Pause monthly investing" in client.get(url).text
+    assert "Keskeytä kuukausisijoitus" in client.get(url).text  # S-mobiili speaks Finnish by default
+    assert "Pause monthly investing" in client.get(url + "&lang=en").text
     pin = "/stop/" + tools.pending_id_of(url)  # the PIN page still works
     assert "Pause monthly investing" in client.get(pin).text
     assert "Investing paused" in client.post(pin, data={"pin": "4321"}).text

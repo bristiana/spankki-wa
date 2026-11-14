@@ -76,7 +76,7 @@ def test_reminder_then_pay_flow(client):
 
 def test_connect_page_and_chat_page(client):
     assert "Connect S-Pankki" in client.get("/connect?u=1").text
-    assert "money coach" in client.get("/chat").text
+    assert "rahavalmentajasi" in client.get("/chat").text and "money coach" in client.get("/chat?lang=en").text
 
 
 class FakeClient:
