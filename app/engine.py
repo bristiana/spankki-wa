@@ -50,6 +50,32 @@ FUNDS = [
      "scenario_return": 0.065},
 ]
 FUNDS_BY_ID = {f["id"]: f for f in FUNDS}
+# What each fund buys at the linked broker (Trading 212 Practice). EUR instruments on Xetra.
+FUND_MIX = {
+    "prudent": [{"name": "Xtrackers EUR Overnight Rate Swap (XEON)", "ticker": "DBXTd_EQ", "pct": 100}],
+    "balanced": [{"name": "Vanguard FTSE All-World (VWCE)", "ticker": "VWCEd_EQ", "pct": 50},
+                 {"name": "Xtrackers EUR Overnight Rate Swap (XEON)", "ticker": "DBXTd_EQ", "pct": 50}],
+    "growth": [{"name": "Vanguard FTSE All-World (VWCE)", "ticker": "VWCEd_EQ", "pct": 100}],
+}
+
+# The S-Pankki dataset has no subscriptions (no merchant repeats on a schedule), so the demo customer gets a few
+# synthetic card subscriptions. They are labelled as demo data everywhere and are NOT part of the balance.
+# The detector below is generic: it only sees dated charges, like it would with real card data.
+DEMO_SUBSCRIPTIONS = [
+    # name, category, day, amount, start, end (None = still charging), price change (from_date, new_amount), cadence
+    {"name": "StreamPlus", "kind": "Video streaming", "day": 7, "amount": 11.99, "start": "2025-01-07", "end": None,
+     "change": ("2026-08-07", 13.99), "cadence": "monthly"},
+    {"name": "MusicBox", "kind": "Music streaming", "day": 3, "amount": 10.99, "start": "2024-11-03", "end": None,
+     "change": None, "cadence": "monthly"},
+    {"name": "FitHub Gym", "kind": "Gym membership", "day": 20, "amount": 39.90, "start": "2025-09-20", "end": None,
+     "change": None, "cadence": "monthly"},
+    {"name": "CloudDrive", "kind": "Cloud storage", "day": 25, "amount": 2.99, "start": "2024-12-25", "end": "2026-06-25",
+     "change": None, "cadence": "monthly"},
+    {"name": "GamePass Plus", "kind": "Gaming", "day": 14, "amount": 14.99, "start": "2025-05-14", "end": "2026-03-14",
+     "change": None, "cadence": "monthly"},
+    {"name": "LinguaPro", "kind": "Language app", "day": 10, "amount": 79.99, "start": "2025-02-10", "end": None,
+     "change": None, "cadence": "yearly"},
+]
 
 PERIODS = ["this_month", "last_month", "last_7_days", "last_30_days", "last_3_months", "last_12_months", "all"]
 
@@ -106,13 +132,13 @@ class Engine:
     def _load_state(self) -> dict:
         if self.state_path.exists():
             return json.loads(self.state_path.read_text())
-        return {"actions": [], "pending": {}, "plans": [], "connected": {}}
+        return {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": []}
 
     def _save(self):
         self.state_path.write_text(json.dumps(self.state, indent=2, default=str))
 
     def reset(self):
-        self.state = {"actions": [], "pending": {}, "plans": [], "connected": {}}
+        self.state = {"actions": [], "pending": {}, "plans": [], "connected": {}, "goals": {}, "stopped": {}, "orders": []}
         self._save()
 
     @property
@@ -418,16 +444,204 @@ class Engine:
             raise KeyError(pid)
         if p["status"] == "done":
             return {"pending_id": pid, **p, "balance_eur": self.balance()}
-        if p.get("monthly"):
+        kind = p["kind"]
+        if kind == "stop_subscription":
+            self.state.setdefault("stopped", {})[p["name"]] = self.today.isoformat()
+        elif kind == "investment" and p.get("monthly"):
             # A monthly plan moves money on payday, not now.
-            p["status"] = "done"
             p["starts"] = self.next_payday()["date"]
             self.state.setdefault("plans", []).append({"pending_id": pid, **p})
-            self._save()
-            return {"pending_id": pid, **p, "balance_eur": self.balance()}
-        self.state["actions"].append({"date": self.today.isoformat(), "category": p["category"],
-                                      "amount": -p["amount"], "transaction_type": p["transaction_type"],
-                                      "note": p["name"], "pending_id": pid})
+        else:
+            self.state["actions"].append({"date": self.today.isoformat(), "category": p["category"],
+                                          "amount": -p["amount"], "transaction_type": p["transaction_type"],
+                                          "note": p["name"], "pending_id": pid})
+            if kind == "saving":
+                g = self.state.setdefault("goals", {}).get(p["goal_id"])
+                if g:
+                    g["saved"] = eur(g["saved"] + p["amount"])
         p["status"] = "done"
         self._save()
         return {"pending_id": pid, **p, "balance_eur": self.balance()}
+
+    def _pend(self, entry: dict) -> dict:
+        pid = uuid.uuid4().hex[:10]
+        self.state["pending"][pid] = {**entry, "status": "pending"}
+        self._save()
+        return {"pending_id": pid, **self.state["pending"][pid]}
+
+    # ---------- subscriptions (F1) ----------
+    def subscription_charges(self) -> list[dict]:
+        """Card charges of the demo subscriptions up to today (synthetic, see DEMO_SUBSCRIPTIONS)."""
+        out = []
+        for sub in DEMO_SUBSCRIPTIONS:
+            d = date.fromisoformat(sub["start"])
+            end = date.fromisoformat(sub["end"]) if sub["end"] else self.today
+            step = 12 if sub["cadence"] == "yearly" else 1
+            while d <= min(end, self.today):
+                amt = sub["amount"]
+                if sub["change"] and d >= date.fromisoformat(sub["change"][0]):
+                    amt = sub["change"][1]
+                out.append({"date": d, "merchant": sub["name"], "kind": sub["kind"], "amount": amt})
+                d = add_months(d, step).replace(day=min(sub["day"], 28))
+        return out
+
+    def subscriptions(self) -> dict:
+        """Detect repeating charges per merchant: active, inactive or stopped, price increases, next charge."""
+        by: dict[str, list] = {}
+        for c in self.subscription_charges():
+            by.setdefault(c["merchant"], []).append(c)
+        items = []
+        for name, cs in by.items():
+            cs.sort(key=lambda c: c["date"])
+            if len(cs) < 2:
+                continue
+            gaps = sorted((b["date"] - a["date"]).days for a, b in zip(cs, cs[1:]))
+            gap = gaps[len(gaps) // 2]
+            if 25 <= gap <= 35:
+                cadence, months, grace = "monthly", 1, 10
+            elif 350 <= gap <= 380:
+                cadence, months, grace = "yearly", 12, 30
+            else:
+                continue
+            last = cs[-1]
+            earlier = sorted(c["amount"] for c in cs[:-1])
+            usual = earlier[len(earlier) // 2]
+            nxt = add_months(last["date"], months).replace(day=min(last["date"].day, 28))
+            if self.state.get("stopped", {}).get(name):
+                status = "stopped_by_you"
+            elif (self.today - last["date"]).days > gap + grace:
+                status = "inactive"
+            else:
+                status = "active"
+            price_now = last["amount"]
+            first_new = next((c for c in cs if c["amount"] == price_now), last)
+            increase = price_now > usual * 1.05 and price_now - usual >= 1
+            per_month = price_now / months
+            items.append({
+                "name": name, "what": cs[0]["kind"], "cadence": cadence, "status": status,
+                "price_eur": eur(price_now), "per_month_eur": eur(per_month), "per_year_eur": eur(per_month * 12),
+                "last_charge": last["date"].isoformat(),
+                "next_charge": nxt.isoformat() if status == "active" else None,
+                "days_to_next": (nxt - self.today).days if status == "active" else None,
+                "price_increase": {"from_eur": eur(usual), "to_eur": eur(price_now),
+                                   "since": first_new["date"].isoformat()} if increase else None,
+                "charges_so_far": len(cs), "paid_total_eur": eur(sum(c["amount"] for c in cs)),
+            })
+        items.sort(key=lambda x: (x["status"] != "active", -x["per_month_eur"]))
+        active = [i for i in items if i["status"] == "active"]
+        return {"active_count": len(active), "active_per_month_eur": eur(sum(i["per_month_eur"] for i in active)),
+                "active_per_year_eur": eur(sum(i["per_year_eur"] for i in active)), "subscriptions": items,
+                "basket": BASKETS["everyday"]["label"],
+                "note": "Demo subscriptions added to the synthetic data, which has none. Paid by card, not in the balance."}
+
+    def create_stop_subscription(self, name: str) -> dict:
+        sub = next((x for x in self.subscriptions()["subscriptions"] if x["name"].lower() == name.lower()), None)
+        if not sub:
+            raise ValueError(f"no subscription called {name!r}")
+        if sub["status"] != "active":
+            raise ValueError(f"{sub['name']} is already {sub['status']}")
+        return self._pend({"kind": "stop_subscription", "name": sub["name"], "amount": sub["price_eur"],
+                           "cadence": sub["cadence"], "next_charge": sub["next_charge"], "category": "Subscriptions",
+                           "per_year_eur": sub["per_year_eur"]})
+
+    # ---------- savings goals (F2) ----------
+    def monthly_flow(self, months: int = 3) -> dict:
+        d0, d1 = self._full_months(months)
+        s = self._slice(d0, d1)
+        inc = s[s["transaction_type"].isin(INCOME_TYPES)]["tx_amount_eur"].sum() / months
+        spend = -s[(s["tx_amount_eur"] < 0) & s["category"].isin(SPEND_CATEGORIES)]["tx_amount_eur"].sum() / months
+        inv = -s[s["category"] == "Invest Deposit"]["tx_amount_eur"].sum() / months
+        return {"income_per_month_eur": eur(inc), "spending_per_month_eur": eur(spend),
+                "investing_per_month_eur": eur(inv), "left_per_month_eur": eur(inc - spend - inv)}
+
+    def create_goal(self, name: str, target_eur: float, deadline: str | None = None) -> dict:
+        if not 10 <= target_eur <= 1_000_000:
+            raise ValueError("target must be between 10 and 1,000,000 EUR")
+        if deadline:
+            date.fromisoformat(deadline)
+        gid = "".join(ch for ch in name.lower() if ch.isalnum())[:20] or uuid.uuid4().hex[:6]
+        self.state.setdefault("goals", {})[gid] = {"id": gid, "name": name.strip()[:40], "target": eur(target_eur),
+                                                 "deadline": deadline, "saved": 0.0,
+                                                 "created": self.today.isoformat()}
+        self._save()
+        return self.goal_plan(gid)
+
+    def goal_plan(self, goal_id: str, monthly_eur: float | None = None) -> dict:
+        goals = self.state.get("goals", {})
+        g = goals.get(goal_id)
+        if not g:
+            raise ValueError(f"no goal {goal_id!r}; goals: {list(goals)}")
+        left = max(0.0, g["target"] - g["saved"])
+        flow = self.monthly_flow()
+        cut = self.simulate_cut("Restaurants", 20)["saving_per_month_eur"]
+        out = {"goal": g, "left_to_save_eur": eur(left), "progress_pct": round(g["saved"] / g["target"] * 100),
+               "your_monthly_flow": flow, "cutting_restaurants_20pct_frees_per_month_eur": cut, "options": []}
+        if g.get("deadline"):
+            dl = date.fromisoformat(g["deadline"])
+            months = max(1, (dl.year - self.today.year) * 12 + dl.month - self.today.month)
+            out["months_to_deadline"] = months
+            out["needed_per_month_for_deadline_eur"] = eur(left / months)
+        for m in sorted({round(x, 2) for x in [monthly_eur or 0, cut, 50.0, 100.0] if x > 0}):
+            n = int(-(-left // m)) if left else 0
+            out["options"].append({"monthly_eur": eur(m), "months": n,
+                                   "reached_by": add_months(month_start(self.today), n).isoformat()[:7]})
+        out["note"] = "Savings pocket keeps the money apart from everyday spending."
+        if flow["left_per_month_eur"] <= 0:
+            out["note"] += " The last 3 months left nothing over, so the saving has to come from a cut."
+        return out
+
+    def goals(self) -> list[dict]:
+        return [self.goal_plan(gid) for gid in self.state.get("goals", {})]
+
+    def create_saving(self, goal_id: str, amount: float) -> dict:
+        g = self.state.get("goals", {}).get(goal_id)
+        if not g:
+            raise ValueError(f"no goal {goal_id!r}; goals: {list(self.state.get('goals', {}))}")
+        if not 1 <= amount <= self.balance():
+            raise ValueError(f"amount must be between 1 and your balance {self.balance()} EUR")
+        return self._pend({"kind": "saving", "goal_id": goal_id, "name": f"Savings pocket: {g['name']}",
+                           "amount": eur(amount), "category": "Savings", "transaction_type": "savings_transfer"})
+
+    # ---------- investing overview (F3) ----------
+    def portfolio(self) -> dict:
+        t = self.tx
+        deps = t[t["transaction_type"] == "investment_deposit"]
+        dep = -deps["tx_amount_eur"].sum()
+        wd = t[t["transaction_type"] == "investment_withdrawal"]["tx_amount_eur"].sum()
+        yearly = deps.groupby(deps["date"].map(lambda x: x.year))["tx_amount_eur"].sum()
+        rec = self._rec("investment_deposit")
+        return {"invested_total_eur": eur(dep), "withdrawn_total_eur": eur(wd), "net_put_in_eur": eur(dep - wd),
+                "by_year_eur": {int(y): eur(-v) for y, v in yearly.items()},
+                "monthly_plan_in_data": {"amount_eur": rec.avg_amount, "day": rec.typical_day} if rec else None,
+                "new_plans": self.state.get("plans", []), "broker_orders": self.state.get("orders", []),
+                "platforms": [{"name": "S-Pankki funds", "status": "connected", "how": "your S-Pankki account"},
+                              {"name": "Trading 212 (Practice account)", "status": "linked",
+                               "how": "orders are placed through its API only after you confirm with your PIN"}],
+                "note": "Market value today is not in the dataset; amounts are what was paid in."}
+
+    # ---------- proactive alerts (F4) ----------
+    def alert(self, kind: str) -> dict:
+        if kind == "salary":
+            pay = self.next_payday()
+            cut = self.simulate_cut("Restaurants", 20)["saving_per_month_eur"]
+            return {"kind": kind, "salary_eur": pay["expected_eur"], "suggest_save_eur": float(round(cut)),
+                    "goals": [{"id": g["goal"]["id"], "name": g["goal"]["name"]} for g in self.goals()]}
+        if kind == "unusual":
+            t = self.tx
+            s = t[(t["date"] >= self.today - timedelta(days=30)) & (t["tx_amount_eur"] < 0)
+                  & t["category"].isin(BASKETS["everyday"]["categories"])]
+            if s.empty:
+                return {"kind": kind, "found": False}
+            spent = self.base[self.base["tx_amount_eur"] < 0]
+            usual = {c: float(-spent[spent["category"] == c]["tx_amount_eur"].median()) for c in s["category"].unique()}
+            ratio = s.apply(lambda r: -r["tx_amount_eur"] / usual[r["category"]], axis=1)
+            row = s.loc[ratio.idxmax()]
+            u = usual[row["category"]]
+            return {"kind": kind, "found": bool(ratio.max() >= 1.5), "category": row["category"],
+                    "amount_eur": eur(-row["tx_amount_eur"]), "date": row["date"].isoformat(),
+                    "where": merchant_name(row["merchant_id"]), "usual_eur": eur(u),
+                    "times_usual": float(round(-row["tx_amount_eur"] / u, 1))}
+        if kind == "renewal":
+            subs = [x for x in self.subscriptions()["subscriptions"] if x["status"] == "active"]
+            return {"kind": kind, **min(subs, key=lambda x: x["days_to_next"])}
+        raise ValueError("kind must be salary, unusual or renewal")

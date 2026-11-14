@@ -97,6 +97,56 @@ TOOLS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "get_subscriptions",
+        "description": "Card subscriptions found from repeating charges: active ones (with next charge and monthly/yearly "
+                       "cost), inactive ones (stopped charging) and price increases.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "create_stop_subscription_link",
+        "description": "Prepare stopping future card payments to an active subscription. Does NOT stop it: the user "
+                       "confirms with PIN. Only call when the user asked to stop or cancel it.",
+        "input_schema": {"type": "object", "properties": {"name": {"type": "string", "description": "Subscription name"}},
+                         "required": ["name"], "additionalProperties": False},
+    },
+    {
+        "name": "create_goal",
+        "description": "Create a savings goal (e.g. a trip, a laptop, an emergency fund) and get a plan: monthly amounts, "
+                       "how long each takes, and what a deadline needs.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "target_eur": {"type": "number"},
+                "deadline": {"type": ["string", "null"], "description": "Optional ISO date YYYY-MM-DD"},
+            },
+            "required": ["name", "target_eur", "deadline"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_goals",
+        "description": "The user's savings goals with progress and plans.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "create_saving_link",
+        "description": "Prepare moving money from the current account into the savings pocket of a goal. Does NOT move "
+                       "it: the user confirms with PIN. Only call when the user asked to save an amount.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"goal_id": {"type": "string"}, "amount_eur": {"type": "number"}},
+            "required": ["goal_id", "amount_eur"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_portfolio",
+        "description": "What the user has invested so far (from their account history), their monthly investing plan, "
+                       "linked investment platforms and orders placed through the coach.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
 ]
 
 
@@ -130,6 +180,22 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         label = f"Invest {p['amount']:.0f} €" + ("/month" if p["monthly"] else "")
         buttons.append({"label": label, "url": f"{public_url()}/invest/{p['pending_id']}"})
         out = {**p, "note": "An 'Invest' button is attached to your message. Do not paste a link."}
+    elif name == "get_subscriptions":
+        out = engine.subscriptions()
+    elif name == "create_stop_subscription_link":
+        p = engine.create_stop_subscription(args["name"])
+        buttons.append({"label": f"Stop {p['name']}", "url": f"{public_url()}/stop/{p['pending_id']}"})
+        out = {**p, "note": "A 'Stop' button is attached to your message. Do not paste a link."}
+    elif name == "create_goal":
+        out = engine.create_goal(args["name"], float(args["target_eur"]), args.get("deadline"))
+    elif name == "get_goals":
+        out = engine.goals() or {"goals": [], "note": "No goals yet."}
+    elif name == "create_saving_link":
+        p = engine.create_saving(args["goal_id"], float(args["amount_eur"]))
+        buttons.append({"label": f"Save {p['amount']:.0f} €", "url": f"{public_url()}/save/{p['pending_id']}"})
+        out = {**p, "note": "A 'Save' button is attached to your message. Do not paste a link."}
+    elif name == "get_portfolio":
+        out = engine.portfolio()
     else:
         raise ValueError(f"unknown tool {name}")
     return json.dumps(out, default=str)
