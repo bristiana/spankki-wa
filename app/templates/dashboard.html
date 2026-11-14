@@ -66,8 +66,8 @@
     <div class="card wide">
       <div class="k">All my banks</div>
       {% if o.full.linked %}
-      <div class="big" style="font-size:24px">{{ money(o.full.net_position_eur) }} <span class="muted" style="font-size:15px">net, after card debt</span></div>
-      {% for b in o.full.banks %}{% for a in b.accounts %}
+      <div class="big" style="font-size:24px">{{ money(o.full.net_position_eur) }} <span class="muted" style="font-size:15px">{{ 'net, after card debt' if o.full.card_debt_eur else 'in total' }}</span></div>
+      {% for b in o.full.banks %}{% for a in b.accounts if not (b.real and not a.balance_eur) %}
       <div class="row"><span class="l">{{ b.bank.split(' (')[0] }}<small>{{ a.type }}{% if a.limit_eur %} · limit {{ money(a.limit_eur) }}{% endif %}</small></span>
         <span class="{{ 'x' if a.outstanding_eur else '' }}">{{ money(a.balance_eur if a.balance_eur is defined else -a.outstanding_eur) }}</span></div>
       {% endfor %}{% endfor %}
@@ -184,7 +184,7 @@
   </div>
   <div class="card" style="margin-top:14px"><div class="k">Other banks</div>
     {% if real_banks %}{% for b in real_banks %}
-      {% for a in b.accounts %}<div class="row"><span class="l">{{ b.bank.split(' (')[0] }}<small>{{ a.type }}{% if a.ending %} ···{{ a.ending }}{% endif %}</small></span><span>{{ money(a.balance_eur) if a.balance_eur is not none else "–" }}</span></div>{% endfor %}
+      {% for a in b.accounts if a.balance_eur %}<div class="row"><span class="l">{{ b.bank.split(' (')[0] }}<small>{{ a.type }}{% if a.ending %} ···{{ a.ending }}{% endif %}</small></span><span>{{ money(a.balance_eur) if a.balance_eur is not none else "–" }}</span></div>{% endfor %}
       <div class="row"><span class="l">Spending a month<small>last 90 days, real data</small></span><span>{{ money(b.spending_per_month_eur) }}</span></div>
     {% endfor %}<div class="cta"><a class="btn ghost" href="/bank">Manage banks</a></div>
     {% elif me %}<p class="muted" style="margin:0">Bring your Revolut or another bank here, read only.</p><div class="cta"><a class="btn" href="/bank">Add a bank</a></div>

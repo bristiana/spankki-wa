@@ -355,8 +355,9 @@ def picture(phone: str | None) -> list[dict]:
             if key in seen:
                 continue
             seen.add(key)
-            accs.append({"type": a.get("product") or "account", "ending": a.get("iban_end") or None,
-                         "balance_eur": a.get("balance_eur")})
+            # Named by currency: some banks put the holder's name in "product", which is not an account type.
+            accs.append({"type": f"{a['currency']} account" if a.get("currency") else "account",
+                         "ending": a.get("iban_end") or None, "balance_eur": a.get("balance_eur")})
             tx += [{**t, "_acc": n} for t in a.get("transactions") or []]
         tx = _drop_internal(tx)
         spent = [t for t in tx if t["amount_eur"] < 0]
