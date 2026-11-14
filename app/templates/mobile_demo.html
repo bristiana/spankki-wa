@@ -81,7 +81,7 @@
       <div class="hi"><div><div class="muted">Good morning</div><b>{{ name }}</b></div><div class="av">{{ name[0] }}</div></div>
       <div class="acct"><small>Current account · FI00 0000 0000 0000 00 (demo)</small><div class="big">{{ money(balance) }}</div><small>Available balance</small></div>
       <div class="quick" aria-hidden="true"><span><i>↗</i>Pay</span><span><i>⇄</i>Transfer</span><span><i>▭</i>Cards</span><span><i>◔</i>Savings</span></div>
-      <h2><img src="/static/birky.svg" alt="">Oiva for you</h2>
+      <h2><img src="/static/oiva/idle.svg" alt="">Oiva for you</h2>
       <div class="cards" id="cards" aria-live="polite"><div class="kcard"><span class="t">Loading…</span></div></div>
       <h2>Recent</h2>
       <div class="tx">
@@ -90,10 +90,10 @@
         {% endfor %}
       </div>
     </div>
-    <button class="ask" id="ask"><img src="/static/birky.svg" alt=""><span>Ask Oiva about your money…</span><b>Ask</b></button>
+    <button class="ask" id="ask"><img src="/static/oiva/idle.svg" alt=""><span>Ask Oiva about your money…</span><b>Ask</b></button>
     <div class="scrim" id="scrim"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Oiva chat">
-      <div class="grab"><b><img src="/static/birky.svg" alt="">Oiva</b><button id="close" aria-label="Close">×</button></div>
+      <div class="grab"><b><img src="/static/oiva/idle.svg" alt="">Oiva</b><button id="close" aria-label="Close">×</button></div>
       <iframe id="chat" title="Oiva chat"></iframe>
     </div>
   </div>

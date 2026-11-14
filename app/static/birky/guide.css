@@ -5,6 +5,13 @@
 .guide[hidden]{display:none}
 .guide .g-hop{flex:none;pointer-events:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.18))}
 .guide .birky{--s:68px}
+/* the guide is Oiva (art from design/mascot): one picture per mood instead of the old squirrel sprite */
+.guide .birky{animation:none;border-radius:50%;background:#fff6e8 url(/static/oiva/idle.svg) center/cover no-repeat;
+  border:2px solid #fff}
+.guide .birky.talk{background-image:url(/static/oiva/teaching.svg)}
+.guide .birky.happy{background-image:url(/static/oiva/learned.svg)}
+.guide .birky.think{background-image:url(/static/oiva/thinking.svg)}
+.guide .birky.worried{background-image:url(/static/oiva/caution.svg)}
 .guide.moving .g-hop{animation:g-hop .24s ease-in-out infinite alternate}
 @keyframes g-hop{from{transform:translateY(0)}to{transform:translateY(-12px)}}
 .guide .g-bubble{pointer-events:auto;position:relative;background:var(--g-card,#fff);color:var(--g-ink,#14201b);
