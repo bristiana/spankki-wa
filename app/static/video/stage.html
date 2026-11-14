@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>S-Pankki Chat demo stage</title>
+<style>
+  :root{--green:#00663d;--green2:#1f9a63;--ink:#f3f7f5;--muted:#a9bdb4;--gold:#f2b630;--bg1:#07140f;--bg2:#0d2a1e;--card:#10241b}
+  *{box-sizing:border-box}
+  html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:radial-gradient(1200px 800px at 20% 10%,#123a29 0,var(--bg1) 60%) ,var(--bg1);color:var(--ink);font-family:"Segoe UI",system-ui,sans-serif}
+  .mono{font-family:Consolas,"Cascadia Mono",monospace}
+  section{position:absolute;inset:0;opacity:0;transition:opacity .6s ease;pointer-events:none}
+  section.on{opacity:1;pointer-events:auto}
+  /* full cards */
+  .card{display:flex;flex-direction:column;justify-content:center;padding:0 160px}
+  .light{background:#f6f3ea;color:#111}
+  .light .mono{color:#6b6b6b}
+  h1{font-size:96px;line-height:1.02;margin:0 0 24px;letter-spacing:-2px;font-weight:800}
+  h2{font-size:72px;line-height:1.05;margin:0;letter-spacing:-1.5px;font-weight:800}
+  .brand{display:flex;align-items:center;gap:14px;font-weight:700;font-size:30px;margin-bottom:40px}
+  .brand .s{width:48px;height:48px;border-radius:12px;background:var(--green);color:#fff;display:grid;place-items:center;font-weight:900;font-size:28px}
+  .agenda{list-style:none;padding:0;margin:28px 0 0;font-size:34px;line-height:1.75}
+  .agenda b{display:inline-block;width:70px;color:var(--green);font-family:Consolas,monospace;font-size:24px}
+  .hero{display:flex;align-items:center;gap:90px}
+  .hero img{width:520px;height:520px;animation:bob 2.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-18px) rotate(2deg)}}
+  .accent{color:var(--gold)}
+  .greenw{color:#5fd39a}
+  .lists{display:flex;gap:60px;margin-top:40px}
+  .list{flex:1}
+  .list h3{font-size:34px;margin:0 0 18px}
+  .item{background:var(--card);border:1px solid #1f3b2f;border-radius:14px;padding:16px 20px;margin-bottom:12px;font-size:24px}
+  .item small{display:block;color:var(--muted);font-family:Consolas,monospace;font-size:17px;margin-top:4px}
+  .real .item{border-color:#2e6b4e}
+  .end{align-items:center;text-align:center}
+  .end img{width:300px;height:300px;margin-bottom:10px}
+  /* split */
+  #split{display:flex;align-items:center}
+  #split .left{width:1000px;padding:0 60px 0 140px}
+  #split .title{font-size:64px;font-weight:800;line-height:1.08;letter-spacing:-1px;transition:opacity .4s}
+  #split .sub{margin-top:22px;font-size:26px;color:var(--muted);line-height:1.4;transition:opacity .4s}
+  #split .tag{display:inline-block;margin-bottom:26px;font-size:20px;color:#5fd39a;border:1px solid #2e6b4e;border-radius:99px;padding:6px 16px}
+  .phone{position:absolute;right:220px;top:50%;width:426px;height:880px;transform:translateY(-50%) scale(1.1);transform-origin:center;border-radius:54px;background:#000;padding:18px;box-shadow:0 40px 120px rgba(0,0,0,.6),0 0 0 2px #2a2a2a}
+  .phone iframe{width:390px;height:844px;border:0;border-radius:38px;background:#fff;display:block}
+  .phone::before{content:"";position:absolute;top:26px;left:50%;transform:translateX(-50%);width:120px;height:28px;background:#000;border-radius:20px;z-index:2}
+  #quote{position:absolute;left:50%;bottom:46px;transform:translateX(-50%);background:rgba(20,20,20,.88);color:#fff;border-radius:12px;padding:14px 22px;font-size:24px;max-width:1100px;text-align:center;opacity:0;transition:opacity .4s}
+  #quote.on{opacity:1}
+  #quote small{display:block;font-family:Consolas,monospace;color:#bbb;font-size:16px;margin-top:6px}
+</style>
+</head>
+<body>
+<section id="title" class="card light">
+  <div class="brand"><div class="s">S</div>S-Pankki Chat</div>
+  <h1>Your money coach,<br>where you already chat.</h1>
+  <div class="mono" style="font-size:22px">Junction 2026 · S-Pankki "Personal Economic Trainer" · real recording on synthetic S-Pankki data</div>
+  <ul class="agenda">
+    <li><b>01</b>A rent reminder you can pay with one tap</li>
+    <li><b>02</b>Plain questions, real numbers, three baskets</li>
+    <li><b>03</b>Subscriptions: active, inactive, price rises</li>
+    <li><b>04</b>Save for a goal, invest the difference</li>
+    <li><b>05</b>What's real, what's simulated</li>
+  </ul>
+</section>
+
+<section id="meet" class="card">
+  <div class="hero">
+    <img src="/static/kurre.svg" alt="">
+    <div>
+      <h1>Meet Kurre.</h1>
+      <div style="font-size:38px;color:var(--muted)">The S-Pankki savings squirrel.<br>Small savings, put away for winter.</div>
+    </div>
+  </div>
+</section>
+
+<section id="why" class="card">
+  <h2>Why another app?</h2>
+  <div style="font-size:40px;margin-top:34px;line-height:1.5;color:var(--muted)">
+    1 in 3 Finnish adults opens S-mobiili every week.<br>
+    <span style="color:var(--ink)">Almost everyone opens a chat app every day.</span><br>
+    Kurre lives in both: <span class="greenw">WhatsApp</span> and <span class="greenw">S-mobiili</span>, same brain.
+  </div>
+</section>
+
+<section id="split">
+  <div class="left">
+    <div class="tag mono" id="tag">S-mobiili web channel · same coach as WhatsApp</div>
+    <div class="title" id="stitle"></div>
+    <div class="sub mono" id="ssub"></div>
+  </div>
+  <div class="phone"><iframe id="phone" src="about:blank" title="chat"></iframe></div>
+</section>
+
+<section id="manifesto" class="card" style="text-align:center;align-items:center">
+  <h1 style="font-size:110px">Kurre informs.<br>It <span class="accent">never</span> advises.</h1>
+  <div class="mono" style="font-size:26px;color:var(--muted);margin-top:20px">Every number comes from code. The model only explains. Money moves only after your PIN.</div>
+</section>
+
+<section id="honest" class="card">
+  <div class="mono" style="color:var(--muted);font-size:20px;letter-spacing:2px">IN THIS DEMO</div>
+  <div class="lists">
+    <div class="list">
+      <h3>Simulated</h3>
+      <div class="item">Bank payments and the PIN screen<small>stand-in for PSD2 payment initiation</small></div>
+      <div class="item">Subscriptions of the demo customer<small>the dataset has none; added and labelled</small></div>
+      <div class="item">S-Pankki funds<small>labelled "Demo Fund", scenario returns</small></div>
+    </div>
+    <div class="list real">
+      <h3>Real</h3>
+      <div class="item">The data<small>synthetic S-Pankki transactions, customer CUST04831, 535 peers aged 20-29</small></div>
+      <div class="item">The AI<small>Claude with tools; numbers computed by a tested engine</small></div>
+      <div class="item">The channels<small>WhatsApp Cloud API + web chat, live on Cloudflare</small></div>
+    </div>
+  </div>
+</section>
+
+<section id="end" class="card end">
+  <img src="/static/kurre.svg" alt="">
+  <h1 style="font-size:110px;margin-bottom:10px">S-Pankki Chat</h1>
+  <div style="font-size:42px;color:#5fd39a;font-weight:700">Small savings, put away.</div>
+  <div class="mono" style="font-size:18px;color:var(--muted);margin-top:40px">Junction 2026 · S-Pankki challenge · hackathon prototype on synthetic data, not affiliated with S-Pankki · github.com/bristiana/spankki-wa</div>
+</section>
+
+<div id="quote"></div>
+
+<script>
+window.stage = {
+  show(id) { document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === id)); },
+  split(title, sub) {
+    const t = document.getElementById("stitle"), s = document.getElementById("ssub");
+    t.style.opacity = 0; s.style.opacity = 0;
+    setTimeout(() => { t.innerHTML = title; s.textContent = sub || ""; t.style.opacity = 1; s.style.opacity = 1; }, 350);
+  },
+  quote(text, small) {
+    const q = document.getElementById("quote");
+    if (!text) { q.classList.remove("on"); return; }
+    q.innerHTML = text + (small ? `<small>${small}</small>` : ""); q.classList.add("on");
+  },
+  phone(url) { document.getElementById("phone").src = url; },
+};
+</script>
+</body>
+</html>

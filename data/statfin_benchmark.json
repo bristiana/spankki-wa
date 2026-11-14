@@ -1,0 +1,43 @@
+{
+ "source": "Statistics Finland, Household Budget Survey 2022, table 14q4 (household consumption expenditure per month, EUR, current prices)",
+ "url": "https://pxdata.stat.fi/PxWeb/pxweb/en/StatFin/StatFin__ktutk/statfin_ktutk_pxt_14q4.px/",
+ "year": 2022,
+ "by_age": {
+  "17-24": {
+   "Restaurants": 81,
+   "Groceries": 251,
+   "Housing": 500,
+   "Utilities": 29,
+   "Transportation": 253,
+   "Health": 51,
+   "Entertainment": 104,
+   "Lifestyle": 127,
+   "Home & Tech": 70,
+   "Total": 1871
+  },
+  "25-34": {
+   "Restaurants": 150,
+   "Groceries": 405,
+   "Housing": 448,
+   "Utilities": 63,
+   "Transportation": 438,
+   "Health": 63,
+   "Entertainment": 200,
+   "Lifestyle": 173,
+   "Home & Tech": 134,
+   "Total": 3044
+  },
+  "all": {
+   "Restaurants": 111,
+   "Groceries": 471,
+   "Housing": 246,
+   "Utilities": 125,
+   "Transportation": 459,
+   "Health": 118,
+   "Entertainment": 214,
+   "Lifestyle": 140,
+   "Home & Tech": 137,
+   "Total": 3317
+  }
+ }
+}
