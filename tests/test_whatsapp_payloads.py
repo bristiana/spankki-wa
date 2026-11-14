@@ -10,7 +10,7 @@ from itertools import count
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main, rules
+from app import main, rules, voice
 from app import whatsapp as wa
 from app.agent import Reply
 from app.engine import Engine
@@ -26,16 +26,18 @@ class FakeCoach:
     """Stands in for Claude: a reply scripted per test, built with the real tools (buttons, charts)."""
 
     def __init__(self):
-        self.asked = []
+        self.asked, self.contexts, self.resets = [], [], []
+        self.reaction = None
         self.script = lambda e, text, buttons: "You have 68.60 € safe to spend until payday."
 
     def ask(self, user, text, name="there", context=None):
         self.asked.append(text)
+        self.contexts.append(context)
         buttons = []
-        return Reply(text=self.script(main.engine, text, buttons), buttons=buttons)
+        return Reply(text=self.script(main.engine, text, buttons), buttons=buttons, reaction=self.reaction)
 
     def reset(self, user=None):
-        pass
+        self.resets.append(user)
 
 
 class Chat:
@@ -350,6 +352,117 @@ def test_cron_wake_every_signal(chat, monkeypatch, today):
 
 
 # ---------------- STOP, media, odd inputs ----------------
+# ---------------- the Instinct voice: reactions, "---" bubbles, guardrails ----------------
+def reactions(chat):
+    return [b["reaction"] for b in chat.sent if b.get("type") == "reaction"]
+
+
+def test_reaction_on_their_message_then_dash_bubbles(chat):
+    connected(chat)
+    main._coach.reaction = "🏠"
+    main._coach.script = lambda e, text, buttons: "Yes, your rent is covered.\n---\nWant the payment link?"
+    chat.say("is my rent covered?")
+    kinds = [b["type"] for b in chat.sent if "status" not in b]
+    assert kinds == ["reaction", "text", "text"]  # the reaction first, then one message per bubble
+    assert reactions(chat) == [{"message_id": f"wamid.{chat.phone}.1", "emoji": "🏠"}]
+    assert chat.texts() == ["Yes, your rent is covered.", "Want the payment link?"]
+    assert not any("---" in t or "[react]" in t for t in chat.texts())
+
+
+def test_reaction_only_reply_sends_just_the_reaction(chat):
+    connected(chat)
+    main._coach.reaction = "🙏"
+    main._coach.script = lambda e, text, buttons: ""
+    chat.say("thanks!")
+    assert [b["type"] for b in chat.sent if "status" not in b] == ["reaction"] and chat.texts() == []
+
+
+def test_no_reaction_when_the_pace_skips_it(chat):
+    connected(chat)
+    main._coach.script = lambda e, text, buttons: "68.60 €.\n---\nThat's until payday."
+    chat.say("safe to spend?")
+    assert reactions(chat) == [] and chat.texts() == ["68.60 €.", "That's until payday."]
+
+
+def test_dash_bubbles_with_a_button_on_the_last(chat):
+    connected(chat)
+    main._coach.reaction = "✅"
+
+    def script(e, text, buttons):
+        bill = next(b for b in e.upcoming_bills() if b["name"] == "Rent")
+        run_tool(e, "create_payment_link", {"bill_id": bill["bill_id"]}, buttons)
+        return "I can't move money myself.\n---\nHere's the rent payment, ready for your PIN."
+
+    main._coach.script = script
+    chat.say("ok")
+    assert chat.texts() == ["I can't move money myself."]
+    assert chat.interactive("cta_url")[-1]["body"]["text"] == "Here's the rent payment, ready for your PIN."
+
+
+def test_secret_gets_a_kind_stop_and_never_reaches_the_coach(chat):
+    connected(chat).say("my PIN is 4821")
+    assert reactions(chat)[-1]["emoji"] == "🔒" and main._coach.asked == []
+    assert chat.texts()[0].startswith("Please delete that message, I never need your PIN")
+    assert "number on your card" in chat.texts()[1]
+    assert not any("4821" in json.dumps(b) for b in chat.sent)
+    chat.say("card 4242 4242 4242 4242 why was I charged twice?")
+    assert main._coach.asked == ["card [card number removed] why was I charged twice?"]
+    assert "removed before it reached you" in main._coach.contexts[-1]
+    assert "customer service in S-mobiili" in main._coach.contexts[-1]  # a dispute: a person at S-Pankki
+
+
+def test_fraud_hands_off_to_s_pankki(chat):
+    connected(chat).say("someone used my card, I didn't make this payment")
+    assert "freeze it in S-mobiili" in main._coach.contexts[-1] and "no phone number" in main._coach.contexts[-1]
+
+
+def test_fresh_start_clears_the_chat(chat):
+    connected(chat).say("learn").say("/new")
+    assert chat.texts()[-1] == "Fresh slate. What's on your mind?" and main._coach.resets == [chat.phone]
+    assert main.engine.state["learn"][chat.phone]["paused"]
+
+
+def test_hello_at_the_goal_question_is_not_a_goal(chat):
+    chat.connect().say("hello")
+    body = chat.interactive("button")[-1]["body"]["text"]
+    assert "Saving for" not in body and body.startswith("Hey 👋") and body.endswith("What would you like to put money aside for?")
+    assert [i for i, _ in chat.buttons()] == ["ob:goal:trip", "ob:goal:buffer", "ob:goal:home"]
+    chat.say("a trip to Rome")
+    assert chat.interactive("button")[-1]["body"]["text"].startswith("Saving for a trip to Rome.")
+    assert main._coach.asked == []
+
+
+def test_open_thread_comes_back_the_next_day_with_one_button(chat, monkeypatch):
+    monkeypatch.setenv("DEMO_PROACTIVE", "1")
+    connected(chat).say("learn").tap("learn:next:0", "Next lesson").say("stop")
+    # rent was already flagged this week, so nothing more urgent is waiting today
+    main.engine.state["sent"] = {chat.phone: {"due:housing_payment-2026-10-07": "2026-10-01"}}
+    ago = time.time() - 20 * 3600  # they went quiet yesterday, mid-course; WhatsApp's 24 hours are still open
+    main.engine.state["wa_last"][chat.phone] = main.last_seen[chat.phone] = ago
+    r = chat.client.post("/cron/wake", params={"key": "vt"}).json()["results"][0]
+    assert r["signal"] == "OPEN_THREAD" and r["via"] == "text" and r["dedup_key"] == "thread:learn:1:1"
+    assert "Lesson 2/5" in r["text"] and "1 of 5 done 🌰" in r["text"]
+    assert chat.buttons() == [("learn:start", "Continue lesson")]
+    chat.tap("learn:start", "Continue lesson")
+    assert "📚 *2/5" in chat.interactive("button")[-1]["body"]["text"]
+    main.engine.state["wa_last"][chat.phone] = main.last_seen[chat.phone] = ago  # quiet again, same lesson
+    main.engine.state["sent"][chat.phone] = {k: "2026-09-01" for k in main.engine.state["sent"][chat.phone]}
+    again = chat.client.post("/cron/wake", params={"key": "vt"}).json()["results"][0]
+    assert again["signal"] != "OPEN_THREAD"  # one useful return, never twice
+
+
+def test_pin_link_left_open_comes_back_as_its_link(chat):
+    connected(chat)
+    bill = next(b for b in main.engine.upcoming_bills() if b["name"] == "Rent")
+    p = main.engine.create_payment(bill["bill_id"])
+    sig = next(s for s in rules.signals(main.engine, chat.phone, force=True) if s["type"] == "OPEN_THREAD")
+    text, buttons = main.signal_message(sig, "Aino")
+    wa.send_reply_buttons(chat.phone, text, buttons)
+    chat.tap(*buttons[0])
+    assert chat.url().endswith(f"/pay/{p['pending_id']}")
+    chat.confirm()
+
+
 def test_stop_switches_off_and_hi_reconnects(chat):
     connected(chat).say("game").say("stop")
     assert "Paused" in chat.texts()[-1]
@@ -359,10 +472,38 @@ def test_stop_switches_off_and_hi_reconnects(chat):
     assert "/connect?u=" in chat.url()
 
 
-@pytest.mark.parametrize("kind", ["image", "audio", "video", "sticker", "document", "location"])
+@pytest.mark.parametrize("kind", ["image", "video", "sticker", "document", "location"])
 def test_media_messages(chat, kind):
     connected(chat).media(kind)
-    assert chat.texts()[-1].startswith("For now I can read text messages only")
+    assert chat.texts()[-1].startswith("I can read text and listen to voice notes")
+
+
+def test_voice_note_is_answered_like_text(chat, monkeypatch):
+    monkeypatch.setattr(voice, "to_text", lambda media_id: "How much can I spend until payday?")
+    connected(chat).media("audio")
+    assert chat.texts()[0] == "🎙️ _How much can I spend until payday?_"
+    assert main._coach.asked == ["How much can I spend until payday?"]
+    assert "68.60" in chat.texts()[-1]
+
+
+def test_voice_note_stop_works_by_voice(chat, monkeypatch):
+    monkeypatch.setattr(voice, "to_text", lambda media_id: "Stop.")
+    connected(chat).media("audio")
+    assert chat.texts()[-1].startswith("Done ✅")
+
+
+def test_voice_note_that_cannot_be_heard(chat, monkeypatch):
+    def fail(media_id):
+        raise voice.VoiceError("Sorry, I couldn't hear that voice note. Could you send it again, or type it?")
+    monkeypatch.setattr(voice, "to_text", fail)
+    connected(chat).media("audio")
+    assert chat.texts() == ["Sorry, I couldn't hear that voice note. Could you send it again, or type it?"]
+    assert main._coach.asked == []
+
+
+def test_voice_note_without_speech_to_text(chat):
+    connected(chat).media("audio")  # no WA_TOKEN in tests, so the download fails and Birky says so
+    assert chat.texts()[-1].startswith("Sorry, I couldn't hear that voice note")
 
 
 def test_list_reply_and_my_data(chat):

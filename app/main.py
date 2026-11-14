@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import broker, learn, onboarding, quiz, rules
+from . import broker, guardrails, learn, onboarding, quiz, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
@@ -215,14 +215,26 @@ def window_open(phone: str | None) -> bool:
     return bool(phone) and time.time() - last < WINDOW_S
 
 
-def send_reply(to: str, reply):
-    """Short bubbles like a person typing; a button rides on the last bubble."""
+def send_reply(to: str, reply, message_id: str | None = None):
+    """A reaction on their message first (when the coach picked one), then short bubbles like a person typing
+    ("---" or blank lines split them); a button rides on the last bubble. A reply that is only a reaction sends
+    just the reaction."""
+    reaction = getattr(reply, "reaction", None)
+    if reaction and message_id:
+        wa.send_reaction(to, message_id, reaction)
+    if not (reply.text or "").strip():
+        if reply.buttons:  # nothing to say but something to tap
+            for b in reply.buttons:
+                wa.send_url_button(to, wa.OVERFLOW_BODY, b["label"], b["url"])
+        elif not (reaction and message_id):
+            wa.send_text(to, "👍")
+        return
     parts = wa.bubbles(reply.text)
     if reply.buttons:
         wa.send_bubbles(to, parts[:-1])
         first, *rest = reply.buttons
         wa.send_url_button(to, parts[-1], first["label"], first["url"])
-        for k, b in enumerate(rest, start=2):  # e.g. one stop link per subscription, each with its own PIN
+        for k, b in enumerate(rest, start=2):  # e.g. several links, each with its own PIN
             wa.send_url_button(to, f"{k}/{len(reply.buttons)}", b["label"], b["url"])
     else:
         wa.send_bubbles(to, parts)
@@ -255,14 +267,23 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
         return {"text": f"Here's your *{p['name'].lower()}* payment of *{money(p['amount'])}*. "
                         "Confirm it with your PIN in S-Pankki.",
                 "url": (f"Pay {money(p['amount'])}", f"{public_url()}/pay/{p['pending_id']}{q}")}
+    if bid.startswith("resume:") and bid != "resume:later":  # "Finish it" on a PIN link left open yesterday
+        p = e.pending(bid[7:])
+        if not p or p["status"] != "pending":
+            return {"text": "That one's already done ✅"}
+        owner[p["pending_id"]] = user
+        path = {"payment": "pay", "investment": "invest", "saving": "save", "pause_investing": "stop"}[p["kind"]]
+        return {"text": f"Here it is again: *{p['name']}*, {money(p['amount'])}. Confirm it with your PIN.",
+                "url": ("Confirm with PIN", f"{public_url()}/{path}/{p['pending_id']}{q}")}
     if bid.startswith("later:"):
+        note_later(e, user, bid)
         if bid == "later:unusual":
             return {"text": "Great, enjoy it 🙂 I'll keep an eye on your safe-to-spend."}
         if bid == "later:goal":
             return {"text": "Okay 👍 I'll look at your pace again next week."}
         if bid == "later:bills":
             return {"text": "Okay 👍 I'll keep an eye on your bills."}
-        return {"text": "Sure ⏰ I'll remind you again tomorrow at 9:00."}
+        return {"text": "Sure ⏰ I'll check back with you tomorrow."}
     if bid == "pause:investing":
         p = e.create_pause_investing()
         owner[p["pending_id"]] = user
@@ -320,6 +341,65 @@ def flow_context(e: Engine, user: str) -> str | None:
     return None
 
 
+LATER = re.compile(r"^\W*(maybe later|later|not now|not today|another time|some other time|ask me later|"
+                   r"tomorrow|maybe tomorrow|myöhemmin|ehkä myöhemmin|senare)\W*$", re.I)
+
+
+def note_later(e: Engine, user: str, key: str, offer: str | None = None):
+    """A "maybe later": the open thread Birky comes back to once, the next day (rules.open_threads)."""
+    e.state.setdefault("later", {})[user] = {"key": key, "offer": offer, "at": time.time()}
+    e._save()
+
+
+def note_chat_later(e: Engine, user: str, text: str, last_said: str):
+    """"maybe later" typed right after Birky offered something: remember the offer (its last bubble, a question)."""
+    if not LATER.match(text or ""):
+        return
+    offer = (wa.bubbles(last_said)[-1] if last_said.strip() else "").strip()
+    if offer.endswith("?") and len(offer) <= 300:
+        import hashlib
+        note_later(e, user, "chat:" + hashlib.sha1(offer.encode()).hexdigest()[:8], offer)
+
+
+def ask_text(e: Engine, user: str, bid: str) -> str | None:
+    """The question a quick-reply button stands for (ASK), or "Yes, let's do it" on yesterday's maybe-later."""
+    if bid == "resume:later":
+        offer = (e.state.get("later", {}).get(user) or {}).get("offer")
+        return f'Yes, let\'s do it now. You offered: "{offer}"' if offer else "Yes, let's pick up where we left off."
+    return ASK.get(bid)
+
+
+def touch(e: Engine, user: str):
+    """When they last wrote: open threads come back only after a quiet day, inside the 24-hour window."""
+    e.state.setdefault("last_msg", {})[user] = time.time()
+
+
+def coach_context(e: Engine, user: str, text: str, extra: str | None = None) -> str | None:
+    """What the coach should know right now: a waiting flow question, a hand-off to a person at S-Pankki."""
+    kind = guardrails.escalation(text)
+    parts = [flow_context(e, user), guardrails.escalation_context(kind) if kind else None, extra]
+    return " ".join(p for p in parts if p) or None
+
+
+def fresh_start(e: Engine, user: str, persona: str | None = None) -> str:
+    """"/new" or "fresh start": the conversation history goes, running flows wait quietly, no follow-ups pending."""
+    coach(persona).reset(user)
+    for kind in ("learn", "quiz", "onboarding"):
+        r = e.state.get(kind, {}).get(user)
+        if r and not r.get("done") and r.get("step") != "done":
+            r["paused"], r["note"] = True, False
+    e.state.get("later", {}).pop(user, None)
+    sent = e.state.setdefault("sent", {}).setdefault(user, {})
+    for t in rules.open_threads(e, user, force=True):  # a clean slate: nothing from before comes back tomorrow
+        sent[t["dedup_key"]] = e.today.isoformat()
+    e._save()
+    return guardrails.FRESH_REPLY
+
+
+SECRET_CONTEXT = ("Their message had a {what} in it; it was removed before it reached you and the app has already "
+                  "asked them to delete it. Don't mention it again; answer only the rest.")
+
+
 def flow_turn(e: Engine, user: str, text: str, bid: str = "") -> onboarding.Turn | None:
     """The no-AI flows, in order: the Learn course, the basket game, the interview. None = the coach answers."""
     return learn.turn(e, user, text, bid) or quiz.turn(e, user, text, bid) or onboarding.turn(e, user, text, bid)
@@ -364,15 +444,24 @@ def handle_message(m: dict):
     names[to] = name
     try:
         wa.mark_read_typing(m["id"])
-        emoji = wa.quick_reaction(m["text"])
-        if emoji:
-            wa.send_reaction(to, m["id"], emoji)
+        if m.get("media_id") and not m["text"]:  # a voice note: from here on it is handled like typed text
+            try:
+                m["text"] = voice.to_text(m["media_id"])
+            except voice.VoiceError as e:
+                wa.send_text(to, str(e))
+                return
+            wa.send_text(to, f"🎙️ _{wa.short(m['text'].replace('_', ' '), 300)}_")  # what Birky heard, so a mishearing is visible
         word = (m["text"] or "").strip().lower().strip(".!")
         # mid-game or mid-course, a bare "stop" pauses it
         stop = word in ("stop", "lopeta") and (quiz.active(engine, to) or learn.active(engine, to))
         if word in STOP_WORDS and not stop:
             switch_off(to)
             return
+        bid = m.get("button_id") or ""
+        secret = [] if bid else guardrails.secrets(m["text"])
+        if secret:  # a card number, PIN or code: never to the AI, and a kind "please delete that"
+            wa.send_reaction(to, m["id"], "🔒")
+            wa.send_bubbles(to, wa.bubbles(guardrails.secret_reply(secret)))
         if not connected(to):
             wa.send_url_button(
                 to,
@@ -384,7 +473,9 @@ def handle_message(m: dict):
         if onboarding.RESTART.match(m["text"] or ""):  # the way back to the welcome, e.g. for the demo phone
             welcome(to)
             return
-        bid = m.get("button_id") or ""
+        if guardrails.FRESH.match(m["text"] or ""):
+            wa.send_text(to, fresh_start(engine, to))
+            return
         learn.step_away(engine, to, bid)
         try:
             direct = button_reply(to, bid)
@@ -397,14 +488,21 @@ def handle_message(m: dict):
                 wa.send_text(to, direct["text"])
             return
         if m["text"] is None:
-            wa.send_text(to, "For now I can read text messages only. What would you like to know?")
+            wa.send_text(to, "I can read text and listen to voice notes, but not photos or files yet. What would you like to know?")
             return
-        text = ASK.get(bid) or wa.redact(m["text"])
+        asked = ask_text(engine, to, bid)
+        text = asked or wa.redact(m["text"])
+        extra = None
+        if secret:
+            text = guardrails.leftover_question(text)
+            if not text:
+                return
+            extra = SECRET_CONTEXT.format(what=secret[0])
         if text.strip().lower() in ("my data", "download my data", "export"):
             wa.send_url_button(to, "Your data, yours to keep (MyData): every transaction and what Birky "
                                    "calculated from it, as a file.", "Download my data", f"{public_url()}/app/export.json")
             return
-        if bid not in ASK:
+        if not asked:
             t = flow_turn(engine, to, text, bid)
             if t:
                 if stop:
@@ -412,11 +510,14 @@ def handle_message(m: dict):
                 send_turn(to, t)
                 remember(None, to, m["text"] or text, t)
                 return
-        reply = coach().ask(to, text, name=name, context=flow_context(engine, to))
+        c = coach()
+        if hasattr(c, "last_said"):
+            note_chat_later(engine, to, text, c.last_said(to))
+        reply = c.ask(to, text, name=name, context=coach_context(engine, to, text, extra))
         for b in reply.buttons:
             if "chart" not in b:
                 owner[b["url"].rsplit("/", 1)[-1]] = to
-        send_reply(to, reply)
+        send_reply(to, reply, None if secret else m["id"])
         for note in (quiz.paused_note(engine, to), learn.paused_note(engine, to)):  # how to get back to it
             if note:
                 wa.send_text(to, note)
@@ -806,6 +907,8 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
                                                ("ask:tight", "How do I stretch it?")]
     if kind == "BILL_INCREASE":
         return bills_text({**d, "type": "increase" if d["increase"] == "trend" else "unusual_bill"})
+    if kind == "OPEN_THREAD":
+        return thread_message(d, name)
     if kind == "GOAL_DRIFT":
         return (f"🎯 {name}, your *{d['name']}* goal is a bit behind plan: {money(d['saved_eur'])} saved, "
                 f"while {money(d['expected_by_now_eur'])} would be on track by today. To reach {money(d['target_eur'])} "
@@ -821,6 +924,34 @@ def signal_message(sig: dict, name: str) -> tuple[str, list]:
         text += "\nComing up: " + ", ".join(f"{b['name']} {money(b['amount_eur'])} on {nice_date(b['due_date'])}"
                                             for b in d["bills_next_7d"]) + "."
     return text, [("ask:week", "Where did it go?"), ("ask:tight", "How do I stretch it?")]
+
+
+def thread_message(d: dict, name: str) -> tuple[str, list]:
+    """The "comes back a day later" message for an open thread: one short friendly line, one button to carry on."""
+    t = d["thread"]
+    if t == "learn":
+        done = f" ({d['done']} of {d['of']} done 🌰)" if d["done"] else ""
+        return (f"Hey {name} 📚 Lesson {d['lesson']}/{d['of']}, *{d['title'].lower()}*, is waiting{done}. 30 seconds?",
+                [("learn:start", "Continue lesson")])
+    if t == "onboarding":
+        return (f"Hey {name} 👋 We stopped halfway through setting up your goal. Finish it? It takes a minute.",
+                [("ob:resume", "Let's finish")])
+    if t == "quiz":
+        return (f"Hey {name} 🧺 Your basket game is paused at {d['round']}/{d['of']}. One more round?",
+                [("quiz:resume", "Keep playing")])
+    if t == "pin":
+        return (f"Hey {name} 🔐 *{d['name']}* ({money(d['amount_eur'])}) is still waiting for your PIN. "
+                "Want to finish it?", [(f"resume:{d['pending_id']}", "Finish it")])
+    if t == "goal":
+        return (f"Hey {name} 🌰 Your *{d['name']}* goal is set, but nothing's in it yet. Start with "
+                f"{money(d['amount_eur'])}?",
+                [(f"save:{d['goal_id']}:{d['amount_eur']:.0f}", f"Save {d['amount_eur']:.0f} €")])
+    if d["kind"] == "bill":
+        b = d["bill"]
+        return (f"Hey {name} ⏰ You said later yesterday: *{b['name'].lower()}* of {money(b['amount_eur'])} is due "
+                f"{nice_date(b['due_date'])}. Pay it now?", [(f"pay:{b['bill_id']}", pay_label(b["name"]))])
+    return (f"Hey {name} 🙂 Yesterday you said maybe later to this: \"{d['offer']}\" Still up for it?",
+            [("resume:later", "Yes, let's do it")])
 
 
 def mask(to: str) -> str:
@@ -1032,7 +1163,16 @@ def dashboard(request: Request):
     o = engine_for(persona).overview()
     return templates.TemplateResponse(request, "dashboard.html", _ctx(
         o=o, name=name_for(persona), today=date.fromisoformat(o["today"]).strftime("%A %d %B"), **_chart(o),
-        **persona_ctx(persona)))
+        peers=_peers_card(engine_for(persona)), **persona_ctx(persona)))
+
+
+def _peers_card(eng: Engine) -> dict | None:
+    """'People like you' on /app: None (no card) when the benchmark file is missing."""
+    from . import peers
+    try:
+        return peers.card(eng.new_life_budget())
+    except ValueError:
+        return None
 
 
 @app.get("/chat", response_class=HTMLResponse)
@@ -1167,13 +1307,20 @@ async def chat_api(request: Request):
         m = alert_message(text.split(":", 1)[1], name, e)
         return {"text": m[0], "buttons": [], "quick": quick(m[1])} if m else {"text": "Nothing to flag right now.", "buttons": []}
     def interview(t: onboarding.Turn, buttons=()):
-        return {"text": "\n\n".join(t.lead + [t.text]), "buttons": list(buttons), "quick": quick(t.buttons)}
+        return {"text": "\n\n".join(t.lead + [t.text]), "bubbles": [*t.lead, t.text], "buttons": list(buttons),
+                "quick": quick(t.buttons)}
+
+    def said(reply_text: str, reaction: str | None = None, **more):
+        """A plain answer from the app, in bubbles ("---" splits them), with the reaction for their message."""
+        parts = wa.bubbles(reply_text)
+        return {"text": "\n\n".join(parts), "bubbles": parts, "reaction": reaction, "buttons": [], **more}
 
     if text == "__start__":  # the web chat's stand-in for Connect S-Pankki
         t = onboarding.start(e, sid)
         remember(persona, sid, "[connected S-Pankki]", t)
         return interview(t, [{"label": "Open My money", "url": "/app"}])
-    bid = ""
+    touch(e, sid)
+    bid, secret, extra = "", [], None
     if text.startswith("__btn__:"):
         bid = text.split(":", 1)[1]
         learn.step_away(e, sid, bid)
@@ -1184,17 +1331,32 @@ async def chat_api(request: Request):
         if direct:
             url = direct.get("url")
             return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else []}
-        text = ASK.get(bid, bid)
-    if bid not in ASK:
+        text = ask_text(e, sid, bid) or bid
+    else:
+        if guardrails.FRESH.match(text):
+            return said(fresh_start(e, sid, persona), "👌")
+        secret = guardrails.secrets(text)
+        text = wa.redact(text)
+        if secret:  # never to the AI; a kind "please delete that", then the rest of the question if there is one
+            rest = guardrails.leftover_question(text)
+            warn = guardrails.secret_reply(secret)
+            if not rest:
+                return said(warn, "🔒")
+            text, extra = rest, SECRET_CONTEXT.format(what=secret[0])
+    asked = bool(bid) and ask_text(e, sid, bid) is not None
+    if not asked:
         typed = "" if bid else text
         t = flow_turn(e, sid, typed, bid)
         if t:
             remember(persona, sid, typed or f"[tapped {bid}]", t)
             return interview(t)
     import anyio
-    context = flow_context(e, sid)
+    c = coach(persona)
+    if not bid and hasattr(c, "last_said"):
+        note_chat_later(e, sid, text, c.last_said(sid))
+    context = coach_context(e, sid, text, extra)
     try:
-        reply = await anyio.to_thread.run_sync(lambda: coach(persona).ask(sid, text, name=name, context=context))
+        reply = await anyio.to_thread.run_sync(lambda: c.ask(sid, text, name=name, context=context))
     except Exception:
         log.exception("coach failed")
         return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
@@ -1209,8 +1371,13 @@ async def chat_api(request: Request):
     paused = quiz.paused_note(e, sid)
     waiting = learn.paused_note(e, sid)
     again = onboarding.reask(e, sid)  # a side question mid-interview: the waiting question comes back
-    extra = "".join(f"\n\n{x}" for x in (paused, waiting, again and again.text) if x)
-    return JSONResponse({"text": reply.text + extra, "tools": reply.tools_used, "trace": reply.trace,
+    parts = wa.bubbles(reply.text) if reply.text.strip() else []
+    if secret:
+        parts = wa.bubbles(guardrails.secret_reply(secret)) + parts
+    notes = [x for x in (paused, waiting, again and again.text) if x]
+    return JSONResponse({"text": "\n\n".join(parts + notes), "bubbles": parts + notes,
+                         "reaction": "🔒" if secret else getattr(reply, "reaction", None),
+                         "tools": reply.tools_used, "trace": reply.trace,
                          "buttons": out, "charts": charts, "quick": quick(again.buttons) if again else []})
 
 

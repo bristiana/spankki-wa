@@ -6,7 +6,7 @@
   "vars": {
     "PUBLIC_URL": "https://spankki-wa.bogdan-c-2206.workers.dev",
     "DEMO_TODAY": "2026-10-06",
-    "INSTANCE": "28"
+    "INSTANCE": "29"
   },
   "containers": [
     {
@@ -15,6 +15,7 @@
       "images": { "base": { "dockerfile": "./Dockerfile" } }
     }
   ],
+  "ai": { "binding": "AI" },
   "durable_objects": {
     "bindings": [{ "name": "COACH", "class_name": "Coach" }]
   },

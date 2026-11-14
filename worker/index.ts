@@ -98,10 +98,28 @@ export class Coach extends DurableObject<any> {
   }
 }
 
+const STT_MODEL = "@cf/openai/whisper-large-v3-turbo";
+const STT_MAX_JSON = 12_000_000; // ~8 MB of audio as base64 (app/voice.py MAX_BYTES)
+
+// POST /__stt?key=<WA_VERIFY_TOKEN> {audio: base64, initial_prompt?, vad_filter?} -> {text}
+// Voice notes for the app (app/voice.py): Whisper on Workers AI through the AI binding, so no API token in the container.
+async function stt(request: Request, env: any, u: URL): Promise<Response> {
+  if (!env.WA_VERIFY_TOKEN || u.searchParams.get("key") !== env.WA_VERIFY_TOKEN) return new Response("forbidden", { status: 403 });
+  if (request.method !== "POST") return new Response("method not allowed", { status: 405 });
+  const raw = await request.text();
+  if (raw.length > STT_MAX_JSON) return new Response("too large", { status: 413 });
+  const { audio, initial_prompt, vad_filter } = JSON.parse(raw);
+  if (typeof audio !== "string" || !audio) return new Response("audio missing", { status: 400 });
+  const out = await env.AI.run(STT_MODEL, { audio, initial_prompt, vad_filter: vad_filter === true });
+  return Response.json({ text: out?.text ?? "" });
+}
+
 export default {
   async fetch(request: Request, env: any): Promise<Response> {
+    const u = new URL(request.url);
+    if (u.pathname === "/__stt") return stt(request, env, u);
     // State lives in one object that outlasts every container, whatever INSTANCE is running.
-    if (new URL(request.url).pathname.startsWith("/__state/")) return env.COACH.getByName("state").fetch(request);
+    if (u.pathname.startsWith("/__state/")) return env.COACH.getByName("state").fetch(request);
     // Bump INSTANCE (wrangler.jsonc) to start a fresh container with new secrets or a new image.
     return env.COACH.getByName(`main-${env.INSTANCE || "1"}`).fetch(request);
   },

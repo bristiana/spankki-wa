@@ -237,6 +237,159 @@ usual pay cycle would leave 288.82 € for flexible spending."* After (5):
 - The same 11 chats give the fairest comparison (3.36 → 3.91). The 9 new scenarios have no "before" because they
   were written for this pass. As before, the scores are one careful human read.
 
+## Instinct pass: like messaging a friend on WhatsApp
+
+The goal: "copy the Instinct type of messaging; our scope is to make people finish learning, but like messaging with
+a friend on WhatsApp". Moni, the reference, reacted to messages and had guardrails. Replies above were correct and
+kind, but they still read like small reports: three bubbles, bullets, five figures, an offer tacked onto a plain fact.
+
+**What changed**
+
+| # | Change | Where |
+|---|---|---|
+| 1 | Prompt in XML sections (`role`, `never`, `style`, `how_you_help`, `examples` with 7 short chats): 1-2 bubbles split by a `---` line, 1-2 sentences each, the answer first; a quick human reaction first when they share news or a worry; one question at most, never a menu; a quick fact gets the number and stops; at most two numbers unless asked; mirror their tone; never mention tools; a bare "ok" after a small offer means yes. Kept: numbers only from tools, inform never advise, the why-it-matters line (now used sparingly), their language | `app/agent.py` |
+| 2 | Reactions: the model opens with `[react]<emoji>`, picked for that message (🏠 rent, 🫂 stress, 🚕 taxis, 🙏 thanks...). It is taken out of the text and sent as a real WhatsApp reaction on their message, paced so about 2 in 3 replies carry one, never the same twice in a row; "thx" gets only the reaction. The regex reaction is just the fallback. The web chat shows a badge on their bubble | `app/reactions.py`, `app/main.py`, `app/templates/chat.html` |
+| 3 | Bubbles split on `---` first, then on blank lines as before, on WhatsApp and in the web chat (one bubble per part) | `app/whatsapp.py`, `app/main.py` |
+| 4 | Follow-ups that make people finish: `OPEN_THREAD` comes back once, the day after, inside the 24-hour window, with one button: the Learn course mid-way, the interview or the basket game paused, a goal with nothing in it, a PIN link not confirmed, a "maybe later". Learn shows "2 of 5 done 🌰" and celebrates the end | `app/rules.py`, `app/learn.py`, `app/main.py` |
+| 5 | Guardrails in code: PINs, codes, CVVs and passwords are redacted and get "please delete that message" plus the scam sign; tool text that poses as instructions is defanged; a reply that claims it moved money, pushes with urgency or promises returns gets one rewrite; fraud, disputes and debt add a hand-off to S-Pankki customer service in S-mobiili; "/new" gives "Fresh slate. What's on your mind?" | `app/guardrails.py`, `app/agent.py`, `app/main.py` |
+| 6 | "hello" at the goal question is a hello, not a goal ("Saving for hello"): small talk gets a warm re-ask | `app/onboarding.py` |
+
+**Re-run.** 17 scenarios, 30 AI turns (`--only instinct`, `docs/convo-eval/instinct-after.json`). The "before" is
+the same scenarios from the latest stored transcripts (`--compose instinct-before`: the pedagogy run where it has the
+scenario, else the conversation-quality "after" run), so no extra model calls; three scenarios are new (news, fraud,
+a PIN in the message) and have no before. For "before", the reaction is the instant regex one WhatsApp got; the web
+chat showed none. Scores: `scores-instinct-before.json`, `scores-instinct-after.json`; the seven older criteria for
+"before" are the stored scores, the five Instinct criteria a new human read of the same replies.
+
+| criterion | before (26) | after (30) |
+|---|---|---|
+| correct | 4.96 | 4.93 |
+| answers | 4.50 | 4.70 |
+| clarity | 4.65 | 4.90 |
+| phone fit | 3.96 | 4.50 |
+| tone | 4.96 | 4.97 |
+| pedagogy | 3.50 | 3.33 |
+| next step | 3.88 | 3.93 |
+| overall (7) | 4.34 | 4.47 |
+| **reacted fittingly** | 2.96 | 3.87 |
+| **bubble count and length** | 3.04 | 4.57 |
+| **mirrors their tone** | 3.54 | 4.20 |
+| **one question max** | 3.88 | 4.97 |
+| **friend-like, not a report** | 3.04 | 4.53 |
+| **Instinct overall (5)** | **3.29** | **4.43** |
+
+| automatic check (AI replies) | before | after |
+|---|---|---|
+| average words | 62.1 | 37.8 |
+| average bubbles | 2.54 | 1.80 |
+| replies in 1-2 bubbles | 35% | 93% |
+| average longest bubble (chars) | 181 | 124 |
+| replies with more than 2 figures | 12 | 6 |
+| replies with bullets | 11 | 1 |
+| replies with 2+ questions | 3 | 0 |
+| replies with a reaction | 54% | 67% |
+| same reaction twice in a row (within a chat) | 3 | 0 |
+
+**Three chats as WhatsApp shows them** (a reaction sits on Aino's message; each line is its own bubble)
+
+"im broke and stressed" (`stressed#0`)
+
+Before (no reaction, 3 bubbles, 77 words):
+
+> **Aino:** im broke and stressed
+>
+> **Birky:** That sounds stressful, Aino. Here's what I can see: your rent of *771.82 €* due tomorrow is covered, and so are your usual groceries, transport and a small buffer for surprises.
+>
+> **Birky:** After all that, *68.60 €* is safe to spend until payday, which is in 9 days. That's about *7.62 €* a day. Payday is Thu 15 Oct, when about 2 313.39 € is expected.
+>
+> **Birky:** Want me to check your subscriptions for anything you no longer use?
+
+After:
+
+> **Aino:** im broke and stressed  ‹🫂›
+>
+> **Birky:** That's a heavy feeling, and I'm here with you. Tomorrow's rent is covered, groceries are covered too, and you still have *68.60 €* free until payday in 9 days.
+>
+> **Birky:** That works out to about 7.62 € a day. Want me to look at where a bit more room could come from?
+
+"wat is safe to spnd", then "thx" (`typo_safe`)
+
+Before (no reaction, then 🙏):
+
+> **Aino:** wat is safe to spnd
+>
+> **Birky:** You can safely spend *68.60 €* until payday on Thu 15 Oct, in 9 days. That works out to about 7.62 € a day, or 53.36 € this week.
+>
+> **Birky:** Rent of 771.82 € goes out tomorrow. Your usual bills, food, transport and a small buffer for surprises are already set aside.
+>
+> **Birky:** Your balance isn't your budget: of the 1 001.94 € in your account, only 68.60 € is free to spend. Want me to check a purchase against it?
+>
+> **Aino:** thx  ‹🙏›
+>
+> **Birky:** You're welcome, Aino! I'm here whenever you need me. 🐿️
+
+After:
+
+> **Aino:** wat is safe to spnd  ‹👀›
+>
+> **Birky:** You've got *68.60 €* free until payday on Thu 15 Oct, so about 7.62 € a day.
+>
+> **Birky:** Rent (771.82 €) goes out tomorrow and is already set aside, along with your usual groceries and a small buffer for surprises.
+>
+> **Aino:** thx  ‹🙏›
+>
+> *(no message: the reaction is the reply)*
+
+"How much did I spend on taxis last month?", then "and the month before?" (`taxi`)
+
+Before (👀 on both):
+
+> **Aino:** How much did I spend on taxis last month?  ‹👀›
+>
+> **Birky:** In September you spent *57.73 €* on taxis, all on one ride.
+>
+> **Birky:** • In August you spent nothing on taxis.  
+> • Parking was your biggest transport cost last month, at 112.56 €.
+>
+> **Birky:** A one-off taxi can feel small, but if rides become a habit they add up fast. Want me to chart your transport spending over the past 12 months?
+>
+> **Aino:** and the month before?  ‹👀›
+>
+> **Birky:** In August you spent *0.00 €* on taxis, so September's 57.73 € ride was the only one in those two months.
+>
+> **Birky:** Want me to check further back, for example the last 12 months?
+
+After:
+
+> **Aino:** How much did I spend on taxis last month?  ‹🚕›
+>
+> **Birky:** You spent *57.73 €* on taxis in September, all on one ride.
+>
+> **Aino:** and the month before?  ‹👀›
+>
+> **Birky:** Nothing in August, *0 €* on taxis.
+
+New in this pass, no before: "got a raise today!! 🎉" gets ‹💰› and *"Whoa, congrats Aino! That's well deserved 🥳"*,
+then one offer to put part of it aside; "someone used my card, I didn't make this payment" gets ‹😬›, *"freeze your
+card in S-mobiili"* and *"contact S-Pankki customer service in S-mobiili"*, with no phone number; "my pin is 4821, why
+is my safe to spend so low?" gets ‹🔒›, the delete-it and scam-sign bubbles, and the answer without the PIN ever
+reaching the AI.
+
+**Still weak after this pass**
+
+- **Pedagogy dipped (3.50 → 3.33)**: by design a quick fact now gets the number and stops, so the why-line shows up
+  less often (`safe_week#0` lost "your balance isn't your budget"). The Learn course and its daily follow-up carry
+  more of the teaching now.
+- **Three figures still slip in** on 6 of 30 replies (`safe_week#0`, `typo_safe#0`, `coffee#0`), against the "at
+  most two" rule.
+- **"save 50 for my trip" + "ok"** still needs a total before it can move on, as before.
+- **"which fund should I buy"** still answers with three bulleted funds; fair for the question, but not chatty.
+- `stressed#1` suggests pausing a subscription ("totally your call"), a slight lean the old reply also had.
+- The secret path shows four bubbles (two from the guardrail, two from the answer).
+- Reactions are paced at random, so one run's 67% will move a little between runs; repeats inside a chat are
+  blocked in code.
+- Scores are one careful human read, as before; transcripts and per-reply notes are committed.
+
 ## Re-run
 
 ```bash
@@ -246,4 +399,8 @@ python scripts/convo_eval.py --label after                 # all scenarios (abou
 python scripts/convo_eval.py --label after --only home,fund  # a few
 python scripts/convo_eval.py --label pedagogy --only pedagogy --url http://127.0.0.1:8802  # 20 AI turns
 python scripts/convo_eval.py --report before after pedagogy
+# the Instinct pass: about 30 AI turns, then its "before" from the stored transcripts (no model calls)
+python scripts/convo_eval.py --label instinct-after --only instinct --url http://127.0.0.1:8803 --max-ai 30
+python scripts/convo_eval.py --compose instinct-before
+python scripts/convo_eval.py --report instinct-before instinct-after
 ```
