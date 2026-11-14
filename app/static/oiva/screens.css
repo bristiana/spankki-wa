@@ -61,3 +61,18 @@ a.more{display:inline-flex;align-items:center;min-height:44px;color:var(--brand)
 .bd-err{color:var(--over);font-size:13px;margin:6px 0 0}
 .bd-toast{position:absolute;left:12px;right:12px;bottom:96px;z-index:41;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);color:var(--card);border-radius:12px;padding:6px 8px 6px 14px;font-size:14px}
 .bd-toast button{min-height:44px;min-width:64px;border:0;border-radius:10px;background:transparent;color:var(--card);font:700 15px system-ui;text-decoration:underline;cursor:pointer}
+
+/* People like me */
+.cp-who{margin:0 0 2px;font-size:16px}.cp-head .muted{margin:0 0 6px}
+.cp-widened{margin:6px 0;font-size:13.5px;color:var(--warn);background:var(--warn-bg);border-radius:8px;padding:6px 10px}
+.cp-vals{display:flex;gap:24px;margin:0 0 10px}.cp-vals small{display:block;font-size:12.5px;color:var(--muted)}
+.cp-vals b{font-size:20px;font-weight:700;white-space:nowrap}
+.cp-band{position:relative;height:14px;margin:14px 0 4px;border-radius:99px;background:var(--line)}
+.cp-band i{position:absolute;top:0;height:100%}
+.cp-mid{background:var(--brand);opacity:.28;border-radius:99px}
+.cp-med{width:2px;margin-left:-1px;background:var(--ink);top:-4px !important;height:22px !important}
+.cp-you{width:16px;height:16px !important;top:-1px !important;margin-left:-8px;border-radius:50%;background:var(--brand);border:2px solid var(--card);box-sizing:border-box}
+.cp-scale{margin:6px 0 0;font-size:12.5px;color:var(--muted)}.cp-key{display:inline-block;width:14px;height:8px;border-radius:99px;background:var(--brand);opacity:.28;margin-right:6px}
+.cp-sent{margin:10px 0 4px;font-size:14.5px}
+.cp-target{margin:6px 0 0;font-size:13.5px;color:var(--muted);border-left:3px solid var(--brand);padding-left:8px}
+.cp-src{margin:4px 4px 0}

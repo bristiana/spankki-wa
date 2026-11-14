@@ -222,6 +222,62 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, undo ? 10000 : 3000);
   }
 
+  // ---------- People like me ----------
+  // Only a target that content/finland-money-guide.md states is shown, and only on figures where "better" is clear.
+  const TARGETS = {
+    buffer_months: "A common rule of thumb (S-Pankki): a buffer of two to three months of net pay, kept apart for surprises."
+  };
+  function span(from, to) {  // "Apr–Sep 2026"
+    const f = new Date(from + "T00:00:00Z"), t = new Date(to + "T00:00:00Z");
+    if (isNaN(f) || isNaN(t)) return "";
+    const m = d => "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[d.getUTCMonth()];
+    return m(f) + (f.getUTCFullYear() !== t.getUTCFullYear() ? " " + f.getUTCFullYear() : "") + "–" + m(t) + " " + t.getUTCFullYear();
+  }
+  function figValue(f, v) { return f.unit === "pct" ? pct(v) : f.unit === "months" ? months(v) : money(v); }
+  function inTen(p) {
+    if (!isNum(p)) return "";
+    if (p >= 95) return "Higher than almost everyone in the group";
+    if (p <= 5) return "Lower than almost everyone in the group";
+    const k = Math.round(p / 10);
+    return k <= 0 ? "Lower than most in the group" : "Higher than about " + k + " in 10 people in the group";
+  }
+
+  renderers.compare = async function (el) {
+    const res = await OivaData.get("compare");
+    const d = res.data;
+    if (!d || !d.cohort || !Array.isArray(d.figures)) return errorCard("comparison", () => renderers.compare(el));
+    const co = d.cohort, age = String(co.age_band || "").replace("-", "–"), when = span(co.from, co.to);
+    let h = sampleNote(res)
+      + '<section class="card cp-head"><p class="cp-who">Compared with people aged <b>' + esc(age) + '</b> in <b>' + esc(co.city)
+      + '</b></p><p class="muted">' + (isNum(co.n) ? esc(co.n) + NB + "people" : "") + (when ? " · " + esc(when) : "") + '</p>'
+      + (co.widened ? '<p class="cp-widened">Fewer than 30 people matched exactly, so the group was widened to get a fair typical value.</p>' : "")
+      + '<p class="fi">Your own figures from your S-Pankki account, next to the typical (median) of the group. The shaded band is where the middle half of the group sits.</p></section>';
+    for (const f of d.figures) {
+      if (!f || !f.id) continue;
+      const ok = [f.you, f.median, f.p25, f.p75].every(isNum);
+      h += '<section class="card cp-card" data-id="' + esc(f.id) + '"><h3 class="sc-h">' + esc(f.label || f.id) + '</h3>'
+        + '<div class="cp-vals"><span><small>You</small><b>' + figValue(f, f.you) + '</b></span>'
+        + '<span><small>Typical</small><b>' + figValue(f, f.median) + '</b></span></div>';
+      if (ok) {
+        const lo0 = Math.min(f.p25, f.you, f.median), hi0 = Math.max(f.p75, f.you, f.median);
+        const pad = Math.max((hi0 - lo0) * 0.12, Math.abs(hi0) * 0.02, 1e-6), lo = lo0 - pad, hi = hi0 + pad;
+        const at = v => Math.max(3, Math.min(97, (v - lo) / (hi - lo) * 100));
+        h += '<div class="cp-band" role="img" aria-label="' + esc("You " + figValue(f, f.you) + ", typical " + figValue(f, f.median)
+            + ", middle half " + figValue(f, f.p25) + " to " + figValue(f, f.p75)) + '">'
+          + '<i class="cp-mid" style="left:' + at(f.p25).toFixed(1) + '%;width:' + (at(f.p75) - at(f.p25)).toFixed(1) + '%"></i>'
+          + '<i class="cp-med" style="left:' + at(f.median).toFixed(1) + '%"></i>'
+          + '<i class="cp-you" style="left:' + at(f.you).toFixed(1) + '%"></i></div>'
+          + '<p class="cp-scale"><i class="cp-key"></i>Middle half of the group: ' + figValue(f, f.p25) + ' to ' + figValue(f, f.p75) + '</p>';
+      }
+      h += (f.sentence ? '<p class="cp-sent">' + esc(f.sentence) + '</p>' : "")
+        + (isNum(f.percentile) ? '<p class="fi">' + esc(inTen(f.percentile)) + '.</p>' : "")
+        + (TARGETS[f.id] && f.better !== "none" ? '<p class="cp-target">' + esc(TARGETS[f.id]) + '</p>' : "")
+        + '<a class="more" href="' + chatLink("Explain my " + (f.label || f.id).toLowerCase() + " compared with people like me") + '">Ask Oiva about this</a></section>';
+    }
+    h += '<p class="fi cp-src">' + esc("S-Pankki customers aged " + age + " in " + co.city + (when ? ", " + when : "") + (isNum(co.n) ? ", n = " + co.n : "")) + '. No one in the group can be identified.</p>';
+    el.innerHTML = h;
+  };
+
   // ---------- plumbing ----------
   async function render(name, el) {
     host = el || host;
