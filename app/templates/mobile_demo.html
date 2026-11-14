@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Kurre in a banking app · concept{% endblock %}
+{% block title %}Birky in a banking app · concept{% endblock %}
 {% block head %}
 <style>
   .concept{max-width:980px;margin:16px auto 0;padding:0 16px;text-align:center}
@@ -73,7 +73,7 @@
 </style>
 {% endblock %}
 {% block body %}
-<div class="concept"><b>Concept: how Kurre could sit inside S-mobiili. Not the real app.</b></div>
+<div class="concept"><b>Concept: how Birky could sit inside S-mobiili. Not the real app.</b></div>
 <div class="stage">
   <div class="phone" id="phone">
     <div class="status"><span>9:41</span><i></i><span>5G ▮</span></div>
@@ -81,7 +81,7 @@
       <div class="hi"><div><div class="muted">Good morning</div><b>{{ name }}</b></div><div class="av">{{ name[0] }}</div></div>
       <div class="acct"><small>Current account · FI00 0000 0000 0000 00 (demo)</small><div class="big">{{ money(balance) }}</div><small>Available balance</small></div>
       <div class="quick" aria-hidden="true"><span><i>↗</i>Pay</span><span><i>⇄</i>Transfer</span><span><i>▭</i>Cards</span><span><i>◔</i>Savings</span></div>
-      <h2><img src="/static/kurre.svg" alt="">Kurre for you</h2>
+      <h2><img src="/static/birky.svg" alt="">Birky for you</h2>
       <div class="cards" id="cards" aria-live="polite"><div class="kcard"><span class="t">Loading…</span></div></div>
       <h2>Recent</h2>
       <div class="tx">
@@ -90,15 +90,15 @@
         {% endfor %}
       </div>
     </div>
-    <button class="ask" id="ask"><img src="/static/kurre.svg" alt=""><span>Ask Kurre about your money…</span><b>Ask</b></button>
+    <button class="ask" id="ask"><img src="/static/birky.svg" alt=""><span>Ask Birky about your money…</span><b>Ask</b></button>
     <div class="scrim" id="scrim"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="Kurre chat">
-      <div class="grab"><b><img src="/static/kurre.svg" alt="">Kurre</b><button id="close" aria-label="Close">×</button></div>
-      <iframe id="chat" title="Kurre chat"></iframe>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Birky chat">
+      <div class="grab"><b><img src="/static/birky.svg" alt="">Birky</b><button id="close" aria-label="Close">×</button></div>
+      <iframe id="chat" title="Birky chat"></iframe>
     </div>
   </div>
   <div class="notes">
-    <b>Native cards</b>The row of Kurre cards is drawn from <code>/api/widgets</code>: engine numbers, no AI call, cacheable.
+    <b>Native cards</b>The row of Birky cards is drawn from <code>/api/widgets</code>: engine numbers, no AI call, cacheable.
     <b>Deep links</b>Tapping a card opens the chat with its question: <code>/chat?q=…</code>
     <b>Embedded chat</b>The sheet is the same web chat in a WebView: <code>/chat?embed=1</code>
     <b>One coach</b>The same backend answers on WhatsApp. <a href="https://github.com/bristiana/spankki-wa/blob/main/docs/integration.md">Integration notes</a>
@@ -146,6 +146,6 @@ fetch("/api/widgets").then(r => r.json()).then(j => {
     c.onkeydown = e => { if (e.key === "Enter") openSheet(w.deep_link); };
     box.appendChild(c);
   }
-}).catch(() => { document.getElementById("cards").innerHTML = '<div class="kcard"><span class="t">Kurre\'s cards could not load</span><span class="s">Tap Ask below to chat instead.</span></div>'; });
+}).catch(() => { document.getElementById("cards").innerHTML = '<div class="kcard"><span class="t">Birky\'s cards could not load</span><span class="s">Tap Ask below to chat instead.</span></div>'; });
 </script>
 {% endblock %}

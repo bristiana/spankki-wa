@@ -1,4 +1,4 @@
-/* Kurre charts: draws an explore_my_data chart spec as inline SVG, no libraries.
+/* Birky charts: draws an explore_my_data chart spec as inline SVG, no libraries.
    spec = {type: "line"|"bar", title, subtitle, unit: "€"|"", labels: [...], values: [...]}
    Colours come from the page's CSS variables (--brand, --ink, --muted, --line), so light and dark mode follow. */
 (function () {
@@ -96,7 +96,7 @@
     });
   }
 
-  window.kurreChart = function (host, spec) {
+  window.birkyChart = function (host, spec) {
     host.innerHTML = "";
     const W = Math.max(220, Math.floor(host.clientWidth || 300));
     const svg = el("svg", {class: "kc", role: "img", "aria-label": spec.title + ", " + spec.subtitle, width: W});

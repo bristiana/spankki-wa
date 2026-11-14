@@ -1,18 +1,18 @@
-# S-Pankki Chat · meet Kurre, your money coach where you already chat
+# S-Pankki Chat · meet Birky, your money coach where you already chat
 
 Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 
 **Live:** https://spankki-wa.bogdan-c-2206.workers.dev · web chat [/chat](https://spankki-wa.bogdan-c-2206.workers.dev/chat) · dashboard [/app](https://spankki-wa.bogdan-c-2206.workers.dev/app) · WhatsApp (test number, on request)
 
-<img src="app/static/kurre.svg" width="120" align="right" alt="Kurre the squirrel">
+<img src="app/static/birky.svg" width="120" align="right" alt="Birky the squirrel">
 
-**Why another app?** One in three Finnish adults opens S-mobiili every week, and almost everyone opens a chat app every day. Kurre, the S-Pankki savings squirrel, lives in both: **WhatsApp** and an **S-mobiili web chat** run on the same backend. You ask about your own money in plain words, get a heads-up before rent with what is *safe to spend* until payday, catch forgotten subscriptions, and put small savings away with one tap and your PIN.
+**Why another app?** One in three Finnish adults opens S-mobiili every week, and almost everyone opens a chat app every day. Birky, the S-Pankki savings squirrel, lives in both: **WhatsApp** and an **S-mobiili web chat** run on the same backend. You ask about your own money in plain words, get a heads-up before rent with what is *safe to spend* until payday, catch forgotten subscriptions, and put small savings away with one tap and your PIN.
 
 ## What it does
 
 | Moment | What the customer sees |
 |---|---|
-| Opt-in | "Connect S-Pankki": choose what Kurre may see, with a clear note that WhatsApp messages pass through Meta. Then Kurre gives a three-basket overview and a short interview, one question per message with reply buttons: what you're saving for, how much and by when, how you feel about risk (only used to label investment info), weekly check-in yes/no. It ends with the goal plan from the engine. Skip any question, say "later" to pause, ask a money question in between and it resumes (`app/onboarding.py`, no AI) |
+| Opt-in | "Connect S-Pankki": choose what Birky may see, with a clear note that WhatsApp messages pass through Meta. Then Birky gives a three-basket overview and a short interview, one question per message with reply buttons: what you're saving for, how much and by when, how you feel about risk (only used to label investment info), weekly check-in yes/no. It ends with the goal plan from the engine. Skip any question, say "later" to pause, ask a money question in between and it resumes (`app/onboarding.py`, no AI) |
 | Basket game | "Play the basket game" (chip, or write *game*): five of your own payments, one at a time ("Restaurant #1 · fast food and cafés · 117.32 € · Sat 26 Sep. Which basket?") with three reply buttons. Each answer gets ✅ or a kind 🤔 and the reason with your own numbers ("449.87 € of yours last month"); the end shows your score, your real basket split for last month and what −20% on the third basket frees in a year. *stop* or any other question pauses it, *game* picks it up (`app/quiz.py`, no AI) |
 | Rent reminder | "Your rent of 771.82 € is due tomorrow. After rent and your usual bills you have 68.60 € safe to spend until payday, about 7.62 € a day." [Pay rent now] [Remind me later] [How do I stretch it?] |
 | One-tap pay | Button → S-Pankki confirm page → 4-digit PIN → "✅ Rent paid, balance now …" back in the chat |
@@ -22,12 +22,12 @@ Junction 2026 · S-Pankki challenge "Personal Economic Trainer".
 | Subscriptions | Active, inactive and price rises ("StreamPlus went up from 11.99 € to 13.99 €"), renewal alert the day before, stop future card payments with PIN |
 | Safe to spend is not your balance | Safe to spend is the smaller of what the balance leaves after bills, usual needs and a buffer, and what the usual pay cycle sustains (average income minus usual mandatory costs, for the days until payday). Money beyond that is the *reserve*: "You have 82 799.61 € on your account, but your usual cycle leaves about 1 313.89 € for flexible spending; the other 81 025.00 € looks like savings" |
 | Safe to save | "How much can I safely save?": what can move now (the reserve plus what is left of safe to spend) without touching bills before payday or the irregular buffer, a sustainable monthly amount from the real surplus, and, when there is none, which cut would free money; one tap to the savings pocket with PIN |
-| All my banks | "Add another bank" on the Connect page: a mock PSD2 consent links a synthetic **Demo Bank** (savings + credit card). Kurre then shows total balances, net position after card debt, how many months those savings cover the irregular basket, and counts the card bill in safe to spend |
+| All my banks | "Add another bank" on the Connect page: a mock PSD2 consent links a synthetic **Demo Bank** (savings + credit card). Birky then shows total balances, net position after card debt, how many months those savings cover the irregular basket, and counts the card bill in safe to spend |
 | Save | Goals with deadlines ("1,500 € for Lapland by June"), honest monthly options, salary-day nudge "pay yourself first", savings pocket with PIN |
 | Invest | What-if cuts ("dining out −20% = 97.18 €/month") checked against **real ETF prices** over the last 2 years; your real deposits valued in each fund; one-off investments can place a real order on a Trading 212 Practice account |
 | My money | Dashboard: balance trend, safe to spend, three baskets, weekly in/out, bills, subscriptions, you vs Finland, goals, investing, latest transactions |
-| Inside S-mobiili | Concept page [/mobile-demo](app/templates/mobile_demo.html): a generic banking-app home screen with Kurre cards drawn natively from `/api/widgets` (engine numbers, no AI, cacheable), and an "Ask Kurre" bar that slides up the chat as a WebView (`/chat?embed=1`). A card tap opens the chat with its question (`/chat?q=...`). See [docs/integration.md](docs/integration.md) |
-| MyData | **Explore** (`/app/explore`): build your own view of your transactions (spending or income, one category, basket or kind of place, grouped by month, week, weekday, category, basket or place; euros, count or average) and download exactly that view as CSV. Ask Kurre "When do I spend most on restaurants?" and the chart is drawn in the web chat, or comes as an *Open chart* button on WhatsApp. "Download my data" (CSV/JSON) on the dashboard or by writing *my data*; *STOP* switches Kurre off and deletes the chat history |
+| Inside S-mobiili | Concept page [/mobile-demo](app/templates/mobile_demo.html): a generic banking-app home screen with Birky cards drawn natively from `/api/widgets` (engine numbers, no AI, cacheable), and an "Ask Birky" bar that slides up the chat as a WebView (`/chat?embed=1`). A card tap opens the chat with its question (`/chat?q=...`). See [docs/integration.md](docs/integration.md) |
+| MyData | **Explore** (`/app/explore`): build your own view of your transactions (spending or income, one category, basket or kind of place, grouped by month, week, weekday, category, basket or place; euros, count or average) and download exactly that view as CSV. Ask Birky "When do I spend most on restaurants?" and the chart is drawn in the web chat, or comes as an *Open chart* button on WhatsApp. "Download my data" (CSV/JSON) on the dashboard or by writing *my data*; *STOP* switches Birky off and deletes the chat history |
 | Feels like a person | Instant reaction on your message (👀 🙏 💰 👋), read receipt + typing, replies in short bubbles; card numbers, IBANs and Finnish personal IDs are removed before the AI sees them |
 
 ### The three baskets
@@ -49,9 +49,9 @@ Every answer uses the challenge's teaching model:
 
 ## Trust by design
 - **Numbers come from code, not the model.** Claude only calls tools over a deterministic, tested engine (`app/engine.py`); the system prompt forbids any figure that is not in a tool result. A number guard checks the reply: a figure that is in no tool result gets one rewrite.
-- **Show the math.** Under each web chat answer, "🔍 How I worked this out" opens the steps Kurre took, the key figures each one returned, the data sources (your transactions, Statistics Finland, Yahoo Finance, the mortgage data, official guides) and the guard's verdict, e.g. "✓ 6 of 6 figures checked against the calculations" (`app/explain.py`, `app/static/trace.js`). WhatsApp stays short: no extra messages.
+- **Show the math.** Under each web chat answer, "🔍 How I worked this out" opens the steps Birky took, the key figures each one returned, the data sources (your transactions, Statistics Finland, Yahoo Finance, the mortgage data, official guides) and the guard's verdict, e.g. "✓ 6 of 6 figures checked against the calculations" (`app/explain.py`, `app/static/trace.js`). WhatsApp stays short: no extra messages.
 - **The AI never moves money.** It prepares a payment, saving, investment or subscription stop; the customer confirms with their PIN. Double confirms and overdrafts are refused.
-- **Informs, never advises.** Kurre explains risk and options; the customer chooses the fund.
+- **Informs, never advises.** Birky explains risk and options; the customer chooses the fund.
 - **Opt-in channel.** WhatsApp is enabled per customer with explicit consent; the web chat keeps everything inside S-mobiili.
 
 ## How it works
@@ -66,7 +66,7 @@ Trading 212 Practice API <─────────┘      (one-off investmen
 ```
 
 - `app/engine.py`: three baskets, spending by merchant type (ISO 18245 MCC: taxis, fast food, parking…), recurring payments (rent day 7 and salary day 15 found from history), safe to spend, subscriptions, goals, what-if, real-price backtests, benchmarks.
-- `app/agent.py` + `app/tools.py`: Kurre's persona and 21 tools, incl. `can_i_afford`, `get_safe_to_save`, `get_full_picture`, `get_home_readiness`, `explore_my_data` (only enum parameters, no code or SQL from the model) and `get_money_guide` over `content/finland-money-guide.md` (checked facts with official sources: Kela, vero.fi, ASP, deposit guarantee, KKV); `app/guard.py` checks every number in a reply against the tool results and asks for one rewrite if one is not there; Claude Opus 5.5 at low effort for fast chat replies.
+- `app/agent.py` + `app/tools.py`: Birky's persona and 21 tools, incl. `can_i_afford`, `get_safe_to_save`, `get_full_picture`, `get_home_readiness`, `explore_my_data` (only enum parameters, no code or SQL from the model) and `get_money_guide` over `content/finland-money-guide.md` (checked facts with official sources: Kela, vero.fi, ASP, deposit guarantee, KKV); `app/guard.py` checks every number in a reply against the tool results and asks for one rewrite if one is not there; Claude Opus 5.5 at low effort for fast chat replies.
 - `app/main.py`: WhatsApp webhook (signature checked), web chat API, confirm pages, dashboard, demo triggers.
 - `worker/index.ts` + `Dockerfile`: the same Python app as a Cloudflare Container behind a Worker.
 

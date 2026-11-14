@@ -1,4 +1,4 @@
-"""Pre-approved WhatsApp templates: the only thing Kurre may send more than 24 hours after the person last wrote.
+"""Pre-approved WhatsApp templates: the only thing Birky may send more than 24 hours after the person last wrote.
 
 Discreet on purpose: no amounts, no shop names, no goal titles on the lock screen. The full message is held and sent
 when the person taps "Show me" or writes. Bodies must match docs/whatsapp-templates.md (what is submitted to Meta).

@@ -1,7 +1,7 @@
-# Kurre WhatsApp templates (English)
+# Birky WhatsApp templates (English)
 
 WhatsApp lets a business start a conversation more than 24 hours after the person last wrote only with a
-pre-approved template. These are the ones Kurre's proactive check (`POST /cron/wake`) sends then. The bodies here
+pre-approved template. These are the ones Birky's proactive check (`POST /cron/wake`) sends then. The bodies here
 must stay identical to `TEMPLATES` in `app/templates_wa.py` (a test checks it).
 
 ## How they work

@@ -24,16 +24,16 @@ contrast and console errors, before and after.
 | 9 | Tap targets under 44 px: nav links (32 px), "Viewing as" (31 px), chat chips (37 px), in-bubble buttons (42 px), card Pay button (29 px), Custom dates, sheet close (40 px) | All 44 px or more; the audit finds none left |
 | 10 | Dark mode: negative amounts and "6.0×" in `#c0392b` on the dark card (contrast 3.06); landing links in browser-default blue (1.97) | A `--neg` colour token (light `#b3261e`, dark `#ff8a80`); links use the brand colour. No text under WCAG AA left, apart from disabled buttons (exempt) |
 | 11 | Quick-reply buttons in old messages stayed active: tapping "Pay rent now" twice made two payment links | After one is tapped, that message's buttons are disabled and the chosen one stays marked |
-| 12 | The typing state was a plain "Kurre is typing…" line, not lined up with the bubbles; a non-200 reply showed "Connection problem" | Three animated dots next to Kurre's avatar, announced to screen readers (`role=status`) and static under reduced motion. A server error shows a clear sorry line |
+| 12 | The typing state was a plain "Birky is typing…" line, not lined up with the bubbles; a non-200 reply showed "Connection problem" | Three animated dots next to Birky's avatar, announced to screen readers (`role=status`) and static under reduced motion. A server error shows a clear sorry line |
 | 13 | The on-screen keyboard could cover the input on browsers that don't resize the layout | `interactive-widget=resizes-content` in the viewport tag, and the chat follows `visualViewport` height and keeps the newest message in view |
-| 14 | `/favicon.ico` 404 on every page (the only console error) | Kurre SVG favicon and `theme-color`. The console is clean apart from the intended 404 status of the error page |
+| 14 | `/favicon.ico` 404 on every page (the only console error) | Birky SVG favicon and `theme-color`. The console is clean apart from the intended 404 status of the error page |
 | 15 | No visible focus style on the green header; current page not marked in the nav | A 3 px `:focus-visible` ring everywhere (light on the header); `aria-current` and a soft highlight on the current tab |
 | 16 | `prefers-reduced-motion` covered only the landing squirrel and the S-mobiili sheet | One global rule also covers the typing dots and every transition |
 | 17 | Landing on a phone: a 270 px squirrel under the text pushed every feature card below the fold, and the two secondary links were 17 px tall blue text | Smaller squirrel above the headline; the links are 44 px brand-coloured rows |
 | 18 | Mixed per-month wording on My money: "€/mo", " / month", "a month" | "a month" everywhere; the basket amount and its share sit on two lines, so the label column keeps its width |
 | 19 | Unclear PIN copy: "Please enter 4 digits.", a visible PIN, no hint that it's a demo | "The PIN is 4 digits, like 1234. Please try again." (linked with `aria-describedby`), a masked numeric field, and "Demo: any 4 digits work. No real money moves." |
 | 20 | `/stop/<id>` returned a 500 if the bank refused (for example, a subscription already stopped) | Same "Not done" page as pay, save and invest |
-| 21 | S-mobiili concept page: the "Kurre is offline" text when the cards fail didn't say what to do | "Kurre's cards could not load. Tap Ask below to chat instead."; Esc closes the sheet |
+| 21 | S-mobiili concept page: the "Birky is offline" text when the cards fail didn't say what to do | "Birky's cards could not load. Tap Ask below to chat instead."; Esc closes the sheet |
 
 Tests: `tests/test_ux.py` covers the friendly pages (unknown link on all four confirm routes, POST to an unknown link,
 unknown page, 500 without a trace, JSON kept for API callers), the bad PIN copy, the sheet without site chrome, Cancel

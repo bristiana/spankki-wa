@@ -980,7 +980,7 @@ class Engine:
                 "official": self.official_benchmark(), "recent": self.recent()}
 
     def export(self) -> dict:
-        """MyData: everything Kurre knows about this customer, in one portable file."""
+        """MyData: everything Birky knows about this customer, in one portable file."""
         rows = [{"date": r["date"].isoformat(), "category": r["category"],
                  "basket": BASKETS[CATEGORY_BASKET[r["category"]]]["label"] if r["category"] in CATEGORY_BASKET else None,
                  "amount_eur": eur(r["tx_amount_eur"]), "type": r["transaction_type"],
