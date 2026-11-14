@@ -1054,7 +1054,11 @@ class Engine:
         if p["status"] == "done":
             return {"pending_id": pid, **p, "balance_eur": self.balance(), "first_time": False}
         kind = p["kind"]
-        if kind == "payment" and not any(b["bill_id"] == p["bill_id"] for b in self.upcoming_bills(45)):
+        if kind == "payment" and p.get("source") == "photo":  # a bill from a photo (app/bills.py): paid once
+            if any(q is not p and q.get("bill_id") == p["bill_id"] and q["status"] == "done"
+                   for q in self.state["pending"].values()):
+                raise ValueError(f"the {p['name']} bill is already paid")
+        elif kind == "payment" and not any(b["bill_id"] == p["bill_id"] for b in self.upcoming_bills(45)):
             raise ValueError(f"{p['name']} due {p['due_date']} is already paid")
         moves_now = kind in ("payment", "saving") or (kind == "investment" and not p.get("monthly"))
         if moves_now and p["amount"] > self.balance():
