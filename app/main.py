@@ -9,6 +9,7 @@ import os
 import time
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlencode
 
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
@@ -19,8 +20,9 @@ from fastapi.templating import Jinja2Templates
 from . import broker, onboarding, rules, templates_wa
 from . import whatsapp as wa
 from .agent import Coach
-from .engine import DEMO_BANK, FUNDS_BY_ID, Engine
-from .tools import public_url
+from .engine import (BASKETS, DEMO_BANK, EXPLORE_GROUP_BY, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS_BY_ID, MCC_LABELS, PERIODS,
+                     SPEND_CATEGORIES, Engine, merchant_codes)
+from .tools import explore_query, public_url
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -248,7 +250,8 @@ def handle_message(m: dict):
                 return
         reply = coach().ask(to, text, name=name)
         for b in reply.buttons:
-            owner[b["url"].rsplit("/", 1)[-1]] = to
+            if "chart" not in b:
+                owner[b["url"].rsplit("/", 1)[-1]] = to
         send_reply(to, reply)
         again = onboarding.reask(engine, to)  # a side question mid-interview: the waiting question comes back
         if again:
@@ -714,6 +717,78 @@ def export_csv():
                              headers={"content-disposition": 'attachment; filename="my-s-pankki-transactions.csv"'})
 
 
+# ---------------- MyData explorer: the customer builds their own view, no AI ----------------
+EXPLORE_KEYS = ("what", "category", "basket", "merchant_type", "group_by", "metric", "period", "start", "end")
+EXPLORE_LABELS = {
+    "what": {"spent": "Spending", "income": "Income"},
+    "metric": {"sum": "Euros", "count": "Number of payments", "average": "Average payment"},
+    "group_by": {"month": "Month", "week": "Week", "weekday": "Day of the week", "category": "Category",
+                 "basket": "Basket", "merchant": "Place", "merchant_type": "Kind of place"},
+    "period": {"last_12_months": "Last 12 months", "last_3_months": "Last 3 months", "last_month": "Last month",
+               "this_month": "This month", "last_30_days": "Last 30 days", "last_7_days": "Last 7 days",
+               "all": "Everything"},
+}
+
+
+def explore_args(request: Request) -> dict:
+    """Query string -> explore() arguments. `filter=category:Restaurants` (the page's single filter dropdown) or the
+    separate category / basket / merchant_type parameters (links from the chat)."""
+    q = request.query_params
+    args = {k: q.get(k) for k in EXPLORE_KEYS}
+    kind, _, value = (q.get("filter") or "").partition(":")
+    if kind in ("category", "basket", "merchant_type") and value:
+        args[kind] = value
+    return {k: v[:40] for k, v in args.items() if v}
+
+
+def explore_filters(merchant_type: str | None = None) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Dropdown groups. Kinds of place are the MCC labels get_spending uses; a word from a chat link ('coffee')
+    that is not one code gets its own option so the dropdown shows what is selected."""
+    places = sorted(((f"merchant_type:{c}", label) for c, label in MCC_LABELS.items()), key=lambda o: o[1])
+    if merchant_type and merchant_type not in MCC_LABELS:
+        places.insert(0, (f"merchant_type:{merchant_type}", merchant_codes(merchant_type)[0]))
+    return [("Category", [(f"category:{c}", c) for c in SPEND_CATEGORIES]),
+            ("Basket", [(f"basket:{k}", b["label"]) for k, b in BASKETS.items()]),
+            ("Kind of place", places)]
+
+
+@app.get("/app/explore", response_class=HTMLResponse)
+def explore_page(request: Request):
+    try:
+        view, error = engine.explore(**explore_args(request)), None
+    except ValueError as e:  # a hand-edited link: show the default view and say why
+        view, error = engine.explore(), str(e)
+    q = view["query"]
+    current = next((f"{k}:{q[k]}" for k in ("category", "basket", "merchant_type") if q[k]), "")
+    return templates.TemplateResponse(request, "explore.html", _ctx(
+        v=view, error=error, current=current, filters=explore_filters(q["merchant_type"]), labels=EXPLORE_LABELS,
+        options={"what": EXPLORE_WHAT, "metric": EXPLORE_METRICS, "group_by": EXPLORE_GROUP_BY, "period": PERIODS},
+        csv_url="/app/explore.csv?" + explore_query(q)))
+
+
+@app.get("/app/explore.csv")
+def explore_csv(request: Request):
+    """Exactly the rows and the total shown on the Explore page for the same query."""
+    import csv
+    import io
+    try:
+        v = engine.explore(**explore_args(request))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    q = v["query"]
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow([q["group_by"], {"sum": "amount_eur", "count": "payments", "average": "average_payment_eur"}[q["metric"]],
+                "payments", "total_eur"])
+    for r in v["rows"]:
+        w.writerow([r["label"], r["value"], r["transactions"], r["total_eur"]])
+    w.writerow(["Total", v["totals"]["value"], v["totals"]["transactions"], v["totals"]["total_eur"]])
+    parts = [q["what"], q["category"] or q["basket"] or q["merchant_type"], "by", q["group_by"], q["period"]]
+    name = "".join(ch if ch.isalnum() else "-" for ch in "-".join(p for p in parts if p).lower())
+    return PlainTextResponse(buf.getvalue(), media_type="text/csv",
+                             headers={"content-disposition": f'attachment; filename="my-s-pankki-{name}.csv"'})
+
+
 @app.get("/app", response_class=HTMLResponse)
 def dashboard(request: Request):
     o = engine.overview()
@@ -722,8 +797,85 @@ def dashboard(request: Request):
 
 
 @app.get("/chat", response_class=HTMLResponse)
-def chat_page(request: Request):
-    return templates.TemplateResponse(request, "chat.html", {"name": DEMO_NAME})
+def chat_page(request: Request, q: str = "", embed: str = ""):
+    """?q= asks a question once on load (deep link); ?embed=1 drops the site chrome for a WebView."""
+    return templates.TemplateResponse(request, "chat.html", {"name": DEMO_NAME, "q": q[:500], "embed": embed == "1"})
+
+
+# ---------------- S-mobiili integration: native home-screen cards, no AI ----------------
+WIDGETS_MAX_AGE = 300
+
+
+def ask_link(question: str) -> str:
+    return "/chat?" + urlencode({"q": question})
+
+
+def widgets() -> dict:
+    """Small cards a banking app home screen can draw natively. Every number comes from the engine;
+    each card deep-links into the chat with a question (or a direct action that needs no AI)."""
+    s = engine.safe_to_spend()
+    pay = s["next_payday"]
+    cards = [{"id": "safe_to_spend", "title": "Safe to spend", "value": money(s["safe_to_spend_until_payday_eur"]),
+              "subtitle": f"until payday {nice_date(pay['date'])} · {money(s['safe_per_day_eur'])} a day",
+              "amount_eur": s["safe_to_spend_until_payday_eur"], "per_day_eur": s["safe_per_day_eur"],
+              "payday": pay["date"], "days_to_payday": pay["days_away"],
+              "deep_link": ask_link("What is safe for me to spend until payday?")}]
+    bill = next((b for b in engine.upcoming_bills(45) if b["bill_id"] and b["category"] != "Invest Deposit"), None)
+    if bill:
+        when = "tomorrow" if bill["days_away"] == 1 else f"in {bill['days_away']} days"
+        cards.append({"id": "next_bill", "title": "Next bill", "value": money(bill["amount_eur"]),
+                      "subtitle": f"{bill['name']} · {nice_date(bill['due_date'])} ({when})",
+                      "name": bill["name"], "amount_eur": bill["amount_eur"], "due_date": bill["due_date"],
+                      "days_away": bill["days_away"],
+                      "deep_link": ask_link(f"How does my {bill['name'].lower()} fit before payday?"),
+                      "actions": [{"label": "Pay", "deep_link": ask_link(f"__btn__:pay:{bill['bill_id']}")}]})
+    b = engine.baskets("this_month")
+    if not b["total_spent_eur"]:  # early in the month: show the last full month instead of three zeros
+        b = engine.baskets("last_month")
+    month = "this month" if b["from"][:7] == engine.today.isoformat()[:7] else "last month"
+    cards.append({"id": "baskets", "title": "Your three baskets", "value": money(b["total_spent_eur"]),
+                  "subtitle": f"spent {month}", "period": month.replace(" ", "_"), "from": b["from"], "to": b["to"],
+                  "total_eur": b["total_spent_eur"],
+                  "baskets": [{"key": x["basket"], "label": x["label"], "share_pct": x["share_pct"],
+                               "total_eur": x["total_eur"]} for x in b["baskets"]],
+                  "deep_link": ask_link(f"Where did my money go {month}, basket by basket?")})
+    subs = engine.subscriptions()["subscriptions"]
+    up = next((x for x in subs if x["status"] == "active" and x["price_increase"]), None)
+    off = next((x for x in subs if x["status"] == "inactive"), None)
+    if up:
+        inc = up["price_increase"]
+        cards.append({"id": "subscription", "kind": "price_increase", "title": f"{up['name']} went up",
+                      "value": money(inc["to_eur"]), "subtitle": f"was {money(inc['from_eur'])} · {money(up['per_year_eur'])} a year",
+                      "name": up["name"], "from_eur": inc["from_eur"], "to_eur": inc["to_eur"],
+                      "per_year_eur": up["per_year_eur"],
+                      "deep_link": ask_link(f"{up['name']} went up in price. Is it still worth it?")})
+    elif off:
+        cards.append({"id": "subscription", "kind": "inactive", "title": f"{off['name']} looks unused",
+                      "value": money(off["price_eur"]), "subtitle": f"last charged {nice_date(off['last_charge'])}",
+                      "name": off["name"], "price_eur": off["price_eur"], "last_charge": off["last_charge"],
+                      "deep_link": ask_link("What subscriptions am I paying for?")})
+    goals = engine.goals()
+    if goals:
+        g = goals[0]
+        cards.append({"id": "goal", "title": g["goal"]["name"], "value": f"{g['progress_pct']}%",
+                      "subtitle": f"{money(g['goal']['saved'])} of {money(g['goal']['target'])}",
+                      "goal_id": g["goal"]["id"], "progress_pct": g["progress_pct"],
+                      "saved_eur": g["goal"]["saved"], "target_eur": g["goal"]["target"],
+                      "deadline": g["goal"].get("deadline"),
+                      "deep_link": ask_link(f"How is my {g['goal']['name']} goal going?")})
+    return {"version": 1, "as_of": engine.today.isoformat(), "max_age_s": WIDGETS_MAX_AGE, "widgets": cards}
+
+
+@app.get("/api/widgets")
+def widgets_api():
+    return JSONResponse(widgets(), headers={"cache-control": f"private, max-age={WIDGETS_MAX_AGE}"})
+
+
+@app.get("/mobile-demo", response_class=HTMLResponse)
+def mobile_demo(request: Request):
+    """Concept mock: Kurre's cards and chat inside a generic banking app home screen."""
+    return templates.TemplateResponse(request, "mobile_demo.html", _ctx(
+        name=DEMO_NAME, balance=engine.balance(), recent=engine.recent(6)))
 
 
 @app.post("/api/chat")
@@ -778,13 +930,16 @@ async def chat_api(request: Request):
         log.exception("coach failed")
         return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
                                      "Bill reminders and payments still work.", "buttons": []})
-    out = []
+    out, charts = [], []
     for b in reply.buttons:
+        if "chart" in b:  # drawn inside the bubble; its link opens the same view on the Explore page
+            charts.append({**b["chart"], "url": b["url"].replace(public_url(), "")})
+            continue
         owner[b["url"].rsplit("/", 1)[-1]] = sid
         out.append({"label": b["label"], "url": b["url"].replace(public_url(), "") + "?web=1"})
     again = onboarding.reask(engine, sid)  # a side question mid-interview: the waiting question comes back
     return JSONResponse({"text": reply.text + (f"\n\n{again.text}" if again else ""), "tools": reply.tools_used,
-                         "buttons": out, "quick": quick(again.buttons) if again else []})
+                         "buttons": out, "charts": charts, "quick": quick(again.buttons) if again else []})
 
 
 @app.get("/api/inbox")
