@@ -89,9 +89,11 @@ class Chat:
         return [b["text"]["body"] for b in self.sent if b.get("type") == "text"]
 
     def confirm(self, url=None):
-        """The PIN page behind a cta_url button, confirmed with a PIN."""
-        page = self.client.post((url or self.url()).replace(BASE, ""), data={"pin": "1234"})
-        assert page.status_code == 200
+        """The S-mobiili review behind a cta_url button, confirmed with (simulated) Face ID."""
+        path = (url or self.url()).replace(BASE, "")
+        assert path.startswith("/s-mobiili/") and self.client.get(path).status_code == 200
+        page = self.client.post(path + "/confirm", json={})
+        assert page.status_code == 200 and page.json()["ok"]
         return page
 
     def connect(self):
@@ -499,7 +501,7 @@ def test_bill_photo_explain_then_pay(chat, monkeypatch):
     assert not chat.interactive("cta_url") and "only asked to understand" in errors[-1]
     chat.say("ok let's pay it")
     [(pid, p)] = main.engine.state["pending"].items()
-    assert chat.url() == f"{BASE}/pay/{pid}" and p["iban"] == "FI5979900020451187"
+    assert chat.url() == f"{BASE}/s-mobiili/pay/{pid}" and p["iban"] == "FI5979900020451187"
     chat.confirm()
     assert any("Voltti Energia Oy (demo) paid" in t for t in chat.texts())
 
@@ -510,7 +512,7 @@ def test_bill_pdf_that_is_not_a_bill_and_one_that_cannot_be_opened(chat, monkeyp
     monkeypatch.setattr(bills, "download", lambda media_id: b"%PDF-1.7 ...")
     monkeypatch.setattr(bills, "extract", lambda client, data, media_type: bills.clean(NOT_A_BILL))
     connected(chat).media("document", "application/pdf")
-    assert "doesn't look like a bill" in chat.texts()[-1] and main._coach.asked == []
+    assert "can't see anything about money" in chat.texts()[-1] and main._coach.asked == []
     monkeypatch.setattr(bills, "download", download)
     chat.media("image")  # no WA_TOKEN in tests: the download fails and Birky says so
     assert chat.texts()[-1].startswith("Sorry, I couldn't open that photo")

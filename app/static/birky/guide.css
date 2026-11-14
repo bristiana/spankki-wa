@@ -1,0 +1,22 @@
+/* Birky the guide (guide.js). Needs birky.css. The root element it lives in must be position:relative. */
+.guide{position:absolute;left:0;top:0;z-index:40;display:flex;align-items:flex-end;gap:4px;width:min(272px,calc(100% - 16px));
+  justify-content:flex-end;pointer-events:none;transition:transform .7s cubic-bezier(.45,.05,.3,1);will-change:transform}
+.guide.instant{transition:none}
+.guide[hidden]{display:none}
+.guide .g-hop{flex:none;pointer-events:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.18))}
+.guide .birky{--s:68px}
+.guide.moving .g-hop{animation:g-hop .24s ease-in-out infinite alternate}
+@keyframes g-hop{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+.guide .g-bubble{pointer-events:auto;position:relative;background:var(--g-card,#fff);color:var(--g-ink,#14201b);
+  border:1px solid var(--g-line,#e2e8e5);border-radius:16px 16px 4px 16px;padding:9px 12px;font-size:14px;line-height:1.35;
+  box-shadow:0 6px 18px rgba(0,0,0,.14);margin-bottom:30px;max-width:196px;transition:opacity .2s}
+.guide.moving .g-bubble{opacity:0}
+.guide .g-say{margin:0}
+.guide .g-btns{display:flex;justify-content:space-between;gap:6px;margin-top:6px}
+.guide .g-btns[hidden]{display:none}
+.guide .g-btns button{border:0;background:transparent;font:600 13px system-ui,sans-serif;color:var(--g-brand,#00663d);
+  min-height:32px;padding:0 6px;border-radius:8px;cursor:pointer}
+.guide .g-btns .g-next{background:var(--g-brand,#00663d);color:var(--g-brand-ink,#fff);padding:0 12px}
+.guide .g-btns .g-skip{color:var(--g-muted,#5d6b65);font-weight:500}
+.g-target{outline:3px solid var(--g-accent,#f2b630);outline-offset:3px;border-radius:12px;transition:outline-color .2s}
+@media (prefers-reduced-motion:reduce){.guide,.guide .g-bubble{transition:none}.guide.moving .g-hop{animation:none}}

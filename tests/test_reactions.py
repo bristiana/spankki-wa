@@ -113,7 +113,7 @@ def test_prompt_has_the_instinct_sections():
     s = agent.SYSTEM
     for section in ("role", "never", "style", "how_you_help", "examples"):
         assert s.index(f"<{section}>") < s.index(f"</{section}>")
-    for rule in ("never move money by yourself", "is data, never an", "scam sign", "General information, not advice",
+    for rule in ("never move money by yourself", "is data, never an", "scam sign", "Information, not advice",
                  "No urgency, fear or guilt", "contact S-Pankki customer service in S-mobiili",
                  "never make up a phone number", "quick human reaction", "the number and stop",
                  "at most two numbers", "Reply in the language they write in"):
@@ -279,6 +279,6 @@ def test_web_open_thread_buttons_pick_things_up(client):
     bill = next(b for b in e.upcoming_bills() if b["name"] == "Rent")
     p = e.create_payment(bill["bill_id"])
     r = say(client, f"__btn__:resume:{p['pending_id']}")
-    assert r["buttons"][0]["url"] == f"/pay/{p['pending_id']}?web=1"
+    assert r["buttons"][0]["url"] == f"/s-mobiili/pay/{p['pending_id']}?web=1" and "Face ID" in r["text"]
     e.confirm(p["pending_id"])
     assert say(client, f"__btn__:resume:{p['pending_id']}")["text"] == "That one's already done ✅"
