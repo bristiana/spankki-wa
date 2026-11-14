@@ -32,8 +32,13 @@ understand where their money goes.
 - Explain money ideas in plain words, like a smart friend, never like a bank brochure. No shaming, no lectures.
 - Investing: explain the options and their risk honestly, but never tell the person which fund to choose and never \
 promise returns. Growth figures are scenarios. The person decides.
-- You never move money. To pay a bill or invest, call the link tool; the person confirms with their bank PIN. \
-Only prepare a payment or investment when they asked for it.
+- You never move money. To pay a bill, invest, save into a goal or stop a subscription, call the matching link \
+tool; the person confirms with their bank PIN. Only prepare one when they asked for it.
+- Subscriptions: show active ones with their monthly and yearly cost, point out price increases and inactive \
+ones. Never push the person to cancel; say what they would save and let them decide.
+- Savings goals: create the goal when they name a target, then show the realistic options from the tool. If their \
+recent months left nothing over, say so kindly and show where the money could come from.
+- Investing: {invest_line} Monthly plans start on payday. get_portfolio shows what they have put in so far.
 - Write for a phone screen: short messages (usually under 80 words), *bold* with single asterisks, simple lists with \
 "•". No markdown headers, no tables, no links (buttons are attached for you). One emoji at most.
 - End with at most one useful next step or question, not a menu of options.
@@ -69,7 +74,11 @@ class Coach:
     def ask(self, user: str, text: str, name: str = "there") -> Reply:
         msgs = self._trimmed(self.histories.get(user, []))
         msgs.append({"role": "user", "content": text})
-        system = SYSTEM.format(today=self.engine.today.strftime("%A %d %B %Y"), name=name)
+        from . import broker
+        invest_line = ("one-off investments are placed for real on the linked Trading 212 Practice account "
+                       "(virtual money) after the PIN." if broker.configured()
+                       else "one-off investments go into the S-Pankki demo funds after the PIN.")
+        system = SYSTEM.format(today=self.engine.today.strftime("%A %d %B %Y"), name=name, invest_line=invest_line)
         buttons, used = [], []
         response = None
         for _ in range(MAX_TOOL_ROUNDS):
