@@ -47,11 +47,24 @@
   /* inside a banking app's WebView: no site chrome, no outer margins, clear of notches */
   body.embed{padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
   .kc-empty{color:var(--muted);font-size:14px;margin:8px 0}
+  /* "Viewing as": judges switch the demo to another real customer */
+  .who{position:relative;max-width:440px;margin:10px auto 0;padding:0 16px;font-size:13px;z-index:5}
+  .who summary{display:inline-flex;align-items:center;gap:4px;list-style:none;cursor:pointer;background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:5px 12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .who summary::-webkit-details-marker{display:none}
+  .who summary::after{content:"▾";color:var(--muted);margin-left:2px}
+  .who-menu{position:absolute;left:16px;right:16px;margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.14);overflow:hidden}
+  .who-menu a{display:block;padding:10px 14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
+  .who-menu a:first-child{border-top:0}.who-menu a[aria-current]{background:var(--soft)}
+  .who-menu small{display:block;color:var(--muted);font-size:12px}
+  .who-menu p{margin:0;padding:8px 14px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
 </style>
 {% block head %}{% endblock %}
 </head>
 <body{% if embed %} class="embed"{% endif %}>
-{% if not embed %}<div class="bar"><a class="home" href="/"><div class="logo">S</div><b>S-Pankki</b></a><nav><a href="/chat">Chat</a><a href="/app">My money</a><a href="/app/explore">Explore</a></nav><small>demo</small></div>{% endif %}
+{% if not embed %}<div class="bar"><a class="home" href="/"><div class="logo">S</div><b>S-Pankki</b></a><nav><a href="/chat">Chat</a><a href="/app">My money</a><a href="/app/explore">Explore</a></nav><small>demo</small></div>
+{% if persona %}<details class="who"><summary>Viewing as <b>{{ persona.name }}</b> · {{ persona.label }}</summary>
+<div class="who-menu">{% for p in personas %}<a href="?as={{ p.id }}"{% if p.id == persona.id %} aria-current="true"{% endif %}><b>{{ p.name }}</b> · {{ p.label }}<small>{{ p.description }}</small></a>{% endfor %}
+<p>Real customers from the challenge data, names made up. Each has its own payments and goals.</p></div></details>{% endif %}{% endif %}
 {% block body %}{% endblock %}
 {% if not embed %}<footer>Junction 2026 prototype on synthetic data. No real money moves.</footer>{% endif %}
 </body>
