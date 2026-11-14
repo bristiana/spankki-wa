@@ -30,6 +30,18 @@ app = FastAPI(title="S-Pankki Chat")
 seen: set[str] = set()
 owner: dict[str, str] = {}  # pending_id -> WhatsApp number that asked for it
 DEMO_NAME = "Aino"
+names: dict[str, str] = {}  # WhatsApp number -> first name from the profile
+
+
+def first_name(profile: str) -> str:
+    """'Cristiana💕 B.' -> 'Cristiana'. Falls back to the demo name."""
+    word = (profile or "").split()[0] if (profile or "").split() else ""
+    clean = "".join(ch for ch in word if ch.isalpha() or ch in "-'")
+    return clean or DEMO_NAME
+
+
+def name_of(phone: str | None) -> str:
+    return names.get(phone or "", DEMO_NAME)
 
 
 def coach() -> Coach:
@@ -84,7 +96,8 @@ def send_reply(to: str, reply):
 
 
 def handle_message(m: dict):
-    to, name = m["from"], (m["name"] or DEMO_NAME).split()[0]
+    to, name = m["from"], first_name(m["name"])
+    names[to] = name
     try:
         wa.mark_read_typing(m["id"])
         if not connected(to):
@@ -138,7 +151,7 @@ def connect_submit(request: Request, bg: BackgroundTasks, u: str = Form(""), sco
 
 def welcome(to: str):
     reply = coach().ask(to, "I just connected my account. Give me a very short first look at where my money went in the "
-                            "last 3 months using the three baskets, then tell me what you can help with.", name=DEMO_NAME)
+                            "last 3 months using the three baskets, then tell me what you can help with.", name=name_of(to))
     send_reply(to, reply)
 
 
@@ -227,7 +240,7 @@ def demo_remind(to: str | None = None):
     to = to or os.environ.get("DEMO_PHONE")
     if not to:
         raise HTTPException(400, "pass ?to=<number> or set DEMO_PHONE")
-    text, rent = reminder_text()
+    text, rent = reminder_text(name_of(to))
     wa.send_reply_buttons(to, text, [(f"pay:{rent['bill_id']}", "Pay rent now"),
                                      (f"later:{rent['bill_id']}", "Remind me later"),
                                      ("ask:tight", "How do I stretch it?")])
