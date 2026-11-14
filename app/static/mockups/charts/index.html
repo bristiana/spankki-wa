@@ -6,11 +6,23 @@
 <title>Oiva fintech charts</title>
 <!-- Mockup only: Oiva's charts redrawn in the style of Revolut, Monzo, Copilot, N26 and Lunar, beside today's charts,
      from the same sample data (data/*.json = app/static/fixtures on the Oiva screens branch). Not wired into the app. -->
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <style>
-:root{--page:#ebf7ec;--card:#fff;--ink:#363636;--strong:#222;--muted:#666;--faint:#949494;--line:#e6e6e6;--brand:#007841;
-  --bright:#00aa46;--head:#007841;--mint:#d2fcd5;--soft:#ebf7ec;--warn:#7a5200;--warn-bg:#fff4d6;--amber:#d99a00;
+/* Light: the S-mobiili mock's own tokens (app/templates/smobiili.html, app/static/oiva/screens.css).
+   Dark: S-mobiili's mock is light only, so dark follows the site's dark theme (app/templates/base.html: page, card, ink,
+   muted, line, brand, soft, warn), with the category greens turned round so the first category stays the strongest. */
+:root{color-scheme:light;--page:#ebf7ec;--card:#fff;--ink:#363636;--strong:#222;--muted:#666;--faint:#949494;--line:#e6e6e6;--brand:#007841;
+  --bright:#00aa46;--brand-ink:#fff;--head:#007841;--mint:#d2fcd5;--soft:#ebf7ec;--warn:#7a5200;--warn-bg:#fff4d6;--over:#004628;
   --c0:#004628;--c1:#007841;--c2:#00aa46;--c3:#77c48f;--c4:#b9e4c3;--c5:#c4c4c4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page:#0f1513;--card:#18201d;--ink:#e8efeb;--strong:#f4f8f6;
+  --muted:#9aa8a1;--faint:#84918b;--line:#2a3430;--brand:#2fae6f;--bright:#3cc47e;--brand-ink:#06140d;--head:#5fd08f;--mint:#1d3a2a;
+  --soft:#1d2b24;--warn:#f3c66b;--warn-bg:#2b2416;--over:#c8f2d3;
+  --c0:#a6e8bb;--c1:#5fd08f;--c2:#2fae6f;--c3:#22804f;--c4:#356b4d;--c5:#59655f}}
+:root[data-theme="dark"]{color-scheme:dark;--page:#0f1513;--card:#18201d;--ink:#e8efeb;--strong:#f4f8f6;
+  --muted:#9aa8a1;--faint:#84918b;--line:#2a3430;--brand:#2fae6f;--bright:#3cc47e;--brand-ink:#06140d;--head:#5fd08f;--mint:#1d3a2a;
+  --soft:#1d2b24;--warn:#f3c66b;--warn-bg:#2b2416;--over:#c8f2d3;
+  --c0:#a6e8bb;--c1:#5fd08f;--c2:#2fae6f;--c3:#22804f;--c4:#356b4d;--c5:#59655f}
 *{box-sizing:border-box}
 body{margin:0;background:var(--page);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
 .wrap{max-width:780px;margin:0 auto;padding:20px 16px 60px}
@@ -33,9 +45,13 @@ section.pair>p{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.4
 .chip.warn{background:var(--warn-bg);color:var(--warn)}.chip.ok{background:var(--mint);color:var(--brand)}
 .chip svg{width:12px;height:12px}
 .sub{font-size:13px;color:var(--muted);margin:8px 0 0;line-height:1.4}.sub b{color:var(--strong);font-weight:600}
-.periods{display:flex;gap:6px;margin:14px 0 2px}
-.periods span{font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:99px;color:var(--muted);background:var(--soft)}
-.periods span.on{background:var(--brand);color:#fff}
+.theme{display:flex;gap:6px;align-items:center;margin:0 0 18px;font-size:13px;color:var(--muted)}
+.theme button{font:600 12.5px var(--font);padding:6px 12px;min-height:32px;border-radius:99px;border:0;color:var(--muted);background:var(--card);cursor:pointer}
+.theme button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
+.notes{background:var(--warn-bg);color:var(--ink);border-radius:8px;padding:10px 14px;margin:0 0 24px;font-size:13px;line-height:1.45}
+.notes b{color:var(--warn)}.notes ul{margin:4px 0 0;padding-left:18px}
+.chart-gap{height:12px}
+.src{font-size:11.5px;color:var(--faint);margin:12px 0 0;padding-top:8px;border-top:1px solid var(--line);line-height:1.4}
 svg.ch{display:block;width:100%;height:auto;overflow:visible;font-family:var(--font);touch-action:none}
 svg.ch text{font-size:10.5px;fill:var(--faint)}
 .h3{font-size:16px;font-weight:700;color:var(--strong);margin:0}
@@ -52,67 +68,70 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 .track{position:relative;height:6px;border-radius:99px;background:var(--line);margin:7px 0 4px}
 .track>i{position:absolute;left:0;top:0;height:100%;border-radius:99px}
 .track>b{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;background:var(--strong);border-radius:1px}
-.st{font-size:12px;font-weight:600}.st.ok,.st.none{color:var(--brand)}.st.ahead{color:var(--warn)}.st.over{color:var(--warn)}
+.st{font-size:12px;font-weight:600}.st.ok{color:var(--brand)}.st.over,.st.fast{color:var(--warn)}.chip+.chip{margin-left:6px}
 .nob{font-size:13px;color:var(--muted);padding:10px 0 0;border-top:1px solid var(--line);margin-top:2px}
 .nob a{color:var(--brand);font-weight:600;text-decoration:none}
 .key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:8px}
 .key span{display:inline-flex;align-items:center;gap:6px}
 .key i{display:inline-block;width:12px;height:8px;border-radius:99px}
-.tip{position:absolute;pointer-events:none;background:var(--strong);color:#fff;font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-100%);display:none}
+.tip{position:absolute;pointer-events:none;background:var(--strong);color:var(--card);font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-100%);display:none}
 .rel{position:relative}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Oiva's charts, fintech style</h1>
-  <p class="intro">Left: the chart on the Oiva screens today. Right: the same sample data, redrawn after Revolut, Monzo, Copilot, N26 and Lunar, in S-mobiili's font and greens. Mockup only, 6 October 2026 (day 6 of 31). The sample data's overall budget (1 900 €) and its category budgets (850 €) disagree; both are shown as they are.</p>
+  <p class="intro" id="intro">Left: the chart on the Oiva screens today. Right: the same sample data, redrawn after Revolut, Monzo, Copilot, N26 and Lunar, in S-mobiili's font and greens. Mockup only.</p>
+  <div class="theme" role="group" aria-label="Colour theme">Theme
+    <button type="button" data-t="system">System</button><button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button></div>
+  <div class="notes" id="notes" hidden></div>
 
   <section class="pair" id="p-trend">
     <h2>1 · Spending this month (Kulutus: Your pace)</h2>
     <p>Revolut/Monzo: the amount is the headline, the line sits under it; drag across the chart to read a day. Copilot: the budget is a target to beat, with a projection.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now</p><img src="now/spend-card1.png" alt="Today's pace chart"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/spend-card1.png" alt="Today's pace chart"></div>
       <div class="col"><p class="tag">New</p><div class="card rel" id="trend"></div></div></div>
   </section>
 
   <section class="pair" id="p-cats">
     <h2>2 · Where it went (Kulutus: donut)</h2>
     <p>Revolut/Lunar: categories as a list with round icons, share and amount; Monzo: one stacked bar instead of a ring, so the parts read as lengths.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now</p><img src="now/spend-card2.png" alt="Today's donut"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/spend-card2.png" alt="Today's donut"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="cats"></div></div></div>
   </section>
 
   <section class="pair" id="p-budget">
     <h2>3 · Budgets and pace (Budjetti)</h2>
-    <p>Copilot: each bar knows the date. The tick is where an even pace would be today; amber means spending faster than an even pace. Monzo: one "left to spend" number with a per-day figure.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now</p><img src="now/budget-card1.png" alt="Today's budget list"></div>
+    <p>Copilot: each bar knows the date. The tick is where an even pace would be today; a darker bar means spending faster than an even pace. Monzo: one "left to spend" number with a per-day figure.</p>
+    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/budget-card1.png" alt="Today's budget list"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="budget"></div></div></div>
   </section>
 
   <section class="pair" id="p-sit">
     <h2>4 · People like me, at a glance (Vertailu)</h2>
-    <p>N26/Revolut insights, condensed: all six figures on one scale of 761 people, so you see where you sit before reading six cards.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now</p><img src="now/compare-card0.png" alt="Today's comparison header"></div>
+    <p id="sit-blurb">N26/Revolut insights, condensed: all six figures on one scale of the group, so you see where you sit before reading six cards.</p>
+    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/compare-card0.png" alt="Today's comparison header"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="sit"></div></div></div>
   </section>
 
   <section class="pair" id="p-fig">
     <h2>5 · One figure against the group (Vertailu: Income)</h2>
     <p>Revolut's price-range bar: labels sit on the chart, You and Typical as pins, the middle half as the thicker band.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now</p><img src="now/compare-card1.png" alt="Today's income comparison"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/compare-card1.png" alt="Today's income comparison"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="fig"></div></div></div>
   </section>
 
   <section class="pair" id="p-income">
     <h2>6 · Where the salary goes (Laskut: header)</h2>
     <p>Monzo "left to spend": what is left after the fixed payments is the headline, the salary split into one bar.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now</p><img src="now/bills-card0.png" alt="Today's bills header"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/bills-card0.png" alt="Today's bills header"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="income"></div></div></div>
   </section>
 
   <section class="pair" id="p-cal">
     <h2>7 · The month's payments (Laskut: Going out / Coming in)</h2>
     <p>Monzo's balance graph marks upcoming bills on the month, N26 lists them with dates: one strip per payment, today as a line.</p>
-    <div class="cols"><div class="col now"><p class="tag">Now</p><img src="now/bills-card1.png" alt="Today's bills list"></div>
+    <div class="cols"><div class="col now"><p class="tag">Now (light only, like the mock)</p><img src="now/bills-card1.png" alt="Today's bills list"></div>
       <div class="col"><p class="tag">New</p><div class="card" id="cal"></div></div></div>
   </section>
 </div>
@@ -120,14 +139,14 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 <script>
 (async function () {
   "use strict";
-  const NB = "\u00a0", MINUS = "−", NS = "http://www.w3.org/2000/svg";
-  const get = n => fetch("data/" + n + ".json").then(r => r.json());
+  const NB = " ", MINUS = "−", NS = "http://www.w3.org/2000/svg";
+  const get = n => fetch("data/" + n + ".json").then(r => { if (!r.ok) throw new Error(n + ".json: " + r.status); return r.json(); });
   const [spend, budget, compare, rec] = await Promise.all(["spend", "budget", "compare", "recurring"].map(get));
 
   // S-mobiili money: 1 234,56 €
   function eur(v, d = 2) {
     const a = Math.abs(v).toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d}).replace(/,/g, NB).replace(".", ",");
-    return (v < 0 ? MINUS : "") + a + NB + "€";
+    return (v < 0 && Math.abs(v) >= 0.5 * 10 ** -d ? MINUS : "") + a + NB + "€";
   }
   function hero(v) {  // big whole euros, small cents (Revolut)
     const [w, c] = eur(v).replace(NB + "€", "").split(",");
@@ -135,6 +154,17 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
   }
   const el = (n, a, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
   const pct = v => Math.round(v * 100) + NB + "%";
+  const sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
+
+  // dates, all from the data: as_of is "today", month is the month shown
+  const ymd = s => { const [y, m, d] = s.split("-").map(Number); return {y, m, d}; };
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const asOf = ymd(spend.as_of), mon = ymd(spend.month + "-01");
+  const DAYS = new Date(Date.UTC(mon.y, mon.m, 0)).getUTCDate(), TODAY = asOf.d;
+  const LEFT_DAYS = DAYS - TODAY + 1;  // the screens count today as a day still to spend (oiva/data.js divides by 26)
+  const M = MON[mon.m - 1], MONTH_NAME = MONTH[mon.m - 1];
+  const dayOf = s => { const t = ymd(s); return t.y === mon.y && t.m === mon.m ? t.d : null; };  // a date's day, if it is in this month
 
   // category look: fixed colour per category (follows the entity, as on today's donut), plus a glyph
   const ICON = {
@@ -149,50 +179,71 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
   };
   const COL = {Groceries: "c0", Restaurants: "c1", Lifestyle: "c2", Transportation: "c3", Entertainment: "c4", "Home & Tech": "c5", Health: "c5", Travel: "c5"};
   const css = v => getComputedStyle(document.documentElement).getPropertyValue("--" + v).trim();
-  const icon = cat => {
-    const c = css(COL[cat]), dark = ["c0", "c1", "c2"].includes(COL[cat]);
-    return `<span class="ico" style="background:${c}"><svg viewBox="0 0 24 24" style="stroke:${dark ? "#fff" : "#004628"}">${ICON[cat] || ""}</svg></span>`;
-  };
+  const lum = hex => { const n = parseInt(hex.slice(1), 16), c = [n >> 16, n >> 8 & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+  const inkOn = hex => lum(hex) > .3 ? "#0f2a1c" : "#fff";  // glyph colour that reads on a fill, in either theme
+  const icon = cat => { const c = css(COL[cat]);
+    return `<span class="ico" style="background:${c}"><svg viewBox="0 0 24 24" style="stroke:${inkOn(c)}">${ICON[cat] || ""}</svg></span>`; };
+  const warnChip = t => `<span class="chip warn"><svg viewBox="0 0 12 12"><path d="M6 2l4 7H2z" fill="currentColor"/></svg>${t}</span>`;
 
-  const DAYS = 31, TODAY = 6, LEFT_DAYS = DAYS - TODAY + 1;  // the screens count today as a day still to spend (26)
+  // what the data says, and where it disagrees with itself (shown, not smoothed over)
+  const P = rec.regular_payments, by = id => P.find(p => p.id === id);
+  const B = spend.budget_total_eur, catSet = budget.items.filter(i => i.limit_eur != null);
+  const catLim = sum(catSet, i => i.limit_eur);
+  const afterBills = by("salary").per_month_eur - rec.bills_per_month_eur - by("investing").per_month_eur;
+  const notes = [];
+  if (Math.abs(catLim - B) >= 0.01) notes.push(`The overall budget is ${eur(B)}, but the ${catSet.length} category budgets add up to ${eur(catLim)} and ${budget.items.length - catSet.length} categories have none. Chart 1 uses the overall budget, chart 3 the category budgets; neither is adjusted.`);
+  if (B > afterBills) notes.push(`The overall budget (${eur(B)}) is ${eur(B - afterBills)} more than is left after bills and investing in a typical month (${eur(afterBills)}, chart 6).`);
+  notes.push(`The budget data's status is "${[...new Set(catSet.map(i => i.status))].join('", "')}", which the screens set as "not over the limit" (oiva/data.js). Pace is a separate reading, computed here: share of the budget spent against share of the month gone (${TODAY} of ${DAYS} days), the same rule spend.json uses for the overall pace.`);
+  notes.unshift(`Only recurring.json (charts 6 and 7) is computed from the hackathon data set: Antti's own transactions (data/personas/CUST01656.csv, to 30 Sep 2026). spend.json, budget.json and compare.json are hand-written samples, as their own "source" says; the data set has no October 2026, and compare.json's group (35–44 in Helsinki, ${compare.cohort.n} people) is not one of the groups in data/peer_benchmark.json.`);
+  const notesEl = document.getElementById("notes");
+  notesEl.innerHTML = `<b>About the data: where it comes from, and where it disagrees with itself</b><ul>${notes.map(n => `<li>${n}</li>`).join("")}</ul>`;
+  notesEl.hidden = false;
+  document.getElementById("intro").textContent += ` As of ${TODAY}${NB}${MONTH_NAME} ${asOf.y} (day ${TODAY} of ${DAYS}).`;
+  document.getElementById("sit-blurb").textContent = `N26/Revolut insights, condensed: all ${compare.figures.length} figures on one scale of ${compare.cohort.n} people, so you see where you sit before reading ${compare.figures.length} cards.`;
 
+  function render() {
   /* 1 · spending this month */
   (function () {
     const host = document.getElementById("trend");
-    const daily = spend.daily, spent = spend.total_eur, B = spend.budget_total_eur;
+    const daily = spend.daily, spent = spend.total_eur;
     const ahead = spend.pace.spent_by_today_eur - spend.pace.expected_by_today_eur;
     const proj = spent / TODAY * DAYS, left = B - spent;
-    host.innerHTML = `<p class="k">Everyday spending in October (bills not included)</p><p class="hero">${hero(spent)}</p>
-      <span class="chip warn"><svg viewBox="0 0 12 12"><path d="M6 2l4 7H2z" fill="currentColor"/></svg>${eur(ahead)} over an even pace</span>
-      <p class="sub"><b>${eur(left)}</b> left of ${eur(B, 0)} · <b>${eur(left / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days</p>
-      <div class="periods"><span>Week</span><span class="on">Month</span><span>6 months</span><span>Year</span></div>`;
+    const projCol = proj > B ? css("warn") : css("brand");
+    const chip = spend.pace.status === "over" ? warnChip(`${eur(ahead)} over an even pace`)
+      : `<span class="chip ok">${eur(-ahead)} under an even pace</span>`;
+    host.innerHTML = `<p class="k">Everyday spending in ${MONTH_NAME} so far (bills not included)</p><p class="hero">${hero(spent)}</p>
+      ${chip}
+      <p class="sub"><b>${eur(left)}</b> left of your ${eur(B, 0)} overall budget · <b>${eur(left / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days</p><div class="chart-gap"></div>`;
     const W = 318, H = 176, L = 2, R = 40, T = 22, Bm = 22, pw = W - L - R, ph = H - T - Bm;
-    const top = 2500, x = d => L + d / DAYS * pw, y = v => T + ph - v / top * ph;  // d = day, 0 = start of the month
-    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Spent ${eur(spent)} by 6 October; at this rate ${eur(proj, 0)} by the end of the month, budget ${eur(B, 0)}`});
+    const step = Math.max(proj, B) > 2000 ? 1000 : 500, top = Math.ceil(Math.max(proj, B) * 1.08 / 500) * 500;  // axis room above the higher of budget and projection
+    const x = d => L + d / DAYS * pw, y = v => T + ph - v / top * ph;  // d = day, 0 = start of the month
+    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Spent ${eur(spent)} by ${TODAY} ${MONTH_NAME}; at this rate ${eur(proj, 0)} by the end of the month, budget ${eur(B, 0)}`});
     const defs = el("defs", {}); defs.innerHTML = `<linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${css("bright")}" stop-opacity=".28"/><stop offset="1" stop-color="${css("bright")}" stop-opacity="0"/></linearGradient>`;
     svg.appendChild(defs);
-    [0, 1000, 2000].filter(t => Math.abs(t - B) > 250).forEach(t => {
+    for (let t = 0; t <= top; t += step) if (Math.abs(t - B) > top * .1) {
       svg.appendChild(el("line", {x1: L, x2: L + pw, y1: y(t), y2: y(t), stroke: css("line"), "stroke-width": 1}));
-      svg.appendChild(el("text", {x: W, y: y(t) + 3.5, "text-anchor": "end"}, t ? (t / 1000) + "k" + NB + "€" : "0" + NB + "€"));
-    });
+      svg.appendChild(el("text", {x: W, y: y(t) + 3.5, "text-anchor": "end"}, t ? String(t / 1000).replace(".", ",") + "k" + NB + "€" : "0" + NB + "€"));
+    }
     // budget: a target line across the month
     svg.appendChild(el("line", {x1: L, x2: L + pw, y1: y(B), y2: y(B), stroke: css("strong"), "stroke-width": 1.2, "stroke-dasharray": "3 3"}));
     svg.appendChild(el("text", {x: L, y: y(B) - 5, style: "fill:" + css("strong") + ";font-weight:600"}, "Budget " + eur(B, 0)));
-    // projection at this rate: dotted, lighter
-    svg.appendChild(el("line", {x1: x(TODAY), y1: y(spent), x2: x(DAYS), y2: y(proj), stroke: proj > B ? css("warn") : css("bright"), "stroke-width": 2, "stroke-dasharray": "1 4", "stroke-linecap": "round"}));
-    svg.appendChild(el("text", {x: x(DAYS), y: y(proj) - 7, "text-anchor": "end", style: "fill:" + css("warn") + ";font-weight:600"}, "At this rate " + eur(proj, 0)));
+    // projection at this rate: dotted
+    svg.appendChild(el("line", {x1: x(TODAY), y1: y(spent), x2: x(DAYS), y2: y(proj), stroke: projCol, "stroke-width": 2, "stroke-dasharray": "1 4", "stroke-linecap": "round"}));
+    svg.appendChild(el("text", {x: x(DAYS), y: y(proj) - 7, "text-anchor": "end", style: "fill:" + projCol + ";font-weight:600"}, "At this rate " + eur(proj, 0)));
     // this month, solid with a soft fill
     const pts = [[0, 0]].concat(daily.map(d => [d.day, d.cumulative_eur]));
     const path = pts.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1)).join("");
     svg.appendChild(el("path", {d: path + `L${x(TODAY)},${y(0)}L${x(0)},${y(0)}Z`, fill: "url(#g1)"}));
     svg.appendChild(el("path", {d: path, fill: "none", stroke: css("brand"), "stroke-width": 2.5, "stroke-linejoin": "round", "stroke-linecap": "round"}));
     svg.appendChild(el("circle", {cx: x(TODAY), cy: y(spent), r: 9, fill: css("bright"), opacity: .18}));
-    svg.appendChild(el("circle", {cx: x(TODAY), cy: y(spent), r: 4.5, fill: css("brand"), stroke: "#fff", "stroke-width": 2}));
-    [[0, "1 Oct"], [TODAY, "Today"], [15, "15"], [DAYS, "31 Oct"]].forEach(([d, t]) =>
+    svg.appendChild(el("circle", {cx: x(TODAY), cy: y(spent), r: 4.5, fill: css("brand"), stroke: css("card"), "stroke-width": 2}));
+    const ticks = [[0, "1 " + M], [TODAY, "Today"], [DAYS, DAYS + " " + M]];
+    if (Math.abs(15 - TODAY) > 3) ticks.splice(2, 0, [15, "15"]);
+    ticks.forEach(([d, t]) =>
       svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": d === 0 ? "start" : d === DAYS ? "end" : "middle", style: d === TODAY ? "fill:" + css("strong") + ";font-weight:600" : ""}, t)));
     // scrub: drag to read a day
     const cross = el("line", {y1: T - 6, y2: T + ph, stroke: css("strong"), "stroke-width": 1, opacity: 0});
-    const dot = el("circle", {r: 4, fill: css("brand"), stroke: "#fff", "stroke-width": 2, opacity: 0});
+    const dot = el("circle", {r: 4, fill: css("brand"), stroke: css("card"), "stroke-width": 2, opacity: 0});
     svg.append(cross, dot);
     host.appendChild(svg);
     const tip = document.createElement("div"); tip.className = "tip"; host.appendChild(tip);
@@ -202,10 +253,11 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
       const known = daily.find(p => p.day === d), v = known ? known.cumulative_eur : spent / TODAY * d;
       cross.setAttribute("x1", x(d)); cross.setAttribute("x2", x(d)); cross.setAttribute("opacity", .35);
       dot.setAttribute("cx", x(d)); dot.setAttribute("cy", y(v)); dot.setAttribute("opacity", 1);
-      tip.style.display = "block"; tip.textContent = `${d} Oct · ${eur(v, 0)}${known ? "" : " at this rate"}`;
+      dot.setAttribute("fill", known ? css("brand") : projCol);
+      tip.style.display = "block"; tip.textContent = `${d} ${M} · ${eur(v, 0)}${known ? "" : " at this rate"}`;
       const hr = host.getBoundingClientRect(), half = tip.offsetWidth / 2;  // svg has no offsetLeft: measure against the card
       tip.style.left = Math.min(Math.max(r.left - hr.left + x(d) * r.width / W, half + 4), hr.width - half - 4) + "px";
-      tip.style.top = (r.top - hr.top + (T + ph * .45) * r.height / H) + "px";  // inside the plot, clear of the period buttons
+      tip.style.top = (r.top - hr.top + (T + ph * .45) * r.height / H) + "px";  // inside the plot
     };
     svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move);
     svg.addEventListener("pointerleave", () => { tip.style.display = "none"; cross.setAttribute("opacity", 0); dot.setAttribute("opacity", 0); });
@@ -213,47 +265,52 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 
   /* 2 · where it went */
   (function () {
-    const host = document.getElementById("cats"), cats = spend.categories, sum = spend.total_eur;
+    const host = document.getElementById("cats"), cats = spend.categories, total = sum(cats, c => c.spent_eur);
     const used = cats.filter(c => c.spent_eur > 0), none = cats.filter(c => !(c.spent_eur > 0));
-    host.innerHTML = `<p class="h3">Where it went</p><p class="k" style="margin-top:2px">${eur(sum)} across ${used.length} categories</p>
+    host.innerHTML = `<p class="h3">Where it went</p><p class="k" style="margin-top:2px">${eur(total)} across ${used.length} categories</p>
       <div class="seg" role="img" aria-label="Share of spending by category">${used.map(c =>
         `<i style="flex:${c.spent_eur};background:${css(COL[c.category])}" title="${c.label} ${eur(c.spent_eur)}"></i>`).join("")}</div>
       <div>${used.map(c => `<div class="row">${icon(c.category)}<div class="mid"><div class="nm">${c.label}</div>
-        <div class="sm">${pct(c.spent_eur / sum)} · last month ${eur(c.prev_eur, 0)}</div></div>
+        <div class="sm">${pct(c.spent_eur / total)} · last month ${eur(c.prev_eur, 0)}</div></div>
         <div class="amt">${eur(c.spent_eur)}</div></div>`).join("")}</div>
-      <p class="nob">Nothing yet on ${none.map(c => c.label).join(" or ")}.</p>`;
+      ${none.length ? `<p class="nob">Nothing yet on ${none.map(c => c.label).join(" or ")}.</p>` : ""}`;
   })();
 
   /* 3 · budgets and pace */
   (function () {
     const host = document.getElementById("budget"), items = budget.items, paceShare = TODAY / DAYS;
     const set = items.filter(i => i.limit_eur != null), unset = items.filter(i => i.limit_eur == null);
-    const lim = set.reduce((a, i) => a + i.limit_eur, 0), sp = set.reduce((a, i) => a + i.spent_eur, 0), left = lim - sp;
-    const state = i => i.spent_eur > i.limit_eur ? "over" : i.spent_eur === 0 ? "none" : i.spent_eur / i.limit_eur > paceShare + 0.05 ? "ahead" : "ok";
-    const colour = {ok: css("bright"), ahead: css("amber"), over: css("warn"), none: css("bright")};
-    const words = {ok: "Within an even pace", ahead: "Faster than an even pace", over: "Over budget", none: "Nothing spent yet"};
-    const nAhead = set.filter(i => ["ahead", "over"].includes(state(i))).length;
-    host.innerHTML = `<p class="k">Left to spend in your budgets</p><p class="hero">${hero(left)}</p>
-      <p class="sub"><b>${eur(left / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days · ${eur(sp)} of ${eur(lim, 0)} spent</p>
-      ${nAhead ? `<span class="chip warn"><svg viewBox="0 0 12 12"><path d="M6 2l4 7H2z" fill="currentColor"/></svg>${nAhead} of ${set.length} going faster than an even pace</span>` : ""}
-      <div style="margin-top:12px">${set.map(i => { const s = state(i), f = Math.min(i.spent_eur / i.limit_eur, 1);
+    const lim = sum(set, i => i.limit_eur), sp = sum(set, i => i.spent_eur), left = sum(set, i => i.left_eur);
+    // status is the data's own (over / on_track = not over); pace is computed: spent share vs share of the month gone
+    const fast = i => i.limit_eur > 0 && i.spent_eur / i.limit_eur > paceShare;
+    // one short line per bar: the data's "over" first, then the computed pace
+    const word = i => i.status === "over" ? ["over", "Over budget"] : i.spent_eur === 0 ? ["ok", "Nothing spent yet"] : fast(i) ? ["fast", "Faster than even pace"] : ["ok", "Within even pace"];
+    const nWithin = set.filter(i => i.status !== "over").length;
+    const nFast = set.filter(i => i.status !== "over" && fast(i)).length;
+    host.innerHTML = `<p class="k">Left to spend in your ${set.length} category budgets</p><p class="hero">${hero(left)}</p>
+      <p class="sub"><b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> a day for ${LEFT_DAYS} days · ${eur(sp)} of ${eur(lim, 0)} spent</p>
+      <span class="chip ok">${nWithin} of ${set.length} within budget</span>
+      ${nFast ? warnChip(`${nFast} of ${set.length} faster than an even pace`) : ""}
+      <div style="margin-top:12px">${set.map(i => { const over = i.status === "over", f = Math.min(i.spent_eur / i.limit_eur, 1);
+        const fill = over ? css("warn") : fast(i) ? css("over") : css("bright");
         return `<div class="row">${icon(i.category)}<div class="mid">
-          <div style="display:flex;justify-content:space-between;gap:8px"><span class="nm">${i.label}</span><span class="nm" style="font-weight:600">${eur(i.left_eur)} <span style="font-weight:400;color:var(--muted);font-size:13px">left</span></span></div>
-          <div class="track"><i style="width:${(f * 100).toFixed(1)}%;background:${colour[s]}"></i><b style="left:${(paceShare * 100).toFixed(1)}%"></b></div>
-          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)"><span class="st ${s}">${words[s]}</span><span>${eur(i.spent_eur)} of ${eur(i.limit_eur, 0)}</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px"><span class="nm">${i.label}</span><span class="nm" style="font-weight:600;white-space:nowrap">${eur(i.left_eur)} <span style="font-weight:400;color:var(--muted);font-size:13px">left</span></span></div>
+          <div class="track"><i style="width:${(f * 100).toFixed(1)}%;background:${fill}"></i><b style="left:${(paceShare * 100).toFixed(1)}%"></b></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)"><span class="st ${word(i)[0]}">${word(i)[1]}</span><span style="white-space:nowrap">${eur(i.spent_eur)} of ${eur(i.limit_eur, 0)}</span></div>
         </div></div>`; }).join("")}</div>
-      <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Even pace by today</span><span><i style="background:var(--bright)"></i>Within</span><span><i style="background:var(--amber)"></i>Faster than even pace</span></div>
-      <p class="nob">No budget yet: ${unset.map(i => `${i.label} ${eur(i.spent_eur, 0)}`).join(" · ")} <a href="#">Set ›</a></p>`;
+      <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Even pace by today</span><span><i style="background:var(--bright)"></i>Within even pace</span><span><i style="background:var(--over)"></i>Faster than even pace</span></div>
+      ${unset.length ? `<p class="nob">No budget yet: ${unset.map(i => `${i.label} ${eur(i.spent_eur, 0)}`).join(" · ")}</p>` : ""}`;
   })();
 
   /* 4 · where you sit */
   (function () {
     const host = document.getElementById("sit"), c = compare.cohort, F = compare.figures;
-    const fmt = f => f.unit === "eur" ? eur(f.you, 0) : f.unit === "pct" ? (f.you < 0 ? MINUS : "") + Math.abs(Math.round(f.you * 100)) + NB + "%" : String(f.you).replace(".", ",") + " mo";
-    // amber only when "better" has a direction and you are outside the middle half on the wrong side
+    const UNIT = {months: "mo"};
+    const fmt = f => f.unit === "eur" ? eur(f.you, 0) : f.unit === "pct" ? (f.you < 0 ? MINUS : "") + Math.abs(Math.round(f.you * 100)) + NB + "%" : String(f.you).replace(".", ",") + NB + (UNIT[f.unit] || f.unit);
+    // warn only when "better" has a direction and you are outside the middle half on the wrong side
     const worse = f => (f.better === "higher" && f.percentile < 25) || (f.better === "lower" && f.percentile > 75);
-    const W = 318, rowH = 40, L = 0, labW = 0, H = F.length * rowH + 26, x0 = 6, x1 = W - 76, px = p => x0 + p / 100 * (x1 - x0);
-    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Your percentile in the group for six figures"});
+    const W = 318, rowH = 40, H = F.length * rowH + 26, x0 = 6, x1 = W - 76, px = p => x0 + p / 100 * (x1 - x0);
+    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Your percentile in the group for ${F.length} figures`});
     F.forEach((f, i) => {
       const yb = i * rowH + 30;
       svg.appendChild(el("text", {x: x0, y: yb - 10, style: "font-size:13px;fill:" + css("strong")}, f.label));
@@ -261,50 +318,50 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
       svg.appendChild(el("line", {x1: px(25), x2: px(75), y1: yb, y2: yb, stroke: css("c4"), "stroke-width": 6}));
       svg.appendChild(el("line", {x1: px(50), x2: px(50), y1: yb - 6, y2: yb + 6, stroke: css("strong"), "stroke-width": 1.5}));
       const bad = worse(f);
-      svg.appendChild(el("circle", {cx: px(f.percentile), cy: yb, r: 6.5, fill: bad ? css("amber") : css("brand"), stroke: "#fff", "stroke-width": 2}));
+      svg.appendChild(el("circle", {cx: px(f.percentile), cy: yb, r: 6.5, fill: bad ? css("warn") : css("brand"), stroke: css("card"), "stroke-width": 2}));
       svg.appendChild(el("text", {x: W, y: yb + 4, "text-anchor": "end", style: "font-size:13px;font-weight:600;fill:" + (bad ? css("warn") : css("strong"))}, fmt(f)));
     });
     const yb = F.length * rowH + 18;
     [[0, "lowest"], [50, "typical"], [100, "highest"]].forEach(([p, t]) =>
       svg.appendChild(el("text", {x: px(p), y: yb, "text-anchor": p ? (p === 100 ? "end" : "middle") : "start"}, t)));
-    host.innerHTML = `<p class="h3">Where you sit</p><p class="k" style="margin-top:2px">Among ${c.n} people aged ${c.age_band.replace("-", "–")} in ${c.city}, <span style="white-space:nowrap">Apr–Sep 2026</span></p>`;
+    const f0 = ymd(c.from), t0 = ymd(c.to);
+    const span = `${MON[f0.m - 1]}${f0.y !== t0.y ? " " + f0.y : ""}–${MON[t0.m - 1]} ${t0.y}`;
+    host.innerHTML = `<p class="h3">Where you sit</p><p class="k" style="margin-top:2px">Among ${c.n} people aged ${c.age_band.replace("-", "–")} in ${c.city}, <span style="white-space:nowrap">${span}</span></p>`;
     host.appendChild(svg);
-    host.insertAdjacentHTML("beforeend", `<div class="key"><span><i style="background:var(--brand);width:10px;height:10px"></i>You</span><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Typical</span><span><i style="background:var(--c4)"></i>Middle half</span><span><i style="background:var(--amber);width:10px;height:10px"></i>Lower than most, where higher is better</span></div>`);
+    host.insertAdjacentHTML("beforeend", `<div class="key"><span><i style="background:var(--brand);width:10px;height:10px"></i>You</span><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>Typical</span><span><i style="background:var(--c4)"></i>Middle half</span>${F.some(worse) ? `<span><i style="background:var(--warn);width:10px;height:10px"></i>Outside the middle half, on the worse side</span>` : ""}</div>`);
   })();
 
   /* 5 · one figure: Income */
   (function () {
     const host = document.getElementById("fig"), f = compare.figures.find(f => f.id === "income");
-    const lo = f.p25 - (f.p75 - f.p25) * .6, hi = f.p75 + (f.p75 - f.p25) * .6;
-    const W = 318, H = 126, x0 = 8, x1 = W - 8, px = v => x0 + (v - lo) / (hi - lo) * (x1 - x0), yb = 64;
+    const lo = f.p25 - (f.p75 - f.p25) * .6, hi = f.p75 + (f.p75 - f.p25) * .6;  // scale only: room either side of the middle half
+    const W = 318, H = 126, x0 = 8, x1 = W - 8, px = v => x0 + (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo) * (x1 - x0), yb = 64;
     const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Your income ${eur(f.you)}, typical ${eur(f.median)}, middle half ${eur(f.p25, 0)} to ${eur(f.p75, 0)}`});
     svg.appendChild(el("line", {x1: x0, x2: x1, y1: yb, y2: yb, stroke: css("line"), "stroke-width": 4, "stroke-linecap": "round"}));
     svg.appendChild(el("line", {x1: px(f.p25), x2: px(f.p75), y1: yb, y2: yb, stroke: css("c4"), "stroke-width": 12}));
-    // typical below, you above: pins with their own labels
-    svg.appendChild(el("line", {x1: px(f.median), x2: px(f.median), y1: yb - 8, y2: yb + 16, stroke: css("strong"), "stroke-width": 1.5}));
-    svg.appendChild(el("line", {x1: px(f.median), x2: px(f.median), y1: yb + 16, y2: yb + 34, stroke: css("strong"), "stroke-width": 1.5}));
+    svg.appendChild(el("line", {x1: px(f.median), x2: px(f.median), y1: yb - 8, y2: yb + 34, stroke: css("strong"), "stroke-width": 1.5}));
     svg.appendChild(el("text", {x: px(f.median), y: yb + 48, "text-anchor": "middle", style: "font-size:12px;font-weight:600;fill:" + css("strong")}, "Typical " + eur(f.median, 0)));
     const ux = px(f.you);
     svg.appendChild(el("line", {x1: ux, x2: ux, y1: yb - 30, y2: yb, stroke: css("brand"), "stroke-width": 1.5}));
-    svg.appendChild(el("circle", {cx: ux, cy: yb, r: 7, fill: css("brand"), stroke: "#fff", "stroke-width": 2.5}));
+    svg.appendChild(el("circle", {cx: ux, cy: yb, r: 7, fill: css("brand"), stroke: css("card"), "stroke-width": 2.5}));
     const bubble = "You " + eur(f.you, 0), bw = bubble.length * 6.8 + 16, bx = Math.min(Math.max(ux - bw / 2, 0), W - bw);
     svg.appendChild(el("rect", {x: bx, y: yb - 54, width: bw, height: 24, rx: 12, fill: css("brand")}));
-    svg.appendChild(el("text", {x: bx + bw / 2, y: yb - 38, "text-anchor": "middle", style: "font-size:12.5px;font-weight:700;fill:#fff"}, bubble));
+    svg.appendChild(el("text", {x: bx + bw / 2, y: yb - 38, "text-anchor": "middle", style: "font-size:12.5px;font-weight:700;fill:" + css("brand-ink")}, bubble));
     [[f.p25, eur(f.p25, 0)], [f.p75, eur(f.p75, 0)]].forEach(([v, t]) =>
       svg.appendChild(el("text", {x: px(v), y: yb + 24, "text-anchor": "middle"}, t)));
-    host.innerHTML = `<p class="h3">Income</p><p class="k" style="margin-top:2px">A month, against ${compare.cohort.n} people your age in ${compare.cohort.city}</p>`;
+    host.innerHTML = `<p class="h3">${f.label}</p><p class="k" style="margin-top:2px">A month, against ${compare.cohort.n} people your age in ${compare.cohort.city}</p>`;
     host.appendChild(svg);
     host.insertAdjacentHTML("beforeend", `<p class="sub">Higher than about <b>${Math.round(f.percentile / 10)} in 10</b> people in the group. The thick band is the middle half.</p>`);
   })();
 
   /* 6 · where the salary goes */
   (function () {
-    const host = document.getElementById("income"), P = rec.regular_payments;
-    const inc = P.find(p => p.id === "salary").per_month_eur, bills = rec.bills_per_month_eur;
-    const inv = P.find(p => p.id === "investing").per_month_eur, rest = inc - bills - inv;
-    const parts = [["Bills: rent and utilities", bills, css("c0")], ["Monthly investing", inv, css("c3")], ["Left for everything else", rest, css("c4")]];
+    const host = document.getElementById("income");
+    const inc = by("salary").per_month_eur, bills = rec.bills_per_month_eur, inv = by("investing").per_month_eur, rest = inc - bills - inv;
+    const billNames = P.filter(p => p.direction === "out" && /Mandatory/.test(p.basket || "")).map(p => p.name.toLowerCase());
+    const parts = [["Bills: " + billNames.join(" and "), bills, css("c0")], [by("investing").name, inv, css("c3")], ["Left for everything else", rest, css("c4")]];
     host.innerHTML = `<p class="k">Left after bills and investing, a typical month</p><p class="hero">${hero(rest)}</p>
-      <p class="sub">of your <b>${eur(inc)}</b> average salary (last 3 months)</p>
+      <p class="sub">of your <b>${eur(inc)}</b> salary a month (average of the last 3)</p>
       <div class="seg" style="height:18px" role="img" aria-label="Salary split">${parts.map(p => `<i style="flex:${p[1]};background:${p[2]}"></i>`).join("")}</div>
       ${parts.map(p => `<div class="row" style="padding:7px 0"><span style="width:12px;height:12px;border-radius:3px;background:${p[2]};flex:none"></span>
         <div class="mid nm" style="font-size:14px">${p[0]}</div><div class="amt" style="font-size:14px">${eur(p[1])}<small>${pct(p[1] / inc)}</small></div></div>`).join("")}`;
@@ -312,19 +369,18 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
 
   /* 7 · the month's payments */
   (function () {
-    const host = document.getElementById("cal"), P = rec.regular_payments, by = id => P.find(p => p.id === id);
+    const host = document.getElementById("cal"), u = by("utilities");
+    const paidHere = re => spend.bills.filter(b => re.test(b.name) && dayOf(b.date)).map(b => dayOf(b.date));
+    const due = p => (p.next_expected && dayOf(p.next_expected)) || paidHere(new RegExp(p.name, "i"))[0] || p.usual_day;
     const lanes = [
-      {name: "Rent", sub: eur(by("rent").per_month_eur), day: +spend.bills.find(b => b.name === "Rent").date.slice(8)},  // paid this month, per spend.json
-      {name: "Utilities", sub: "~3 bills, " + eur(by("utilities").per_month_eur, 0), from: by("utilities").day_range.first, to: by("utilities").day_range.last,
-       paidDays: spend.bills.filter(b => /utility/i.test(b.name)).map(b => +b.date.slice(8))},
-      {name: "Salary", sub: "+" + eur(by("salary").per_month_eur), day: by("salary").usual_day, incoming: true},
-      {name: "Investing", sub: eur(by("investing").per_month_eur), day: by("investing").usual_day}];
+      {name: "Rent", sub: eur(by("rent").per_month_eur), day: due(by("rent"))},  // paid this month, per spend.json bills
+      {name: "Utilities", sub: "~" + Math.round(u.bills_per_month) + " bills, " + eur(u.per_month_eur, 0), from: u.day_range.first, to: u.day_range.last, paidDays: paidHere(/utility/i)},
+      {name: by("salary").name, sub: "+" + eur(by("salary").per_month_eur), day: due(by("salary")), incoming: true},
+      {name: "Investing", sub: eur(by("investing").per_month_eur), day: due(by("investing"))}];
     const W = 318, labW = 104, lane = 42, T = 30, H = T + lanes.length * lane + 18, x0 = labW + 6, x1 = W - 8;
     const x = d => x0 + (d - 1) / (DAYS - 1) * (x1 - x0);
-    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "October's regular payments by day"});
-    // weeks as faint columns
+    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${MONTH_NAME}'s regular payments by day`});
     for (let d = 1; d <= DAYS; d += 7) svg.appendChild(el("line", {x1: x(d), x2: x(d), y1: T - 4, y2: H - 18, stroke: css("line")}));
-    // today first, so the labels sit over it
     svg.appendChild(el("line", {x1: x(TODAY), x2: x(TODAY), y1: T - 10, y2: H - 18, stroke: css("strong"), "stroke-width": 1.5}));
     lanes.forEach((l, i) => {
       const yc = T + i * lane + lane / 2;
@@ -333,21 +389,44 @@ svg.ch text{font-size:10.5px;fill:var(--faint)}
       svg.appendChild(el("line", {x1: x0, x2: x1, y1: yc, y2: yc, stroke: css("line"), "stroke-width": 1}));
       if (l.from) {
         svg.appendChild(el("line", {x1: x(l.from), x2: x(l.to), y1: yc, y2: yc, stroke: css("c4"), "stroke-width": 8, "stroke-linecap": "round"}));
-        (l.paidDays || []).forEach(d => { svg.appendChild(el("circle", {cx: x(d), cy: yc, r: 6, fill: css("c3"), stroke: "#fff", "stroke-width": 2}));
-          svg.appendChild(el("path", {d: `M${x(d) - 2.6},${yc}l1.8,1.8l3.6,-3.6`, fill: "none", stroke: css("c0"), "stroke-width": 1.5, "stroke-linecap": "round"})); });
+        (l.paidDays || []).forEach(d => { svg.appendChild(el("circle", {cx: x(d), cy: yc, r: 6, fill: css("c3"), stroke: css("card"), "stroke-width": 2}));
+          svg.appendChild(el("path", {d: `M${x(d) - 2.6},${yc}l1.8,1.8l3.6,-3.6`, fill: "none", stroke: inkOn(css("c3")), "stroke-width": 1.5, "stroke-linecap": "round"})); });
       } else {
-        const past = l.day < TODAY;
-        svg.appendChild(el("circle", {cx: x(l.day), cy: yc, r: 7, fill: past ? css("c4") : l.incoming ? css("bright") : css("brand"), stroke: "#fff", "stroke-width": 2}));
-        if (past) svg.appendChild(el("path", {d: `M${x(l.day) - 3},${yc}l2,2l4,-4`, fill: "none", stroke: css("c0"), "stroke-width": 1.6, "stroke-linecap": "round"}));
-        svg.appendChild(el("text", {x: x(l.day) + 11, y: yc + 4, style: "font-size:11.5px;font-weight:600;paint-order:stroke;stroke:#fff;stroke-width:4px;fill:" + css("strong")}, past ? "paid " + l.day + " Oct" : l.day + " Oct"));
+        const past = l.day <= TODAY, fill = past ? css("c4") : l.incoming ? css("bright") : css("brand");
+        svg.appendChild(el("circle", {cx: x(l.day), cy: yc, r: 7, fill, stroke: css("card"), "stroke-width": 2}));
+        if (past) svg.appendChild(el("path", {d: `M${x(l.day) - 3},${yc}l2,2l4,-4`, fill: "none", stroke: inkOn(fill), "stroke-width": 1.6, "stroke-linecap": "round"}));
+        svg.appendChild(el("text", {x: x(l.day) + 11, y: yc + 4, style: `font-size:11.5px;font-weight:600;paint-order:stroke;stroke:${css("card")};stroke-width:4px;fill:${css("strong")}`}, (past ? "paid " : "") + l.day + " " + M));
       }
     });
     svg.appendChild(el("text", {x: x(TODAY), y: T - 12, "text-anchor": "middle", style: "font-weight:600;fill:" + css("strong")}, "Today"));
-    [[1, "1"], [8, "8"], [15, "15"], [22, "22"], [29, "29"]].forEach(([d, t]) => svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": "middle"}, t)));
-    host.innerHTML = `<p class="h3">October's regular payments</p><p class="k" style="margin-top:2px">Coming up: salary on 15 Oct, investing on 17 Oct, utility bills any day to the 29th</p>`;
+    for (let d = 1; d <= DAYS; d += 7) svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": "middle"}, String(d)));
+    const soon = lanes.filter(l => !l.from && l.day > TODAY).sort((a, b) => a.day - b.day).map(l => `${l.name.toLowerCase()} on ${l.day} ${M}`);
+    if (u.day_range.last > TODAY) soon.push(`utility bills any day to ${u.day_range.last} ${M}`);
+    host.innerHTML = `<p class="h3">${MONTH_NAME}'s regular payments</p><p class="k" style="margin-top:2px">Coming up: ${soon.join(", ")}</p>`;
     host.appendChild(svg);
   })();
-})();
+  // where each card's numbers come from: the fixtures' own "source" fields
+  const SRC = {trend: [["spend", spend]], cats: [["spend", spend]], budget: [["budget", budget]], sit: [["compare", compare]], fig: [["compare", compare]],
+    income: [["recurring", rec]], cal: [["recurring", rec], ["spend", spend]]};
+  for (const id in SRC) document.getElementById(id).insertAdjacentHTML("beforeend",
+    `<p class="src">Data: ${SRC[id].map(([n, d]) => `${d.source.replace(/\.$/, "")} (${n}.json, as of ${d.as_of})`).join("; ")}</p>`);
+  }
+
+  // theme: follows the system, or a choice (?theme=light|dark, or the buttons); charts redraw with the new colours
+  const root = document.documentElement, mq = matchMedia("(prefers-color-scheme: dark)");
+  const btns = [...document.querySelectorAll(".theme button")];
+  function setTheme(t) {
+    if (t === "light" || t === "dark") root.dataset.theme = t; else delete root.dataset.theme;
+    btns.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === (t || "system"))));
+    render();
+  }
+  btns.forEach(b => b.addEventListener("click", () => setTheme(b.dataset.t)));
+  mq.addEventListener("change", () => { if (!root.dataset.theme) render(); });
+  setTheme(new URLSearchParams(location.search).get("theme") || "system");
+})().catch(err => {
+  const p = document.createElement("p"); p.className = "notes"; p.textContent = "The charts could not load their data: " + err.message;
+  document.querySelector(".wrap").prepend(p); console.error(err);
+});
 </script>
 </body>
 </html>
