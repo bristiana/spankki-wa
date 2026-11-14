@@ -1,0 +1,135 @@
+{
+ "fixture": true,
+ "as_of": "2026-10-06",
+ "source": "Sample data for the S-mobiili screens until the live API is connected. Not real figures.",
+ "month": "2026-10",
+ "items": [
+  {
+   "category": "Groceries",
+   "label": "Groceries",
+   "limit_eur": 380.0,
+   "source": "own",
+   "spent_eur": 128.4,
+   "left_eur": 251.6,
+   "left_per_day_eur": 9.68,
+   "status": "on_track"
+  },
+  {
+   "category": "Restaurants",
+   "label": "Restaurants",
+   "limit_eur": null,
+   "source": null,
+   "spent_eur": 96.8,
+   "left_eur": null,
+   "left_per_day_eur": null,
+   "status": "none"
+  },
+  {
+   "category": "Lifestyle",
+   "label": "Shopping",
+   "limit_eur": 200.0,
+   "source": "own",
+   "spent_eur": 74.2,
+   "left_eur": 125.8,
+   "left_per_day_eur": 4.84,
+   "status": "on_track"
+  },
+  {
+   "category": "Transportation",
+   "label": "Transportation",
+   "limit_eur": 120.0,
+   "source": "own",
+   "spent_eur": 42.1,
+   "left_eur": 77.9,
+   "left_per_day_eur": 3.0,
+   "status": "on_track"
+  },
+  {
+   "category": "Entertainment",
+   "label": "Entertainment",
+   "limit_eur": 90.0,
+   "source": "own",
+   "spent_eur": 38.0,
+   "left_eur": 52.0,
+   "left_per_day_eur": 2.0,
+   "status": "on_track"
+  },
+  {
+   "category": "Home & Tech",
+   "label": "Home & Tech",
+   "limit_eur": null,
+   "source": null,
+   "spent_eur": 32.8,
+   "left_eur": null,
+   "left_per_day_eur": null,
+   "status": "none"
+  },
+  {
+   "category": "Health",
+   "label": "Health",
+   "limit_eur": 60.0,
+   "source": "own",
+   "spent_eur": 0.0,
+   "left_eur": 60.0,
+   "left_per_day_eur": 2.31,
+   "status": "on_track"
+  },
+  {
+   "category": "Travel",
+   "label": "Travel",
+   "limit_eur": null,
+   "source": null,
+   "spent_eur": 0.0,
+   "left_eur": null,
+   "left_per_day_eur": null,
+   "status": "none"
+  }
+ ],
+ "presets": {
+  "peers": {
+   "cohort": {
+    "age_band": "35-44",
+    "city": "Helsinki",
+    "n": 761
+   },
+   "per_category": {
+    "Groceries": 395.0,
+    "Restaurants": 296.0,
+    "Lifestyle": 240.0,
+    "Transportation": 135.0,
+    "Entertainment": 85.0,
+    "Home & Tech": 70.0,
+    "Health": 55.0,
+    "Travel": 90.0
+   }
+  },
+  "helsinki": {
+   "n": 5100,
+   "per_category": {
+    "Groceries": 380.0,
+    "Restaurants": 280.0,
+    "Lifestyle": 230.0,
+    "Transportation": 125.0,
+    "Entertainment": 80.0,
+    "Home & Tech": 65.0,
+    "Health": 50.0,
+    "Travel": 85.0
+   }
+  },
+  "finland": {
+   "year": 2022,
+   "per_person": true,
+   "per_category": {
+    "Groceries": 310.0,
+    "Restaurants": 64.0,
+    "Lifestyle": 150.0,
+    "Transportation": 210.0,
+    "Entertainment": 95.0,
+    "Home & Tech": 70.0,
+    "Health": 60.0,
+    "Travel": 75.0
+   }
+  }
+ },
+ "undo": null
+}
