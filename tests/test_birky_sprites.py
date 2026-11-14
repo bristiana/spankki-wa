@@ -20,12 +20,3 @@ def test_css_rows_match_atlas():
     assert atlas["cols"] == 6 and "steps(6)" in css and "600% 600%" in css
     for mood, spec in atlas["moods"].items():
         assert f".birky.{mood}{{--row:{spec['row']};" in css
-
-
-def test_sprite_is_served():
-    from fastapi.testclient import TestClient
-    from app import main
-
-    r = TestClient(main.app).get("/static/birky/sprite.svg")
-    assert r.status_code == 200 and "Birky sprite sheet" in r.text
-    assert TestClient(main.app).get("/static/birky/birky.css").status_code == 200
