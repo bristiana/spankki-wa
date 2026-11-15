@@ -25,7 +25,8 @@ def fresh(monkeypatch):
     tts._calls.clear()
     tts._missing.clear()
     for k in ("ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID", "ELEVENLABS_VOICE_ID_EN", "ELEVENLABS_VOICE_ID_FI",
-              "ELEVENLABS_MODEL_ID", "ELEVENLABS_DAILY_CHARS"):
+              "ELEVENLABS_MODEL_ID", "ELEVENLABS_DAILY_CHARS", "ELEVENLABS_STABILITY", "ELEVENLABS_SIMILARITY",
+              "ELEVENLABS_STYLE", "ELEVENLABS_SPEED", "ELEVENLABS_SPEAKER_BOOST"):
         monkeypatch.delenv(k, raising=False)
     yield
 
@@ -210,13 +211,63 @@ def test_per_language_voice_env(client, eleven, monkeypatch):
 
 def test_finnish_voice_missing_from_account_falls_back_to_english(client, eleven, monkeypatch):
     monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
-    fi_voice, en_voice = tts.DEFAULT_VOICES["fi"], tts.DEFAULT_VOICES["en"]
+    fi_voice, en_voice = "FFFFFFFFFFFFFFFFFFFF", tts.DEFAULT_VOICES["en"]
+    monkeypatch.setenv("ELEVENLABS_VOICE_ID_FI", fi_voice)
     eleven["answer"] = lambda req: (httpx.Response(400, json={"detail": {"code": "voice_not_found"}})
                                     if req.url.path.endswith(fi_voice) else
                                     httpx.Response(200, content=MP3, headers={"content-type": "audio/mpeg"}))
     assert say(client, "Hei Antti.").content == MP3
     assert say(client, "Toinen lause.").content == MP3  # remembered: straight to the English voice
     assert [r.url.path.rsplit("/", 1)[1] for r in eleven["calls"]] == [fi_voice, en_voice, en_voice]
+
+
+def test_squirrel_missing_from_account_falls_back_to_chris_with_his_own_settings(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    squirrel = tts.DEFAULT_VOICES["en"]
+    monkeypatch.setenv("ELEVENLABS_VOICE_ID_FI", squirrel)  # one voice for both, as when ELEVENLABS_VOICE_ID is set
+    eleven["answer"] = lambda req: (httpx.Response(400, json={"detail": {"code": "voice_not_found"}})
+                                    if req.url.path.endswith(squirrel) else
+                                    httpx.Response(200, content=MP3, headers={"content-type": "audio/mpeg"}))
+    assert say(client, "Hei Antti.").content == MP3
+    assert say(client, "Hi there.", "en").content == MP3  # remembered for English too: straight to Chris
+    paths = [r.url.path.rsplit("/", 1)[1] for r in eleven["calls"]]
+    assert paths == [squirrel, tts.FALLBACK_VOICE, tts.FALLBACK_VOICE]
+    bodies = [__import__("json").loads(r.content) for r in eleven["calls"]]
+    assert "voice_settings" in bodies[0] and all("voice_settings" not in b for b in bodies[1:])
+
+
+def test_default_voices_are_the_squirrel_and_sini():
+    assert tts.DEFAULT_VOICES == {"en": "M5t0724ORuAGCh3p3DUR", "fi": "8X97zFR9k9pK2xyFI7Nr"}
+    assert tts.FALLBACK_VOICE not in tts.DEFAULT_VOICES.values()
+
+
+def test_squirrel_settings_are_sent(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    say(client, "Hei.")
+    body = __import__("json").loads(eleven["calls"][0].content)
+    assert body["voice_settings"] == {"stability": 0.35, "similarity_boost": 0.8, "style": 0.45,
+                                      "use_speaker_boost": True, "speed": 1.1}
+
+
+def test_voice_settings_from_env_kept_in_range(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    monkeypatch.setenv("ELEVENLABS_STABILITY", "0.6")
+    monkeypatch.setenv("ELEVENLABS_SIMILARITY", "abc")   # not a number: default
+    monkeypatch.setenv("ELEVENLABS_STYLE", "2")          # above 1: 1
+    monkeypatch.setenv("ELEVENLABS_SPEED", "0.1")        # below 0.7: 0.7
+    monkeypatch.setenv("ELEVENLABS_SPEAKER_BOOST", "0")
+    say(client, "Hei.")
+    body = __import__("json").loads(eleven["calls"][0].content)
+    assert body["voice_settings"] == {"stability": 0.6, "similarity_boost": 0.8, "style": 1.0,
+                                      "use_speaker_boost": False, "speed": 0.7}
+
+
+def test_changed_settings_are_not_served_from_the_cache(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    say(client, "Hei.")
+    monkeypatch.setenv("ELEVENLABS_SPEED", "1.0")
+    say(client, "Hei.")
+    assert len(eleven["calls"]) == 2
 
 
 def test_a_piece_of_a_reply_may_be_spoken_but_not_other_text(client, eleven, monkeypatch):

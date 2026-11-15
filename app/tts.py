@@ -23,11 +23,20 @@ log = logging.getLogger("tts")
 
 API = "https://api.elevenlabs.io/v1/text-to-speech"
 # One voice per page language (the FI | EN toggle), each overridable: ELEVENLABS_VOICE_ID_EN / _FI, or
-# ELEVENLABS_VOICE_ID for both. EN: "Chris", a premade voice (natural, down-to-earth, conversational).
-# FI: "Jarmo", a native Finnish voice from the ElevenLabs library (warm, natural, verified for Finnish on
-# eleven_multilingual_v2); an English voice reading Finnish keeps an accent. A library voice must be added to the
-# account (My Voices) first; until it is, Finnish falls back to the English voice.
-DEFAULT_VOICES = {"en": "iP95p4xoKVk53GoZ742B", "fi": "W9YsrfUjc4DOYR4fhg8M"}
+# ELEVENLABS_VOICE_ID for both. EN: "Miffy Mouse - Squeaky, Upbeat Cartoon", a library character voice: small, high
+# and playful, the squirrel's own voice. FI: "Sini - Energetic and spirited", a native Finnish library voice, bright and
+# playful. The library has no cute native Finnish character voice, and Miffy reading Finnish got the amounts wrong in
+# tests (183 € came back as 194), while Sini said every number right. ELEVENLABS_VOICE_ID_FI=W9YsrfUjc4DOYR4fhg8M
+# brings back "Jarmo", the calm narrator. When the account can't use a voice, the English one speaks, then the
+# premade "Chris" (in every account).
+DEFAULT_VOICES = {"en": "M5t0724ORuAGCh3p3DUR", "fi": "8X97zFR9k9pK2xyFI7Nr"}
+FALLBACK_VOICE = "iP95p4xoKVk53GoZ742B"  # "Chris", premade; spoken with its own settings
+# How the squirrel is spoken (ElevenLabs voice_settings), each overridable: ELEVENLABS_STABILITY, _SIMILARITY, _STYLE
+# (0-1), _SPEED (0.7-1.2), _SPEAKER_BOOST (1/0). A bit less stable and more styled = livelier, cartoon-like
+# intonation; a little faster = a busy squirrel; stability stays above 0.3 so amounts and percents stay clear.
+DEFAULT_SETTINGS = {"stability": 0.35, "similarity_boost": 0.8, "style": 0.45, "use_speaker_boost": True, "speed": 1.1}
+_SETTING_ENV = {"stability": ("ELEVENLABS_STABILITY", 0.0, 1.0), "similarity_boost": ("ELEVENLABS_SIMILARITY", 0.0, 1.0),
+                "style": ("ELEVENLABS_STYLE", 0.0, 1.0), "speed": ("ELEVENLABS_SPEED", 0.7, 1.2)}
 DEFAULT_VOICE = DEFAULT_VOICES["en"]
 # Speaks Finnish and English (and ~27 more); it picks the language from the text.
 DEFAULT_MODEL = "eleven_multilingual_v2"
@@ -181,9 +190,10 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
     model = os.environ.get("ELEVENLABS_MODEL_ID", "").strip() or DEFAULT_MODEL
     if not re.fullmatch(r"[A-Za-z0-9]{10,40}", voice):
         raise TTSError("bad voice id", 503)
-    if time.monotonic() - _missing.get(voice, -MISSING_FOR) < MISSING_FOR:  # not in this account: English voice
-        voice = voice_for("en")
-    ck = hashlib.sha256(f"{voice}|{model}|{lang}|{t}".encode()).hexdigest()
+    if time.monotonic() - _missing.get(voice, -MISSING_FOR) < MISSING_FOR:  # not in this account: the fallback
+        voice = _fallback(voice)
+    settings = voice_settings() if voice != FALLBACK_VOICE else None
+    ck = hashlib.sha256(f"{voice}|{model}|{lang}|{settings}|{t}".encode()).hexdigest()
     with _lock:
         if ck in _cache:
             _cache.move_to_end(ck)
@@ -200,6 +210,8 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
         _calls.append(now)
         _spent["chars"] += len(t)  # counted before the call so parallel requests can't overshoot
     body: dict = {"text": t, "model_id": model}
+    if settings:
+        body["voice_settings"] = settings
     if not model.startswith("eleven_multilingual"):  # flash/turbo v2.5 take a language; multilingual_v2 refuses it
         body["language_code"] = lang
     own = client is None
@@ -208,12 +220,15 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
     try:
         r = await c.post(f"{API}/{voice}", params={"output_format": OUTPUT},
                          headers={"xi-api-key": key, "accept": "audio/mpeg"}, json=body)
-        fallback = voice_for("en")
+        fallback = _fallback(voice)
         if r.status_code in (400, 404) and "voice_not_found" in _codes(r) and voice != fallback:
-            log.warning("voice %s is not in this ElevenLabs account; using the English voice", voice)
+            log.warning("voice %s is not in this ElevenLabs account; using %s", voice, fallback)
             _missing[voice] = time.monotonic()
             voice = fallback
-            ck = hashlib.sha256(f"{voice}|{model}|{lang}|{t}".encode()).hexdigest()
+            if voice == FALLBACK_VOICE:  # Chris speaks with his own settings, not the squirrel's
+                body.pop("voice_settings", None)
+                settings = None
+            ck = hashlib.sha256(f"{voice}|{model}|{lang}|{settings}|{t}".encode()).hexdigest()
             r = await c.post(f"{API}/{voice}", params={"output_format": OUTPUT},
                              headers={"xi-api-key": key, "accept": "audio/mpeg"}, json=body)
     except httpx.HTTPError as e:
@@ -241,6 +256,29 @@ def voice_for(lang: str) -> str:
     lang = "en" if lang == "en" else "fi"
     return (os.environ.get(f"ELEVENLABS_VOICE_ID_{lang.upper()}", "").strip()
             or os.environ.get("ELEVENLABS_VOICE_ID", "").strip() or DEFAULT_VOICES[lang])
+
+
+def _fallback(voice: str) -> str:
+    """Who speaks when the account can't use `voice`: the English voice, unless that is the same (or also missing),
+    then the premade Chris."""
+    en = voice_for("en")
+    gone = time.monotonic() - _missing.get(en, -MISSING_FOR) < MISSING_FOR
+    return en if en != voice and not gone and re.fullmatch(r"[A-Za-z0-9]{10,40}", en) else FALLBACK_VOICE
+
+
+def voice_settings() -> dict:
+    """DEFAULT_SETTINGS with any ELEVENLABS_STABILITY / _SIMILARITY / _STYLE / _SPEED / _SPEAKER_BOOST, kept in range;
+    a value that isn't a number keeps the default."""
+    out = dict(DEFAULT_SETTINGS)
+    for k, (env, lo, hi) in _SETTING_ENV.items():
+        try:
+            out[k] = min(hi, max(lo, float(os.environ[env])))
+        except (KeyError, ValueError):
+            pass
+    boost = os.environ.get("ELEVENLABS_SPEAKER_BOOST", "").strip().lower()
+    if boost:
+        out["use_speaker_boost"] = boost not in ("0", "false", "no", "off")
+    return out
 
 
 def _refund(n: int) -> None:
