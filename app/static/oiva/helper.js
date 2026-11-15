@@ -179,6 +179,7 @@
     const env = envs.get(player.src);
     return env ? env[Math.floor(player.currentTime / STEP)] || 0 : null;
   }
+  let synthDog = 0;
   function synthLevel() { return speechSynthesis.speaking && !speechSynthesis.paused ? null : 0; }  // shut if it stalls
   let mouthOn = false;
   function mouth(on, how) {
@@ -236,7 +237,11 @@
       const v = voiceFor();
       if (v) u.voice = v;
       u.rate = 1.02;
-      u.onstart = () => { if (my === seq) mouth(true, "synth"); };
+      u.onstart = () => {  // a watchdog: a stalled browser voice (no onend) can't leave him babbling
+        if (my !== seq) return;
+        mouth(true, "synth"); clearTimeout(synthDog);
+        synthDog = setTimeout(() => { if (my === seq) mouth(false); }, 3000 + c.length * 160);
+      };
       if (n === chunks.length - 1) u.onend = () => { if (my === seq) doneTalking(); };
       u.onerror = () => { if (my === seq) (n === chunks.length - 1 ? doneTalking() : mouth(false)); };  // the last one: done all the same
       speechSynthesis.speak(u);
