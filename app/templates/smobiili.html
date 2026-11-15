@@ -360,7 +360,7 @@
         <div class="lbl"><span>5 %</span><span>900 €</span></div>
         <div class="dash"></div>
         <div class="row2 base"><span>1,0 %</span>
-          <div class="house"><span>{{ t("Bonusta tulossa", "Bonus coming") }}</span><b>{{ "%.2f"|format(bonus.coming)|replace(".", ",") }}<small>€</small></b></div>
+          <div class="house"><span>{{ t("Bonusta tulossa", "Bonus coming") }}</span><b>{{ "%.2f"|format(bonus.coming) if ui_lang(request) == "en" else "%.2f"|format(bonus.coming)|replace(".", ",") }}<small>€</small></b></div>
           <span>50 €</span></div>
       </div>
       <a class="total" href="{{ tab_urls.etukortti }}">{{ t("Katso kokonaishyötysi", "See your total benefit") }}{{ icon("chevron") }}</a>

@@ -12,17 +12,18 @@
   const get = n => fetch(BASE + n + ".json").then(r => { if (!r.ok) throw new Error(n + ".json: " + r.status); return r.json(); });
   const [spend, budget, compare, rec] = await Promise.all(["spend", "budget", "compare", "recurring"].map(get));
 
-  // S-mobiili money: 1 234,56 €
+  // S-mobiili money: FI 1 234,56 €, EN 1 234.56 € (as Oiva's English replies, charts and voice write it)
+  const DEC = FI ? "," : ".", PCT = FI ? NB + "%" : "%";
   function eur(v, d = 2) {
-    const a = Math.abs(v).toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d}).replace(/,/g, NB).replace(".", ",");
+    const a = Math.abs(v).toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d}).replace(/,/g, NB).replace(".", DEC);
     return (v < 0 && Math.abs(v) >= 0.5 * 10 ** -d ? MINUS : "") + a + NB + "€";
   }
   function hero(v) {  // big whole euros, small cents (Revolut)
-    const [w, c] = eur(v).replace(NB + "€", "").split(",");
-    return `${w}<small>,${c}${NB}€</small>`;
+    const [w, c] = eur(v).replace(NB + "€", "").split(DEC);
+    return `${w}<small>${DEC}${c}${NB}€</small>`;
   }
   const el = (n, a, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
-  const pct = v => Math.round(v * 100) + NB + "%";
+  const pct = v => Math.round(v * 100) + PCT;
   const sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
 
   // dates, all from the data: as_of is "today", month is the month shown
@@ -197,7 +198,7 @@
     const FIG_FI = {income: "Tulot", rent_share: "Asumisen osuus tuloista", savings_rate: "Tuloista jäi säästöön", restaurants: "Ravintolat",
       shopping: "Ostokset", buffer_months: "Puskuri"};
     const UNIT = {months: T("kk", "mo")};
-    const fmt = f => f.unit === "eur" ? eur(f.you, 0) : f.unit === "pct" ? (f.you < 0 ? MINUS : "") + (Math.abs(f.you) < .01 ? Math.abs(f.you * 100).toFixed(1).replace(".", ",") : Math.abs(Math.round(f.you * 100))) + NB + "%" : String(f.you).replace(".", ",") + NB + (UNIT[f.unit] || f.unit);
+    const fmt = f => f.unit === "eur" ? eur(f.you, 0) : f.unit === "pct" ? (f.you < 0 ? MINUS : "") + (Math.abs(f.you) < .01 ? Math.abs(f.you * 100).toFixed(1).replace(".", DEC) : Math.abs(Math.round(f.you * 100))) + PCT : String(f.you).replace(".", DEC) + NB + (UNIT[f.unit] || f.unit);
     // warn only when "better" has a direction and you are outside the middle half on the wrong side
     const worse = f => (f.better === "higher" && f.percentile < 25) || (f.better === "lower" && f.percentile > 75);
     const W = 318, rowH = 40, H = F.length * rowH + 26, x0 = 6, x1 = W - 76, px = p => x0 + p / 100 * (x1 - x0);
@@ -221,6 +222,8 @@
   })();
 
   /* 5 · one figure: Income */
+  const cym = s => ymd(s), COHORT_EN = `${MON[cym(compare.cohort.from).m - 1]} ${cym(compare.cohort.from).y} to ${MON[cym(compare.cohort.to).m - 1]} ${cym(compare.cohort.to).y}`,
+    COHORT_FI = `${cym(compare.cohort.from).m}/${cym(compare.cohort.from).y}–${cym(compare.cohort.to).m}/${cym(compare.cohort.to).y}`;
   (function () {
     const host = document.getElementById("fig"), f = compare.figures.find(f => f.id === "income");
     const lo = f.p25 - (f.p75 - f.p25) * .6, hi = f.p75 + (f.p75 - f.p25) * .6;  // scale only: room either side of the middle half
@@ -240,7 +243,7 @@
     svg.appendChild(el("text", {x: bx + bw / 2, y: yb - 38, "text-anchor": "middle", style: "font-size:12.5px;font-weight:700;fill:" + css("brand-ink")}, bubble));
     [[f.p25, eur(f.p25, 0)], [f.p75, eur(f.p75, 0)]].forEach(([v, t]) =>
       svg.appendChild(el("text", {x: px(v), y: yb + 24, "text-anchor": "middle"}, t)));
-    host.innerHTML = `<p class="h3">${T("Tulot", f.label)}</p><p class="k" style="margin-top:2px">${T("12 kuukauden keskiarvo kuussa", "12-month average, a month")}</p>`;
+    host.innerHTML = `<p class="h3">${T("Tulot", f.label)}</p><p class="k" style="margin-top:2px">${T(`Kaikki tulot käteen kuussa, 12 kuukauden keskiarvo (${COHORT_FI})`, `All money in after tax, a month: 12-month average (${COHORT_EN})`)}</p>`;
     host.appendChild(svg);
     host.insertAdjacentHTML("beforeend", `<p class="sub">${T(`Tulosi ovat suuremmat kuin noin <b>${Math.round(f.percentile / 10)}:llä kymmenestä</b> kaltaisestasi`, `Higher than about <b>${Math.round(f.percentile / 10)} in 10</b> people like you`)}</p>`);
   })();
@@ -254,9 +257,9 @@
     // the bills are each one's average month (recurring.json's method), so they differ from this month's payments in card 7
     const billSub = T(`vuokra keskimäärin ${eur(rent.per_month_eur)} + asumislaskut ${eur(u.per_month_eur)}`, `rent on average ${eur(rent.per_month_eur)} + utility bills ${eur(u.per_month_eur)}`);
     const parts = [[T("Laskut", "Bills"), bills, css("c6"), billSub],
-      [T("Sijoittaminen", "Investing"), inv, css("c3")], [T("Jää kaikkeen muuhun", "Left for everything else"), rest, css("brand")]];
+      [T("Sijoittaminen", "Investing"), inv, css("c3"), T(`keskimäärin, 3 viimeistä talletusta`, `on average, last 3 deposits`)], [T("Jää kaikkeen muuhun", "Left for everything else"), rest, css("brand")]];
     host.innerHTML = `<p class="h3">${AFTER}</p><p class="k" style="margin-top:2px">${T("Tavallinen kuukausi", "A typical month")}</p><p class="hero">${hero(rest)}</p>
-      <p class="sub">${T(`keskimääräisestä palkastasi <b>${eur(inc)}</b> (3 viimeistä)`, `of your average <b>${eur(inc)}</b> salary (last 3)`)}</p>
+      <p class="sub">${T(`palkastasi, joka on keskimäärin <b>${eur(inc)}</b> (3 viimeistä palkkaa)`, `of your salary, usually <b>${eur(inc)}</b> (average of the last 3)`)}</p>
       <div class="seg" style="height:18px" role="img" aria-label="${T("Palkan jakautuminen", "Salary split")}">${parts.map(p => `<i style="flex:${p[1]};background:${p[2]}"></i>`).join("")}</div>
       ${parts.map(p => `<div class="row" style="padding:7px 0"><span style="width:12px;height:12px;border-radius:3px;background:${p[2]};flex:none"></span>
         <div class="mid"><div class="nm">${p[0]}</div>${p[3] ? `<div class="sm">${p[3]}</div>` : ""}</div><div class="amt">${eur(p[1])}<small>${pct(p[1] / inc)}</small></div></div>`).join("")}
@@ -275,7 +278,7 @@
       {name: T("Asumislaskut", "Utility bills"), sub: (spend.paid || {}).utilities && spend.paid.utilities.some(x => dayOf(x.date))
         ? (n => n + T(" laskua, ", n === 1 ? " bill, " : " bills, ") + eur(sum(spend.paid.utilities.filter(x => dayOf(x.date)), x => x.amount_eur)))(spend.paid.utilities.filter(x => dayOf(x.date)).length)
         : "~" + Math.round(u.bills_per_month) + T(" laskua, ", " bills, ") + eur(u.per_month_eur, 0), from: u.day_range.first, to: u.day_range.last, paidDays: paidHere(/utility/i)},
-      {name: T("Palkka", by("salary").name), sub: "+" + eur(paid("salary") ? paid("salary").amount_eur : by("salary").per_month_eur), day: paidDay("salary") || due(by("salary")), incoming: true},
+      {name: T("Palkka", by("salary").name), sub: (paid("salary") ? T("tuli +", "paid +") : "+") + eur(paid("salary") ? paid("salary").amount_eur : by("salary").per_month_eur), day: paidDay("salary") || due(by("salary")), incoming: true},
       {name: T("Sijoittaminen", "Investing"), sub: paid("investing") ? T("maksettu ", "paid ") + eur(paid("investing").amount_eur) : eur(by("investing").per_month_eur), day: paidDay("investing") || due(by("investing"))}];
     const W = 318, labW = 104, lane = 42, T0 = 30, H = T0 + lanes.length * lane + 18, x0 = labW + 6, x1 = W - 8;
     const x = d => x0 + (d - 1) / (DAYS - 1) * (x1 - x0);

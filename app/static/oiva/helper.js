@@ -68,7 +68,10 @@
       const m = /,\s(and|but|while|ja|mutta|kun)\s/.exec(s.slice(40));
       if (m) s = s.slice(0, 40 + m.index) + ".";
     }
-    return s.length > 150 ? s.slice(0, 146).replace(/\s+\S*$/, "") + " …" : s;
+    if (s.length <= 150) return s;
+    // still long: a whole clause (up to the last comma, semicolon or dash that fits), never a cut with "…"
+    const cut = s.slice(0, 148), k = Math.max(cut.lastIndexOf(", "), cut.lastIndexOf("; "), cut.lastIndexOf(" – "), cut.lastIndexOf(" - "));
+    return (k > 40 ? cut.slice(0, k) : cut.replace(/\s+\S*$/, "").replace(/[,;:–-]\s*$/, "")) + ".";
   }
   // Two bars from the reply's own figures (its trace, explain.py), never parsed from the prose: you vs people like
   // you, the price vs what is free until payday, now vs after a cut, this period vs the one before.
@@ -117,18 +120,23 @@
     requestAnimationFrame(() => requestAnimationFrame(() => bars.querySelectorAll("b").forEach(b => b.style.width = b.dataset.w)));
     return true;
   }
+  // the basket game's question opens "*1/5* …": the bubble is labelled as that question, not as a lesson
+  function gameLabel(parts) {
+    const m = (parts || []).map(p => /^\s*[*_]*(\d+)\/(\d+)[*_]*\s/.exec(String(p || ""))).filter(Boolean).pop();
+    return m ? T("Kysymys ", "Question ") + m[1] + "/" + m[2] : "";
+  }
   function pose(name) {
     mood = name;
     if (oiva) { oiva.setState(name); oiva.setFps(name === "idle" ? 20 : 30); }
   }
-  function show(name, text, thinking, pair) {
+  function show(name, text, thinking, pair, label) {
     if (!say) return;
     const withBars = !thinking && drawBars(pair);
     say.classList.toggle("has-bars", withBars);
     if (withBars && text.length > 80) text = "";  // the bars already say it; no clipped sentence under them
     say.dataset.mood = name;
     say.classList.remove("rest");
-    tag.textContent = TAGS[name] || "";
+    tag.textContent = label || TAGS[name] || "";
     line.textContent = bubble(text);
     say.classList.toggle("thinking", !!thinking);
     say.classList.remove("pop"); void say.offsetWidth; say.classList.add("pop");
@@ -384,7 +392,7 @@
       const pair = pairFor(m, trace, parts);
       // with bars, a sentence about another figure (last month vs the bars' three months) would contradict them
       const says = x => plain(last).replace(/[\s\u00a0]/g, "").replace(/,/g, ".").includes(x.toFixed(2));
-      show(m, pair && !says(pair.a) && !says(pair.b) ? "" : (last || T("Tässä.", "Here you go.")), false, pair);
+      show(m, pair && !says(pair.a) && !says(pair.b) ? "" : (last || T("Tässä.", "Here you go.")), false, pair, gameLabel(parts));
       glance(say, 2500);
       speak(parts);
       restLater(12000);

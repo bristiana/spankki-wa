@@ -248,14 +248,22 @@ def money_nb(x: float) -> str:
     return nb(money(x))
 
 
-def fi_money(x: float) -> str:
-    """S-mobiili writes money the Finnish way: 2 000,00 € (non-breaking spaces), -12,30 €."""
-    return f"{x:,.2f}".replace(",", " ").replace(".", ",") + " €"
+def fi_money(x: float, lang: str = "fi") -> str:
+    """S-mobiili money: Finnish 2 000,00 € (non-breaking spaces), -12,30 €. English writes 2 000.00 €, as every
+    English screen, chart, chat reply and voice line does (space thousands, point decimals)."""
+    s = f"{x:,.2f}".replace(",", " ")
+    return (s if lang == "en" else s.replace(".", ",")) + " €"
+
+
+@pass_context
+def _page_money(ctx, x: float) -> str:
+    """The |fimoney filter: the page's language picks the decimal mark."""
+    return fi_money(x, ui_lang(ctx["request"]) if "request" in ctx else "fi")
 
 
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
-templates.env.filters["fimoney"] = fi_money
+templates.env.filters["fimoney"] = _page_money
 _MERCHANT_FI = {"Grocery store": "Ruokakauppa", "Restaurant": "Ravintola", "Health": "Terveys", "Transport": "Liikenne",
                 "Shop": "Kauppa", "Entertainment": "Viihde", "Home & tech store": "Koti ja tekniikka", "Travel": "Matkat",
                 "Merchant": "Kauppias"}
@@ -1906,7 +1914,8 @@ def smobiili_investments(request: Request):
     ifs = pf.get("if_your_deposits_were_in_each_fund") or {}
     years = pf["by_year_eur"]
     return pk_sub(request, "p-sijoitukset", ("Sijoitukset", "Investments"), PANKKI_TAB, pf=pf,
-                  inv=inv and {**inv, "next": pk_day(inv.get("next_expected"), lang)},
+                  inv=inv and {**inv, "next": pk_day(inv.get("next_expected"), lang),
+                                "last_paid": pk_day((inv.get("last_payment") or {}).get("date"), lang)},
                   paused=bool(e.state.get("paused", {}).get("investment_deposit")),
                   funds=[r for r in ifs.get("results") or [] if r], as_of=pk_day(ifs.get("as_of"), lang),
                   years=years, top=max(years.values(), default=0) or 1, plans=pf["new_plans"])
