@@ -7,6 +7,7 @@
   - Watch the cap of 20,000 characters a day (`app/tts.py` `DAILY_CHARS`). Don't burn it in rehearsals.
 - [ ] `WA_TOKEN` is valid (the system user token expires 13 Jan 2027).
 - [ ] `WA_APP_SECRET` is set. Without it the webhook signature check is skipped (`app/whatsapp.py` `verify_signature`).
+- [ ] `WA_DISPLAY_NUMBER` is set, so S-mobiili shows **Back to WhatsApp** after Face ID.
 - [ ] `DEMO_PHONE` is the stage phone, and `/demo?key=<WA_VERIFY_TOKEN>` opens.
 - [ ] The live site serves the latest build. Bump `INSTANCE` in `wrangler.jsonc` only if a fresh container is needed (`README.md`, Deploy).
 
@@ -16,12 +17,13 @@
   - `/demo/remind` doesn't check the window, and Meta rejects the message if it's closed (`app/main.py` `demo_remind`).
 - [ ] On the /demo panel, press **Reset demo** (`POST /demo/reset`). This resets the balance, goals, games and chats for every customer.
 - [ ] Check that the WhatsApp connection is still there after the reset (`docs/aprobare-whatsapp.md` §6).
+- [ ] A container restart also wipes the in-memory app-chat mirror (`app/mirror.py`). Don't redeploy after warm-up.
 - [ ] Wake the container: open `/s-mobiili/` and `/chat` once. It stays warm for 1 hour after the last request (`worker/index.ts`).
 - [ ] Run every scripted question once, in order (`docs/pitch/demo-script.md`).
   - Note the figures shown.
   - Check that the answers don't trail "The basket game is paused …" (audit item 5).
   - Fix with a reset if they do.
-- [ ] Take a screenshot of the WhatsApp rent reminder and the "✅ Rent paid" message, for the no-network fallback.
+- [ ] Take a screenshot of the WhatsApp rent reminder and the "Rent paid: …" message, for the no-network fallback.
 - [ ] **Reset demo again**, then send only "hi" so the window stays open. Don't run the rent reminder yet.
 
 ## 3. Network

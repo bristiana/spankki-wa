@@ -11,14 +11,14 @@ S-mobiili home cards (/api/widgets) ──┘        └ number guard + guardrai
 |---|---|---|
 | Engine | Baskets, safe to spend and save, bills, what-if, backtests, peers. Deterministic, 815 tests passing | `app/engine.py`, `tests/` |
 | AI | `claude-opus-5-5` at low effort, max 6 tool rounds, usually 2 calls per answer, prompt caching on | `app/agent.py` (`MODEL`, `MAX_TOOL_ROUNDS`, `cache_control`) |
-| Tools | 24, all over the engine; `explore_my_data` takes enum parameters only, so no code or SQL comes from the model | `app/tools.py`, `app/bills.py` (`TOOL`) |
+| Tools | 24, all over the engine; `explore_my_data` takes enum parameters plus two date fields, so no code or SQL comes from the model | `app/tools.py`, `app/bills.py` (`TOOL`) |
 | Number guard | Every figure in a reply is matched to tool results or the user's words. On a mismatch: one rewrite, and the result is shown in "How I worked this out" | `app/guard.py`, `app/agent.py`, `app/explain.py` |
 | Hosting | Cloudflare Worker in front of a Python container. State lives in a Durable Object, so it survives a redeploy. Cron at 07, 12 and 17 UTC | `worker/index.ts`, `wrangler.jsonc`, `Dockerfile` |
 | Voice | Web: ElevenLabs `eleven_multilingual_v2` for speech, Scribe for the mic. WhatsApp voice notes: Whisper on Workers AI | `app/tts.py`, `app/stt.py`, `app/voice.py` |
 
 ## Data flow
 1. A message arrives through the WhatsApp webhook (HMAC `X-Hub-Signature-256` checked) or the web chat.
-2. PINs, CVVs, card numbers, codes and passwords are detected before the AI is called. A message that has one never reaches the model, and Oiva asks the person to delete it. IBANs and personal IDs are redacted (`app/guardrails.py` `secrets`, `redact`; `app/main.py`).
+2. PINs, CVVs, card numbers, codes and passwords are caught before the AI is called. The secret itself never reaches the model: Oiva asks the person to delete it, and answers any rest of the question without it. IBANs and personal IDs are redacted (`app/guardrails.py` `secrets`, `redact`; `app/main.py`).
 3. Claude calls tools. Tool text that reads like an instruction is defanged before it reaches the model (`guardrails.defang`).
 4. The engine computes. The model writes. The guard checks the figures. Guardrails rewrite once any "I paid it", urgency or return promise (`app/guardrails.py` `reply_problems`).
 5. Money moves only on a confirm page (`/pay`, `/save`, `/invest`, `/stop`, the S-mobiili Face ID mock). Double confirms and overdrafts are refused (`app/engine.py` `confirm`).
@@ -60,14 +60,14 @@ Assumptions:
 
 | Item | Price used (read 15 Nov 2026) | Per user per month |
 |---|---|---|
-| Claude Opus 5.5 | $4 / M input, $20 / M output, $0.20 / M cache read, $5 / M 5-min cache write ([pricing](https://platform.claude.com/docs/en/about-claude/pricing)) | **≈ $1.20 – 2.40** (warm cache to cold: ≈ $0.04 – 0.08 per answer) |
-| Same on Sonnet 5.5 | $2 / $10, cache read $0.10 | ≈ $0.60 – 1.20 |
+| Claude Opus 5.5 | $4 / M input, $20 / M output, $0.20 / M cache read, $5 / M 5-min cache write ([pricing](https://platform.claude.com/docs/en/about-claude/pricing)) | **≈ $1.40 – 2.60** (warm cache to cold: ≈ $0.05 – 0.09 per answer) |
+| Same on Sonnet 5.5 | $2 / $10, cache read $0.10 (same page) | ≈ $0.70 – 1.30 |
 | ElevenLabs speech (`eleven_multilingual_v2`) | $0.08 / 1K characters ([API pricing](https://elevenlabs.io/pricing/api)) | ≈ $0.24 |
 | ElevenLabs Scribe (mic) | $0.20 / hour | < $0.01 |
 | WhatsApp service messages | Free for the first 1,000 a month per business number, charged after that since 1 Oct 2026 ([Meta](https://developers.facebook.com/docs/whatsapp/pricing)) | ≈ $0 at pilot scale; the rate at scale is on Meta's rate card, not checked |
 | Cloudflare | Workers Paid $5 a month base, plus container time ([pricing](https://developers.cloudflare.com/containers/pricing/)) | shared, small |
 
-**About $1.45–2.65 per active user a month on Opus.** Learn, the basket game and onboarding need no AI (`app/learn.py`, `app/quiz.py`, `app/onboarding.py`), so they cost nothing.
+**About $1.65–2.85 per active user a month on Opus**, before thinking tokens (effort is low, but they bill as output) and the odd guard rewrite (a third call). The 8.2k-token prefix (system prompt plus tools) is cached and shared by all users, so at scale the warm end applies (`app/agent.py` `cache_control`). Learn, the basket game and onboarding need no AI (`app/learn.py`, `app/quiz.py`, `app/onboarding.py`), so they cost nothing.
 
 This is an estimate: the app does not log token usage yet. That's the first thing to add for a pilot.
 
