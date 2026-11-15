@@ -24,6 +24,7 @@
   const phone = document.getElementById("phone");
   const stage = document.getElementById("stage"), pal = document.getElementById("pal");
   const say = stage && stage.querySelector(".say"), tag = document.getElementById("say-tag"), line = document.getElementById("say-text");
+  const bars = document.getElementById("say-bars");
   const voiceBtn = document.getElementById("voice");
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -46,12 +47,53 @@
     let s = peer || all[0] || "";
     return s.length > 150 ? s.slice(0, 146).replace(/\s+\S*$/, "") + " …" : s;
   }
+  // Two bars from the reply's own figures (its trace, explain.py), never parsed from the prose: you vs people like
+  // you, the price vs what is free until payday, now vs after a cut, this period vs the one before.
+  const amt = v => { const x = parseFloat(String(v || "").replace(/[\s\u00a0€]/g, "").replace(",", ".")); return isFinite(x) ? x : null; };
+  function pairFor(m, trace, parts) {
+    const figs = (trace || []).flatMap(t => (t && t.figures) || []);
+    const get = l => { const f = figs.find(x => x.label === l); return f ? amt(f.value) : null; };
+    // only figures the reply itself says, and both above zero (no "before: 0 €" when there was no earlier period)
+    const said = String((parts || []).join(" ")).replace(/[\s\u00a0]/g, "").replace(/,/g, ".");
+    const inReply = x => said.includes(x.toFixed(2));
+    const two = (a, b, la, lb, over) => (a > 0 && b > 0 && (inReply(a) || inReply(b))) ? { a, b, la, lb, over } : null;
+    if (m === "compare") {
+      const p = two(get("Your month"), get("Typical month"), T("Sinä", "You"), T("Tyypillinen", "Typical"));
+      if (p) return p;  // a single category (spender profile) has no label in the page language: no bars
+    }
+    if (m === "caution" || m === "safe_to_spend") {
+      const price = get("Price"), free = get("Safe until payday");
+      if (price != null) return two(price, free, T("Hinta", "Price"), T("Vapaana", "Free now"), price > free);
+    }
+    if (m === "what_if") return two(get("Now per month"), get("After the cut"), T("Nyt", "Now"), T("Jälkeen", "After"));
+    if (m === "spent") return two(get("Total"), get("Period before"), T("Tämä", "This time"), T("Edellinen", "Before"));
+    return null;
+  }
+  function eur(x) { return nb(Math.round(x).toLocaleString(fi ? "fi-FI" : "en-GB").replace(/[,\u202f]/g, " ") + " €"); }
+  function drawBars(p) {
+    if (!bars) return false;
+    bars.textContent = "";
+    if (!p) return false;
+    const top = Math.max(p.a, p.b) || 1;
+    [[p.la, p.a, p.over ? "over" : "you"], [p.lb, p.b, ""]].forEach(([l, v, c]) => {
+      const s = document.createElement("span"); s.textContent = l;
+      const i = document.createElement("i"); if (c) i.className = c;
+      const b = document.createElement("b"); i.appendChild(b); b.dataset.w = Math.max(4, 100 * v / top).toFixed(1) + "%";
+      const e = document.createElement("em"); e.textContent = eur(v);
+      bars.append(s, i, e);
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => bars.querySelectorAll("b").forEach(b => b.style.width = b.dataset.w)));
+    return true;
+  }
   function pose(name) {
     mood = name;
-    if (oiva) oiva.setState(name);
+    if (oiva) { oiva.setState(name); oiva.setFps(name === "idle" ? 20 : 30); }
   }
-  function show(name, text, thinking) {
+  function show(name, text, thinking, pair) {
     if (!say) return;
+    const withBars = !thinking && drawBars(pair);
+    say.classList.toggle("has-bars", withBars);
+    if (withBars && text.length > 80) text = "";  // the bars already say it; no clipped sentence under them
     say.dataset.mood = name;
     say.classList.remove("rest");
     tag.textContent = TAGS[name] || "";
@@ -64,6 +106,7 @@
     idleTimer = setTimeout(function rest() {
       if (window.speechSynthesis && speechSynthesis.speaking) { idleTimer = setTimeout(rest, 2000); return; }
       pose("idle");
+      if (oiva) oiva.setFps(20);  // resting: calmer and cheaper
       if (say) say.classList.add("rest");  // the tag fades with the pose; the sentence stays readable
     }, ms);
   }
@@ -108,7 +151,7 @@
     if (remember) store.set("oiva-mode", m);
     if (stage) stage.hidden = !helper;
     if (helper && !oiva && window.Oiva && pal) {
-      oiva = window.Oiva.create(pal, { palette: "red", state: mood, hoverReact: true });  // a tap pokes him (oiva.js)
+      oiva = window.Oiva.create(pal, { palette: "red", state: mood, hoverReact: true, fps: 30 });  // a tap pokes him (oiva.js)
     }
     if (!helper && oiva) { oiva.destroy(); oiva = null; }
     if (!helper && canSpeak) speechSynthesis.cancel();
@@ -130,24 +173,36 @@
     visualViewport.addEventListener("resize", fit); fit();
   }
 
+  // ---- where he looks: at what you type, then at the bubble he answers in ----
+  let lookTimer = 0;
+  function glance(el, ms) {
+    if (!oiva || !el) return;
+    const r = el.getBoundingClientRect();
+    oiva.lookAt(r.left + Math.min(r.width / 2, 120), r.top + r.height / 2);
+    clearTimeout(lookTimer);
+    lookTimer = setTimeout(() => oiva && oiva.lookAt(null), ms);
+  }
+
   // ---- what the chat tells us ----
   window.oivaHelper = {
     listening() {  // only the pose: the last reply's sentence stays in the bubble while you type
       if (mood === "thinking") return;
       clearTimeout(idleTimer);
       if (mood !== "listening") pose("listening");
+      glance(document.getElementById("q"), 4000);
       restLater(8000);
     },
     thinking() {
       clearTimeout(idleTimer); pose("thinking");
       if (canSpeak) speechSynthesis.cancel();
-      show("thinking", T("Hetkinen, katson lukujasi…", "One moment, looking at your numbers…"), true);
+      show("thinking", "", true);
     },
-    reply(name, parts) {
+    reply(name, parts, trace) {
       const m = (window.Oiva && window.Oiva.STATES.includes(name)) ? name : "success";
       last = first(parts, m); lastParts = parts || [];
       pose(m);
-      show(m, last || T("Tässä.", "Here you go."));
+      show(m, last || T("Tässä.", "Here you go."), false, pairFor(m, trace, parts));
+      glance(say, 2500);
       speak(parts);
       restLater(12000);
     },

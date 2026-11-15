@@ -638,7 +638,9 @@
       return { x: soft((src.x - (r.left + r.width * 0.5)) / RANGE), y: soft((src.y - (r.top + r.height * 0.5)) / RANGE) };
     }
 
+    let fps = opts.fps || 0;                   // 0 = the display's rate; the chat helper caps it (calmer, cheaper)
     function frame(now) {
+      if (fps && now - last < 1000 / fps - 2) { raf = requestAnimationFrame(frame); return; }
       const dt = Math.max(1e-3, Math.min(0.05, (now - last) / 1000)); last = now; t += dt;
       const rm = reduced(), motion = rm ? 0 : 1;
 
@@ -937,6 +939,7 @@
       lookAt(x, y) { manual = x == null ? null : { x, y }; },
       setTrackPointer(on) { trackPointer = !!on; if (!on) pointer = null; },
       setReducedMotion(v) { rmSetting = v; },
+      setFps(v) { fps = Math.max(0, +v || 0); },
       destroy() {
         cancelAnimationFrame(raf);
         global.removeEventListener('pointermove', onMove);

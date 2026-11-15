@@ -126,11 +126,11 @@
     <button type="button" data-mode="chat" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-4 3.5V16H4z"/></svg>Chat</button>
     <button type="button" data-mode="helper" aria-pressed="false"><img src="/static/oiva/oiva.png" alt="" width="16" height="16">{{ t("Apuri", "Helper") }}</button>
   </span>
-  <button type="button" class="voice" id="voice" aria-pressed="false" title="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h4l5-4v13l-5-4H4z"/><path class="w" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>{{ t("Mykistetty", "Muted") }}</span></button>
+  <button type="button" class="voice" id="voice" aria-pressed="false" title="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}" aria-label="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h4l5-4v13l-5-4H4z"/><path class="w" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>{{ t("Mykistetty", "Muted") }}</span></button>
 </div>
 <section id="stage" hidden aria-label="{{ t('Oiva-apuri', 'Oiva helper') }}">
   <div id="pal" aria-hidden="true"></div>
-  <div class="say" aria-hidden="true"><span class="tag" id="say-tag"></span><p id="say-text"></p></div>
+  <div class="say" aria-hidden="true"><span class="tag" id="say-tag"></span><div class="bars" id="say-bars"></div><span class="dots"><b></b><b></b><b></b></span><p id="say-text"></p></div>
 </section>
 <div id="log" aria-live="polite" aria-label="{{ t('Keskustelu Oivan kanssa', 'Conversation with Oiva') }}">
   <div class="msg bot" id="hello">{% if ui_lang(request) == 'en' %}Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.{% else %}Hei {{ name }}! Olen <b>Oiva</b>, S-Pankin rahavalmentajasi. Kysy minulta mitä vain rahoistasi.{% endif %}</div>
@@ -268,7 +268,7 @@ async function send(text, shown, image) {
     act(r.ok ? "talk" : "worried", 2600);
     // One bubble per part, a beat apart, like a person typing; buttons and charts ride on the last one.
     const parts = (j.bubbles && j.bubbles.length) ? j.bubbles : (j.text ? [j.text] : []);
-    H.reply(r.ok ? j.mood : "error", parts);
+    H.reply(r.ok ? j.mood : "error", parts, j.trace);
     const extras = (j.charts || []).length || (j.buttons || []).length || (j.quick || []).length;
     if (!parts.length && !extras) { if (mine) reveal(mine); return; }  // nothing to say (on WhatsApp this is a reaction only)
     let d = null;
