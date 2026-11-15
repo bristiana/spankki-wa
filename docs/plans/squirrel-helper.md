@@ -153,7 +153,7 @@ its own, at most one per section. Each opens the Helper asking its question in t
 | Koti | 3 baskets card (was already there) | Where does my money go? |
 | Koti | Savings and investments card | How much could I save a month? |
 | Koti | Transactions card | What have I spent the most on lately? |
-| Pankki | top | What bills do I have coming up? |
+| Pankki | top | Which bills are coming up? |
 | Pankki → Your money | each chart and the floating Oiva (already there) | per chart |
 | Kortti | under Transactions | Where did my money go this month? |
 | S-Etukortti | under the offers | How much do I spend on groceries a month? |

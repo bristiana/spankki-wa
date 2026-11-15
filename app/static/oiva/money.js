@@ -162,7 +162,7 @@
     const fast = i => i.limit_eur > 0 && i.spent_eur / i.limit_eur > paceShare;
     // one short line per bar: the data's "over" first, then the computed pace
     const word = i => i.status === "over" ? ["over", T("Budjetti ylitetty", "Over budget")] : i.spent_eur === 0 ? ["ok", T("Ei vielä kulutusta", "Nothing spent yet")]
-      : fast(i) ? ["fast", T("Liian nopeaa tahtia", "Faster than even pace")] : ["ok", T("Tasaisen tahdin sisällä", "Within even pace")];
+      : fast(i) ? ["fast", T("Tasaista nopeammin", "Faster than even pace")] : ["ok", T("Tasaisen tahdin sisällä", "Within even pace")];
     const nWithin = set.filter(i => i.status !== "over").length;
     const nFast = set.filter(i => i.status !== "over" && fast(i)).length;
     host.innerHTML = `<p class="k">${T("Budjeteissa jäljellä", "Left in your budgets")}</p><p class="hero">${hero(left)}</p>

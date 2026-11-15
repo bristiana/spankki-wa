@@ -359,12 +359,12 @@ STOP_WORDS = {"stop", "unsubscribe", "delete my data", "switch off", "lopeta"}
 SWITCHED_OFF = {  # what STOP did, said the way the privacy page (PRIVACY) and the consent note (connect.html) say it
     "en": "Done. Oiva is switched off for this number and our chat history is deleted. While Oiva was on, your "
           "messages and the numbers needed to answer them went to Anthropic (the AI) and through Meta (WhatsApp). "
-          "A bank you linked stays linked until you remove it on the Add a bank page. "
-          "Write *Hi* any time to start again.",
-    "fi": "Valmis. Oiva on nyt pois päältä tästä numerosta, ja keskusteluhistoriamme on poistettu. Kun Oiva oli "
-          "päällä, viestisi ja vastauksiin tarvittavat luvut kulkivat Anthropicille (tekoäly) ja Metan kautta "
-          "(WhatsApp). Linkittämäsi pankki pysyy linkitettynä, kunnes poistat sen Lisää pankki -sivulla. "
-          "Kirjoita *Hei*, niin aloitetaan alusta.",
+          "Other banks you linked stay linked until you remove them on the Add a bank page. "
+          "Message me any time to connect again.",
+    "fi": "Valmis. Oiva on nyt pois päältä tässä numerossa, ja keskusteluhistoriamme on poistettu. Kun Oiva oli "
+          "päällä, viestisi ja vastauksiin tarvittavat luvut menivät Anthropicille (tekoäly) ja Metan kautta "
+          "(WhatsApp). Muut yhdistämäsi pankit pysyvät yhdistettyinä, kunnes poistat ne Add a bank -sivulla. "
+          "Kirjoita milloin tahansa, niin voit yhdistää uudelleen.",
 }
 
 
@@ -378,6 +378,8 @@ def switch_off(to: str, lang: str = "en"):
     quiz.forget(engine, to)
     learn.forget(engine, to)
     names.pop(to, None)
+    if mirror.is_owner(to):  # the app's copy of the owner's WhatsApp chat goes too, as the reply says
+        mirror.reset()
     wa.send_text(to, SWITCHED_OFF["fi" if lang == "fi" else "en"])
 
 
