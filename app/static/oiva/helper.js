@@ -35,7 +35,7 @@
 
   function plain(s) { return String(s || "").replace(/[*_]/g, "").replace(/\s+/g, " ").trim(); }
   // amounts never break across lines in the bubble: "3 345.06 €" keeps its spaces non-breaking
-  function nb(s) { return s.replace(/(\d) (?=\d{3}(?!\d))/g, "$1\u00a0").replace(/(\d) €/g, "$1\u00a0€"); }
+  function nb(s) { return s.replace(/\bS-(?=[A-Za-zÄÖäö])/g, "S\u2011").replace(/(\d) (?=\d{3}(?!\d))/g, "$1\u00a0").replace(/(\d) €/g, "$1\u00a0€"); }
   // The bubble: one sentence, not a copy of the log. For a comparison, the sentence that holds it (a spender
   // profile opens with the type and compares in its second part).
   const PEER = /\b(people|customers|typical|average|most|others|their|year[- ]olds|asiakk\w*|tyypilli\w*|keskim\w*|muut\w*|muill\w*|kaltais\w*|ikäis\w*|\w*vuotiai\w*)\b|\d+\s*[–-]\s*\d+[- ]?(year|vuot)/i;
@@ -45,6 +45,13 @@
     // a comparison: the sentence with both a peer word and an amount, else any peer sentence
     const peer = m === "compare" && (all.find(x => PEER.test(x) && /\d[\d\s.,]*\s?€/.test(x)) || all.find(x => PEER.test(x)));
     let s = peer || all[0] || "";
+    // a long sentence keeps its point, the part before the colon ("…is a bit above theirs: 274.80 € …")
+    const c = s.indexOf(": ");
+    if (s.length > 110 && c > 30) s = s.slice(0, c) + ".";
+    if (s.length > 110) {  // or the part before its second clause ("…454.79 € a month on groceries, and the middle half…")
+      const m = /,\s(and|but|while|ja|mutta|kun)\s/.exec(s.slice(40));
+      if (m) s = s.slice(0, 40 + m.index) + ".";
+    }
     return s.length > 150 ? s.slice(0, 146).replace(/\s+\S*$/, "") + " …" : s;
   }
   // Two bars from the reply's own figures (its trace, explain.py), never parsed from the prose: you vs people like
@@ -56,20 +63,26 @@
     // only figures the reply itself says, and both above zero (no "before: 0 €" when there was no earlier period)
     const said = String((parts || []).join(" ")).replace(/[\s\u00a0]/g, "").replace(/,/g, ".");
     const inReply = x => said.includes(x.toFixed(2));
-    const two = (a, b, la, lb, over) => (a > 0 && b > 0 && (inReply(a) || inReply(b))) ? { a, b, la, lb, over } : null;
+    const two = (a, b, la, lb, over, zeroOk) => (a > 0 && b != null && (b > 0 || zeroOk) && (inReply(a) || inReply(b)))
+      ? { a, b, la, lb, over } : null;
     if (m === "compare") {
-      const p = two(get("Your month"), get("Typical month"), T("Sinä", "You"), T("Tyypillinen", "Typical"));
+      const you = get("Your month"), typ = get("Typical month");  // above typical is not drawn as "good" green
+      const p = two(you, typ, T("Sinä", "You"), T("Tyypillinen", "Typical"), you > typ * 1.1);
       if (p) return p;  // a single category (spender profile) has no label in the page language: no bars
     }
     if (m === "caution" || m === "safe_to_spend") {
       const price = get("Price"), free = get("Safe until payday");
-      if (price != null) return two(price, free, T("Hinta", "Price"), T("Vapaana", "Free now"), price > free);
+      if (price != null) return two(price, free, T("Hinta", "Price"), T("Vapaana", "Free now"), price > free, true);
     }
     if (m === "what_if") return two(get("Now per month"), get("After the cut"), T("Nyt", "Now"), T("Jälkeen", "After"));
     if (m === "spent") return two(get("Total"), get("Period before"), T("Tämä", "This time"), T("Edellinen", "Before"));
     return null;
   }
-  function eur(x) { return nb(Math.round(x).toLocaleString(fi ? "fi-FI" : "en-GB").replace(/[,\u202f]/g, " ") + " €"); }
+  function eur(x) {  // as the reply writes it: cents under 1 000 €, whole euros above
+    const d = Math.abs(x) < 1000 ? 2 : 0;
+    const s = x.toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/,/g, " ");
+    return nb((fi ? s.replace(".", ",") : s) + " €");
+  }
   function drawBars(p) {
     if (!bars) return false;
     bars.textContent = "";
@@ -106,7 +119,6 @@
     idleTimer = setTimeout(function rest() {
       if (window.speechSynthesis && speechSynthesis.speaking) { idleTimer = setTimeout(rest, 2000); return; }
       pose("idle");
-      if (oiva) oiva.setFps(20);  // resting: calmer and cheaper
       if (say) say.classList.add("rest");  // the tag fades with the pose; the sentence stays readable
     }, ms);
   }
@@ -151,7 +163,7 @@
     if (remember) store.set("oiva-mode", m);
     if (stage) stage.hidden = !helper;
     if (helper && !oiva && window.Oiva && pal) {
-      oiva = window.Oiva.create(pal, { palette: "red", state: mood, hoverReact: true, fps: 30 });  // a tap pokes him (oiva.js)
+      oiva = window.Oiva.create(pal, { palette: "red", state: mood, hoverReact: true, fps: mood === "idle" ? 20 : 30 });  // a tap pokes him (oiva.js)
     }
     if (!helper && oiva) { oiva.destroy(); oiva = null; }
     if (!helper && canSpeak) speechSynthesis.cancel();
@@ -210,7 +222,7 @@
   };
   const hello = document.getElementById("hello");
   if (hello) {  // the greeting: its first two sentences ("Hi Antti! I'm Oiva, your S-Pankki money coach.")
-    last = sentences(hello.textContent).slice(0, 2).join(" "); lastParts = [hello.textContent]; show("", last);
+    last = plain(hello.textContent); lastParts = [hello.textContent]; show("", last);
   }
   setMode(startMode, false);
   pose("idle");

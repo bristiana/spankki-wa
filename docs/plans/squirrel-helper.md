@@ -75,7 +75,7 @@ a reply state Oiva eases back to `idle` and the tag fades.
 deposit and price range, so it is `saving`, not `compare` (a review found the compare tag over an answer that
 mentioned nobody else).
 
-## 4. Layout (360 px, light and dark)
+## 4. Layout (360 px)
 
 ```
 ┌ header: back · Oiva · FI|EN ───────────┐
@@ -95,8 +95,15 @@ mentioned nobody else).
 - Room is a trade-off between "bigger" and "space for the conversation": with the S-mobiili frame and tab bar the log
   gets about 45-50 % of a 360×760 screen; embedded in the app (no tab bar) more than half.
 - The stage shrinks to a strip when the keyboard opens (visual viewport < 560 px: 76 px squirrel, bubble 2 lines).
-- Light uses the chat's S-mobiili tokens. Dark (`prefers-color-scheme: dark`) is scoped to helper mode so chat mode
-  stays exactly as it is: dark green-black surfaces from `base.html`'s dark tokens, a soft spotlight behind Oiva.
+- Colours, theme and font are the chat's own (chat.html `:root`), light like the chat: no palette or dark mode of
+  Helper's own, so switching modes never changes the theme. Caution uses base.html's light warn `#8a5a00`.
+- The bubble: the tag (sentence case, green; warn for caution) and one short sentence; long ones keep the part before a
+  colon or second clause. For compare, caution/safe to spend, what if and spent, two bars from the reply's own trace
+  figures (you vs typical, price vs free now, now vs after, this time vs before), only when the reply states one of
+  those amounts. Your bar is warn-coloured when it is the worse one. The greeting lives in the bubble (the log copy is
+  only for screen readers); the chat's three dots show in the bubble while Oiva thinks.
+- Oiva glances at the input while you type and at the bubble when a reply lands; animation is capped at 30 fps
+  (20 at rest).
 - Font: the app's `--font`; amounts keep non-breaking spaces (`nb()`).
 
 ## 5. Talking
@@ -124,10 +131,6 @@ mentioned nobody else).
 - The S-mobiili home screen and "Your money" keep their current art.
 - Messages that arrive from WhatsApp in the owner's mirrored chat take `success`; only replies typed in the app carry a
   real mood.
-- oiva.js animates at the display's frame rate while Helper mode is on (0 in Chat mode, paused in hidden tabs); no
-  frame-rate cap.
-- Dark mode applies to Helper mode only, so with a dark OS the switch also changes light/dark; Chat mode stays light
-  as it was.
 
 ## 8. Tests
 
