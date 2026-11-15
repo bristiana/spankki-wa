@@ -399,7 +399,7 @@
     <script>document.getElementById("trend").addEventListener("click", e => e.target.closest("svg") && e.preventDefault());  // the chart scrubs, the rest asks</script>
     <script src="/static/oiva/money.js" defer></script>
   {% elif screen == "tab" and tab == "mina" %}
-    <section class="me-head"><div class="avatar" aria-hidden="true">{{ name[:1] }}</div><b>{{ full_name or name }}</b></section>
+    <section class="me-head"><div class="avatar" aria-hidden="true">{{ (full_name or name)[:1] }}</div><b>{{ full_name or name }}</b></section>
     <div class="pad">
       <div class="card row-card">{{ icon("me") }}<span class="txt"><b>{{ t("Omat tiedot", "My details") }}</b><small>{{ t("Yhteystiedot, asiakasomistajuus, viestintä, yksityisyys", "Contact details, co-op membership, communication, privacy") }}</small></span>{{ icon("chevron", "i chev") }}</div>
       <h2 class="sec">{{ t("Tunnistaminen", "Identification") }}</h2>
