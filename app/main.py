@@ -12,7 +12,7 @@ import os
 import re
 import threading
 import time
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -27,7 +27,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import bills, broker, enable_banking, guardrails, learn, mirror, mood, onboarding, quiz, receipts, rules, tts, voice
 from . import whatsapp as wa
 from .agent import Coach
-from .engine import BASKETS, DEMO_BANK, HIDE_DEMO_BANK, FUNDS_BY_ID, RESERVE_NOTE_EUR, Engine
+from .engine import BASKETS, DEMO_BANK, HIDE_DEMO_BANK, FUNDS_BY_ID, RESERVE_NOTE_EUR, Engine, eur, merchant_name
 from .tools import confirm_url, pending_id_of, public_url, with_web
 
 load_dotenv()
@@ -1248,12 +1248,15 @@ def sm_flow(route: str, e: Engine, p: dict, lang: str = "en") -> dict:
     day = lambda iso: fi_day(iso) if fi else nice_date(iso)  # noqa: E731
     acct = T("Käyttötili", "Current account")
     if route == "pay":
-        photo = p.get("source") == "photo"  # a bill photo (bills.py): the bill's own IBAN and reference
+        photo = p.get("source") in ("photo", "manual")  # a bill photo (bills.py) or a typed new payment: its own
+        # IBAN and reference
         to = p["name"] if photo else recipient(p)
         due = f", due {nice_date(p['due_date'])}" if p.get("due_date") else ""
         return {"title": T("Maksa lasku", "Pay a bill"), "fi": "Maksu", "heading": p["name"], "amount": money(p["amount"]),
                 "rows": [("recipient", "Recipient", to), ("iban", "IBAN", bill_iban(p) if photo else DEMO_IBAN),
-                         ("reference", "Reference", (p.get("reference") or T("ei laskussa", "none on the bill"))
+                         ("reference", "Reference", (p.get("reference") or (T("ei viitettä", "none")
+                                                                            if p.get("source") == "manual"
+                                                                            else T("ei laskussa", "none on the bill")))
                           if photo else demo_reference(p["bill_id"])),
                          ("due", "Due date", day(p["due_date"]) if p.get("due_date") else "-"),
                          ("from", "From", acct)],
@@ -1337,7 +1340,9 @@ def sm_ctx(request: Request, persona: str, **extra) -> dict:
     return {"wa": wa_back(request), "web": bool(q.get("web")), "autoplay": q.get("autoplay") == "1",
             "ask": lambda fi="", en_q="": chat_url(request, en_q if en else fi, persona),
             "home_url": tab_url(None), "tab_urls": {t: tab_url(t) for t in SM_TABS if t != "koti"},
-            "name": name_for(persona), "full_name": full_name(persona), "tab": "koti", **extra}
+            "name": name_for(persona), "full_name": full_name(persona), "tab": "koti",
+            "keep": "?" + urlencode({k: v for k, v in keep.items() if k != "autoplay"}) if set(keep) - {"autoplay"} else "",
+            **extra}
 
 
 # The real app's bottom bar: Koti · S-Etukortti · (+) Maksu · Pankki · Minä. "kortti" is the card page under Pankki.
@@ -1420,7 +1425,7 @@ def sm_ready(request: Request, e: Engine) -> dict | None:
     if ui_lang(request) == "fi":
         amt_fi = nb(fi_money(p["amount"]).replace(",00 €", " €"))
         if route == "pay":
-            to = p["name"] if p.get("source") == "photo" else recipient(p)
+            to = p["name"] if p.get("source") in ("photo", "manual") else recipient(p)
             due = f" · eräpäivä {fi_date(p['due_date'])}" if p.get("due_date") else ""
             what, sub = f"Maksa: {p['name']} · {fi_money(p['amount'])}", f"Saaja {to}{due}"
         elif route == "save":
@@ -1434,7 +1439,7 @@ def sm_ready(request: Request, e: Engine) -> dict | None:
             sub = (f"Seuraava olisi ollut {fi_date(p['next_charge'])}. " if p.get("next_charge") else "") + \
                 "Jo sijoitettu pysyy sijoitettuna"
     elif route == "pay":
-        to = p["name"] if p.get("source") == "photo" else recipient(p)
+        to = p["name"] if p.get("source") in ("photo", "manual") else recipient(p)
         due = f" · due {nice_date(p['due_date'])}" if p.get("due_date") else ""
         what, sub = f"Pay {p['name'].lower()} · {money(p['amount'])}", f"To {to}{due}"
     elif route == "save":
@@ -1503,10 +1508,11 @@ def sm_keep(request: Request) -> str:
     return "?" + keep if keep else ""
 
 
-def sm_sub(request: Request, persona: str, extra: str, title: str, back: str | None = None, **more):
-    """back: where the chevron goes (default: the S-Etukortti tab)."""
+def sm_sub(request: Request, persona: str, extra: str, title: str, back: str | None = None, tab: str = "etukortti",
+           **more):
+    """back: where the chevron goes (default: the S-Etukortti tab). tab: which bottom-bar tab is lit."""
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
-        request, persona, screen="extra", extra=extra, page_title=title, tab="etukortti", steps=[], ready=None,
+        request, persona, screen="extra", extra=extra, page_title=title, tab=tab, steps=[], ready=None,
         keep=sm_keep(request), back_url=back, **more))
 
 
@@ -1528,8 +1534,285 @@ def smobiili_receipt(request: Request, row_id: int):
     r = receipts.build(engine_for(persona), row_id, persona)
     if not r:
         raise HTTPException(404)
+    if request.query_params.get("from") == "kortti":  # opened from Pankki -> Card -> Card transactions
+        return sm_sub(request, persona, "kuitti", tr(ui_lang(request), "Kassakuitti", "Receipt"),
+                      "/s-mobiili/kortti/tapahtumat" + sm_keep(request), tab="pankki", r=r)
     return sm_sub(request, persona, "kuitti", tr(ui_lang(request), "Kassakuitti", "Receipt"),
                   "/s-mobiili/kuitit" + sm_keep(request), r=r)
+
+
+# ---------------- Pankki's tiles, one level down: accounts, payments, savings, investments, the card ----------------
+# Each tile on the Pankki tab opens its own screen with the customer's real data; money moves (a payment, a saving,
+# pausing investing) are prepared here and confirmed in the same Face ID flow as Oiva's buttons. Registered before
+# /s-mobiili/{route}/{pid} so /s-mobiili/maksut/uusi is not taken for a flow.
+PANKKI_BACK = {"maksut": ("/s-mobiili/maksut", "Takaisin maksuihin", "Back to Payments"),
+               "uusi": ("/s-mobiili/maksut", "Takaisin maksuihin", "Back to Payments"),
+               "e-laskut": ("/s-mobiili/maksut/e-laskut", "Takaisin e-laskuihin", "Back to e-invoices"),
+               "saastot": ("/s-mobiili/saastot", "Takaisin säästöihin", "Back to Savings"),
+               "sijoitukset": ("/s-mobiili/sijoitukset", "Takaisin sijoituksiin", "Back to Investments")}
+CATEGORY_FI = {"Restaurants": "Ravintolat", "Transportation": "Liikenne", "Groceries": "Ruokaostokset",
+               "Utilities": "Asumisen laskut", "Entertainment": "Viihde", "Health": "Terveys", "Housing": "Asuminen",
+               "Salary": "Palkka", "Home & Tech": "Koti ja tekniikka", "Invest Deposit": "Sijoitus",
+               "Lifestyle": "Vapaa-aika", "Travel": "Matkat", "Other Income": "Muut tulot",
+               "Invest Withdraw": "Sijoituksen nosto", "Savings": "Säästöt", "Other": "Muu maksu",
+               "Credit card": "Luottokortti"}
+BILL_FI = {"Rent": "Vuokra", "Monthly investment": "Kuukausisijoitus", "Utility bills": "Asumisen laskut",
+           "Monthly investing": "Kuukausisijoitus", "Salary": "Palkka"}
+
+
+def own_iban(e: Engine) -> str:
+    """The S-Tili's account number on the mock: S-Pankki's bank code 39, the customer number and check digits 00,
+    which no real Finnish IBAN has (so it can never be someone's real account)."""
+    raw = "FI0039390000" + re.sub(r"\D", "", e.customer_id or "")[-6:].rjust(6, "0")
+    return " ".join(re.findall(".{1,4}", raw))
+
+
+def pk_day(iso: str | None, lang: str) -> str:
+    if not iso:
+        return ""
+    d = date.fromisoformat(iso)
+    return f"{d.day}.{d.month}.{d.year}" if lang != "en" else f"{d.day} {d.strftime('%b')} {d.year}"
+
+
+def pk_short(iso: str | None, lang: str) -> str:
+    """A due date the short way: 3.11. / 3 Nov."""
+    if not iso:
+        return ""
+    d = date.fromisoformat(iso)
+    return f"{d.day}.{d.month}." if lang != "en" else f"{d.day} {d.strftime('%b')}"
+
+
+def pk_cat(cat: str, lang: str) -> str:
+    return cat if lang == "en" else CATEGORY_FI.get(cat, cat)
+
+
+def pk_tx(e: Engine, lang: str, n: int = 40) -> list[dict]:
+    """The S-Tili's latest transactions, newest first, grouped by day."""
+    days: list[dict] = []
+    for x in e.recent(n):
+        label = pk_day(x["date"], lang)
+        if not days or days[-1]["day"] != label:
+            days.append({"day": label, "rows": []})
+        days[-1]["rows"].append({**x, "category": pk_cat(x["category"], lang)})
+    return days
+
+
+def pk_bills(e: Engine, lang: str) -> list[dict]:
+    """Bills to pay now (rent, a linked card's bill): the ones with a bill id. Monthly investing is a plan, not a bill
+    (it is on Investments), and utilities come as several small bills with no single due date."""
+    return [{**b, "label": b["name"] if lang == "en" else BILL_FI.get(b["name"], b["name"]),
+             "due": pk_short(b["due_date"], lang)}
+            for b in e.upcoming_bills(45) if b["bill_id"] and b["category"] != "Invest Deposit"]
+
+
+def pk_regular(e: Engine, lang: str) -> list[dict]:
+    """Regular payments going out (rent, utilities, monthly investing), from the customer's own transactions."""
+    return [{**x, "label": x["name"] if lang == "en" else BILL_FI.get(x["name"], x["name"]),
+             "next": pk_day(x.get("next_expected"), lang)}
+            for x in e.commitments()["regular_payments"] if x["direction"] == "out"]
+
+
+def pk_card_tx(e: Engine, lang: str, n: int = 30) -> dict:
+    """Card purchases on the S-Tili (the S-Etukortti Visa's debit side): the real 'purchase' rows, newest first. A
+    grocery purchase links to its Kassakuitti receipt, as in S-mobiili."""
+    b = e.base
+    rows = b[(b["transaction_type"] == "purchase") & (b["date"] <= e.today)].iloc[::-1]
+    month0 = date(e.today.year, e.today.month, 1)
+    prev0 = date(month0.year - (month0.month == 1), (month0.month - 2) % 12 + 1, 1)
+    out = [{"id": int(i), "date": pk_day(r["date"].isoformat(), lang),
+            "what": merchant_name(r["merchant_id"]) or r["category"], "category": pk_cat(r["category"], lang),
+            "amount_eur": eur(r["tx_amount_eur"]), "receipt": r["category"] == "Groceries"}
+           for i, r in rows.head(n).iterrows()]
+    month = lambda d0, d1: eur(-rows[(rows["date"] >= d0) & (rows["date"] < d1)]["tx_amount_eur"].sum())  # noqa: E731
+    return {"rows": out, "this_month_eur": month(month0, e.today + timedelta(days=1)),
+            "last_month_eur": month(prev0, month0),
+            "last_month": prev0.strftime("%B") if lang == "en" else FI_MONTH_FROM[prev0.month - 1][:-3] + "ssa"}
+
+
+def pk_save_amounts(e: Engine, goal: dict) -> list[int]:
+    """The 'add money' choices: round amounts that fit what can move now without touching bills before payday, and
+    no more than the goal still needs."""
+    cap = min(e.safe_to_save()["now_max_eur"], e.balance())
+    left = max(0.0, goal["target"] - goal["saved"])
+    opts = {20, 50, 100, 200} | ({int(left)} if left >= 1 else set())
+    return sorted(x for x in opts if 1 <= x <= cap and (left < 1 or x <= left))
+
+
+def pk_keep(request: Request, url: str, **more) -> str:
+    keep = {**{k: request.query_params[k] for k in ("persona", "web") if request.query_params.get(k)}, **more}
+    return url + (("&" if "?" in url else "?") + urlencode(keep) if keep else "")
+
+
+def pk_sub(request: Request, extra: str, title: tuple[str, str], back: str, **more):
+    return sm_sub(request, sm_persona(request), extra, tr(ui_lang(request), *title), pk_keep(request, back),
+                  tab="pankki", **more)
+
+
+def pk_ctx(request: Request) -> tuple[Engine, str]:
+    return engine_for(sm_persona(request)), ui_lang(request)
+
+
+def pk_go(request: Request, path: str, frm: str | None = None) -> RedirectResponse:
+    return RedirectResponse(pk_keep(request, path, **({"from": frm} if frm else {})), status_code=303)
+
+
+PANKKI_TAB, KORTTI_TAB = "/s-mobiili/?tab=pankki", "/s-mobiili/?tab=kortti"
+
+
+@app.get("/s-mobiili/tilit", response_class=HTMLResponse)
+def smobiili_accounts(request: Request):
+    e, _ = pk_ctx(request)
+    return pk_sub(request, "p-tilit", ("Tilit", "Accounts"), PANKKI_TAB, a=accounts(e), iban=own_iban(e))
+
+
+@app.get("/s-mobiili/tilit/s-tili", response_class=HTMLResponse)
+def smobiili_account(request: Request):
+    e, lang = pk_ctx(request)
+    pay = e.next_payday()
+    return pk_sub(request, "p-tili", ("S-Tili", "S-Tili"), "/s-mobiili/tilit", a=accounts(e), iban=own_iban(e),
+                  days=pk_tx(e, lang), payday=pk_day(pay.get("date"), lang),
+                  salary=pay.get("expected_eur"))
+
+
+@app.get("/s-mobiili/maksut", response_class=HTMLResponse)
+def smobiili_payments(request: Request):
+    e, lang = pk_ctx(request)
+    return pk_sub(request, "p-maksut", ("Maksut ja e-laskut", "Payments and e-invoices"), PANKKI_TAB,
+                  bills=pk_bills(e, lang), regular=pk_regular(e, lang))
+
+
+def _new_payment(request: Request, error: str | None = None, form: dict | None = None):
+    e, lang = pk_ctx(request)
+    return pk_sub(request, "p-uusi", ("Uusi maksu", "New payment"), "/s-mobiili/maksut", bills=pk_bills(e, lang),
+                  balance=e.balance(), error=error, form=form or {}, today_iso=e.today.isoformat())
+
+
+@app.get("/s-mobiili/maksut/uusi", response_class=HTMLResponse)
+def smobiili_new_payment(request: Request):
+    return _new_payment(request)
+
+
+@app.post("/s-mobiili/maksut/uusi", response_class=HTMLResponse)
+async def smobiili_new_payment_send(request: Request):
+    """The new-payment form: check it, prepare the payment, and open the same review and Face ID as a bill."""
+    e, lang = pk_ctx(request)
+    f = {k: str(v).strip()[:80] for k, v in (await request.form()).items()}
+    iban = re.sub(r"\s", "", f.get("iban", "")).upper()
+    try:
+        amount = round(float(f.get("amount", "").replace(" ", "").replace(" ", "").replace(",", ".")), 2)
+    except ValueError:
+        amount = 0.0
+    error = None
+    if not f.get("name"):
+        error = tr(lang, "Kirjoita saajan nimi.", "Enter the recipient's name.")
+    elif not bills.valid_iban(iban):
+        error = tr(lang, "Tarkista saajan tilinumero (IBAN).", "Check the recipient's account number (IBAN).")
+    elif not 0.01 <= amount <= 10000:
+        error = tr(lang, "Kirjoita summa väliltä 0,01–10 000 €.", "Enter an amount from 0.01 to 10,000 €.")
+    elif amount > e.balance():
+        error = tr(lang, f"Tilillä on {fi_money(e.balance())}, ja summa on sitä suurempi.",
+                   f"Your balance is {money(e.balance())}, and the amount is more than that.")
+    due = f.get("due") or ""
+    try:
+        due = due if due and date.fromisoformat(due) >= e.today else e.today.isoformat()
+    except ValueError:
+        due = e.today.isoformat()
+    if error:
+        return _new_payment(request, error, f)
+    p = e.create_transfer(f["name"], iban, amount, f.get("reference") or None, due)
+    return pk_go(request, f"/s-mobiili/pay/{p['pending_id']}", "uusi")
+
+
+@app.post("/s-mobiili/maksut/maksa")
+async def smobiili_pay_bill(request: Request):
+    """'Pay' on a bill: prepared like Oiva's Pay button, then the review and Face ID."""
+    e, _ = pk_ctx(request)
+    form = await request.form()
+    frm = str(form.get("from") or "maksut")
+    frm = frm if frm in PANKKI_BACK else "maksut"
+    try:
+        p = e.create_payment(str(form.get("bill_id", "")))
+    except ValueError:  # already paid: the list no longer shows it
+        return pk_go(request, PANKKI_BACK[frm][0])
+    return pk_go(request, f"/s-mobiili/pay/{p['pending_id']}", frm)
+
+
+@app.get("/s-mobiili/maksut/e-laskut", response_class=HTMLResponse)
+def smobiili_einvoices(request: Request):
+    e, lang = pk_ctx(request)
+    return pk_sub(request, "p-elaskut", ("E-laskut", "E-invoices"), "/s-mobiili/maksut", bills=pk_bills(e, lang),
+                  regular=pk_regular(e, lang))
+
+
+@app.get("/s-mobiili/saastot", response_class=HTMLResponse)
+def smobiili_savings(request: Request):
+    e, lang = pk_ctx(request)
+    plans = [{**gp, "amounts": pk_save_amounts(e, gp["goal"]), "deadline": pk_day(gp["goal"].get("deadline"), lang)}
+             for gp in e.goals()]
+    return pk_sub(request, "p-saastot", ("Säästöt", "Savings"), PANKKI_TAB, a=accounts(e), plans=plans,
+                  can=e.safe_to_save(), buffer=learn.numbers(e)["buffer_target"])
+
+
+@app.post("/s-mobiili/saastot/aloita")
+def smobiili_savings_start(request: Request):
+    """No goal yet: 'Start an emergency buffer' sets up the same goal as the Learn lesson (three months of basket 2)."""
+    e, _ = pk_ctx(request)
+    if "emergencybuffer" not in e.state.get("goals", {}):
+        e.create_goal("Emergency buffer", max(10.0, learn.numbers(e)["buffer_target"]))
+    return pk_go(request, "/s-mobiili/saastot")
+
+
+@app.post("/s-mobiili/saastot/lisaa")
+async def smobiili_savings_add(request: Request):
+    """'Add money': S-Pankki's savings steps, prefilled, then Face ID."""
+    e, _ = pk_ctx(request)
+    form = await request.form()
+    try:
+        p = e.create_saving(str(form.get("goal_id", "")), float(form.get("amount", 0)))
+    except (ValueError, TypeError):
+        return pk_go(request, "/s-mobiili/saastot")
+    return pk_go(request, f"/s-mobiili/save/{p['pending_id']}", "saastot")
+
+
+@app.get("/s-mobiili/sijoitukset", response_class=HTMLResponse)
+def smobiili_investments(request: Request):
+    e, lang = pk_ctx(request)
+    pf = e.portfolio()
+    inv = next((x for x in e.commitments()["regular_payments"] if x["id"] == "investing"), None)
+    ifs = pf.get("if_your_deposits_were_in_each_fund") or {}
+    years = pf["by_year_eur"]
+    return pk_sub(request, "p-sijoitukset", ("Sijoitukset", "Investments"), PANKKI_TAB, pf=pf,
+                  inv=inv and {**inv, "next": pk_day(inv.get("next_expected"), lang)},
+                  paused=bool(e.state.get("paused", {}).get("investment_deposit")),
+                  funds=[r for r in ifs.get("results") or [] if r], as_of=pk_day(ifs.get("as_of"), lang),
+                  years=years, top=max(years.values(), default=0) or 1, plans=pf["new_plans"])
+
+
+@app.post("/s-mobiili/sijoitukset/tauko")
+def smobiili_investments_pause(request: Request):
+    e, _ = pk_ctx(request)
+    try:
+        p = e.create_pause_investing()
+    except ValueError:
+        return pk_go(request, "/s-mobiili/sijoitukset")
+    return pk_go(request, f"/s-mobiili/stop/{p['pending_id']}", "sijoitukset")
+
+
+@app.get("/s-mobiili/kortti/tapahtumat", response_class=HTMLResponse)
+def smobiili_card_tx(request: Request):
+    e, lang = pk_ctx(request)
+    return pk_sub(request, "p-korttitap", ("Korttitapahtumat", "Card transactions"), KORTTI_TAB,
+                  ct=pk_card_tx(e, lang))
+
+
+@app.get("/s-mobiili/kortti/rajat", response_class=HTMLResponse)
+def smobiili_card_limits(request: Request):
+    return pk_sub(request, "p-rajat", ("Turvarajat", "Security limits"), KORTTI_TAB)
+
+
+@app.get("/s-mobiili/kortti/alue", response_class=HTMLResponse)
+def smobiili_card_region(request: Request):
+    return pk_sub(request, "p-alue", ("Käyttöalue", "Where it works"), KORTTI_TAB)
 
 
 @app.get("/s-mobiili/{route}/{pid}", response_class=HTMLResponse)
@@ -1544,9 +1827,11 @@ def smobiili_flow(request: Request, route: str, pid: str):
     steps = f.pop("steps")
     if route != "save":  # the save flow's last line, on its review, already says Face ID
         steps.append(("faceid", "Tap here and use Face ID", "talk"))
+    back = PANKKI_BACK.get(request.query_params.get("from") or "")  # opened from a Pankki screen: back goes there
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
         request, sm_persona(request), screen="flow", route=route, pid=pid, p=p, f=f, steps=guide_steps(steps),
-        done=p["status"] == "done"))
+        done=p["status"] == "done", back_url=back and back[0] + sm_keep(request),
+        back_label=back and tr(ui_lang(request), *back[1:])))
 
 
 @app.post("/s-mobiili/{route}/{pid}/confirm")

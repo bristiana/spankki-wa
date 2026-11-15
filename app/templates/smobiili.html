@@ -212,7 +212,13 @@
   .vcard .pk{position:absolute;left:0;right:0;top:152px;text-align:center;font:800 22px/1 var(--font-display);letter-spacing:.5px}
   .vcard .chip{position:absolute;left:46px;top:196px;width:22px;height:28px;border-radius:4px;background:linear-gradient(135deg,#f6d78f,#d9a94a)}
   .vcard .cd{position:absolute;right:9px;bottom:8px;font-size:9px}
-  .gpay{background:#000;color:#fff;border-radius:6px;padding:9px 26px;font-size:16px;font-weight:500}
+  .gpay{background:#000;color:#fff;border-radius:6px;padding:9px 26px;font:500 16px var(--font);border:0;cursor:pointer}
+  .card-state{font-size:14px;font-weight:600;color:var(--brand)}.card-state.locked{color:var(--warn)}
+  .vcard.locked{filter:grayscale(1) opacity(.6)}
+  .p-tog{appearance:none;-webkit-appearance:none;width:46px;height:26px;border-radius:99px;background:#c9cfcb;position:relative;flex:none;cursor:pointer;margin:0;transition:background .15s}
+  .p-tog::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+  .p-tog:checked{background:var(--bright)}.p-tog:checked::after{left:23px}
+  .plain .li small{display:block;font-size:12.5px;color:var(--muted)}
   .plain{background:var(--bar)}
   .plain .li{padding:16px 20px;font-size:17px}
   .plain .li .txt{font-size:17px}
@@ -317,7 +323,7 @@
   <header class="top"><a href="{{ back_url or tab_urls.etukortti }}" aria-label="{{ t('Takaisin', 'Back') }}">{{ icon("back") }}</a><h1>{{ page_title }}</h1><span class="end">{{ lang_switch() }}</span></header>
   {% else %}
   <header class="top{{ ' sub' if screen == 'flow' or tab in ('kortti', 'raha') }}">
-    {% if screen == "flow" or tab in ("kortti", "raha") %}<a href="{{ home_url if screen == 'flow' else tab_urls.pankki }}" aria-label="{{ t('Takaisin', 'Back') }}">{{ icon("back") }}</a>{% endif %}
+    {% if screen == "flow" or tab in ("kortti", "raha") %}<a href="{{ (back_url or home_url) if screen == 'flow' else tab_urls.pankki }}" aria-label="{{ t('Takaisin', 'Back') }}">{{ icon("back") }}</a>{% endif %}
     <h1>{% if screen == "flow" %}{{ en_title[route] if en else fi_title[route] }}<small>{{ f.title }}</small>{% else %}{{ top_title[tab] }}{% if tab == "kortti" %}<small>S-Etukortti Visa Credit Debit Online</small>{% elif tab == "raha" %}<small>{{ t("Oivan kaaviot", "Oiva's charts") }}</small>{% endif %}{% endif %}</h1>
     <span class="end">{{ lang_switch() }}{% if not web %}<a class="chat" id="ask" href="{{ ask() }}" aria-label="{{ t('Viestit, kysy Oivalta', 'Messages, ask Oiva') }}">{{ icon("chat") }}</a>{% endif %}</span>
   </header>
@@ -390,17 +396,17 @@
     {{ ask_oiva("Mitä laskuja minulla on tulossa?", "What bills do I have coming up?", "ask-bills", cls="card") }}
     {% if money %}<a class="card tile" id="your-money" href="{{ tab_urls.raha }}">{{ icon("chart") }}<span class="txt"><span class="t">{{ t("Rahasi", "Your money") }}</span>
       <span class="s">{{ t("Kulutus, budjetit, laskut ja kaltaisesi, Oivan kanssa", "Spending, budgets, bills and people like you, with Oiva") }}</span></span>{{ icon("chevron", "i chev") }}</a>{% endif %}
-    <a class="card tile" href="{{ home_url }}">{{ icon("sbook") }}<span class="txt"><span class="t">{{ t("Tilit", "Accounts") }}</span>
+    <a class="card tile" id="tile-accounts" href="/s-mobiili/tilit{{ keep }}">{{ icon("sbook") }}<span class="txt"><span class="t">{{ t("Tilit", "Accounts") }}</span>
       <span class="cols"><span><span class="s">S-Tili</span><span class="v">{{ a.current|fimoney }}</span></span>
         <span><span class="s">{{ t("Säästötili", "Savings account") }}</span><span class="v">{{ a.pocket|fimoney if a.pocket_open else t("Ei avattu", "Not opened") }}</span></span></span></span>{{ icon("chevron", "i chev") }}</a>
-    <a class="card tile" href="{{ home_url }}">{{ icon("bill") }}<span class="txt"><span class="t">{{ t("Maksut ja e-laskut", "Payments and e-invoices") }}</span>
+    <a class="card tile" id="tile-payments" href="/s-mobiili/maksut{{ keep }}">{{ icon("bill") }}<span class="txt"><span class="t">{{ t("Maksut ja e-laskut", "Payments and e-invoices") }}</span>
       <span class="s">{{ t("Tee uusi maksu tai tarkastele ja tilaa e-laskuja", "Make a new payment, or view and order e-invoices") }}</span></span>{{ icon("chevron", "i chev") }}</a>
-    <a class="card tile" href="{{ tab_urls.kortti }}">{{ icon("scard") }}<span class="txt"><span class="t">{{ t("Kortit", "Cards") }}</span>
+    <a class="card tile" id="tile-cards" href="{{ tab_urls.kortti }}">{{ icon("scard") }}<span class="txt"><span class="t">{{ t("Kortit", "Cards") }}</span>
       <span class="s">S-Etukortti Visa Credit/Debit</span><span class="v">2000,00&nbsp;€</span></span>{{ icon("chevron", "i chev") }}</a>
-    <a class="card tile" href="{{ home_url }}">{{ icon("trophy") }}<span class="txt"><span class="t">{{ t("Säästöt", "Savings") }}</span>
-      {% set g = a.goals[0] if a.goals else none %}<span class="s">{{ g.name if g else t("Oma tavoitteeni", "My own goal") }}</span>
-      <span class="v">{{ (g.saved if g else a.pocket)|fimoney }}</span></span>{{ icon("chevron", "i chev") }}</a>
-    <a class="card tile" href="{{ home_url }}">{{ icon("case") }}<span class="txt"><span class="t">{{ t("Sijoitukset", "Investments") }}</span>
+    <a class="card tile" id="tile-savings" href="/s-mobiili/saastot{{ keep }}">{{ icon("trophy") }}<span class="txt"><span class="t">{{ t("Säästöt", "Savings") }}</span>
+      {% set g = a.goals[0] if a.goals else none %}<span class="s">{% if g %}{{ t("Hätävara", g.name) if g.id == "emergencybuffer" else g.name }}{% else %}{{ t("Aloita säästötavoite", "Start a savings goal") }}{% endif %}</span>
+      <span class="v">{{ g.saved|fimoney if g else t("Ei vielä tavoitetta", "No goal yet") }}</span></span>{{ icon("chevron", "i chev") }}</a>
+    <a class="card tile" id="tile-investments" href="/s-mobiili/sijoitukset{{ keep }}">{{ icon("case") }}<span class="txt"><span class="t">{{ t("Sijoitukset", "Investments") }}</span>
       <span class="s">{{ t("Sijoitustesi arvo", "Value of your investments") }}</span><span class="v">{{ a.funds|fimoney }}</span></span>{{ icon("chevron", "i chev") }}</a>
     </div>
   {% elif screen == "tab" and tab == "raha" %}
@@ -436,16 +442,34 @@
       <div class="vcard" role="img" aria-label="S-Etukortti Visa Credit/Debit">
         <span class="top-l">S-ETUKORTTI</span><span class="visa">VISA</span>{{ icon("s", "big") }}<span class="pk">PANKKI</span><i class="chip"></i><span class="cd">Credit | Debit</span>
       </div>
-      <span class="gpay">{{ t("Lisää Google Payhin", "Add to Google Pay") }}</span>
+      <button class="gpay" type="button" id="gpay" aria-pressed="false" data-on="{{ t('Lisätty Google Payhin ✓', 'Added to Google Pay ✓') }}">{{ t("Lisää Google Payhin", "Add to Google Pay") }}</button>
+      <span class="card-state" id="card-state" data-on="{{ t('Kortti on lukittu väliaikaisesti', 'The card is locked for now') }}" data-off="{{ t('Kortti on käytössä', 'The card is in use') }}">{{ t("Kortti on käytössä", "The card is in use") }}</span>
     </section>
     <section class="plain">
-      <div class="li tap">{{ icon("list") }}<span class="txt">{{ t("Tilitapahtumat", "Transactions") }}</span>{{ icon("chevron", "i chev") }}</div>
+      <a class="li tap" id="card-transactions" href="/s-mobiili/kortti/tapahtumat{{ keep }}">{{ icon("list") }}<span class="txt">{{ t("Korttitapahtumat", "Card transactions") }}</span>{{ icon("chevron", "i chev") }}</a>
+      <div class="li"><span class="txt">{{ t("Luottoraja", "Credit limit") }}<small>{{ t("Käytetty", "Used") }} 0,00&nbsp;€</small></span><span class="val">2&nbsp;000,00&nbsp;€</span></div>
       {{ ask_oiva("Mihin rahani menivät tässä kuussa?", "Where did my money go this month?", "ask-card-spend") }}
       <div class="grey">{{ t("Korttiturvallisuus", "Card security") }}</div>
-      <div class="li tap"><span class="txt">{{ t("Turvarajat", "Security limits") }}</span>{{ icon("chevron", "i chev") }}</div>
-      <div class="li tap"><span class="txt">{{ t("Käyttöalue", "Where it works") }}</span><span class="val">{{ t("Koko maailma", "Whole world") }}</span>{{ icon("chevron", "i chev") }}</div>
-      <div class="li tap"><span class="txt">Visa Secure</span><span class="val">{{ t("Kyllä", "Yes") }}</span></div>
+      <label class="li" for="card-lock"><span class="txt">{{ t("Lukitse kortti väliaikaisesti", "Lock the card for now") }}<small>{{ t("Avaa lukitus milloin vain", "Unlock it any time") }}</small></span><input class="p-tog" type="checkbox" role="switch" id="card-lock"></label>
+      <a class="li tap" id="card-limits" href="/s-mobiili/kortti/rajat{{ keep }}"><span class="txt">{{ t("Turvarajat", "Security limits") }}</span>{{ icon("chevron", "i chev") }}</a>
+      <a class="li tap" id="card-region" href="/s-mobiili/kortti/alue{{ keep }}"><span class="txt">{{ t("Käyttöalue", "Where it works") }}</span><span class="val" id="region-val" data-world="{{ t('Koko maailma', 'Whole world') }}" data-europe="{{ t('Eurooppa', 'Europe') }}" data-finland="{{ t('Vain Suomi', 'Finland only') }}">{{ t("Koko maailma", "Whole world") }}</span>{{ icon("chevron", "i chev") }}</a>
+      <div class="li"><span class="txt">Visa Secure<small>{{ t("Verkko-ostot vahvistetaan S-mobiililla", "Online purchases are confirmed in S-mobiili") }}</small></span><span class="val">{{ t("Käytössä", "On") }}</span></div>
     </section>
+    <script>
+    (() => {
+      const ss = {get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+                  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} }};
+      const lock = document.getElementById("card-lock"), state = document.getElementById("card-state"), gp = document.getElementById("gpay");
+      const show = () => { state.textContent = lock.checked ? state.dataset.on : state.dataset.off; state.classList.toggle("locked", lock.checked);
+                           document.querySelector(".vcard").classList.toggle("locked", lock.checked); };
+      lock.checked = ss.get("sm-card-lock") === "1"; show();
+      lock.addEventListener("change", () => { ss.set("sm-card-lock", lock.checked ? "1" : "0"); show(); });
+      const g = () => { if (ss.get("sm-gpay") === "1") { gp.textContent = gp.dataset.on; gp.setAttribute("aria-pressed", "true"); } };
+      g(); gp.addEventListener("click", () => { ss.set("sm-gpay", "1"); g(); });
+      const rv = document.getElementById("region-val"), r = ss.get("sm-region");
+      if (r && rv.dataset[r]) rv.textContent = rv.dataset[r];
+    })();
+    </script>
   {% elif screen == "tab" and tab == "etukortti" %}
     {% set kq = request.query_params|dictsort|selectattr(0, 'in', ['persona', 'web'])|list %}{% set kq = ('?' ~ kq|urlencode) if kq else '' %}
     <div class="eh">{{ icon("s") }}<b>S-ETUKORTTI</b>{{ lang_switch("on-green") }}<a class="bc" id="open-card" href="/s-mobiili/etukortti{{ kq }}" aria-label="{{ t('Näytä S-Etukortti', 'Show the S-Etukortti card') }}">{{ icon("barcode") }}</a></div>
@@ -456,7 +480,7 @@
       {{ ask_oiva("Paljonko käytän ruokaostoksiin kuussa?", "How much do I spend on groceries a month?", "ask-groceries", cls="card") }}
     </div>
   {% elif screen == "extra" %}
-    {% include "smobiili_extra.html" %}
+    {% if extra.startswith("p-") %}{% include "smobiili_pankki.html" %}{% else %}{% include "smobiili_extra.html" %}{% endif %}
   {% else %}
     <section id="step-review"{% if done %} hidden{% endif %}>
       {% if route == "save" %}{# S-Pankki's savings steps, prefilled from what Oiva set up #}
@@ -501,14 +525,15 @@
       <button class="btn" type="button" id="faceid">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M9 9v1M15 9v1M12 9v4h-1M9 16c1.8 1.3 4.2 1.3 6 0"/></svg>
         {{ t("Vahvista Face ID:llä", "Confirm with Face ID") }}</button>
-      <div class="alt"><a href="?pin=1{{ '&web=1' if web }}">{{ t("Käytä PIN-koodia", "Use PIN instead") }}</a><a href="{{ 'https://wa.me/' ~ wa if wa else '/chat' }}" data-back>{{ t("Peruuta", "Cancel") }}</a></div>
+      <div class="alt"><a href="?pin=1{{ '&web=1' if web }}">{{ t("Käytä PIN-koodia", "Use PIN instead") }}</a>{% if back_url %}<a href="{{ back_url }}" id="cancel">{{ t("Peruuta", "Cancel") }}</a>{% else %}<a href="{{ 'https://wa.me/' ~ wa if wa else '/chat' }}" data-back>{{ t("Peruuta", "Cancel") }}</a>{% endif %}</div>
       </div>
     </section>
     <section id="step-done" class="center pad"{% if not done %} hidden{% endif %}>
       <div class="ok" id="done-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 16.5l5.5 5.5L24 11"/></svg></div>
       <h1 id="done-title" role="status">{{ t("Jo vahvistettu", "Already confirmed") if done else "" }}</h1>
       <div id="done-lines">{% if done %}<p class="muted">{{ t("Ei muuta tehtävää. Mitään ei siirretty kahdesti.", "Nothing more to do. Nothing was moved twice.") }}</p>{% endif %}</div>
-      {% if wa %}<a class="btn" id="done-back" href="https://wa.me/{{ wa }}">{{ t("Takaisin WhatsAppiin", "Back to WhatsApp") }}</a>
+      {% if back_url %}<a class="btn" id="done-back" href="{{ back_url }}">{{ back_label }}</a>
+      {% elif wa %}<a class="btn" id="done-back" href="https://wa.me/{{ wa }}">{{ t("Takaisin WhatsAppiin", "Back to WhatsApp") }}</a>
       {% else %}<a class="btn" id="done-back" href="/chat" data-back>{{ t("Takaisin chattiin", "Back to the chat") }}</a>{% endif %}
       <a class="btn ghost" id="done-home" href="{{ home_url }}">{{ t("Koti", "Home") }}</a>
     </section>
@@ -518,7 +543,7 @@
   <nav class="tabs" aria-label="S-mobiili">
     <a href="{{ home_url }}"{% if cur == "koti" %} aria-current="page"{% endif %}>{{ icon("home-on" if cur == "koti" else "home") }}{{ t("Koti", "Home") }}</a>
     <a href="{{ tab_urls.etukortti }}"{% if cur == "etukortti" %} aria-current="page"{% endif %}>{{ icon("s") }}S-Etukortti</a>
-    <a href="{{ ready.url if ready and not ready.done else tab_urls.pankki }}" class="pay"><span class="plus">{{ icon("plus") }}</span>{{ t("Maksu", "Pay") }}</a>
+    <a href="{{ ready.url if ready and not ready.done else '/s-mobiili/maksut/uusi' ~ keep }}" class="pay"><span class="plus">{{ icon("plus") }}</span>{{ t("Maksu", "Pay") }}</a>
     <a href="{{ tab_urls.pankki }}"{% if cur in ("pankki", "kortti", "raha") %} aria-current="page"{% endif %}>{{ icon("wallet-on" if cur in ("pankki", "kortti", "raha") else "wallet") }}{{ t("Pankki", "Bank") }}</a>
     <a href="{{ tab_urls.mina }}"{% if cur == "mina" %} aria-current="page"{% endif %}>{{ icon("me-on" if cur == "mina" else "me") }}{{ t("Minä", "Me") }}</a>
   </nav>
