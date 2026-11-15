@@ -163,6 +163,7 @@
       <path d="M96 109.4 Q100 107.6 104 109.4 Q101.8 114 100 114 Q98.2 114 96 109.4 Z" fill="#6b3a1f" stroke="#6b3a1f" stroke-width="1.2" stroke-linejoin="round"/>
       <path d="M100 114 L100 117" stroke="#6b3a1f" stroke-width="1.3" stroke-linecap="round"/>
       <path data-p="mouth" d="M95 118 Q100 118 105 118 Q100 118 95 118 Z" fill="#6b3a1f" stroke="#6b3a1f" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>
+      <ellipse data-p="tongue" cx="100" cy="121" rx="3.4" ry="2" fill="#f08a8a" opacity="0"/>
       <!-- one buck tooth -->
       <g data-p="teeth"><rect x="97.5" y="118.4" width="5" height="4.4" rx="1.1" fill="#fff" stroke="#e5dccf" stroke-width=".6"/></g>
       <path data-p="tear" d="M78 108 Q81.4 113.6 78 116.6 Q74.6 113.6 78 108 Z" fill="#9fd0f0" stroke="#fff" stroke-width=".8" opacity="0"/>
@@ -570,6 +571,34 @@
   const crestToWorld = (p, P) => { const r = rot(p, CREST_PIVOT, P.crr); return [r[0] + P.crx, r[1] + P.cry]; };
   const hatToWorld = (p, P) => { const r = rot(p, HAT_PIVOT, P.hatRot); return crestToWorld([r[0] + P.hatX, r[1] + HAT_SEAT - P.hatLift], P); };
 
+  /* ---------- Talking: text -> mouth shapes ----------
+     Each character becomes one beat of [open 0..1, round 0..1]. Tuned for Finnish (a/ä/o open wide,
+     u/y/ö round, m/b/p close the lips); punctuation adds pauses. */
+  const TALK_RATE = 13;                                   // beats per second, a calm speaking pace
+  function talkBeats(text) {
+    const out = [], src = String(text).replace(/<[^>]*>/g, '').toLowerCase();
+    for (const ch of src) {
+      if ('aäoå'.includes(ch)) out.push([.95, .1]);
+      else if (ch === 'e') out.push([.6, 0]);
+      else if (ch === 'i') out.push([.38, 0]);
+      else if ('uyö'.includes(ch)) out.push([.55, 1]);
+      else if ('mbp'.includes(ch)) out.push([0, .2]);
+      else if ('fvw'.includes(ch)) out.push([.12, 0]);
+      else if (/[a-z]/.test(ch)) out.push([.3, 0]);
+      else if (/[0-9€%]/.test(ch)) out.push([.75, 0], [.3, 0]);
+      else if (/[.!?…]/.test(ch)) out.push([0, 0], [0, 0], [0, 0], [0, 0], [0, 0]);
+      else if (/[,;:–—]/.test(ch)) out.push([0, 0], [0, 0], [0, 0]);
+      else if (ch === ' ') out.push([.15, 0]);
+    }
+    while (out.length && out[out.length - 1][0] === 0) out.pop();
+    return out;
+  }
+  const hash = (n) => { const x = Math.sin(n * 12.9898 + 4.1) * 43758.5453; return x - Math.floor(x); };
+  function babbleBeat(i) {                                 // open-ended talking: syllables with short breaths
+    const ph = i % 19; if (ph >= 16) return [0, 0];
+    const r = hash(i); return r < .18 ? [0, .2] : r < .5 ? [.3, 0] : r < .8 ? [.92, .1] : [.55, 1];
+  }
+
   /* ---------- Factory ---------- */
   let uid = 0;
   function create(container, opts = {}) {
@@ -603,6 +632,9 @@
     let pointer = null, manual = null, lastMove = 0, raf = 0;
     let hovered = false, hover = 0;
     let jig = 0, jv = 0, prevLX = 0;           // jelly spring (degrees of skew)
+    let fps = opts.fps || 0;                   // 0 = the display's rate; the chat helper caps it (calmer, cheaper)
+    let talkLevel = null;                      // the chat helper: () => mouth opening 0..1 from the voice, or null to babble
+    let talkSeq = null, talkLoop = false, talkStart = 0, talkEnd = null, talkOpen = 0, talkRound = 0, talkAct = 0;
 
     function gazeTarget() {
       const src = manual || pointer;
@@ -613,7 +645,6 @@
       return { x: soft((src.x - (r.left + r.width * 0.5)) / RANGE), y: soft((src.y - (r.top + r.height * 0.5)) / RANGE) };
     }
 
-    let fps = opts.fps || 0;                   // 0 = the display's rate; the chat helper caps it (calmer, cheaper)
     function frame(now) {
       if (fps && now - last < 1000 / fps - 2) { raf = requestAnimationFrame(frame); return; }
       const dt = Math.max(1e-3, Math.min(0.05, (now - last) / 1000)); last = now; t += dt;
@@ -645,6 +676,26 @@
         T.floatY -= 2 * hover * motion; T.blush += 0.35 * hover; T.smile = Math.max(T.smile, hover);
         T.earL += 8 * hover; T.earR -= 8 * hover; T.rhy -= 4 * hover; T.lhy -= 4 * hover;
         if (state === 'idle') T.happy = Math.max(T.happy, hover);
+      }
+      // talking: mouth follows the beats; head nods and brows lift on open vowels
+      let tgtO = 0, tgtR = 0, talking = 0;
+      if (talkSeq || talkLoop) {
+        const i = Math.floor((t - talkStart) * TALK_RATE);
+        if (talkSeq && i >= talkSeq.length) {
+          talkSeq = null; const cb = talkEnd; talkEnd = null;
+          container.dispatchEvent(new CustomEvent('oiva:talkend')); if (cb) cb();
+        } else { const lv = !talkSeq && talkLevel ? talkLevel() : null;
+          const b = talkSeq ? talkSeq[i] : lv != null ? [lv, lv > .7 ? .15 : 0] : babbleBeat(i); tgtO = b[0]; tgtR = b[1]; talking = 1; }
+      }
+      if (rm) { tgtO = talking ? .3 : 0; tgtR = 0; }        // reduced motion: mouth just rests a little open
+      talkAct += (talking - talkAct) * (1 - Math.exp(-dt * 7));
+      const tk = 1 - Math.exp(-dt * 32);
+      talkOpen += (tgtO - talkOpen) * tk; talkRound += (tgtR - talkRound) * tk;
+      if (!rm && talkAct > .01) {
+        T.crr += 1.8 * Math.sin(t * 2.3) * talkAct; T.fy += .9 * talkOpen * talkAct;
+        T.browLY -= 1.8 * talkOpen * talkAct; T.browRY -= 1.8 * talkOpen * talkAct;
+        T.earL += 5 * Math.sin(t * 1.7) * talkAct; T.earR -= 5 * Math.sin(t * 1.9 + 1) * talkAct;
+        T.lean += .8 * Math.sin(t * 1.3) * talkAct;
       }
       // boop reaction: big blush, happy eyes for a moment
       const pk = clamp((t - pokeStart) / 1.2, 0, 1), boop = pk < 1 ? 1 - pk : 0;
@@ -689,13 +740,15 @@
       set('happy', 'opacity', shut && P.happy >= P.squint ? '1' : '0');
       set('squint', 'opacity', shut && P.squint > P.happy ? '1' : '0');
       // mouth: one shape morphing between smile, flat, frown and open
-      const open = clamp(P.mouthO, 0, 1), fr = clamp(P.frown, 0, 1), sm = clamp(P.smile, 0, 1) * (1 - fr);
-      const hw = 5.2 - 1.5 * open + .5 * sm, mcy = 117.6 - 1.1 * sm + 1.8 * fr;
-      const mid = mcy + 3.4 * sm - 3.4 * fr, topY = mid - (mid - mcy) * open - 1 * open, botY = mid + 6 * open;
+      const open = clamp(Math.max(P.mouthO, talkOpen), 0, 1), fr = clamp(P.frown, 0, 1) * (1 - .5 * talkAct), sm = clamp(P.smile, 0, 1) * (1 - fr);
+      const hw = 5.2 + 1.4 * open + .5 * sm - 2.6 * talkRound, mcy = 117.6 - 1.1 * sm + 1.8 * fr;
+      const mid = mcy + 3.4 * sm - 3.4 * fr, topY = mid - (mid - mcy) * open - 2.4 * open, botY = mid + 16 * open;
       set('mouth', 'd', `M${f(100 - hw)} ${f(mcy)} Q100 ${f(topY)} ${f(100 + hw)} ${f(mcy)} Q100 ${f(botY)} ${f(100 - hw)} ${f(mcy)} Z`);
       const teethTop = lerp(mid + .1, topY + .4, smooth(0, .3, open));
       set('teeth', 'transform', `translate(0 ${f(teethTop - 118.4)})`);
       set('teeth', 'opacity', f(1 - fr));
+      set('tongue', 'opacity', f(smooth(.35, .6, open)));
+      set('tongue', 'transform', `translate(100 ${f((mcy + botY) / 2 - 1.4)}) scale(${f(Math.max(.01, hw / 5.2))} 1) translate(-100 -121)`);
       set('tear', 'opacity', f(P.tear)); set('tear', 'transform', `translate(0 ${f(P.tearY)})`);
       set('blushL', 'opacity', f(Math.min(1, P.blush))); set('blushR', 'opacity', f(Math.min(1, P.blush)));
       set('browL', 'transform', `translate(0 ${f(P.browLY)}) rotate(${f(P.browL)} 84 91)`);
@@ -918,6 +971,13 @@
       setTrackPointer(on) { trackPointer = !!on; if (!on) pointer = null; },
       setReducedMotion(v) { rmSetting = v; },
       setFps(v) { fps = Math.max(0, +v || 0); },
+      talk(text, o = {}) {                                // talk a line (mouth follows its vowels), or talk until stopped
+        talkStart = t; talkEnd = o.onEnd || null; talkLevel = o.level || null;
+        if (text == null || text === '') { talkSeq = null; talkLoop = true; return Infinity; }
+        talkLoop = false; talkSeq = talkBeats(text); return talkSeq.length / TALK_RATE;
+      },
+      stopTalking() { talkSeq = null; talkLoop = false; talkEnd = null; talkLevel = null; },
+      isTalking: () => !!(talkSeq || talkLoop),
       destroy() {
         cancelAnimationFrame(raf);
         global.removeEventListener('pointermove', onMove);

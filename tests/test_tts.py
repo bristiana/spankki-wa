@@ -332,3 +332,12 @@ def test_spoken_text(lang, text, want):
 
 def test_caps_fit_a_whole_reply():
     assert tts.MAX_CHARS >= 1500 and tts.DAILY_CHARS == 20_000 and tts.PER_MINUTE == 30
+
+
+def test_helper_talks_only_while_the_voice_plays():
+    js = open("app/static/oiva/helper.js").read()
+    assert 'addEventListener("playing"' in js and "oiva.talk(null" in js and "oiva.stopTalking()" in js
+    assert "seq++; talking = false; mouth(false);" in js  # a new question or mute shuts his mouth at once
+    assert "u.onstart" in js and "u.onend" in js  # the browser voice too
+    mascot = open("app/static/oiva/mascot/oiva.js").read()
+    assert "talk(text, o = {})" in mascot and "talkLevel = o.level" in mascot and "setFps(v)" in mascot

@@ -147,9 +147,57 @@
     const vs = speechSynthesis.getVoices(), norm = x => (x.lang || "").replace("_", "-").toLowerCase();
     return vs.find(x => norm(x) === LANG.toLowerCase()) || vs.find(x => norm(x).startsWith(LANG.slice(0, 2).toLowerCase()));
   }
+  // ---- his mouth while the voice plays (oiva.js v3 talking layer) ----
+  // He talks only while sound actually comes out: the clip's own play/playing events start it, ended/pause/error
+  // and a new question or mute stop it, and between two pieces his mouth rests shut. The mouth opening follows the
+  // clip's loudness (a Web Audio analyser, a few hundred bytes read per frame); without one he babbles while the
+  // clip plays. The browser voice has no sound to measure: he babbles from its first word to its last.
+  let actx = null, meter = null, buf = null;
+  function audioUnlock() {  // inside a tap: make (or wake) the analyser's context, so routing the clip through it stays audible
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!player || !AC) return;
+    try {
+      if (!actx) actx = new AC();
+      if (actx.state !== "running") actx.resume().catch(() => {});
+    } catch (e) { actx = null; }
+  }
+  function wire() {  // once, and only with a running context: a suspended one would silence the clip
+    if (meter || !actx || actx.state !== "running") return;
+    try {
+      const src = actx.createMediaElementSource(player), a = actx.createAnalyser();
+      a.fftSize = 512; a.smoothingTimeConstant = 0.3;
+      src.connect(a); a.connect(actx.destination);
+      meter = a; buf = new Uint8Array(a.fftSize);
+    } catch (e) { meter = null; }
+  }
+  function level() {  // 0..1 mouth opening from the clip right now; null = no meter (oiva.js babbles)
+    if (!player || player.paused || player.ended) return 0;
+    if (!meter || !actx || actx.state !== "running") return null;
+    meter.getByteTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+    const rms = Math.sqrt(sum / buf.length);
+    return rms < 0.015 ? 0 : Math.min(1, (rms - 0.015) * 7);
+  }
+  let mouthOn = false;
+  function mouth(on, how) {
+    if (on === mouthOn && !how) return;
+    mouthOn = on;
+    if (!oiva) return;
+    if (on) oiva.talk(null, { level: how === "synth" ? null : level });
+    else oiva.stopTalking();
+  }
+  function doneTalking() {  // the reply was read to the end: he stops and holds the reply's pose a while
+    mouth(false);
+    if (mood !== "idle" && mood !== "thinking") restLater(8000);
+  }
+  if (player) {
+    player.addEventListener("playing", () => { if (talking && player.src !== SILENT) { wire(); mouth(true); } });
+  }
+
   function speaking() { return talking || (canSynth && speechSynthesis.speaking) || !!(player && !player.paused && !player.ended); }
   function hush() {
-    seq++; talking = false;
+    seq++; talking = false; mouth(false);
     if (ctl) { ctl.abort(); ctl = null; }
     if (stopClip) { stopClip(); stopClip = null; }
     if (player) player.pause();
@@ -178,15 +226,19 @@
     return out;
   }
   function synth(chunks) {
-    if (!canSynth) return;
-    for (const c of chunks) {  // one utterance per piece: some browsers cut a long one off
+    if (!canSynth) { doneTalking(); return; }
+    const my = seq;
+    chunks.forEach((c, n) => {  // one utterance per piece: some browsers cut a long one off
       const u = new SpeechSynthesisUtterance(c.replace(/€/g, fi ? " euroa" : " euros"));
       u.lang = LANG;
       const v = voiceFor();
       if (v) u.voice = v;
       u.rate = 1.02;
+      u.onstart = () => { if (my === seq) mouth(true, "synth"); };
+      if (n === chunks.length - 1) u.onend = () => { if (my === seq) doneTalking(); };
+      u.onerror = () => { if (my === seq) mouth(false); };
       speechSynthesis.speak(u);
-    }
+    });
   }
   async function clip(text, signal) {  // a blob URL, or the HTTP status that says why not
     if (clips.has(text)) { const u = clips.get(text); clips.delete(text); clips.set(text, u); return u; }
@@ -205,10 +257,11 @@
       const end = () => { over = true; player.onended = player.onerror = player.onpause = null; stopClip = null; };
       const stop = () => { if (mine()) { end(); ok(false); } };
       stopClip = stop;
-      player.onended = () => { if (mine()) { end(); ok(true); } };
-      player.onerror = player.onended;  // a broken clip: go on with the next one
+      player.onended = () => { if (mine()) { end(); ok(true); } };  // the mouth rests until the next piece plays
+      player.onerror = () => { mouth(false); if (mine()) { end(); ok(true); } };  // a broken clip: go on with the next one
       player.onpause = () => { if (!player.ended) stop(); };  // paused from outside (lock screen, a call): he stops
       player.src = url;
+      if (meter && actx.state !== "running") actx.resume().catch(() => {});  // routed through the analyser: keep it awake
       player.play().catch(e => { if (mine()) { end(); no(e); } });  // a late refusal of an old clip touches nothing
     });
   }
@@ -229,18 +282,21 @@
         if (my !== seq) return;
         if (typeof got !== "string") {  // no key / budget used: browser voice from here on, this visit
           if (got === 204 || got === 429) serverVoice = false;
+          mouth(false);
           return synth(chunks.slice(i));
         }
         const played = await playClip(got);
-        if (my !== seq || !played) return;  // replaced, muted or paused from outside
+        if (my !== seq || !played) { if (my === seq) mouth(false); return; }  // replaced, muted or paused from outside
       }
+      if (my === seq) doneTalking();
     } catch (e) {  // autoplay refused (no tap yet on this page): the browser's voice
-      if (my === seq) synth(chunks.slice(i));  // from the piece that was refused, not again from the start
+      if (my === seq) { mouth(false); synth(chunks.slice(i)); }  // from the piece that was refused, not again from the start
     } finally {
       if (my === seq) { talking = false; if (ctl === c) ctl = null; }
     }
   }
   function unlock() {  // iOS lets an <audio> play later only if it started inside a tap: a silent clip does that
+    if (voiceOn) audioUnlock();
     if (!voiceOn || !player || !player.paused || speaking()) return;
     player.src = SILENT; player.play().catch(() => {});
   }
