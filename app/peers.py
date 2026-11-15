@@ -42,8 +42,8 @@ MCC_METRICS = {"taxi": ["4121"], "fast_food": ["5814"]}  # taxis and ride-hailin
 BASKET_KEYS = ["regular", "irregular", "everyday"]
 METRICS = ["income", "salary", "total"] + BASKET_KEYS + CATEGORIES + list(MCC_METRICS)
 METRIC_LABELS = {"income": "Net income (salary and other income)", "salary": "Net salary",
-                 "total": "Spending in total", "regular": "Mandatory & regular", "irregular": "Mandatory & irregular",
-                 "everyday": "Slips through your fingers", "taxi": "Taxis and ride-hailing",
+                 "total": "Spending in total", "regular": "Bills & basics", "irregular": "Occasional costs",
+                 "everyday": "Fun & extras", "taxi": "Taxis and ride-hailing",
                  "fast_food": "Fast food and cafés"} | {c: c for c in CATEGORIES}
 # What the card and the tool show, in this order: the three baskets, then the main categories.
 MAIN_CATEGORIES = ["Housing", "Groceries", "Transportation", "Utilities", "Restaurants", "Entertainment", "Lifestyle"]

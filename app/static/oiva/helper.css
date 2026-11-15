@@ -58,4 +58,31 @@
 .kb .say{min-height:0;padding:5px 10px}.kb .say p{-webkit-line-clamp:2;font-size:13.5px}
 .kb .bars{margin:2px 0;gap:2px 8px}.kb .say.has-bars p{display:none}
 
-@media (prefers-reduced-motion:reduce){.say.pop{animation:none}.bars i b{transition:none}.say .dots b{animation:none;opacity:.6}}
+/* the mic (listen.js): a round button between the message box and Send; red with a ring while it records */
+form#f #mic{flex:none;display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;padding:0;
+  border:1px solid var(--line);border-radius:50%;background:var(--bg);color:var(--brand);position:relative;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
+form#f #mic[hidden]{display:none}
+form#f #mic .s,form#f #mic .busy{display:none}
+form#f #mic.rec{background:#c62828;border-color:#c62828;color:#fff;animation:mic-ring 1.4s ease-out infinite}
+form#f #mic.rec .m{display:none}form#f #mic.rec .s{display:block}
+form#f #mic.wait .m{opacity:.35}form#f #mic.wait .busy{display:block;position:absolute;inset:6px;border-radius:50%;
+  border:2.5px solid var(--line);border-top-color:var(--brand);animation:mic-spin .8s linear infinite}
+form#f #mic:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+@keyframes mic-ring{0%{box-shadow:0 0 0 0 rgba(198,40,40,.45)}100%{box-shadow:0 0 0 12px rgba(198,40,40,0)}}
+@keyframes mic-spin{to{transform:rotate(360deg)}}
+/* words in the box (a transcript, say): the camera button steps aside so you can read them */
+form#f:has(#q:not(:placeholder-shown)) #attach{display:none}
+form#f #send.ready{box-shadow:0 0 0 3px var(--soft),0 0 0 5px var(--brand)}
+/* what the mic is doing, in a line just above the message box */
+#mic-note{flex:none;margin:0;padding:6px 16px;font-size:13px;line-height:1.3;color:var(--muted);background:var(--card);
+  border-top:1px solid var(--line);display:flex;align-items:center;gap:8px}
+#mic-note[hidden]{display:none}
+#mic-note.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);padding:0;border:0}
+#mic-note.rec{color:#c62828;font-weight:600}
+#mic-note.rec::before{content:"";width:9px;height:9px;border-radius:50%;background:#c62828;animation:blink 1.2s infinite both}
+#mic-note.err{color:#8a5a00;background:#fff6e0}
+#mic-note .lv{flex:1;max-width:90px;height:4px;border-radius:99px;background:var(--line);overflow:hidden}
+#mic-note .lv i{display:block;height:100%;width:0;background:#c62828;transition:width .1s}
+
+@media (prefers-reduced-motion:reduce){form#f #mic.rec{animation:none;box-shadow:0 0 0 3px rgba(198,40,40,.35)}.say.pop{animation:none}.bars i b{transition:none}.say .dots b{animation:none;opacity:.6}}

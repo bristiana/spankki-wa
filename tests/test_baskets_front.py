@@ -9,9 +9,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import main, onboarding
-from app.engine import Engine
+from app.engine import CATEGORY_WORDS, Engine
 
-EXAMPLES = {"regular": "rent", "irregular": "a broken washing machine", "everyday": "coffees"}
+NAMES = {"regular": "Bills & basics", "irregular": "Occasional costs", "everyday": "Fun & extras"}
+NAMES_FI = {"regular": "Laskut ja perusmenot", "irregular": "Satunnaiset menot", "everyday": "Valinnaiset menot"}
 
 
 @pytest.fixture
@@ -29,21 +30,24 @@ def baskets():
     return main.engine.baskets("last_3_months")["baskets"]
 
 
-def test_engine_baskets_carry_the_challenge_examples(client):
-    assert {b["basket"]: b["example"] for b in baskets()} == EXAMPLES
+def test_engine_baskets_carry_plain_names_and_their_own_examples(client):
+    assert {b["basket"]: b["label"] for b in baskets()} == NAMES
+    for b in baskets():  # the example is the person's own top one or two categories in that basket, in words
+        assert b["top_categories"] == list(b["by_category"])[:2]
+        assert b["example"] == " and ".join(CATEGORY_WORDS[c] for c in b["top_categories"])
 
 
 def test_smobiili_home_shows_the_baskets_card_with_engine_numbers(client):
     page = client.get("/s-mobiili/?lang=en").text
     card = page[page.index('id="baskets"'):page.index('id="acct-pocket"')]
-    assert "Where your money goes" in card and "3 baskets" in card
+    assert "Where your money goes" in card and "Average month · last 3 months" in card
     assert card.count('class="k1"') + card.count('class="k2"') + card.count('class="k3"') >= 6  # bar + dots
     for b in baskets():
         row = card[card.index(f'id="basket-{b["basket"]}"'):]
         row = row[:re.search(r'class="(bk-row|ask-o)', row).start()]  # up to the next row
-        assert b["label"].replace("&", "&amp;") in row and f"e.g. {b['example']}" in row
+        assert b["label"].replace("&", "&amp;") in row and f"Mostly {b['example']}" in unescape(row)
         assert main.fi_money(b["per_month_eur"]) in row and f"{b['share_pct']}%" in row
-        assert ("the only basket you can change today" in row) == (b["basket"] == "everyday")
+        assert ("Easiest place to save" in row) == (b["basket"] == "everyday")
     assert page.index('id="acct-current"') < page.index('id="baskets"') < page.index('id="recent"')
     assert "Concept prototype" not in page
 
@@ -88,3 +92,12 @@ def test_whatsapp_welcome_lists_the_three_baskets_per_month(client, monkeypatch)
     for ln, b in zip(lines, baskets()):
         assert ln.startswith(f"• {b['label']} (e.g. {b['example']}): ") and ln.endswith(" a month")
         assert onboarding._money(b["per_month_eur"]) in ln
+
+
+def test_smobiili_home_card_in_finnish_uses_the_finnish_names(client):
+    page = client.get("/s-mobiili/?lang=fi").text
+    card = unescape(page[page.index('id="baskets"'):page.index('id="acct-pocket"')])
+    assert "Mihin rahasi menevät" in card and "Kuukausikeskiarvo" in card and "Tästä on helpoin säästää" in card
+    assert all(name in card for name in NAMES_FI.values())
+    assert all(f"Suurimmat: {b['example_fi']}" in card for b in baskets())
+    assert "Pakolliset" not in card and "Lipsuu" not in card and "esim." not in card

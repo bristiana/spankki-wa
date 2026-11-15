@@ -393,7 +393,7 @@ svg.ch text{font-size:11px;fill:var(--muted)}
   (function () {
     const host = document.getElementById("income");
     const inc = by("salary").per_month_eur, bills = rec.bills_per_month_eur, inv = by("investing").per_month_eur, rest = inc - bills - inv;
-    const billNames = P.filter(p => p.direction === "out" && /Mandatory/.test(p.basket || "")).map(p => p.name.toLowerCase());
+    const billNames = P.filter(p => p.direction === "out" && /Mandatory|Bills/.test(p.basket || "")).map(p => p.name.toLowerCase());
     const parts = [["Bills: " + billNames.join(" and "), bills, css("c6")], [by("investing").name, inv, css("c3")], ["Left for everything else", rest, css("brand")]];
     host.innerHTML = `<p class="k">Left after bills and investing, a typical month</p><p class="hero">${hero(rest)}</p>
       <p class="sub">of your <b>${eur(inc)}</b> salary a month (average of the last 3)</p>

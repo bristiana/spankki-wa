@@ -1,0 +1,288 @@
+{#- Pankki sub-screens, included by smobiili.html (screen == "extra", extra starts "p-"): Accounts and the S-Tili,
+    Payments and e-invoices, New payment, Savings, Investments, and the card's transactions, limits and region.
+    Every number comes from the engine; money moves open the same review and Face ID as Oiva's buttons. -#}
+<style>
+  .p-bal{background:var(--bar);text-align:center;padding:14px 20px 20px}
+  .p-bal small{display:block;color:var(--muted);font-size:13px}
+  .p-bal .amount{font-size:36px}
+  .p-iban{display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:6px 12px;border-radius:99px;background:var(--soft);
+          color:var(--brand);font:600 13.5px var(--font);border:0;cursor:pointer;font-variant-numeric:tabular-nums}
+  .p-acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 4px}
+  .p-acts>*{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--card);border-radius:10px;padding:14px 6px;
+            font-size:15px;color:#222;text-align:center;box-shadow:0 1px 3px rgba(0,60,25,.05);border:0;font-family:var(--font);cursor:pointer}
+  .p-acts .i{color:var(--bright);width:28px;height:28px}
+  .p-day{margin:14px 2px 6px;font-size:13px;font-weight:600;color:var(--muted)}
+  .p-tx{padding:2px 16px}
+  .p-tx .row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:15px;color:#222}
+  .p-tx .row:first-child{border-top:0}.p-tx small{display:block;color:var(--muted);font-size:12.5px}
+  .p-tx b{white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums}.p-tx .pos{color:var(--brand)}
+  .p-tx a.row .i{width:18px;height:18px;color:var(--faint);align-self:center}
+  .p-bill{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+  .p-bill:first-child{border-top:0}
+  .p-bill .txt{flex:1;min-width:0;font-size:16px;color:#222;line-height:1.25}.p-bill .txt small{display:block;font-size:12.5px;color:var(--muted)}
+  .p-bill .amt{font-weight:700;color:#222;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .p-bill form{margin:0}
+  .p-pay{border:0;border-radius:99px;background:var(--brand);color:#fff;font:600 14px var(--font);padding:8px 14px;min-height:36px;cursor:pointer}
+  .p-pay.ghost{background:transparent;color:var(--brand);border:1.5px solid var(--brand)}
+  .p-pay[aria-pressed=true]{background:var(--soft);color:var(--brand)}
+  .p-goal{padding:16px}
+  .p-goal .t{display:block;font-size:19px;font-weight:700;color:var(--brand)}
+  .p-prog{height:10px;border-radius:99px;background:var(--line);overflow:hidden;margin:10px 0 6px}
+  .p-prog i{display:block;height:100%;background:var(--bright);border-radius:99px}
+  .p-goal .meta{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted)}
+  .p-goal .meta b{color:#222;font-variant-numeric:tabular-nums}
+  .p-chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;border:0;padding:0}
+  .p-chips legend{font-size:13.5px;color:var(--muted);margin-bottom:6px;padding:0}
+  .p-chips label{position:relative}
+  .p-chips input{position:absolute;opacity:0;inset:0}
+  .p-chips span{display:block;padding:8px 14px;border-radius:99px;border:1.5px solid var(--line);font-weight:600;color:#222;font-variant-numeric:tabular-nums}
+  .p-chips input:checked+span{border-color:var(--brand);background:var(--soft);color:var(--brand)}
+  .p-chips input:focus-visible+span{outline:3px solid var(--bright);outline-offset:2px}
+  .p-form{padding:6px 16px 16px}
+  .p-form label{display:block;padding:10px 0 0;font-size:13px;color:var(--muted)}
+  .p-form input{display:block;width:100%;margin-top:4px;padding:11px 12px;border:1.5px solid var(--line);border-radius:8px;font:16px var(--font);color:#222;background:#fff}
+  .p-form input:focus{border-color:var(--brand);outline:0}
+  .p-form .btn{margin-top:16px}
+  .p-err{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px;margin:0 0 12px}
+  .p-tog{appearance:none;-webkit-appearance:none;width:46px;height:26px;border-radius:99px;background:#c9cfcb;position:relative;flex:none;cursor:pointer;margin:0;transition:background .15s}
+  .p-tog::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+  .p-tog:checked{background:var(--bright)}.p-tog:checked::after{left:23px}
+  .p-yr{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:7px 0;font-size:14px;color:#222}
+  .p-yr i{display:block;height:12px;border-radius:99px;background:var(--bright)}
+  .p-yr b{font-variant-numeric:tabular-nums;font-weight:600}
+  .p-sel{font:16px var(--font);color:#222;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:#fff}
+  .p-ok{color:var(--brand);font-size:14px;font-weight:600;min-height:20px;margin:8px 2px 0}
+  .p-gain{font-size:12.5px;font-weight:600}.p-gain.up{color:var(--brand)}.p-gain.down{color:#b3261e}
+  .p-pad .li .val{color:var(--muted);font-size:15px;white-space:nowrap}
+</style>
+{%- set k = keep %}
+{%- macro bill_rows(items, frm) -%}
+  {% for b in items %}<div class="p-bill" id="bill-{{ loop.index }}">{{ icon("bill") }}<span class="txt">{{ b.label }}<small>{{ t("Eräpäivä", "Due") }} {{ b.due }}</small></span>
+    <span class="amt">{{ b.amount_eur|fimoney }}</span>
+    <form method="post" action="/s-mobiili/maksut/maksa{{ k }}"><input type="hidden" name="bill_id" value="{{ b.bill_id }}"><input type="hidden" name="from" value="{{ frm }}"><button class="p-pay" type="submit">{{ t("Maksa", "Pay") }}</button></form></div>
+  {% else %}<p class="muted" style="padding:12px 0">{{ t("Ei erääntyviä laskuja juuri nyt.", "Nothing due right now.") }}</p>{% endfor %}
+{%- endmacro %}
+
+{% if extra == "p-tilit" %}
+  <div class="pad p-pad">
+    <section class="card list" id="accounts">
+      <a class="li tap" id="acct-s-tili" href="/s-mobiili/tilit/s-tili{{ k }}">{{ icon("bars") }}<span class="txt">S-Tili<small>{{ iban }}</small></span><span class="amt">{{ a.current|fimoney }}</span>{{ icon("chevron", "i chev") }}</a>
+      <a class="li tap" id="acct-savings" href="/s-mobiili/saastot{{ k }}">{{ icon("trophy") }}<span class="txt">{{ t("Säästötili", "Savings account") }}<small>{% if a.pocket_open %}{{ a.goals|length }} {{ t("tavoite", "goal") if a.goals|length == 1 else t("tavoitetta", "goals") }}{% else %}{{ t("Ei vielä avattu", "Not opened yet") }}{% endif %}</small></span><span class="amt">{{ a.pocket|fimoney if a.pocket_open else "–" }}</span>{{ icon("chevron", "i chev") }}</a>
+      <a class="li tap" id="acct-funds" href="/s-mobiili/sijoitukset{{ k }}">{{ icon("case") }}<span class="txt">{{ t("Rahastot", "Funds") }}<small>{{ t("Rahastoihin maksettu", "Paid into funds") }}</small></span><span class="amt">{{ a.funds|fimoney }}</span>{{ icon("chevron", "i chev") }}</a>
+      <a class="li tap" id="acct-card" href="{{ tab_urls.kortti }}">{{ icon("scard-fill") }}<span class="txt">S-Etukortti Visa<small>{{ t("Luottoa käytettävissä", "Credit available") }}</small></span><span class="amt">2&nbsp;000,00&nbsp;€</span>{{ icon("chevron", "i chev") }}</a>
+    </section>
+    {{ ask_oiva("Paljonko voin käyttää palkkapäivään asti?", "How much can I spend until payday?", "ask-accounts", cls="card") }}
+  </div>
+
+{% elif extra == "p-tili" %}
+  <section class="p-bal" aria-label="S-Tili">
+    <small>{{ t("Saldo", "Balance") }}</small>
+    <div class="amount" id="balance">{{ a.current|fimoney }}</div>
+    <small>{{ t("Käytettävissä", "Available") }} {{ a.current|fimoney }}</small>
+    <button class="p-iban" type="button" id="copy-iban" data-iban="{{ iban|replace(' ', '') }}" data-done="{{ t('Kopioitu', 'Copied') }}">{{ iban }} · <span>{{ t("Kopioi", "Copy") }}</span></button>
+  </section>
+  <div class="pad">
+    <div class="p-acts">
+      <a id="tili-pay" href="/s-mobiili/maksut/uusi{{ k }}">{{ icon("bill") }}{{ t("Uusi maksu", "New payment") }}</a>
+      <a id="tili-save" href="/s-mobiili/saastot{{ k }}">{{ icon("trophy") }}{{ t("Siirrä säästöön", "Move to savings") }}</a>
+    </div>
+    {% if payday %}<p class="muted" style="margin:10px 2px 0">{% if en %}Next salary {{ salary|fimoney }} expected {{ payday }}{% else %}Seuraava palkka {{ salary|fimoney }} odotetaan {{ payday }}{% endif %}</p>{% endif %}
+    <h2 class="sec">{{ t("Tilitapahtumat", "Transactions") }}</h2>
+    {% for d in days %}<p class="p-day">{{ d.day }}</p>
+    <section class="card p-tx">{% for x in d.rows %}<div class="row"><span>{{ x.what }}{% if x.category %}<small>{{ x.category }}</small>{% endif %}</span><b class="{{ 'pos' if x.amount_eur > 0 }}">{{ x.amount_eur|fimoney }}</b></div>{% endfor %}</section>
+    {% else %}<p class="muted">{{ t("Ei vielä tapahtumia.", "No transactions yet.") }}</p>{% endfor %}
+    {{ ask_oiva("Mihin olen käyttänyt eniten viime aikoina?", "What have I spent the most on lately?", "ask-tili", cls="card") }}
+  </div>
+
+{% elif extra == "p-maksut" %}
+  <div class="pad">
+    <div class="p-acts">
+      <a id="new-payment" href="/s-mobiili/maksut/uusi{{ k }}">{{ icon("plus") }}{{ t("Uusi maksu", "New payment") }}</a>
+      <a id="einvoices" href="/s-mobiili/maksut/e-laskut{{ k }}">{{ icon("bill") }}{{ t("E-laskut", "E-invoices") }}</a>
+    </div>
+    <h2 class="sec">{{ t("Erääntyvät", "Due soon") }}</h2>
+    <section class="card list" id="due">{{ bill_rows(bills, "maksut") }}</section>
+    <h2 class="sec">{{ t("Toistuvat maksut", "Regular payments") }}<small>{{ t("tililtäsi", "from your account") }}</small></h2>
+    <section class="card list p-pad" id="regular">
+      {% for x in regular %}{% if x.id == "investing" %}<a class="li tap" id="reg-{{ x.id }}" href="/s-mobiili/sijoitukset{{ k }}">{% else %}<div class="li" id="reg-{{ x.id }}">{% endif %}
+        {{ icon("case" if x.id == "investing" else "bill") }}<span class="txt">{{ x.label }}<small>{% if x.status != "active" %}{{ t("Keskeytetty", "Paused") if x.status.startswith("paused") else t("Päättynyt", "Stopped") }}{% elif x.paid_for %}{{ t("Maksettu", "Paid") }} ({{ t("eräpäivä", "due") }} {{ x.paid_for }}){% elif x.next %}{{ t("Seuraava", "Next") }} {{ x.next }}{% else %}{{ t("Useita pieniä laskuja, eri päivinä", "Several small bills, on different days") }}{% endif %}</small></span>
+        <span class="amt" style="font-size:16px">{{ x.per_month_eur|fimoney }}<small>{{ t("kuussa", "a month") }}</small></span>{% if x.id == "investing" %}{{ icon("chevron", "i chev") }}</a>{% else %}</div>{% endif %}
+      {% endfor %}
+    </section>
+    {{ ask_oiva("Mitä laskuja minulla on tulossa?", "What bills do I have coming up?", "ask-payments", cls="card") }}
+  </div>
+
+{% elif extra == "p-uusi" %}
+  <div class="pad">
+    {% if bills %}<h2 class="sec" style="margin-top:6px">{{ t("Maksa lasku", "Pay a bill") }}</h2>
+    <section class="card list" id="quick">{{ bill_rows(bills, "uusi") }}</section>{% endif %}
+    <h2 class="sec">{{ t("Uusi saaja", "New recipient") }}</h2>
+    {% if error %}<p class="p-err" id="pay-error" role="alert">{{ error }}</p>{% endif %}
+    <form class="card p-form" id="pay-form" method="post" action="/s-mobiili/maksut/uusi{{ k }}">
+      <label>{{ t("Saajan nimi", "Recipient") }}<input name="name" required maxlength="60" autocomplete="off" value="{{ form.name or '' }}"></label>
+      <label>{{ t("Saajan tilinumero (IBAN)", "Recipient's account (IBAN)") }}<input name="iban" required autocomplete="off" autocapitalize="characters" placeholder="FI.." value="{{ form.iban or '' }}"></label>
+      <label>{{ t("Summa (€)", "Amount (€)") }}<input name="amount" required inputmode="decimal" autocomplete="off" placeholder="0,00" value="{{ form.amount or '' }}"></label>
+      <label>{{ t("Viitenumero tai viesti (valinnainen)", "Reference or message (optional)") }}<input name="reference" maxlength="40" autocomplete="off" value="{{ form.reference or '' }}"></label>
+      {% if form.again %}<input type="hidden" name="again" value="1">{% endif %}
+      <p class="muted" style="margin:10px 0 0">{{ t("Tililtä", "From") }}: S-Tili · {{ balance|fimoney }} · {{ t("Maksu lähtee tänään", "It leaves today") }}</p>
+      <button class="btn" type="submit" id="pay-continue">{{ t("Jatka tarkistukseen", "Continue to review") }}</button>
+    </form>
+    {{ ask_oiva("Haluan maksaa laskun kuvasta", "I want to pay a bill from a photo", "ask-photo", cls="card") }}
+  </div>
+
+{% elif extra == "p-elaskut" %}
+  <div class="pad">
+    <h2 class="sec" style="margin-top:6px">{{ t("Avoimet e-laskut", "Open e-invoices") }}</h2>
+    <section class="card list" id="open-einvoices">{{ bill_rows(bills, "e-laskut") }}</section>
+    <h2 class="sec">{{ t("Tilaa e-laskuja", "Order e-invoices") }}</h2>
+    <section class="card list" id="order">
+      {% for x in regular if x.id != "investing" %}<div class="p-bill">{{ icon("bill") }}<span class="txt">{{ x.label }}<small>{{ x.per_month_eur|fimoney }} {{ t("kuussa", "a month") }}</small></span>
+        <button class="p-pay ghost" type="button" data-order="{{ x.id }}" aria-pressed="{{ 'true' if x.id == 'rent' else 'false' }}" data-on="{{ t('Tilattu ✓', 'Ordered ✓') }}" data-off="{{ t('Tilaa', 'Order') }}">{{ t("Tilattu ✓", "Ordered ✓") if x.id == "rent" else t("Tilaa", "Order") }}</button></div>
+      {% endfor %}
+    </section>
+    <p class="note">{{ t("Konseptissa e-laskun tilaus näytetään, mutta sitä ei lähetetä laskuttajalle.", "In this concept, ordering an e-invoice is shown but not sent to the biller.") }}</p>
+    {{ ask_oiva("Mitä laskuja minulla on tulossa?", "What bills do I have coming up?", "ask-einvoices", cls="card") }}
+  </div>
+
+{% elif extra == "p-saastot" %}
+  <section class="p-bal" aria-label="{{ t('Säästötili', 'Savings account') }}">
+    <small>{{ t("Säästötili", "Savings account") }}</small>
+    <div class="amount" id="savings-balance">{{ a.pocket|fimoney if a.pocket_open else "–" }}</div>
+    <small>{% if a.pocket_open %}{{ t("Erillään käyttörahoista, nostettavissa milloin vain", "Separate from your spending, yours to take out any time") }}{% else %}{{ t("Ei vielä avattu. Avautuu ensimmäisellä siirrolla.", "Not opened yet. It opens with your first transfer.") }}{% endif %}</small>
+  </section>
+  <div class="pad">
+    {% for gp in plans %}{% set g = gp.goal %}
+    <section class="card p-goal" id="goal-{{ g.id }}">
+      <span class="t">{{ t("Hätävara", g.name) if g.id == "emergencybuffer" else g.name }}</span>
+      <div class="p-prog" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ [gp.progress_pct, 100]|min }}" aria-label="{{ gp.progress_pct }} %"><i style="width:{{ [gp.progress_pct, 100]|min }}%"></i></div>
+      <div class="meta"><span><b>{{ g.saved|fimoney }}</b> / {{ g.target|fimoney }}</span><span>{{ gp.progress_pct }} %</span></div>
+      <div class="meta" style="margin-top:4px"><span>{{ t("Jäljellä", "Left to save") }} {{ gp.left_to_save_eur|fimoney }}</span><span>{% if gp.deadline %}{{ t("Tavoitepäivä", "By") }} {{ gp.deadline }}{% endif %}</span></div>
+      {% if gp.left_to_save_eur <= 0 %}<p class="p-ok">{{ t("Tavoite saavutettu!", "Goal reached!") }}</p>
+      {% elif gp.amounts %}
+      <form method="post" action="/s-mobiili/saastot/lisaa{{ k }}" id="add-{{ g.id }}">
+        <input type="hidden" name="goal_id" value="{{ g.id }}">
+        <fieldset class="p-chips"><legend>{{ t("Lisää rahaa S-Tililtä", "Add money from your S-Tili") }}</legend>
+          {% for x in gp.amounts %}<label><input type="radio" name="amount" value="{{ x }}"{% if loop.index == ([gp.amounts|length, 2]|min) %} checked{% endif %}><span>{{ x|fimoney|replace(",00 €", " €") }}</span></label>{% endfor %}
+        </fieldset>
+        <button class="btn" type="submit" id="add-money">{{ t("Lisää rahaa", "Add money") }}</button>
+      </form>
+      <p class="muted" style="margin:8px 0 0">{% if en %}Up to {{ can.now_max_eur|fimoney }} can move now without touching your bills before payday.{% else %}Nyt voit siirtää enintään {{ can.now_max_eur|fimoney }} koskematta laskuihin ennen palkkapäivää.{% endif %}</p>
+      {% else %}<p class="muted" style="margin:10px 0 0">{{ t("Ennen palkkapäivää ei ole vapaata rahaa siirrettäväksi. Ensimmäinen siirto voi odottaa palkkapäivään.", "Nothing is free to move before payday, so the first saving can wait for payday.") }}</p>{% endif %}
+      {% if gp.options and gp.left_to_save_eur > 0 %}<div class="rows" style="padding:8px 0 0">{% for o in gp.options[:3] %}<div class="r"><span>{{ o.monthly_eur|fimoney }} {{ t("kuussa", "a month") }}</span><span>{% if en %}reached in {{ o.months }} month{{ 's' if o.months != 1 }}{% else %}valmis {{ o.months }} kk:ssa{% endif %}</span></div>{% endfor %}</div>{% endif %}
+    </section>
+    {% else %}
+    <section class="card p-goal" id="no-goal">
+      <span class="t">{{ t("Aloita hätävara", "Start an emergency buffer") }}</span>
+      <p class="muted" style="margin:6px 0 12px">{% if en %}Three months of your irregular must-haves (a broken washing machine, a dentist): {{ buffer|fimoney }}.{% else %}Kolmen kuukauden epäsäännölliset pakolliset menot (rikkinäinen pesukone, hammaslääkäri): {{ buffer|fimoney }}.{% endif %}</p>
+      <form method="post" action="/s-mobiili/saastot/aloita{{ k }}"><button class="btn" type="submit" id="start-buffer">{{ t("Aloita hätävara", "Start the buffer") }}</button></form>
+    </section>
+    {% endfor %}
+    {{ ask_oiva("Paljonko voisin säästää kuussa?", "How much could I save a month?", "ask-savings", cls="card") }}
+  </div>
+
+{% elif extra == "p-sijoitukset" %}
+  <section class="p-bal" aria-label="{{ t('Sijoitukset', 'Investments') }}">
+    <small>{{ t("Rahastoihin maksettu yhteensä", "Paid into funds in total") }}</small>
+    <div class="amount" id="funds-total">{{ pf.net_put_in_eur|fimoney }}</div>
+    <small>{% if pf.withdrawn_total_eur %}{{ t("Nostettu", "Taken out") }} {{ pf.withdrawn_total_eur|fimoney }} · {% endif %}{{ t("Arvo riippuu rahastosta", "The value depends on the fund") }}</small>
+  </section>
+  <div class="pad">
+    <h2 class="sec">{{ t("Kuukausisijoitus", "Monthly investing") }}</h2>
+    <section class="card list p-pad" id="plan">
+      {% if inv %}<div class="li">{{ icon("case") }}<span class="txt">{{ inv.per_month_eur|fimoney }} {{ t("kuussa", "a month") }}<small>{% if paused %}{{ t("Keskeytetty. Jo sijoitettu pysyy sijoitettuna.", "Paused. What's invested stays invested.") }}{% elif inv.status == "active" %}{% if en %}Usually on day {{ inv.usual_day }} · next {{ inv.next }}{% else %}Yleensä kuun {{ inv.usual_day }}. päivä · seuraava {{ inv.next }}{% endif %}{% else %}{{ t("Ei käynnissä", "Not running") }}{% endif %}</small></span></div>
+      {% if inv.status == "active" and not paused %}<form method="post" action="/s-mobiili/sijoitukset/tauko{{ k }}" style="padding:4px 0 14px"><button class="btn ghost" type="submit" id="pause-investing" style="margin-top:0">{{ t("Keskeytä kuukausisijoitus", "Pause monthly investing") }}</button></form>{% endif %}
+      {% else %}<p class="muted" style="padding:12px 0">{{ t("Ei kuukausisijoitusta.", "No monthly investing yet.") }}</p>{% endif %}
+      {% for pl in plans %}<div class="li">{{ icon("case") }}<span class="txt">{{ pl.amount|fimoney }} {{ t("kuussa", "a month") }} · {{ pl.name }}<small>{{ t("Uusi suunnitelma", "New plan") }}</small></span></div>{% endfor %}
+    </section>
+    {% if years %}<h2 class="sec">{{ t("Maksettu vuosittain", "Paid in by year") }}</h2>
+    <section class="card" style="padding:10px 16px" id="by-year">
+      {% for y, v in years|dictsort %}<div class="p-yr"><span>{{ y }}</span><i style="width:{{ (v / top * 100)|round(0) }}%"></i><b>{{ v|fimoney }}</b></div>{% endfor %}
+    </section>{% endif %}
+    {% if funds %}<h2 class="sec">{{ t("Jos talletuksesi olisivat olleet…", "If your deposits had been in…") }}</h2>
+    <section class="card list" id="funds">
+      {% for r in funds %}<a class="li tap" href="{{ ask('Kerro rahastosta ' ~ r.fund, 'Tell me about the fund ' ~ r.fund) }}">{{ icon("chart") }}<span class="txt">{{ r.fund }}<small>{{ t("Arvo tänään", "Value today") }} {{ r.value_today_eur|fimoney }}</small></span>
+        <span class="p-gain {{ 'up' if r.gain_eur >= 0 else 'down' }}">{{ '+' if r.gain_eur >= 0 }}{{ r.gain_pct|string|replace('.', ',') if not en else r.gain_pct }} %</span>{{ icon("chevron", "i chev") }}</a>{% endfor %}
+    </section>
+    <p class="muted" style="margin:8px 2px 0">{% if en %}Your real deposit dates and amounts at each fund's real prices, valued {{ as_of }}. The data does not say which fund you hold, so each is shown.{% else %}Todelliset talletuspäiväsi ja summasi rahaston todellisilla hinnoilla, arvo {{ as_of }}. Aineisto ei kerro, mihin rahastoon talletukset menivät, joten näytämme jokaisen.{% endif %}</p>{% endif %}
+    {{ ask_oiva("Auta minua valitsemaan rahasto", "Help me pick a fund", "ask-invest", cls="card") }}
+  </div>
+
+{% elif extra == "p-korttitap" %}
+  <section class="p-bal">
+    <small>{{ t("Korttiostot", "Card purchases in") }} {{ ct.last_month }}</small>
+    <div class="amount" id="card-month">{{ ct.last_month_eur|fimoney }}</div>
+    <small>{{ t("Tässä kuussa tähän mennessä", "This month so far") }} {{ ct.this_month_eur|fimoney }}</small>
+  </section>
+  <div class="pad">
+    <section class="card p-tx" id="card-tx">
+      {% for x in ct.rows %}{% if x.receipt %}<a class="row" href="/s-mobiili/kuitit/{{ x.id }}{{ k ~ ('&' if k else '?') }}from=kortti">{% else %}<div class="row">{% endif %}<span>{{ x.what }}<small>{{ x.date }} · {{ x.category }}{% if x.receipt %} · {{ t("kuitti", "receipt") }}{% endif %}</small></span><b>{{ x.amount_eur|fimoney }}</b>{% if x.receipt %}{{ icon("chevron") }}</a>{% else %}</div>{% endif %}
+      {% else %}<p class="muted">{{ t("Ei korttiostoja.", "No card purchases yet.") }}</p>{% endfor %}
+    </section>
+    {{ ask_oiva("Mihin rahani menivät tässä kuussa?", "Where did my money go this month?", "ask-card-tx", cls="card") }}
+  </div>
+
+{% elif extra == "p-rajat" %}
+  <div class="pad">
+    <p class="muted" style="margin:0 2px 12px">{{ t("Rajat suojaavat korttia, jos se katoaa. Voit muuttaa niitä milloin vain.", "Limits protect the card if it gets lost. Change them any time.") }}</p>
+    <form class="card list p-pad" id="limits">
+      {% for key, fi, en_l, opts, cur in [("contactless", "Lähimaksu, ostoa kohden", "Contactless, per purchase", [25, 50], 50),
+          ("online", "Verkko-ostot, päivässä", "Online, per day", [200, 500, 1000, 2000], 1000),
+          ("atm", "Käteisnostot, päivässä", "Cash withdrawals, per day", [200, 500, 1000], 500),
+          ("shop", "Korttiostot, päivässä", "Card purchases, per day", [500, 1000, 2000], 2000)] %}
+      <label class="li"><span class="txt">{{ t(fi, en_l) }}</span><select class="p-sel" name="{{ key }}" data-limit="{{ key }}">{% for o in opts %}<option value="{{ o }}"{% if o == cur %} selected{% endif %}>{{ o }} €</option>{% endfor %}</select></label>
+      {% endfor %}
+      <div style="padding:6px 0 14px"><button class="btn" type="submit" id="save-limits">{{ t("Tallenna rajat", "Save limits") }}</button></div>
+    </form>
+    <p class="p-ok" id="limits-ok" role="status"></p>
+    <p class="note">{{ t("Konseptissa rajat tallentuvat vain tähän selaimeen.", "In this concept, limits are kept in this browser only.") }}</p>
+  </div>
+
+{% elif extra == "p-alue" %}
+  <div class="pad">
+    <div class="card" style="padding:4px 16px 12px" role="radiogroup" id="regions" aria-label="{{ t('Käyttöalue', 'Where it works') }}">
+      {% for key, fi, en_l, sub_fi, sub_en in [("world", "Koko maailma", "Whole world", "Kortti toimii kaikkialla", "The card works everywhere"),
+          ("europe", "Eurooppa", "Europe", "Kortti toimii Euroopassa ja verkossa", "Works in Europe and online"),
+          ("finland", "Vain Suomi", "Finland only", "Kortti toimii vain Suomessa", "Works in Finland only")] %}
+      <div class="opt" role="radio" tabindex="0" data-region="{{ key }}" data-label="{{ t(fi, en_l) }}" aria-checked="{{ 'true' if key == 'world' else 'false' }}"><span class="dot"></span><span><b>{{ t(fi, en_l) }}</b><small>{{ t(sub_fi, sub_en) }}</small></span></div>
+      {% endfor %}
+    </div>
+    <p class="p-ok" id="region-ok" role="status"></p>
+  </div>
+{% endif %}
+<script>
+(() => {
+  const ss = {get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+              set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} }};
+  const iban = document.getElementById("copy-iban");
+  if (iban) iban.addEventListener("click", () => {
+    try { navigator.clipboard.writeText(iban.dataset.iban).catch(() => {}); } catch (e) {}
+    iban.querySelector("span").textContent = iban.dataset.done;
+  });
+  document.querySelectorAll("[data-order]").forEach(b => {
+    const key = "sm-einvoice-" + b.dataset.order, saved = ss.get(key);
+    const show = on => { b.setAttribute("aria-pressed", on); b.textContent = on ? b.dataset.on : b.dataset.off; };
+    if (saved !== null) show(saved === "1");
+    b.addEventListener("click", () => { const on = b.getAttribute("aria-pressed") !== "true"; show(on); ss.set(key, on ? "1" : "0"); });
+  });
+  const limits = document.getElementById("limits");
+  if (limits) {
+    limits.querySelectorAll("select").forEach(s => { const v = ss.get("sm-limit-" + s.name); if (v) s.value = v; });
+    limits.addEventListener("submit", e => {
+      e.preventDefault();
+      limits.querySelectorAll("select").forEach(s => ss.set("sm-limit-" + s.name, s.value));
+      document.getElementById("limits-ok").textContent = document.documentElement.lang === "en" ? "Limits saved" : "Rajat tallennettu";
+    });
+  }
+  const regions = document.querySelectorAll("[data-region]");
+  const pick = (el, say) => {
+    regions.forEach(r => r.setAttribute("aria-checked", r === el));
+    ss.set("sm-region", el.dataset.region); ss.set("sm-region-label", el.dataset.label);
+    if (say) document.getElementById("region-ok").textContent = (document.documentElement.lang === "en" ? "Saved: " : "Tallennettu: ") + el.dataset.label;
+  };
+  regions.forEach(r => {
+    if (ss.get("sm-region") === r.dataset.region) pick(r, false);
+    r.addEventListener("click", () => pick(r, true));
+    r.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); pick(r, true); } });
+  });
+})();
+</script>

@@ -3,20 +3,22 @@
 Deterministic, no AI. run_tool adds it to the tool result as "lesson"; the system prompt asks the coach to use at
 most one such line per reply, when it fits. Every figure in a lesson is in the same tool result (or computed here
 from it and written into it), so the number guard accepts it.
-The ideas are the challenge's three baskets and a few core habits: plan for basket 1, buffer basket 2, choose
-basket 3; safe to spend is not the balance; pay yourself first; small amounts × 12 or × 365.
+The ideas are the challenge's three baskets and a few core habits: plan for bills & basics, buffer occasional costs,
+choose fun & extras; safe to spend is not the balance; pay yourself first; small amounts × 12 or × 365.
 """
 from __future__ import annotations
 
 from datetime import date, timedelta
+
+from .engine import BASKETS
 
 
 def eur(x: float) -> str:
     return f"{x:,.2f} €".replace(",", " ")
 
 
-SLIPS = "Slips through your fingers"
-IRREGULAR = "Mandatory & irregular"
+SLIPS = BASKETS["everyday"]["label"]
+IRREGULAR = BASKETS["irregular"]["label"]
 
 
 def _one_month(r: dict) -> bool:
@@ -40,10 +42,10 @@ def _spending(r: dict) -> str | None:
                     f"{eur(year)} a year if every month looked like this.")
         return f"Small things add up: {n} payments of about {eur(r['average_per_transaction_eur'])} made {eur(total)}."
     if basket == IRREGULAR:
-        return (f"Mandatory & irregular: needed, but you can't know when. A small buffer turns {eur(total)} like "
+        return (f"Occasional costs: needed, but you can't know when. A small buffer turns {eur(total)} like "
                 "this into a non-event instead of a scramble.")
     if basket:
-        return "Mandatory & regular: it comes back on a schedule, so it can be planned for before payday."
+        return "Bills & basics: it comes back on a schedule, so it can be planned for before payday."
     return None
 
 
@@ -52,8 +54,9 @@ def _baskets(r: dict) -> str | None:
     if "everyday" not in b:
         return None
     e = b["everyday"]
-    return (f"Basket 1 you plan for, basket 2 you keep a buffer for, and basket 3 ({eur(e['per_month_eur'])} a "
-            f"month, {e['share_pct']}%) is the only one you can change today.")
+    return (f"Bills & basics you plan for, occasional costs you keep a buffer for, and fun & extras "
+            f"({eur(e['per_month_eur'])} a month, {e['share_pct']}%) is where you decide, so it's the easiest place "
+            "to save.")
 
 
 def _safe_to_spend(r: dict) -> str | None:
@@ -76,7 +79,7 @@ def _safe_to_save(r: dict) -> str | None:
     cuts = r.get("where_a_cut_could_come_from") or []
     if cuts:
         c = cuts[0]
-        return (f"With no steady surplus, saving starts in basket 3: {c['category'].lower()} −{c['cut_pct']:g}% "
+        return (f"With no steady surplus, saving starts in fun & extras: {c['category'].lower()} −{c['cut_pct']:g}% "
                 f"frees {eur(c['saving_per_month_eur'])} a month to pay yourself first.")
     return None
 
@@ -87,7 +90,7 @@ def _afford(r: dict) -> str | None:
         return None
     pct = round(price / budget * 100)
     r["price_share_of_basket_3_pct"] = pct
-    return (f"Wants come out of basket 3, the one you choose: this is {pct}% of your usual "
+    return (f"Wants come out of fun & extras, the basket you choose: this is {pct}% of your usual "
             f"{eur(budget)} a month there.")
 
 
@@ -97,7 +100,7 @@ def _cut(r: dict) -> str | None:
         return None
     day = round(year / 365, 2)
     r["saving_per_day_eur"] = day
-    return (f"Small amounts × 365: {eur(day)} a day is {eur(month)} a month and {eur(year)} a year. Cuts in basket 3 "
+    return (f"Small amounts × 365: {eur(day)} a day is {eur(month)} a month and {eur(year)} a year. Cuts in fun & extras "
             "are the quickest to make.")
 
 
@@ -105,14 +108,14 @@ def _profile(r: dict) -> str | None:
     share = r.get("everyday_share_pct")
     if share is None:
         return None
-    return f"{share}% of your spending is basket 3, slips through your fingers: the part you can change today."
+    return f"{share}% of your spending is fun & extras: the part you decide, so the easiest place to save."
 
 
 def _regular(r: dict) -> str | None:
     month, year = r.get("bills_per_month_eur") or 0, r.get("bills_per_year_eur") or 0
     if not month:
         return None
-    return (f"Rent and bills are basket 1 on autopilot: {eur(month)} a month, {eur(year)} a year, gone before you "
+    return (f"Rent and bills, your bills & basics, run on autopilot: {eur(month)} a month, {eur(year)} a year, gone before you "
             "choose anything. Safe to spend starts after them.")
 
 
@@ -120,7 +123,7 @@ def _full_picture(r: dict) -> str | None:
     months = r.get("savings_cover_irregular_months")
     if not r.get("linked") or months is None:
         return None
-    return (f"A buffer turns surprises from basket 2 into non-events: your savings cover about {months} months of "
+    return (f"A buffer turns occasional costs into non-events: your savings cover about {months} months of "
             "them.")
 
 

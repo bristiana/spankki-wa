@@ -76,11 +76,12 @@ TOOLS = [
     },
     {
         "name": "get_baskets",
-        "description": "Splits spending into the three baskets (mandatory & regular, mandatory & irregular, slips through "
-                       "your fingers), with income, money invested and what was left over."
+        "description": "Splits spending into the three baskets (bills & basics, occasional costs, fun & extras), with "
+                       "income, money invested and what was left over."
                        " Use for 'where does my money go?' with last_3_months: one short line per basket, in order, "
                        "with its name, € a month, share and its examples in brackets (start straight with the list, no "
-                       "lead-in line), then one line: basket 3 is the only one they can change today, with its number.",
+                       "lead-in line), then one line: fun & extras is the one they decide, so it's the easiest place to save, "
+                       "with its number.",
         "input_schema": {"type": "object", "properties": {"period": PERIOD_PROP}, "required": ["period"],
                          "additionalProperties": False},
     },
@@ -299,8 +300,8 @@ TOOLS = [
                 "category": {"type": ["string", "null"], "enum": SPEND_CATEGORIES + [None],
                              "description": "Only this category (spending only), or null."},
                 "basket": {"type": ["string", "null"], "enum": list(BASKETS) + [None],
-                           "description": "Only this basket: regular = mandatory & regular, irregular = mandatory & "
-                                          "irregular, everyday = slips through your fingers. Or null."},
+                           "description": "Only this basket: regular = bills & basics, irregular = occasional costs, "
+                                          "everyday = fun & extras. Or null."},
                 "merchant_type": {"type": ["string", "null"], "enum": EXPLORE_MERCHANT_TYPES + [None],
                                   "description": "Only this kind of place, from the card's merchant code: a word like "
                                                  "taxi, fuel, parking, fast food, coffee, supermarket, or a 4-digit "

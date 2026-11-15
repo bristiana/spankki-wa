@@ -27,17 +27,17 @@ def e(tmp_path):
 
 # ---------------- lesson_for: one line on a tool result ----------------
 @pytest.mark.parametrize("tool,args,expect", [
-    ("get_baskets", {"period": "last_3_months"}, ["809.91 €", "38%", "only one you can change today"]),
+    ("get_baskets", {"period": "last_3_months"}, ["809.91 €", "38%", "fun & extras", "easiest place to save"]),
     ("get_spending", {"category": "Restaurants", "period": "last_month"},
      ["10 payments", "644.63 €", "7 735.56 € a year"]),
     ("get_spending", {"category": "Health", "period": "last_3_months"}, ["157.82 €", "buffer", "non-event"]),
     ("get_safe_to_spend", {}, ["not your budget", "1 001.94 €", "68.60 €"]),
     ("get_safe_to_save", {}, ["restaurants −20%", "97.18 €", "pay yourself first"]),
-    ("can_i_afford", {"amount_eur": 120, "what": "jacket"}, ["15%", "809.91 €", "basket 3"]),
+    ("can_i_afford", {"amount_eur": 120, "what": "jacket"}, ["15%", "809.91 €", "fun & extras"]),
     ("simulate_cut", {"category": "Restaurants", "cut_pct": 20, "years": 5},
      ["× 365", "3.19 € a day", "97.18 € a month", "1 166.16 € a year"]),
-    ("get_spender_profile", {}, ["38%", "change today"]),
-    ("get_regular_payments", {}, ["basket 1 on autopilot", "894.47 € a month", "10 733.64 € a year"]),
+    ("get_spender_profile", {}, ["38%", "fun & extras", "easiest place to save"]),
+    ("get_regular_payments", {}, ["bills & basics, run on autopilot", "894.47 € a month", "10 733.64 € a year"]),
 ])
 def test_tool_results_carry_a_lesson_with_their_own_numbers(e, tool, args, expect):
     out = run_tool(e, tool, args, [])

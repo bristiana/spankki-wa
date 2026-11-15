@@ -71,7 +71,7 @@ def test_question_and_buttons_fit_whatsapp(e):
     t = quiz.start(e, "u")
     assert "basket game" in t.lead[0] and t.text.startswith("*1/5* ") and t.text.endswith("Which basket?")
     assert [b[0] for b in t.buttons] == ["quiz:0:0:regular", "quiz:0:0:irregular", "quiz:0:0:everyday"]
-    assert [b[1] for b in t.buttons] == ["Regular must-pay", "Irregular must-pay", "Slips through"]
+    assert [b[1] for b in t.buttons] == ["Bills & basics", "Occasional costs", "Fun & extras"]
     assert all(len(label) <= 20 for _, label in t.buttons)
     p = e.state["quiz"]["u"]["picks"][0]
     assert money(p["amount_eur"]) in t.text and p["name"] in t.text
@@ -98,12 +98,12 @@ def test_wrong_answer_is_kind_and_names_the_basket(e):
 
 def test_typed_answers_work_too(e):
     quiz.start(e, "u")
-    for text in ("1", "Irregular must-pay", "slips through"):
+    for text in ("1", "Occasional costs", "fun & extras"):
         r = e.state["quiz"]["u"]
         rnd, p = r["round"], r["picks"][r["round"]]
         t = quiz.turn(e, "u", text)
         assert t and r["round"] == rnd + 1
-        assert p["guess"] == {"1": "regular", "Irregular must-pay": "irregular", "slips through": "everyday"}[text]
+        assert p["guess"] == {"1": "regular", "Occasional costs": "irregular", "fun & extras": "everyday"}[text]
 
 
 def test_summary_numbers_are_the_engines(e):
@@ -240,11 +240,11 @@ def test_whatsapp_game_with_reply_buttons_and_stop(client):
     main.handle_message(msg("game", mid="m1"))
     q = client.sent[-1]["interactive"]
     assert q["type"] == "button" and q["body"]["text"].startswith("*1/5* ")
-    assert [b["reply"]["title"] for b in q["action"]["buttons"]] == ["Regular must-pay", "Irregular must-pay",
-                                                                      "Slips through"]
+    assert [b["reply"]["title"] for b in q["action"]["buttons"]] == ["Bills & basics", "Occasional costs",
+                                                                      "Fun & extras"]
     assert client.sent[-2]["text"]["body"].startswith("*The basket game.*")
     p = main.engine.state["quiz"][to]["picks"][0]
-    main.handle_message(msg("Slips through", f"quiz:0:0:{p['basket']}", "m2"))
+    main.handle_message(msg("Fun & extras", f"quiz:0:0:{p['basket']}", "m2"))
     assert client.sent[-2]["text"]["body"].startswith("Right.")
     main.handle_message(msg("stop", mid="m3"))  # mid-game, STOP pauses the game, Oiva stays on
     assert main.connected(to) and not quiz.active(main.engine, to)

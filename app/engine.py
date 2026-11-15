@@ -23,22 +23,29 @@ ROOT = Path(__file__).resolve().parents[1]
 # The pedagogical frame from the challenge: every euro you spend lands in one of three baskets.
 BASKETS = {
     "regular": {
-        "label": "Mandatory & regular", "example": "rent",
-        "hint": "Bills you know are coming: rent, utilities, groceries, getting to work.",
+        "label": "Bills & basics", "example": "rent",
+        "hint": "Needed every month: rent, utilities, groceries, getting to work.",
         "categories": ["Housing", "Utilities", "Groceries", "Transportation"],
     },
     "irregular": {
-        "label": "Mandatory & irregular", "example": "a broken washing machine",
-        "hint": "Needed, but you can't predict when: a doctor, a broken laptop, a trip home.",
+        "label": "Occasional costs", "example": "a doctor's visit",
+        "hint": "Needed now and then, but you can't predict when: a doctor, a broken laptop, a trip home.",
         "categories": ["Health", "Home & Tech", "Travel"],
     },
     "everyday": {
-        "label": "Slips through your fingers", "example": "coffees",
+        "label": "Fun & extras", "example": "eating out",
         "hint": "Small choices that add up: dining out, entertainment, shopping.",
         "categories": ["Restaurants", "Entertainment", "Lifestyle"],
     },
 }
 CATEGORY_BASKET = {c: k for k, b in BASKETS.items() for c in b["categories"]}
+# The spending categories in everyday words, for a basket's examples ("Mostly rent and groceries").
+CATEGORY_WORDS = {"Housing": "rent", "Utilities": "utility bills", "Groceries": "groceries",
+                  "Transportation": "transport", "Health": "health", "Home & Tech": "home & tech", "Travel": "travel",
+                  "Restaurants": "eating out", "Entertainment": "entertainment", "Lifestyle": "shopping"}
+CATEGORY_FI = {"Housing": "vuokra", "Utilities": "sähkö ja vesi", "Groceries": "ruokaostokset",
+               "Transportation": "liikkuminen", "Health": "terveys", "Home & Tech": "koti ja tekniikka",
+               "Travel": "matkat", "Restaurants": "ravintolat", "Entertainment": "viihde", "Lifestyle": "shoppailu"}
 EVERYDAY_WORDS = {"Restaurants": "eating out", "Entertainment": "entertainment", "Lifestyle": "shopping"}
 NO_PAYDAY_DAYS = 30  # safe-to-spend horizon when no regular salary is found
 INCOME_TYPES = {"salary", "other_income", "investment_withdrawal"}
@@ -414,8 +421,12 @@ class Engine:
         for key, b in BASKETS.items():
             bs = spend[spend["category"].isin(b["categories"])]
             amt = -bs["tx_amount_eur"].sum()
+            top = [c for c in bs.groupby("category")["tx_amount_eur"].sum().sort_values().index][:2]
             out["baskets"].append({
-                "basket": key, "label": b["label"], "example": b["example"], "explanation": b["hint"],
+                "basket": key, "label": b["label"], "explanation": b["hint"], "top_categories": top,
+                # the example is their own: the one or two categories most of this basket went to
+                "example": " and ".join(CATEGORY_WORDS[c] for c in top) or b["example"],
+                "example_fi": " ja ".join(CATEGORY_FI[c] for c in top) or None,  # the card and Oiva say the same
                 "total_eur": eur(amt), "per_month_eur": eur(amt / months),
                 "share_pct": round(amt / total * 100) if total else 0,
                 "by_category": {c: eur(-v) for c, v in bs.groupby("category")["tx_amount_eur"].sum().sort_values().items()},
@@ -606,12 +617,16 @@ class Engine:
 
     def upcoming_bills(self, days: int = 14) -> list[dict]:
         out = []
+        paid = {p.get("bill_id") for p in self.state.get("pending", {}).values()
+                if p.get("kind") == "payment" and p.get("status") == "done"}
         for r in self.recurring():
             if r.direction != "out" or self.state.get("paused", {}).get(r.transaction_type):
                 continue  # a paused monthly investment is not coming up
             d = self._next_due(r)
             if (d - self.today).days <= days:
                 bill_id = f"{r.key}-{d.isoformat()}"
+                if bill_id in paid:  # paid early (before its due date): it is not coming up again
+                    continue
                 out.append({"bill_id": bill_id, "name": r.name, "category": r.category,
                             "amount_eur": r.avg_amount, "due_date": d.isoformat(),
                             "days_away": (d - self.today).days,
@@ -792,7 +807,7 @@ class Engine:
 
     def save_more(self) -> dict:
         """'How could I save more?': at most three ideas, each with one number. The biggest real lever (a 20% cut on
-        the largest 'slips through your fingers' category), what can go to savings now or every payday, and one
+        the largest 'fun & extras' category), what can go to savings now or every payday, and one
         regular payment worth a review."""
         ideas = []
         cuts = [self.simulate_cut(c, 20) for c in BASKETS["everyday"]["categories"] if self.monthly_avg(c, 3) > 0]
@@ -805,7 +820,7 @@ class Engine:
                           "saving_per_month_eur": top["saving_per_month_eur"],
                           "saving_per_year_eur": top["saving_per_year_eur"],
                           "number_to_say": "saving_per_year_eur",
-                          "why": "the largest category in the 'slips through your fingers' basket over the last 3 full "
+                          "why": "the largest category in the 'fun & extras' basket over the last 3 full "
                                  "months; a fifth less there is a habit change, not a sacrifice"})
         save = self.safe_to_save()
         m = save["monthly"]
@@ -847,7 +862,7 @@ class Engine:
                                                   "investing_per_month_eur", "left_per_month_eur")},
             "goals": save["goals"],
             "next_step": step,
-            "method": "biggest lever = simulate_cut(20%) on the largest 'slips through your fingers' category, last 3 "
+            "method": "biggest lever = simulate_cut(20%) on the largest 'fun & extras' category, last 3 "
                       "full months; what built up = the reserve from get_safe_to_save; the review = a regular payment "
                       "from get_regular_payments (one that went up, else the utility bills)",
         }
@@ -1004,7 +1019,7 @@ class Engine:
             **({"not_enough_data": safe["not_enough_data"]} if "not_enough_data" in safe else {}),
             "per_day_after_eur": eur(max(0.0, safe_left - amount) / days),
             "goals": goals,
-            "method": "flexible budget = your average monthly 'slips through your fingers' spending (last 3 months) "
+            "method": "flexible budget = your average monthly 'fun & extras' spending (last 3 months) "
                       "- spent on it this month; safe to spend as in get_safe_to_spend; "
                       "fits_with_reserve: it could be paid by also using the reserve (savings built up beyond the "
                       "pay cycle), which shrinks those savings",
@@ -1141,7 +1156,7 @@ class Engine:
                                 "and travel, costs that come when they come.")
         elif share["regular"] >= 60:
             kind = ("essentials_first", f"Essentials first: {share['regular']}% of your spending is rent, bills, "
-                                        "groceries and getting around; little slips through your fingers.")
+                                        "groceries and getting around; little goes to fun & extras.")
         else:
             kind = ("balanced", f"Balanced spender: no basket dominates ({share['regular']}% essentials, "
                                 f"{share['irregular']}% one-offs, {share['everyday']}% eating out, fun and shopping).")
@@ -1216,6 +1231,21 @@ class Engine:
         self._save()
         return {"pending_id": pid, **self.state["pending"][pid]}
 
+    def create_transfer(self, name: str, iban: str, amount: float, reference: str | None = None,
+                        due_date: str | None = None) -> dict:
+        """A new payment typed in S-mobiili (Pankki -> Payments -> New payment): any recipient and IBAN, paid once
+        after Face ID, like a bill photo. The caller checks the IBAN; the amount must fit the balance."""
+        if not 0.01 <= amount <= 10000:
+            raise ValueError("amount must be between 0.01 and 10000 EUR")
+        if amount > self.balance():
+            raise ValueError(f"not enough money: your balance is {self.balance():.2f} EUR")
+        if due_date:
+            date.fromisoformat(due_date)
+        return self._pend({"kind": "payment", "source": "manual", "bill_id": f"manual-{uuid.uuid4().hex[:8]}",
+                           "name": name.strip()[:60], "category": "Other", "amount": eur(amount),
+                           "due_date": due_date, "iban": iban, "reference": reference or None,
+                           "transaction_type": "bill_payment"})
+
     def create_investment(self, amount: float, fund_id: str, monthly: bool) -> dict:
         if fund_id not in FUNDS_BY_ID:
             raise ValueError(f"unknown fund {fund_id!r}; use one of {list(FUNDS_BY_ID)}")
@@ -1245,7 +1275,8 @@ class Engine:
         if p["status"] == "done":
             return {"pending_id": pid, **p, "balance_eur": self.balance(), "first_time": False}
         kind = p["kind"]
-        if kind == "payment" and p.get("source") == "photo":  # a bill from a photo (app/bills.py): paid once
+        if kind == "payment" and p.get("source") in ("photo", "manual"):  # a bill photo (app/bills.py) or a new
+            # payment typed in S-mobiili (create_transfer): paid once
             if any(q is not p and q.get("bill_id") == p["bill_id"] and q["status"] == "done"
                    for q in self.state["pending"].values()):
                 raise ValueError(f"the {p['name']} bill is already paid")
