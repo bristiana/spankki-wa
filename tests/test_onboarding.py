@@ -229,7 +229,7 @@ def test_small_talk_at_later_questions_reasks_warmly(e, hello):
 
 
 def test_small_talk_words():
-    assert ob.small_talk("how are you") == "All good here, thanks for asking!"
+    assert ob.small_talk("how are you") == "Good, thanks!"
     assert ob.small_talk("hello") == "Hey, good to see you."
     for real in ("a trip to Rome", "Hello Kitty plush collection", "?", "what does prudent mean", "1500 by june", ""):
         assert ob.small_talk(real) is None, real

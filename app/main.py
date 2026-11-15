@@ -375,7 +375,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
     if bid.startswith("later:"):
         note_later(e, user, bid)
         if bid == "later:unusual":
-            return {"text": "Great, enjoy it! I'll keep an eye on your safe-to-spend."}
+            return {"text": "Okay, enjoy! I'll keep an eye on what's left until payday."}
         if bid == "later:goal":
             return {"text": "Okay. I'll look at your pace again next week."}
         if bid == "later:bills":
@@ -584,7 +584,7 @@ def bill_photo(to: str, name: str, m: dict):
     except Exception as e:  # no WA token, Meta or the AI down: say so plainly, keep the details in the log
         log.warning("bill photo %s failed: %s", m["media_id"], e)
         bills.note_unreadable(engine, to)  # a follow-up "explain this bill" then refers to this photo
-        wa.send_text(to, "Sorry, I couldn't open that photo. Could you send it again in a moment?")
+        wa.send_text(to, "That photo didn't open for me. Can you send it again?")
         return
     problem = bills.reply_problem(bill)
     if problem:
@@ -644,13 +644,13 @@ def handle_message(m: dict):
             if onboarding.GREETING.match(said) or not said:
                 welcome(to)
                 return
-            wa.send_text(to, f"Hi {name}! I'm *Oiva*, your S-Pankki money coach. Ask me anything about your "
-                             "money. Write *add bank* to bring your own Revolut too.")
+            wa.send_text(to, f"Hi {name}, I'm *Oiva* from S-Pankki. Ask me what's left until payday, or where last "
+                             "month's money went. Write *add bank* to bring in your Revolut too.")
         if not connected(to):
             wa.send_url_button(
                 to,
-                f"Hi {name}! I'm *Oiva*, your S-Pankki money coach. I answer questions about your spending, remind you "
-                "before bills and help you save.\n\nTo start, connect your S-Pankki account. You choose what I can see, "
+                f"Hi {name}, I'm *Oiva*, S-Pankki's money coach. I can tell you where your money goes and nudge you "
+                "before a bill is due.\n\nFirst, connect your S-Pankki account. You pick what I see, "
                 "and you can switch me off any time.",
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
             return
@@ -713,7 +713,7 @@ def handle_message(m: dict):
         onboarding.side_question(engine, to, text)  # mid-interview: never re-sent; another topic pauses it
     except Exception:
         log.exception("handling message failed")
-        wa.send_text(to, "Sorry, something went wrong on my side. Try again in a minute.")
+        wa.send_text(to, "Something broke on my end. Try again in a minute?")
 
 
 # ---------------- Connect (consent) ----------------
@@ -1816,8 +1816,8 @@ def chat_page(request: Request, q: str = "", embed: str = ""):
     if mirrored:  # the app's chat is the owner's WhatsApp conversation, on the WhatsApp demo customer's data
         persona = DEFAULT_PERSONA
     name = name_for(persona)
-    tts.allow([f"Hei {name}! Olen Oiva, S-Pankin rahavalmentajasi. Kysy minulta mitä vain rahoistasi."])  # #hello
-    tts.allow([f"Hi {name}! I'm Oiva, your S-Pankki money coach. Ask me anything about your money."])
+    tts.allow([f"Hei {name}! Olen Oiva, S-Pankin rahavalmentajasi. Kysy rahoistasi, vaikka paljonko on jäljellä palkkapäivään."])  # #hello
+    tts.allow([f"Hi {name}! I'm Oiva, your S-Pankki money coach. Ask me about your money, like what's left until payday."])
     return templates.TemplateResponse(request, "chat.html", {"name": name, "q": q[:500],
                                                              "embed": True, "mirror": mirrored,
                                                              "framed": embed != "1", "persona": PERSONAS[persona]})
@@ -2104,7 +2104,7 @@ async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption:
         return {"text": str(err), "buttons": [], "mood": "error"}
     except Exception:
         log.exception("bill photo failed")
-        return JSONResponse({"text": "Sorry, I couldn't read that photo just now. Could you try again in a moment?",
+        return JSONResponse({"text": "That photo didn't open for me. Can you send it again?",
                              "buttons": []})
     problem = bills.reply_problem(bill)
     if problem:
@@ -2119,7 +2119,7 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=(), asked: str = ""
         reply = await anyio.to_thread.run_sync(run)
     except Exception:
         log.exception("coach failed")
-        return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
+        return JSONResponse({"text": "I can't answer right now, something's down on my side. "
                                      "Bill reminders and payments still work.", "buttons": [], "mood": "error"})
     out, charts = [], []
     for b in reply.buttons:

@@ -216,7 +216,7 @@ def test_web_secret_never_reaches_the_coach(client):
 def test_web_fresh_start(client):
     say(client, "learn")
     r = say(client, "/new")
-    assert r["bubbles"] == ["Hi! Ask me anything about your money."] and main._coach.resets == ["web:v"]
+    assert r["bubbles"] == ["Hi! Ask me about your money, like what's left until payday."] and main._coach.resets == ["web:v"]
     assert main.engine.state["learn"]["web:v"]["paused"]
     assert rules.open_threads(main.engine, "web:v", force=True)  # the course is still unfinished...
     s = rules.pick(main.engine, "web:v", force=True)

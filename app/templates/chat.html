@@ -134,7 +134,7 @@
   <div class="say" aria-hidden="true"><span class="tag" id="say-tag"></span><div class="bars" id="say-bars"></div><span class="dots"><b></b><b></b><b></b></span><p id="say-text"></p></div>
 </section>
 <div id="log" aria-live="polite" aria-label="{{ t('Keskustelu Oivan kanssa', 'Conversation with Oiva') }}">
-  <div class="msg bot" id="hello">{% if ui_lang(request) == 'en' %}Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.{% else %}Hei {{ name }}! Olen <b>Oiva</b>, S-Pankin rahavalmentajasi. Kysy minulta mitä vain rahoistasi.{% endif %}</div>
+  <div class="msg bot" id="hello">{% if ui_lang(request) == 'en' %}Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me about your money, like what's left until payday.{% else %}Hei {{ name }}! Olen <b>Oiva</b>, S-Pankin rahavalmentajasi. Kysy rahoistasi, vaikka paljonko on jäljellä palkkapäivään.{% endif %}</div>
 </div>
 <!-- The three questions S-Pankki's mentors say matter most: always in view, above the scrolling ideas -->
 <form id="f" autocomplete="off">

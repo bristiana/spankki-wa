@@ -213,8 +213,8 @@ def start(engine: Engine, user: str) -> Turn:
 def finish(engine: Engine, r: dict) -> Turn:
     r["done"] = True
     engine._save()
-    return Turn("That's all five, course done! The short version: plan for basket 1, keep a buffer for "
-                "basket 2, choose basket 3, and pay yourself first. Write *learn* any time to go again.",
+    return Turn("That's all five, course done. In short: plan for basket 1, keep a buffer for basket 2, and basket 3 "
+                "is your call. And pay yourself first on payday. Write *learn* any time to go again.",
                 [("quiz:start", "Play basket game"), ("quiz:money", "Open S-mobiili")],
                 lead=[f"{COUNT} of {COUNT} done!"], done=True)
 

@@ -6,20 +6,20 @@
   const fi = (document.documentElement.lang || "fi").startsWith("fi");
   const T = (a, b) => (fi ? a : b);
   const TAGS = {
-    compare: T("Verrattuna kaltaisiisi", "Compared with people like you"),
-    needs_approval: T("Tarvitaan hyväksyntäsi", "Your OK is needed"),
-    caution: T("Varovasti", "Careful"),
-    safe_to_spend: T("Turvallisesti käytettävissä", "Safe to spend"),
+    compare: T("Muihin verrattuna", "Compared with others"),
+    needs_approval: T("Odottaa hyväksyntääsi", "Needs your OK"),
+    caution: T("Hetkinen", "Hold on"),
+    safe_to_spend: T("Vapaata rahaa", "Free to spend"),
     what_if: T("Entä jos…", "What if…"),
     saving: T("Säästöön", "Saving"),
-    teaching: T("Katso", "Let me show you"),
-    learned: T("Hienoa!", "Nice!"),
-    spent: T("Kulutuksesi", "Your spending"),
-    working: T("Lukusi", "Your numbers"),
+    teaching: T("Näin se toimii", "How it works"),
+    learned: T("Hyvin meni!", "Nailed it"),
+    spent: T("Mihin rahat meni", "Where it went"),
+    working: T("Sinun lukusi", "Your numbers"),
     error: T("Hups", "Oops"),
-    checking: T("Tarkistin", "Checked for you"),
+    checking: T("Katsoin", "I had a look"),
     listening: T("Kuuntelen", "Listening"),
-    thinking: T("Mietin", "Thinking"),
+    thinking: T("Mietin…", "Thinking…"),
   };
   const phone = document.getElementById("phone");
   const stage = document.getElementById("stage"), pal = document.getElementById("pal");

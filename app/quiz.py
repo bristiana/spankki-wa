@@ -151,7 +151,7 @@ def summary(engine: Engine, r: dict) -> Turn:
     b = engine.baskets("last_month")
     month = date.fromisoformat(b["from"]).strftime("%B")
     n, right = len(r["picks"]), r["right"]
-    head = ("All right, you know your baskets." if right == n else "Nicely done." if right * 2 > n
+    head = ("All right, you know your baskets." if right == n else "Most of them right." if right * 2 > n
             else "Now you know where to look.")
     lines = [f"*{right}/{n}*. {head}", "", f"Your real split for {month}:"]
     lines += [f"• {x['label']}: {_money(x['total_eur'])} ({x['share_pct']}%)" for x in b["baskets"]]

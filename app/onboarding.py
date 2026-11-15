@@ -30,7 +30,7 @@ ASK = {  # first wording, then the one used when the question comes back
              "• *Prudent*: small swings, slow and steady\n"
              "• *Balanced*: some swings, a mix of safe and growth\n"
              "• *Growth*: big swings, more growth over 5+ years\n"
-             "I only use it to label info, never to choose for you. Which is closest to you?",
+             "It only shapes how I explain investing. I never pick for you. Which is closest to you?",
              "In plain words: *prudent* means your money barely moves, *balanced* means it can dip for a while, "
              "*growth* means it can drop a lot in a bad year but tends to grow more over many years. "
              "Which feels closest to you?"],
@@ -176,7 +176,7 @@ def small_talk(text: str) -> str | None:
     if not (text or "").strip():
         return None
     if HOW_ARE_YOU.match(text):
-        return "All good here, thanks for asking!"
+        return "Good, thanks!"
     if GREETING.match(text):
         return "Hey, good to see you."
     if CHATTER.match(text):
@@ -197,7 +197,7 @@ def intro(engine: Engine) -> list[str]:
             HELLO]
 
 
-HELLO = "Hi! Ask me anything about your money."
+HELLO = "Hi! Ask me about your money, like what's left until payday."
 
 
 def start(engine: Engine, user: str) -> Turn:
@@ -294,7 +294,7 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
     if not r or r["step"] == "done":
         if not ob:
             return None
-        return start(engine, user) if not r else Turn("Your goal is already set up. Ask me anything about your money.")
+        return start(engine, user) if not r else Turn("Your goal is already set up.")
     if button_id and not ob:
         return None  # another quick reply (pay, ask:...) is handled elsewhere
     if r["paused"]:
@@ -366,8 +366,8 @@ def _advance(engine: Engine, r: dict, reflect: str) -> Turn:
     if r.pop("only", False):  # the lone risk question asked when they talked about investing: nothing follows
         r["step"] = "done"
         engine._save()
-        return Turn(f"{reflect} I'll use it only to label investment info, never to choose for you." if reflect
-                    else "No problem. Ask me anything about investing.", done=True)
+        return Turn(f"{reflect} It only shapes how I explain investing. I never pick for you." if reflect
+                    else "Fine, we can skip that. Ask about investing whenever you like.", done=True)
     done = {"goal": "goal_name" in a, "amount": "amount" in a, "risk": "risk" in a, "checkin": "weekly_checkin" in a}
     after = ORDER[ORDER.index(r["step"]) + 1:] if r["step"] in ORDER else ORDER
     nxt = next((s for s in after if not done[s] and s not in r["skipped"]), None)
