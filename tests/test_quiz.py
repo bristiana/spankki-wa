@@ -208,7 +208,9 @@ def test_web_chat_plays_the_whole_game(client):
     assert [q["send"] for q in r["quick"]] == ["__btn__:quiz:0:0:regular", "__btn__:quiz:0:0:irregular",
                                                "__btn__:quiz:0:0:everyday"]
     r = say("how much do I earn?")  # a side question: the coach answers and the game waits
-    assert r["text"] == "You can spend 50 € this week.\n\nThe basket game is paused at 1/5. Write *game* to pick it up."
+    # the answer stays about the question (no game line leaks into it); a quiet button leads back
+    assert r["text"] == "You can spend 50 € this week."
+    assert r["quick"] == [{"label": "Back to the game (1/5)", "send": "__btn__:quiz:resume"}]
     assert main._coach.asked == ["how much do I earn?"]
     r = say("game")
     assert r["text"].startswith("Back to the game.") and r["quick"][0]["send"] == "__btn__:quiz:0:0:regular"

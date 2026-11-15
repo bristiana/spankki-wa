@@ -131,7 +131,7 @@
         <span class="amt" style="font-size:16px">{{ x.per_month_eur|fimoney }}<small>{{ t("kuussa", "a month") }}</small></span>{% if x.id == "investing" %}{{ icon("chevron", "i chev") }}</a>{% else %}</div>{% endif %}
       {% endfor %}
     </section>
-    {{ ask_oiva("Mitä laskuja minulla on tulossa?", "What bills do I have coming up?", "ask-payments", cls="card") }}
+    {{ ask_oiva("Mitä laskuja on tulossa?", "Which bills are coming up?", "ask-payments", cls="card") }}
   </div>
 
 {% elif extra == "p-uusi" %}
@@ -163,7 +163,7 @@
       {% endfor %}
     </section>
     <p class="note">{{ t("Konseptissa e-laskun tilaus näytetään, mutta sitä ei lähetetä laskuttajalle.", "In this concept, ordering an e-invoice is shown but not sent to the biller.") }}</p>
-    {{ ask_oiva("Mitä laskuja minulla on tulossa?", "What bills do I have coming up?", "ask-einvoices", cls="card") }}
+    {{ ask_oiva("Mitä laskuja on tulossa?", "Which bills are coming up?", "ask-einvoices", cls="card") }}
   </div>
 
 {% elif extra == "p-saastot" %}
@@ -214,7 +214,7 @@
       {% if inv %}<div class="li">{{ icon("case") }}<span class="txt">{{ inv.per_month_eur|fimoney }} {{ t("kuussa", "a month") }}<small>{% if paused %}{{ t("Keskeytetty. Jo sijoitettu pysyy sijoitettuna.", "Paused. What's invested stays invested.") }}{% elif inv.status == "active" %}{% if en %}Usually on day {{ inv.usual_day }} · next {{ inv.next }}{% else %}Yleensä kuun {{ inv.usual_day }}. päivä · seuraava {{ inv.next }}{% endif %}{% else %}{{ t("Ei käynnissä", "Not running") }}{% endif %}</small></span></div>
       {% if inv.status == "active" and not paused %}<form method="post" action="/s-mobiili/sijoitukset/tauko{{ k }}" style="padding:4px 0 14px"><button class="btn ghost" type="submit" id="pause-investing" style="margin-top:0">{{ t("Keskeytä kuukausisijoitus", "Pause monthly investing") }}</button></form>{% endif %}
       {% else %}<p class="muted" style="padding:12px 0">{{ t("Ei kuukausisijoitusta.", "No monthly investing yet.") }}</p>{% endif %}
-      {% for pl in plans %}<div class="li">{{ icon("case") }}<span class="txt">{{ pl.amount|fimoney }} {{ t("kuussa", "a month") }} · {{ pl.name }}<small>{{ t("Uusi suunnitelma", "New plan") }}</small></span></div>{% endfor %}
+      {% for pl in plans %}<div class="li">{{ icon("case") }}<span class="txt">{{ pl.amount|fimoney }} {{ t("kuussa", "a month") }} · {{ pl.name if en else pl.name|fifund }}<small>{{ t("Uusi suunnitelma", "New plan") }}</small></span></div>{% endfor %}
     </section>
     {% if years %}<h2 class="sec">{{ t("Maksettu vuosittain", "Paid in by year") }}</h2>
     <section class="card" style="padding:10px 16px" id="by-year">
@@ -222,7 +222,7 @@
     </section>{% endif %}
     {% if funds %}<h2 class="sec">{{ t("Jos talletuksesi olisivat olleet…", "If your deposits had been in…") }}</h2>
     <section class="card list" id="funds">
-      {% for r in funds %}<a class="li tap" href="{{ ask('Kerro rahastosta ' ~ r.fund, 'Tell me about the fund ' ~ r.fund) }}">{{ icon("chart") }}<span class="txt">{{ r.fund }}<small>{{ t("Arvo tänään", "Value today") }} {{ r.value_today_eur|fimoney }}</small></span>
+      {% for r in funds %}<a class="li tap" href="{{ ask('Kerro rahastosta ' ~ r.fund, 'Tell me about the fund ' ~ r.fund) }}">{{ icon("chart") }}<span class="txt">{{ r.fund if en else r.fund|fifund }}<small>{{ t("Arvo tänään", "Value today") }} {{ r.value_today_eur|fimoney }}</small></span>
         <span class="p-gain {{ 'up' if r.gain_eur >= 0 else 'down' }}">{{ '+' if r.gain_eur >= 0 }}{{ r.gain_pct|string|replace('.', ',') if not en else r.gain_pct }} %</span>{{ icon("chevron", "i chev") }}</a>{% endfor %}
     </section>
     <p class="muted" style="margin:8px 2px 0">{% if en %}Your real deposit dates and amounts at each fund's real prices, valued {{ as_of }}. The data does not say which fund you hold, so each is shown.{% else %}Todelliset talletuspäiväsi ja summasi rahaston todellisilla hinnoilla, arvo {{ as_of }}. Aineisto ei kerro, mihin rahastoon talletukset menivät, joten näytämme jokaisen.{% endif %}</p>{% endif %}

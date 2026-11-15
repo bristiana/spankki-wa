@@ -1,4 +1,5 @@
-// The Helper's mic: tap, speak your question, and it lands in the message box to check and send.
+// The Helper's mic: tap, speak your question, and it lands in the message box and sends itself after a short countdown (tap the box to stop it).
+// Tapping Send while it records stops it, writes it down and sends it at once.
 // With a key on the server (data-server="1") the clip is recorded here (MediaRecorder: audio/webm on Chrome and
 // Android, audio/mp4 on Safari and iPhone) and written down by ElevenLabs Speech-to-Text through /api/listen
 // (app/stt.py; the key stays on the server). Without one, the browser's own speech recognition, where it has one.
@@ -22,6 +23,7 @@
     tap: T("Kuuntelen… napauta ■, kun olet valmis", "Listening… tap ■ when you're done"),
     wait: T("Kirjoitan ylös…", "Writing it down…"),
     check: T("Tarkista viesti ja paina Lähetä", "Check it, then tap Send"),
+    sending: T("Lähetetään… napauta muokataksesi", "Sending… tap to edit"),
     denied: T("Mikrofoni on estetty. Salli se selaimen asetuksista, tai kirjoita kysymys.",
       "The microphone is blocked. Allow it in your browser settings, or type your question."),
     again: T("Napauta mikrofonia uudelleen ja salli mikrofoni.", "Tap the mic again and allow the microphone."),
@@ -55,17 +57,60 @@
     const had = q.value.trim();
     q.value = had ? had + " " + text : text;
     if (sendBtn) { sendBtn.classList.add("ready"); }
-    tell(SAY.check, "", 4000);
+    if (sendAfter) { sendAfter = false; tell(""); H().hearEnd && H().hearEnd("", text); setTimeout(sendNow); return true; }  // Send was tapped while recording
     H().hearEnd && H().hearEnd("", text);
+    countdown();
     return true;
   }
+  // after the transcript lands: a short visible countdown, then it sends as if Send was tapped. Touching the box
+  // (tap, focus, typing) or the pill cancels it and leaves the text to edit; Send during it sends at once.
+  const SEND_MS = 1800;
+  let sendTimer = 0;
+  function countdown() {
+    cancelSend();
+    if (!note || !q.value.trim()) return tell(SAY.check, "", 4000);
+    clearTimeout(noteTimer);
+    note.className = "send"; note.hidden = false; note.textContent = "";
+    const s = document.createElement("span"); s.textContent = SAY.sending;
+    const b = document.createElement("i"); b.className = "cd"; b.style.animationDuration = SEND_MS + "ms";
+    note.append(s, b);
+    sendTimer = setTimeout(() => {
+      sendTimer = 0;
+      if (!q.value.trim()) return tell("");
+      const f = document.getElementById("f");
+      if (f && f.requestSubmit) f.requestSubmit(); else if (sendBtn) sendBtn.click();
+    }, SEND_MS);
+  }
+  function cancelSend(edit) {
+    if (!sendTimer) return false;
+    clearTimeout(sendTimer); sendTimer = 0;
+    if (edit) { tell(SAY.check, "", 4000); H().hearCancel && H().hearCancel(); } else tell("");
+    return true;
+  }
+  ["input", "focus", "pointerdown"].forEach(ev => q.addEventListener(ev, () => cancelSend(true)));
+  if (note) note.addEventListener("click", () => { if (cancelSend(true)) q.focus(); });
+  window.addEventListener("pagehide", () => cancelSend());
   q.addEventListener("input", () => sendBtn && sendBtn.classList.remove("ready"));
-  document.getElementById("f") && document.getElementById("f").addEventListener("submit", () => {
+  // Send tapped while recording (or while it is being written down): stop, write it down, then send it, rather
+  // than throwing the recording away. This listener comes before the chat's own onsubmit, so it can hold that back.
+  let sendAfter = false;
+  function sendNow() { const f = document.getElementById("f"); if (f && f.requestSubmit) f.requestSubmit(); else if (sendBtn) sendBtn.click(); }
+  document.getElementById("f") && document.getElementById("f").addEventListener("submit", e => {
+    if (state === "rec" || state === "wait") {
+      e.preventDefault(); e.stopImmediatePropagation();
+      sendAfter = true;
+      if (state === "rec") { if (mode === "browser") { if (sr) sr.stop(); } else stop(); }
+      return;
+    }
+    cancelSend();
     if (sendBtn) sendBtn.classList.remove("ready");
     if (state === "rec" || state === "starting") cancel();
     tell("");
   });
-  function fail(text) { tell(text, staged() ? "err sr" : "err", 7000); H().hearEnd && H().hearEnd(text); set("idle"); }
+  function fail(text) {
+    tell(text, staged() ? "err sr" : "err", 7000); H().hearEnd && H().hearEnd(text); set("idle");
+    if (sendAfter) { sendAfter = false; if (q.value.trim()) setTimeout(sendNow); }  // Send was tapped: send what is typed
+  }
 
   // ---- the server way: record, then ElevenLabs writes it down ----
   // `gen` numbers each start: a late answer from an earlier one (its mic prompt, its recorder) touches nothing
@@ -106,7 +151,7 @@
         const loud = rms > Math.min(Math.max(0.025, floor * 3), 0.06);  // capped: talking from the first moment still counts
         if (loud) { heard = true; quietSince = 0; return; }
         if (!quietSince) quietSince = Date.now();
-        if (heard && Date.now() - quietSince > 1600) stop();       // you finished
+        if (heard && Date.now() - quietSince > 1500) stop();       // you finished
         else if (!heard && t > 8000) { dropped = true; stop(); }  // nothing said at all
       }, 100);
     } catch (e) {}  // no analyser: you stop it, or the 30 s do
@@ -159,7 +204,7 @@
     if (rec && rec.state !== "inactive") { try { rec.stop(); } catch (e) { drop(rec); rec = null; release(); fail(SAY.fail); } }
   }
   function cancel() {
-    gen++; dropped = true;
+    gen++; dropped = true; sendAfter = false;
     drop(rec); rec = null; chunks = [];
     release(); set("idle"); H().hearEnd && H().hearEnd();
   }
@@ -206,7 +251,7 @@
     sr.onerror = e => { err = e.error; };
     sr.onend = () => {
       sr = null; clearTimeout(stopAt);
-      if (srQuiet) { q.value = had; set("idle"); H().hearEnd && H().hearEnd(); return; }  // put away mid-way: nothing to say
+      if (srQuiet) { sendAfter = false; q.value = had; set("idle"); H().hearEnd && H().hearEnd(); return; }  // put away mid-way: nothing to say
       if (err === "not-allowed" || err === "service-not-allowed") return fail(SAY.denied);
       if (err === "audio-capture") return fail(SAY.nomic);
       if (!srText) return fail(err && err !== "no-speech" && err !== "aborted" ? SAY.fail : SAY.none);
@@ -224,6 +269,8 @@
       if (state === "starting") return cancel();
       return stop();
     }
+    sendAfter = false;
+    cancelSend();
     if (sendBtn) sendBtn.classList.remove("ready");
     (mode === "server" ? startServer : startBrowser)();
   });

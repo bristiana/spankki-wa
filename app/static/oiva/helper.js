@@ -19,7 +19,7 @@
     error: T("Hups", "Oops"),
     checking: T("Katsoin", "I had a look"),
     listening: T("Kuuntelen", "Listening"),
-    heard: T("Kuulin näin, tarkista ja lähetä", "I heard this, check and send"),
+    heard: T("Selvä — lähetän…", "Got it — sending…"),
     thinking: T("Mietin…", "Thinking…"),
   };
   const phone = document.getElementById("phone");
@@ -398,7 +398,7 @@
       show("listening", T("Kerro vain, kuuntelen!", "Go ahead, I'm all ears!"));
     },
     hearWait() { if (hearing) show("listening", "", true); },
-    hearEnd(note, heard) {  // why it didn't work, or what he heard (it is in the message box to check and send)
+    hearEnd(note, heard) {  // why it didn't work, or what he heard (it is in the message box and sends itself after the countdown)
       if (!hearing) return;
       hearing = false;
       if (note) { pose("error"); show("error", note); restLater(6000); return; }
@@ -406,6 +406,7 @@
       show("listening", last || ""); if (say) say.classList.add("rest");
       restLater(6000);
     },
+    hearCancel() { pose("talk"); show("", T("Muokkaa viestiä ja paina Lähetä", "Edit it, then tap Send")); restLater(8000); },  // the countdown was stopped
     mood: () => mood,
     _test: { bubble, pairFor },  // tests/test_mood.py runs these in node
   };

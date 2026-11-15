@@ -65,7 +65,7 @@ def test_baskets_card_opens_the_chat_with_the_question(client):
 
 
 def test_guide_points_at_the_baskets_card(client):
-    page = client.get("/s-mobiili/").text
+    page = client.get("/s-mobiili/?lang=en").text
     steps = json.loads(re.search(r'id="guide-steps">(.*?)</script>', page, re.S).group(1))
     step = next(s for s in steps if s["target"] == "baskets")
     assert "3 baskets" in step["say"]

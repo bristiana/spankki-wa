@@ -52,7 +52,7 @@
     there this page is inside the chat's own confirm sheet, and a chat in the chat would be a dead end. -#}
 {%- macro ask_oiva(fi, en_q, id="", tag="a", cls="") -%}
 {%- if not web -%}
-<{{ tag }} class="ask-o {{ cls }}"{% if id %} id="{{ id }}"{% endif %}{% if tag == "a" %} href="{{ ask(fi, en_q) }}" aria-label="{{ t('Kysy Oivalta', 'Ask Oiva') }}: {{ t(fi, en_q) }}"{% endif %}><img src="{{ static('oiva/mascot/head.png') }}" alt="" width="28" height="28"><span class="q"><small>{{ t("Kysy Oivalta", "Ask Oiva") }}</small>{{ t(fi, en_q) }}</span>{{ icon("chevron") }}</{{ tag }}>
+<{{ tag }} class="ask-o {{ cls }}"{% if id %} id="{{ id }}"{% endif %}{% if tag == "a" %} href="{{ ask(fi, en_q) }}" aria-label="{{ t('Kysy Oivalta', 'Ask Oiva') }}: {{ t(fi, en_q) }}"{% endif %}><img src="{{ static('oiva/mascot/head-v3.png') }}" alt="" width="28" height="28"><span class="q"><small>{{ t("Kysy Oivalta", "Ask Oiva") }}</small>{{ t(fi, en_q) }}</span>{{ icon("chevron") }}</{{ tag }}>
 {%- endif -%}
 {%- endmacro %}
 {%- macro lang_switch(cls="") -%}
@@ -192,7 +192,7 @@
   /* "Ask Oiva": the same row on every screen, a footer inside a card or a card of its own */
   .ask-o{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 0;border-top:1px solid var(--line);color:var(--brand)}
   .ask-o img{width:28px;height:28px;flex:none;border-radius:50%;background:var(--soft)}
-  .ask-o .q{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.25}
+  .ask-o .q{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.25;text-wrap:balance}  /* two even lines, never one word left alone */
   .ask-o .q small{display:block;font-size:12px;font-weight:500;color:var(--muted);line-height:1.3}
   .ask-o>.i{width:20px;height:20px;flex:none}
   .card.ask-o{border-top:0;padding:8px 16px}
@@ -410,7 +410,7 @@
         {% else %}<small>{% if en %}{{ "Open, no goal yet" if a.pocket_open else "Not opened yet" }}{% else %}{{ "Avattu, ei vielä tavoitetta" if a.pocket_open else "Ei vielä avattu" }}{% endif %}</small>{% endfor %}</span>
         <span class="amt">{{ a.pocket|fimoney if a.pocket_open else "–" }}</span></div>
       <div class="li" id="acct-funds">{{ icon("case") }}<span class="txt">{{ t("Sijoitukset", "Funds") }}<small>{{ t("Rahastoihin maksettu", "Paid into funds") }}</small>
-        {% for pl in a.plans %}<small>{% if en %}Monthly plan: {{ pl.amount|fimoney }} into {{ pl.name }}{% else %}Kuukausisäästö: {{ pl.amount|fimoney }} rahastoon {{ pl.name }}{% endif %}</small>{% endfor %}</span>
+        {% for pl in a.plans %}<small>{% if en %}Monthly plan: {{ pl.amount|fimoney }} into {{ pl.name }}{% else %}Kuukausisäästö: {{ pl.amount|fimoney }} rahastoon {{ pl.name|fifund }}{% endif %}</small>{% endfor %}</span>
         <span class="amt">{{ a.funds|fimoney }}</span></div>
       {{ ask_oiva("Paljonko voisin säästää kuussa?", "How much could I save a month?", "ask-save") }}
     </section>
@@ -422,7 +422,7 @@
     </div>
   {% elif screen == "tab" and tab == "pankki" %}
     <div class="pad pk">
-    {{ ask_oiva("Mitä laskuja minulla on tulossa?", "What bills do I have coming up?", "ask-bills", cls="card") }}
+    {{ ask_oiva("Mitä laskuja on tulossa?", "Which bills are coming up?", "ask-bills", cls="card") }}
     {% if money %}<a class="card tile" id="your-money" href="{{ tab_urls.raha }}">{{ icon("chart") }}<span class="txt"><span class="t">{{ t("Rahasi", "Your money") }}</span>
       <span class="s">{{ t("Kulutus, budjetit, laskut ja kaltaisesi, Oivan kanssa", "Spending, budgets, bills and people like you, with Oiva") }}</span></span>{{ icon("chevron", "i chev") }}</a>{% endif %}
     <a class="card tile" id="tile-accounts" href="/s-mobiili/tilit{{ keep }}">{{ icon("sbook") }}<span class="txt"><span class="t">{{ t("Tilit", "Accounts") }}</span>
@@ -439,10 +439,10 @@
       <span class="s">{{ t("Sijoitustesi arvo", "Value of your investments") }}</span><span class="v">{{ a.funds|fimoney }}</span></span>{{ icon("chevron", "i chev") }}</a>
     </div>
   {% elif screen == "tab" and tab == "raha" %}
-    <div class="pad money" id="money" data-src="/static/mockups/charts/data/">
+    <div class="pad money" id="money" data-src="/s-mobiili/money-data/">
       {# "Ask Oiva" docked at the top like on Pankki (no floating pill over the figures); each card below is a link:
-         tapping it asks Oiva about that card (money.js fills it in) #}
-      {{ ask_oiva("Kerro kulutuksestani tässä kuussa", "Tell me about my spending this month", "ask-money", cls="card") }}
+         tapping it asks Oiva about that card (money.js fills it in). The questions are money_asks(): the cards' own. #}
+      {{ ask_oiva(money_q.oiva[0], money_q.oiva[1], "ask-money", cls="card") }}
       {% for id in ("trend", "cats", "budget", "sit", "fig", "income", "cal") %}<a class="card{{ ' rel' if id == 'trend' }}" id="{{ id }}" href="{{ asks[id] }}"></a>
       {% endfor %}
       <a class="ask-oiva" id="ask-oiva" href="{{ asks.oiva }}"><span class="say">{{ t("Kysy Oivalta rahoistasi", "Ask Oiva about your money") }}</span>
@@ -544,7 +544,7 @@
       {% else %}
       <div class="rev-head">
         <p class="heading">{{ f.heading }}</p>
-        <div class="amount" id="amount">{{ p.amount|fimoney }}{{ t(" / kk", " / month") if "/ month" in f.amount }}</div>
+        <div class="amount" id="amount">{{ p.amount|fimoney }}{{ t(" / kk", " / month") if "/ month" in f.amount or "/ kk" in f.amount }}</div>
 
       </div>
       <div class="pad">
