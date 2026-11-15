@@ -208,10 +208,8 @@ def _t(ctx, fi: str, en: str) -> str:
 # The three baskets and the persona switcher's labels, in Finnish (the engine's own labels are English).
 BASKET_FI = {"regular": {"label": "Laskut ja perusmenot", "example": "vuokra"},
              "irregular": {"label": "Satunnaiset menot", "example": "lääkärikäynti"},
-             "everyday": {"label": "Valinnaiset menot", "example": "ulkona syöminen"}}
-CATEGORY_FI = {"Housing": "vuokra", "Utilities": "sähkö ja vesi", "Groceries": "ruokaostokset",
-               "Transportation": "liikkuminen", "Health": "terveys", "Home & Tech": "koti ja tekniikka",
-               "Travel": "matkat", "Restaurants": "ravintolat", "Entertainment": "viihde", "Lifestyle": "shoppailu"}
+             "everyday": {"label": "Valinnaiset menot", "example": "ravintolat"}}
+
 PERSONA_FI = (("Demo default", "Oletusasiakas"), ("First job", "Ensimmäinen työ"), ("Student-age", "Opiskelija-ikäinen"),
               ("High earner", "Hyvätuloinen"), ("Irregular income", "Epäsäännölliset tulot"),
               ("Homeowner", "Asunnonomistaja"), ("Espoo area", "Espoon seutu"), ("Vantaa area", "Vantaan seutu"))
@@ -257,7 +255,7 @@ def fi_money(x: float) -> str:
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
 templates.env.filters["fimoney"] = fi_money
-templates.env.globals.update(t=_t, ui_lang=ui_lang, lang_url=lang_url, persona_label=persona_label, basket_fi=BASKET_FI, category_fi=CATEGORY_FI,
+templates.env.globals.update(t=_t, ui_lang=ui_lang, lang_url=lang_url, persona_label=persona_label, basket_fi=BASKET_FI,
                              basket_fi_by_label={BASKETS[k]["label"]: v["label"] for k, v in BASKET_FI.items()})
 _STATIC_DIR = Path(__file__).parent / "static"
 _static_v: dict[str, tuple[float, str]] = {}

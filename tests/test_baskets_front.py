@@ -97,6 +97,7 @@ def test_whatsapp_welcome_lists_the_three_baskets_per_month(client, monkeypatch)
 def test_smobiili_home_card_in_finnish_uses_the_finnish_names(client):
     page = client.get("/s-mobiili/?lang=fi").text
     card = unescape(page[page.index('id="baskets"'):page.index('id="acct-pocket"')])
-    assert "Mihin rahasi menevät" in card and "Keskimäärin kuukaudessa" in card and "Helpoin paikka säästää" in card
+    assert "Mihin rahasi menevät" in card and "Kuukausikeskiarvo" in card and "Tästä on helpoin säästää" in card
     assert all(name in card for name in NAMES_FI.values())
+    assert all(f"Suurimmat: {b['example_fi']}" in card for b in baskets())
     assert "Pakolliset" not in card and "Lipsuu" not in card and "esim." not in card

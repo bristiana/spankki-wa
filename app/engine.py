@@ -43,6 +43,9 @@ CATEGORY_BASKET = {c: k for k, b in BASKETS.items() for c in b["categories"]}
 CATEGORY_WORDS = {"Housing": "rent", "Utilities": "utility bills", "Groceries": "groceries",
                   "Transportation": "transport", "Health": "health", "Home & Tech": "home & tech", "Travel": "travel",
                   "Restaurants": "eating out", "Entertainment": "entertainment", "Lifestyle": "shopping"}
+CATEGORY_FI = {"Housing": "vuokra", "Utilities": "sähkö ja vesi", "Groceries": "ruokaostokset",
+               "Transportation": "liikkuminen", "Health": "terveys", "Home & Tech": "koti ja tekniikka",
+               "Travel": "matkat", "Restaurants": "ravintolat", "Entertainment": "viihde", "Lifestyle": "shoppailu"}
 EVERYDAY_WORDS = {"Restaurants": "eating out", "Entertainment": "entertainment", "Lifestyle": "shopping"}
 NO_PAYDAY_DAYS = 30  # safe-to-spend horizon when no regular salary is found
 INCOME_TYPES = {"salary", "other_income", "investment_withdrawal"}
@@ -423,6 +426,7 @@ class Engine:
                 "basket": key, "label": b["label"], "explanation": b["hint"], "top_categories": top,
                 # the example is their own: the one or two categories most of this basket went to
                 "example": " and ".join(CATEGORY_WORDS[c] for c in top) or b["example"],
+                "example_fi": " ja ".join(CATEGORY_FI[c] for c in top) or None,  # the card and Oiva say the same
                 "total_eur": eur(amt), "per_month_eur": eur(amt / months),
                 "share_pct": round(amt / total * 100) if total else 0,
                 "by_category": {c: eur(-v) for c, v in bs.groupby("category")["tx_amount_eur"].sum().sort_values().items()},
