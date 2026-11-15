@@ -1146,7 +1146,7 @@ def save_page(request: Request, pid: str):
     return templates.TemplateResponse(request, "confirm.html", {
         "p": p, "wa": wa_back(request), "action": f"/save/{pid}", "title": "Move to savings", "amount": money(p["amount"]),
         "rows": [("Goal", g["name"]), ("Saved so far", f"{money(g['saved'])} of {money(g['target'])}"),
-                 ("From", "S-Pankki current account"), ("To", "Savings pocket")],
+                 ("From", "S-Pankki current account"), ("To", "Savings account")],
         "button": f"Save {money(p['amount'])}"})
 
 
@@ -1161,7 +1161,7 @@ SM_ROUTES = {"pay": "payment", "save": "saving", "invest": "investment", "stop":
 RISK_WORDS = {"low": "Low risk: small ups and downs, and slow growth.",
               "medium": "Medium risk: it can drop in a bad year, and grows more over time.",
               "high": "High risk: it can fall 20-30% in a bad year. Best for 10+ years."}
-# The same review screens in Finnish (S-mobiili's default language). Oiva's guide lines stay English in both.
+# The same review screens in Finnish (S-mobiili's default language). Oiva's guide lines are English, except the save flow's.
 RISK_WORDS_FI = {"low": "Matala riski: pienet heilahtelut ja hidas kasvu.",
                  "medium": "Keskitason riski: arvo voi laskea huonona vuonna, ja se kasvaa enemmän ajan myötä.",
                  "high": "Korkea riski: arvo voi laskea 20-30 % huonona vuonna. Sopii 10+ vuodeksi."}
@@ -1212,7 +1212,7 @@ def accounts(e: Engine) -> dict:
 def sm_flow(route: str, e: Engine, p: dict, lang: str = "en") -> dict:
     """A flow's review screen and Oiva's lines on it. Guide targets are element ids on the page. lang: the screen's
     language (title, row values, note); row labels come in English and the template has their Finnish names. Oiva's
-    guide lines stay English in both."""
+    guide lines are English, except the save flow's, which follow the screen."""
     amt = short_money(p["amount"])
     fi = lang != "en"
     T = lambda fi_text, en_text: fi_text if fi else en_text  # noqa: E731
@@ -1234,21 +1234,34 @@ def sm_flow(route: str, e: Engine, p: dict, lang: str = "en") -> dict:
                           ("row-recipient", f"It goes to {to}{due}", "talk"),
                           ("row-reference", "IBAN and reference are copied from your bill. Nothing to type" if photo
                            else "IBAN and reference are filled in. Nothing to type", "talk")]}
-    if route == "save":
+    if route == "save":  # S-Pankki's real savings steps: goal, where it goes, amount now, review
         g = e.state["goals"][p["goal_id"]]
         after = g["saved"] + p["amount"]
         pct = round(after / g["target"] * 100)
-        return {"title": T("Siirto säästöön", "Move to savings"), "fi": "Säästäjä", "heading": g["name"],
-                "amount": money(p["amount"]),
+        short = (lambda x: nb(fi_money(x).replace(",00", ""))) if fi else short_money
+        amt, target, dl = short(p["amount"]), short(g["target"]), g.get("deadline")
+        by, when = "", T("Ei asetettu", "Not set")
+        if dl:
+            d = date.fromisoformat(dl)
+            year = f" {d.year}" if d.year != e.today.year else ""
+            by = T(f" {FI_MONTH_FROM[d.month - 1][:-3]}hun{year} mennessä", f" by {d:%B}{year}")
+            when = T(fi_day(dl), f"{d.day} {d:%B %Y}")
+        to = T("Säästötili", "Savings account")
+        return {"title": T("Siirto säästöön", "Move to savings"), "heading": g["name"], "amount": money(p["amount"]),
+                "goal": {"name": g["name"], "target": m(g["target"]), "date": when}, "now": m(p["amount"]),
                 "rows": [("goal", "Goal", g["name"]),
                          ("so-far", "Saved so far", f"{m(g['saved'])} {T('/', 'of')} {m(g['target'])}"),
                          ("after", "After this", f"{m(after)} ({pct}%)"),
-                         ("from", "From", acct), ("to", "To", T("Taloustili", "Savings pocket"))],
-                "button": f"Save {money(p['amount'])}", "cheer": f"Saved! {amt} is in your pocket.",
-                "first_pocket": not pocket_open(e),
-                "steps": [("amount", f"This is the amount we planned: {amt}", "talk"),
-                          ("row-to", "Your Savings pocket. It keeps this apart from everyday money", "talk"),
-                          ("row-after", f"That takes {g['name']} to {pct}%", "happy")]}
+                         ("debit", "From", acct), ("to", "To", to)],
+                "cheer": T(f"Säästetty! {amt} on matkalla tavoitteeseen {g['name']}.",
+                           f"Saved! {amt} is on its way to {g['name']}."),
+                "steps": [("sv-goal", T(f"Tämä on tavoitteesi: {target}{by}.", f"This is your goal: {target}{by}."), "talk"),
+                          ("sv-where", T("Rahat menevät säästötilille, erilleen käyttörahoista.",
+                                         "The money goes to a savings account, separate from your spending."), "talk"),
+                          ("sv-amount", T(f"Vain {amt} nyt, ei mitään automaattista.",
+                                          f"Just {amt} now, nothing automatic."), "talk"),
+                          ("sv-review", T("Tarkista ja vahvista Face ID:llä.", "Check it and confirm with Face ID."),
+                           "happy")]}
     if route == "invest":
         f = FUNDS_BY_ID[p["fund_id"]]
         per = " / month" if p["monthly"] else ""
@@ -1380,7 +1393,7 @@ def sm_ready(request: Request, e: Engine) -> dict | None:
             what, sub = f"Maksa: {p['name']} · {fi_money(p['amount'])}", f"Saaja {to}{due}"
         elif route == "save":
             g = e.state["goals"].get(p.get("goal_id"), {})
-            what, sub = f"Säästä {amt_fi} Taloustilille", f"Tavoite: {g.get('name') or 'oma tavoitteesi'}"
+            what, sub = f"Säästä {amt_fi} säästötilille", f"Tavoite: {g.get('name') or 'oma tavoitteesi'}"
         elif route == "invest":
             per = " kuussa" if p["monthly"] else ""
             what, sub = f"Sijoita {amt_fi}{per}", f"Rahasto: {FUNDS_BY_ID[p['fund_id']]['name']}"
@@ -1394,7 +1407,7 @@ def sm_ready(request: Request, e: Engine) -> dict | None:
         what, sub = f"Pay {p['name'].lower()} · {money(p['amount'])}", f"To {to}{due}"
     elif route == "save":
         g = e.state["goals"].get(p.get("goal_id"), {})
-        what, sub = f"Save {amt} into Savings pocket", f"For {g.get('name') or 'your goal'}"
+        what, sub = f"Save {amt} to your savings account", f"For {g.get('name') or 'your goal'}"
     elif route == "invest":
         per = " a month" if p["monthly"] else ""
         what, sub = f"Invest {amt}{per}", f"Into {FUNDS_BY_ID[p['fund_id']]['name']}"
@@ -1431,7 +1444,7 @@ def smobiili_home(request: Request):
     first = [("ready", "I've got it ready, tap to check and confirm", "happy")] if ready and not ready["done"] else []
     steps = [("acct-current", f"Your current account: {short_money(a['current'])}", "talk"),
              ("baskets", "Everything you spend falls in 3 baskets. Tap it and I'll show you where it goes", "talk"),
-             ("acct-pocket", "Your Savings pocket" if a["pocket_open"] else "Your Savings pocket, once you open one",
+             ("acct-pocket", "Your savings account" if a["pocket_open"] else "Your savings account, once you open one",
               "talk"),
              ("acct-funds", "Your funds. Only you choose where money goes", "talk"),
              ("recent", "Your latest payments, straight from your account", "talk"),
@@ -1496,12 +1509,12 @@ def smobiili_flow(request: Request, route: str, pid: str):
                                 status_code=303)
     e, p = _pending_or_404(pid, SM_ROUTES[route])
     f = sm_flow(route, e, p, ui_lang(request))
-    steps = guide_steps(f.pop("steps") + [("faceid", "Tap here and use Face ID", "talk")])
-    pocket = guide_steps([("open-pocket", "First time? Open your Savings pocket. It's free, one tap", "talk")]
-                         if f.get("first_pocket") else [])
+    steps = f.pop("steps")
+    if route != "save":  # the save flow's last line, on its review, already says Face ID
+        steps.append(("faceid", "Tap here and use Face ID", "talk"))
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
-        request, sm_persona(request), screen="flow", route=route, pid=pid, p=p, f=f, steps=steps,
-        pocket_steps=pocket, done=p["status"] == "done"))
+        request, sm_persona(request), screen="flow", route=route, pid=pid, p=p, f=f, steps=guide_steps(steps),
+        done=p["status"] == "done"))
 
 
 @app.post("/s-mobiili/{route}/{pid}/confirm")
@@ -1512,11 +1525,6 @@ async def smobiili_confirm(request: Request, route: str, pid: str):
         raise HTTPException(404)
     if not request.headers.get("content-type", "").startswith("application/json"):
         raise HTTPException(415, "Send JSON.")
-    try:
-        body = await request.json()
-    except ValueError:
-        body = None
-    body = body if isinstance(body, dict) else {}
     e, p = _pending_or_404(pid, SM_ROUTES[route])
     if p["status"] == "done":
         raise HTTPException(409, "Already confirmed. Nothing more was moved.")
@@ -1526,7 +1534,7 @@ async def smobiili_confirm(request: Request, route: str, pid: str):
         return JSONResponse({"detail": sentence(err)}, status_code=422)
     if not done["first_time"]:  # two taps at once: the engine's lock let only one through
         raise HTTPException(409, "Already confirmed. Nothing more was moved.")
-    if route == "save" and body.get("open_pocket") and not e.state.get("savings_pocket_opened"):
+    if route == "save" and not e.state.get("savings_pocket_opened"):  # step 2 picked the savings account
         e.state["savings_pocket_opened"] = e.today.isoformat()
         e._save()
     if ui_lang(request) == "fi":

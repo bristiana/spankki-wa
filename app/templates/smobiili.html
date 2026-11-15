@@ -41,8 +41,8 @@
 {%- set fi_label = {"recipient": "Saaja", "iban": "Saajan tilinumero", "reference": "Viitenumero", "due": "Eräpäivä",
      "from": "Maksajan tili", "goal": "Säästötavoite", "so-far": "Säästetty", "after": "Tämän jälkeen", "to": "Tilille",
      "fund": "Rahasto", "risk": "Riski", "holds": "Sijoituskohteet", "when": "Ajankohta", "what": "Mitä",
-     "usual": "Yleensä", "next": "Seuraava", "invested": "Jo sijoitettu"} %}
-{%- set fi_title = {"pay": "Maksu", "save": "Säästäjä", "invest": "Sijoitukset", "stop": "Sijoitukset"} %}
+     "usual": "Yleensä", "next": "Seuraava", "invested": "Jo sijoitettu", "debit": "Tililtä"} %}
+{%- set fi_title = {"pay": "Maksu", "save": "Säästöt", "invest": "Sijoitukset", "stop": "Sijoitukset"} %}
 {%- set en = ui_lang(request) == "en" %}
 {%- set top_title = {"etukortti": "S-Etukortti", "pankki": "S-Pankki", "mina": t("Minä", "Me"), "kortti": t("Kortti", "Card"), "raha": t("Rahasi", "Your money")} %}
 {%- set en_title = {"pay": "Payment", "save": "Savings", "invest": "Investments", "stop": "Investments"} %}
@@ -233,10 +233,20 @@
   .btn svg{width:24px;height:24px}
   .alt{display:flex;justify-content:space-between;margin-top:10px;font-size:15px}
   .alt a{color:var(--brand);padding:8px 4px;font-weight:500}
-  .pocket-art{color:var(--brand);display:grid;place-items:center;margin:4px 0}.pocket-art .i{width:56px;height:56px}
+  /* save: S-Pankki's savings steps, numbered sections on one screen */
+  .sv-sec{padding:14px 16px 8px;margin-bottom:12px}
+  .sv-sec h2{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-size:17px;font-weight:600;color:#222}
+  .sv-sec h2 i{font-style:normal;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;font-size:13px;font-weight:700}
+  .fld{display:flex;flex-direction:column;gap:2px;padding:9px 0;border-top:1px solid var(--line)}.fld:nth-of-type(1){border-top:0}
+  .fld small{color:var(--muted);font-size:12.5px}.fld span{font-size:16px;color:#222}.fld .big{font-size:26px;font-weight:700;color:var(--brand)}
+  .opt{display:flex;align-items:center;gap:12px;padding:10px 12px;margin:8px 0;border:1.5px solid var(--line);border-radius:10px}
+  .opt b{display:block;font-weight:600;color:#222}.opt small{display:block;color:var(--muted);font-size:12.5px}
+  .opt .dot{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid #b5b5b5}
+  .opt[aria-checked=true]{border-color:var(--brand);background:var(--soft)}.opt[aria-checked=true] .dot{border:6px solid var(--brand)}
+  .opt[aria-disabled=true]{opacity:.55}
+  .sv-sec .rows{padding:0}
   .center{text-align:center}
   .center h1{font-size:21px;margin:4px 0;color:var(--brand)}
-  .pocket{padding:22px 18px}
   .muted{color:var(--muted);font-size:14px}
   .ok{width:84px;height:84px;border-radius:50%;background:var(--mint);color:var(--brand);display:grid;place-items:center;font-size:40px;font-weight:700;margin:28px auto 14px}
   .ok svg{width:48px;height:48px}
@@ -344,7 +354,7 @@
     </a>
     <h2 class="sec">{{ t("Säästöt ja sijoitukset", "Savings and investments") }}</h2>
     <section class="card list">
-      <div class="li" id="acct-pocket">{{ icon("trophy") }}<span class="txt">{{ t("Säästäjä", "Savings pocket") }}
+      <div class="li" id="acct-pocket">{{ icon("trophy") }}<span class="txt">{{ t("Säästöt", "Savings") }}
         {% for g in a.goals %}<small>{{ g.name }} · {{ g.saved|fimoney }} / {{ g.target|fimoney }}</small>
         {% else %}<small>{% if en %}{{ "Open, no goal yet" if a.pocket_open else "Not opened yet" }}{% else %}{{ "Avattu, ei vielä tavoitetta" if a.pocket_open else "Ei vielä avattu" }}{% endif %}</small>{% endfor %}</span>
         <span class="amt">{{ a.pocket|fimoney if a.pocket_open else "–" }}</span></div>
@@ -367,12 +377,12 @@
       <span class="s">{{ t("Kulutus, budjetit, laskut ja kaltaisesi, Oivan kanssa", "Spending, budgets, bills and people like you, with Oiva") }}</span></span>{{ icon("chevron", "i chev") }}</a>{% endif %}
     <a class="card tile" href="{{ home_url }}">{{ icon("sbook") }}<span class="txt"><span class="t">{{ t("Tilit", "Accounts") }}</span>
       <span class="cols"><span><span class="s">S-Tili</span><span class="v">{{ a.current|fimoney }}</span></span>
-        <span><span class="s">{{ t("Taloustili", "Savings pocket") }}</span><span class="v">{{ a.pocket|fimoney if a.pocket_open else t("Ei avattu", "Not opened") }}</span></span></span></span>{{ icon("chevron", "i chev") }}</a>
+        <span><span class="s">{{ t("Säästötili", "Savings account") }}</span><span class="v">{{ a.pocket|fimoney if a.pocket_open else t("Ei avattu", "Not opened") }}</span></span></span></span>{{ icon("chevron", "i chev") }}</a>
     <a class="card tile" href="{{ home_url }}">{{ icon("bill") }}<span class="txt"><span class="t">{{ t("Maksut ja e-laskut", "Payments and e-invoices") }}</span>
       <span class="s">{{ t("Tee uusi maksu tai tarkastele ja tilaa e-laskuja", "Make a new payment, or view and order e-invoices") }}</span></span>{{ icon("chevron", "i chev") }}</a>
     <a class="card tile" href="{{ tab_urls.kortti }}">{{ icon("scard") }}<span class="txt"><span class="t">{{ t("Kortit", "Cards") }}</span>
       <span class="s">S-Etukortti Visa Credit/Debit</span><span class="v">2000,00&nbsp;€</span></span>{{ icon("chevron", "i chev") }}</a>
-    <a class="card tile" href="{{ home_url }}">{{ icon("trophy") }}<span class="txt"><span class="t">{{ t("Säästäjä", "Savings pocket") }}</span>
+    <a class="card tile" href="{{ home_url }}">{{ icon("trophy") }}<span class="txt"><span class="t">{{ t("Säästöt", "Savings") }}</span>
       {% set g = a.goals[0] if a.goals else none %}<span class="s">{{ g.name if g else t("Oma tavoitteeni", "My own goal") }}</span>
       <span class="v">{{ (g.saved if g else a.pocket)|fimoney }}</span></span>{{ icon("chevron", "i chev") }}</a>
     <a class="card tile" href="{{ home_url }}">{{ icon("case") }}<span class="txt"><span class="t">{{ t("Sijoitukset", "Investments") }}</span>
@@ -430,17 +440,35 @@
   {% elif screen == "extra" %}
     {% include "smobiili_extra.html" %}
   {% else %}
-    {% if f.first_pocket and not done %}
-    <div class="pad">
-    <section id="step-pocket" class="card center pocket">
-      <div class="pocket-art">{{ icon("pocket") }}</div>
-      <h1>{{ t("Avaa Taloustili", "Open a Savings pocket") }}</h1>
-      <p class="muted">{{ t("Taloustili on erillinen tili tavoitteillesi, erillään arjen rahoista. Maksuton, ja voit siirtää rahat takaisin milloin vain.", "A separate pocket for your goals, apart from everyday money. Free, and you can move money back any time.") }}</p>
-      <button class="btn" type="button" id="open-pocket">{{ t("Avaa Taloustili", "Open Savings pocket") }}</button>
-    </section>
-    </div>
-    {% endif %}
-    <section id="step-review"{% if (f.first_pocket and not done) or done %} hidden{% endif %}>
+    <section id="step-review"{% if done %} hidden{% endif %}>
+      {% if route == "save" %}{# S-Pankki's savings steps, prefilled from what Oiva set up #}
+      <div class="pad sv">
+        <section class="card sv-sec" id="sv-goal">
+          <h2><i>1</i>{{ t("Säästötavoite", "Goal") }}</h2>
+          <div class="fld"><small>{{ t("Tavoitteen nimi", "Goal name") }}</small><span>{{ f.goal.name }}</span></div>
+          <div class="fld"><small>{{ t("Tavoitesumma", "Target amount") }}</small><span>{{ f.goal.target|nb }}</span></div>
+          <div class="fld"><small>{{ t("Tavoitepäivä", "Goal date") }}</small><span>{{ f.goal.date|nb }}</span></div>
+        </section>
+        <section class="card sv-sec" id="sv-where">
+          <h2><i>2</i>{{ t("Mihin rahat menevät", "Where the money goes") }}</h2>
+          <div role="radiogroup" aria-label="{{ t('Mihin rahat menevät', 'Where the money goes') }}">
+            <div class="opt" role="radio" aria-checked="true"><span class="dot"></span><span><b>{{ t("Säästötili", "Savings account") }}</b><small>{{ t("Erillään käyttörahoista, nostettavissa milloin vain", "Separate from your spending, yours to take out any time") }}</small></span></div>
+            <div class="opt" role="radio" aria-checked="false" aria-disabled="true"><span class="dot"></span><span><b>{{ t("Rahastot", "Funds") }}</b><small>{{ t("Rahastoyhdistelmä, arvo voi nousta tai laskea", "A fund combination, its value can go up or down") }}</small></span></div>
+          </div>
+        </section>
+        <section class="card sv-sec" id="sv-amount">
+          <h2><i>3</i>{{ t("Summa nyt", "Amount now") }}</h2>
+          <div class="fld"><small>{{ t("Siirrettävä summa", "Amount to move") }}</small><span class="big" id="amount">{{ f.now|nb }}</span></div>
+          <div class="fld"><small>{{ t("Tililtä", "From") }}</small><span>{{ t("Käyttötili", "Current account") }}</span></div>
+          <div class="fld"><small>{{ t("Siirto", "Transfer") }}</small><span>{{ t("Kertasiirto", "One-off") }}</span></div>
+        </section>
+        <section class="card sv-sec" id="sv-review">
+          <h2><i>4</i>{{ t("Tarkista", "Review") }}</h2>
+          <div class="rows">
+            {% for key, label, value in f.rows %}<div class="r" id="row-{{ key }}"><span>{{ label if en else fi_label.get(key, label) }}</span><span>{{ value|nb }}</span></div>{% endfor %}
+          </div>
+        </section>
+      {% else %}
       <div class="rev-head">
         <p class="heading">{{ f.heading }}</p>
         <div class="amount" id="amount">{{ p.amount|fimoney }}{{ t(" / kk", " / month") if "/ month" in f.amount }}</div>
@@ -450,6 +478,7 @@
       <div class="card rows">
         {% for key, label, value in f.rows %}<div class="r" id="row-{{ key }}"><span>{{ label if en else fi_label.get(key, label) }}</span><span>{{ value|nb }}</span></div>{% endfor %}
       </div>
+      {% endif %}
       {% if f.note %}<div class="note">{{ f.note }}</div>{% endif %}
       <button class="btn" type="button" id="faceid">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M9 9v1M15 9v1M12 9v4h-1M9 16c1.8 1.3 4.2 1.3 6 0"/></svg>
@@ -491,9 +520,8 @@
   {% endif %}
 </div>
 <script type="application/json" id="guide-steps">{{ steps|tojson }}</script>
-{% if screen == "flow" %}<script type="application/json" id="pocket-steps">{{ pocket_steps|tojson }}</script>
-<script type="application/json" id="flow">{{ {"route": route, "pid": pid, "cheer": f.cheer, "back": "WhatsApp" if wa else "the chat", "done": done,
-  "ui": {"done": t("Valmis", "Done"), "opening": t("Avataan…", "Opening…"),
+{% if screen == "flow" %}<script type="application/json" id="flow">{{ {"route": route, "pid": pid, "cheer": f.cheer, "back": "WhatsApp" if wa else "the chat", "done": done,
+  "ui": {"done": t("Valmis", "Done"),
          "failed": t("Ei tehty", "Not done"), "error": t("Jokin meni pieleen. Mitään ei maksettu eikä siirretty.", "Something went wrong. Nothing was paid or moved.")}}|tojson }}</script>{% endif %}
 <script src="/static/oiva/guide.js"></script>
 <script>
@@ -504,13 +532,12 @@
   let off = false;
   try { off = !autoplay && sessionStorage.getItem("oiva-guide") === "off"; } catch (e) {}
   const flow = json("flow"), ready = $("ready");
-  let phase = flow && $("step-pocket") ? "pocket" : "review";
   const press = async btn => { btn.classList.add("pressed"); await wait(260); btn.classList.remove("pressed"); btn.click(); };
   const guide = OivaGuide.create($("phone"), {
     autoplay, dwell: 2600,
     onSkip() { off = true; try { sessionStorage.setItem("oiva-guide", "off"); } catch (e) {} },
     onEnd() {
-      if (autoplay && flow) press($(phase === "pocket" ? "open-pocket" : "faceid"));
+      if (autoplay && flow) press($("faceid"));
       else if (autoplay && ready) press(ready);  // home: tap the "Ready for you" card, the flow plays on from there
     },
   });
@@ -527,18 +554,7 @@
     return;
   }
   if (flow.done) return;
-  let openPocket = false;
-  if (phase === "pocket") {
-    start(json("pocket-steps"));
-    $("open-pocket").addEventListener("click", async e => {
-      const b = e.currentTarget; b.disabled = true; b.textContent = flow.ui.opening;
-      await wait(600);
-      openPocket = true; phase = "review";
-      $("step-pocket").hidden = true; $("step-review").hidden = false; $("screen").scrollTop = 0;
-      guide.start(off ? [] : json("guide-steps"));
-      if (off && autoplay) press($("faceid"));
-    });
-  } else start(json("guide-steps"));
+  start(json("guide-steps"));
 
   $("faceid").addEventListener("click", async e => {
     const b = e.currentTarget; if (b.disabled) return; b.disabled = true;
@@ -548,7 +564,7 @@
     point("fid-panel", "Checking it's you…", "think");
     const [res] = await Promise.all([
       fetch(`/s-mobiili/${flow.route}/${flow.pid}/confirm`, {method: "POST", headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({open_pocket: openPocket})}).then(r => r.json().then(j => ({ok: r.ok, j}))).catch(() => ({ok: false, j: {}})),
+            body: "{}"}).then(r => r.json().then(j => ({ok: r.ok, j}))).catch(() => ({ok: false, j: {}})),
       wait(autoplay ? 1800 : 1200)]);
     if (res.ok) { fid.classList.add("passed"); $("fid-title").textContent = flow.ui.done; await wait(650); }
     fid.hidden = true;
