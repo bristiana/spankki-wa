@@ -118,6 +118,22 @@ def test_your_money_screen(client):
         assert client.get(f"{src}{name}.json").status_code == 200
 
 
+@pytest.mark.parametrize("lang, oiva, cats, say", [
+    ("en", "Tell me about my spending this month", "Where did my money go in September?", "Ask me about this"),
+    ("fi", "Kerro kulutuksestani tässä kuussa", "Mihin rahani menivät syyskuussa?", "Kysy minulta tästä")])
+def test_your_money_asks_oiva(client, lang, oiva, cats, say):
+    """Oiva floats on Your money; tapping her or a chart card asks her about it in the chat, in the screen's language."""
+    import re
+    from html import unescape
+    page = client.get(f"/s-mobiili/?tab=raha&persona={main.MONEY_PERSONA}&web=1&lang={lang}").text
+    href = lambda id: unescape(re.search(rf'id="{id}" href="([^"]+)"', page).group(1))  # noqa: E731
+    assert 'class="oiva wave once"' in page and say in page
+    assert question(href("ask-oiva")) == oiva and question(href("cats")) == cats
+    assert parse_qs(urlparse(href("cats")).query)["embed"] == ["1"]
+    for card in ("trend", "budget", "sit", "fig", "income", "cal"):
+        assert question(href(card)).endswith("?")
+
+
 def test_your_money_is_only_for_its_own_customer(client):
     """Another customer asking for ?tab=raha gets Pankki, never Antti's figures."""
     r = client.get("/s-mobiili/?tab=raha&persona=CUST04831&lang=en")

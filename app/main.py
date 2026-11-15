@@ -1302,9 +1302,32 @@ SM_TABS = ("koti", "etukortti", "pankki", "mina", "kortti", "raha")
 # scripts/build_chart_mockup_fixtures.py). Those figures are one customer's own (the one their "source" names), so
 # the tile shows on that account only.
 MONEY_DATA = Path(__file__).parent / "static/mockups/charts/data"
-MONEY_PERSONA = next(iter(re.findall(r"CUST\d{5}", json.loads((MONEY_DATA / "spend.json").read_text())["source"])), None)
+MONEY_SPEND = json.loads((MONEY_DATA / "spend.json").read_text())
+MONEY_PERSONA = next(iter(re.findall(r"CUST\d{5}", MONEY_SPEND["source"])), None)
 FI_MONTH_FROM = ("tammikuulta", "helmikuulta", "maaliskuulta", "huhtikuulta", "toukokuulta", "kesäkuulta",
                  "heinäkuulta", "elokuulta", "syyskuulta", "lokakuulta", "marraskuulta", "joulukuulta")
+
+
+def money_asks() -> dict:
+    """What tapping Oiva or a chart card on Your money asks her, (FI, EN), each built from the card's own title in
+    money.js (the month is the charts' month, from the data). "oiva" is the floating Oiva's question about the screen."""
+    m = int(MONEY_SPEND["month"][5:7])
+    fi, en = FI_MONTH_FROM[m - 1].removesuffix("lta"), date(2000, m, 1).strftime("%B")  # syyskuu, September
+    return {"oiva": ("Kerro kulutuksestani tässä kuussa", "Tell me about my spending this month"),
+            "trend": (f"Miltä kulutukseni {fi}ssa näyttää?", f"How is my spending in {en} going?"),
+            "cats": (f"Mihin rahani menivät {fi}ssa?", f"Where did my money go in {en}?"),
+            "budget": ("Paljonko budjeteissani on jäljellä?", "How much is left in my budgets?"),
+            "sit": ("Miten vertaudun kaltaisiini?", "Where do I sit compared with people like me?"),
+            "fig": ("Miten tuloni vertautuvat kaltaisiini?", "How does my income compare with people like me?"),
+            "income": ("Paljonko jää laskujen ja sijoittamisen jälkeen?", "What is left after bills and investing?"),
+            "cal": (f"Mitkä ovat {fi}n säännölliset maksuni?", f"What are my regular payments in {en}?")}
+
+
+def chat_url(request: Request, q: str, persona: str) -> str:
+    """The S-mobiili chat asking q once: embedded in the web mock (?web=1), as the shown persona when ?persona= picks it."""
+    p = request.query_params
+    return "/chat?" + urlencode({"q": q, **({"embed": "1"} if p.get("web") else {}),
+                                 **({"as": persona} if p.get("persona") else {})})
 
 
 def demo_bonus(persona: str, today: date) -> dict:
@@ -1397,10 +1420,12 @@ def smobiili_home(request: Request):
         tab = "pankki"
     if tab != "koti":  # the other tabs: the bank's own screens, no guide walk
         bills_due = e.upcoming_bills(30)
+        en = ui_lang(request) == "en"
+        asks = {k: chat_url(request, q[en], persona) for k, q in money_asks().items()} if tab == "raha" else {}
         return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
             request, persona, screen="tab", tab=tab, a=a, steps=[], ready=None, bills_due=bills_due,
             personas=[{"id": k, "name": v["name"], "label": v["label"]} for k, v in PERSONAS.items()],
-            persona_id=persona, money=persona == MONEY_PERSONA))
+            persona_id=persona, money=persona == MONEY_PERSONA, asks=asks))
     b = e.baskets("last_3_months")
     ready = sm_ready(request, e)
     first = [("ready", "I've got it ready, tap to check and confirm", "happy")] if ready and not ready["done"] else []
@@ -1414,11 +1439,9 @@ def smobiili_home(request: Request):
     steps = first + steps
     bills_due = e.upcoming_bills(30)
     bill = next(iter(bills_due), None)
-    q = {"q": BASKETS_Q, **({"embed": "1"} if request.query_params.get("web") else {}),
-         **({"as": persona} if request.query_params.get("persona") else {})}
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
         request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps), baskets=b, ready=ready,
-        baskets_url="/chat?" + urlencode(q), bonus=demo_bonus(persona, e.today), bills_due=bills_due,
+        baskets_url=chat_url(request, BASKETS_Q, persona), bonus=demo_bonus(persona, e.today), bills_due=bills_due,
         bill={**bill, "due": fi_date(bill["due_date"])} if bill else None))
 
 

@@ -380,9 +380,13 @@
     </div>
   {% elif screen == "tab" and tab == "raha" %}
     <div class="pad money" id="money" data-src="/static/mockups/charts/data/">
-      {% for id in ("trend", "cats", "budget", "sit", "fig", "income", "cal") %}<section class="card{{ ' rel' if id == 'trend' }}" id="{{ id }}"></section>
+      {# each card is a link: tapping it asks Oiva about that card (money.js fills it in) #}
+      {% for id in ("trend", "cats", "budget", "sit", "fig", "income", "cal") %}<a class="card{{ ' rel' if id == 'trend' }}" id="{{ id }}" href="{{ asks[id] }}"></a>
       {% endfor %}
+      <a class="ask-oiva" id="ask-oiva" href="{{ asks.oiva }}"><span class="say">{{ t("Kysy minulta tästä", "Ask me about this") }}</span>
+        <span class="oiva wave once" role="img" aria-label="Oiva" onanimationend="this.className = 'oiva idle'"></span></a>
     </div>
+    <script>document.getElementById("trend").addEventListener("click", e => e.target.closest("svg") && e.preventDefault());  // the chart scrubs, the rest asks</script>
     <script src="/static/oiva/money.js" defer></script>
   {% elif screen == "tab" and tab == "mina" %}
     <section class="me-head"><div class="avatar" aria-hidden="true">{{ name[:1] }}</div><b>{{ full_name or name }}</b></section>
