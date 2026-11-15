@@ -77,4 +77,8 @@
 
 /* "Coin": the same Helper with the chat's coin squirrel (oiva.css sprite, 12:13), standing in the same box */
 .coin #pal{display:flex;align-items:flex-end;justify-content:center}
-.coin #pal .oiva{--s:calc(var(--pal) * 12 / 13)}
+.coin #pal .oiva{--s:var(--pal)}  /* the sprite's cell has air around him: full box width, a little taller than it */
+/* caution and error: the worried row without its neutral first and last frames, so every frame looks worried */
+.coin #pal .oiva.worried{--n:6;animation-name:coin-worried}
+@keyframes coin-worried{from{background-position-x:calc(100% / 7)}to{background-position-x:100%}}
+@media (prefers-reduced-motion:reduce){.coin #pal .oiva.worried{background-position-x:calc(100% / 7)}}
