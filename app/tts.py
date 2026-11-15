@@ -43,35 +43,66 @@ _cache: OrderedDict[str, bytes] = OrderedDict()
 _lock = threading.Lock()
 _spent = {"day": "", "chars": 0}
 _calls: list[float] = []
-_said: OrderedDict[str, None] = OrderedDict()
-_missing: set[str] = set()  # voice ids ElevenLabs said this account doesn't have
+_said: OrderedDict[str, list[tuple[str, str]]] = OrderedDict()  # reply key -> its sentences (normalized, as said)
+_missing: dict[str, float] = {}  # voice id -> when ElevenLabs said this account doesn't have it (retried after an hour)
+MISSING_FOR = 3600
 
 
 def _norm(text: str) -> str:
-    """Letters and digits only: the page joins a reply's parts with ". " and drops markdown; this ignores both."""
+    """Letters and digits only: markdown, punctuation and spacing don't change what is said."""
     return re.sub(r"[\W_]+", "", str(text or "").lower())
 
 
-def allow(parts) -> None:
-    """Remember a reply (its parts, as the page will join them) as one the server said, so it may be spoken."""
+_EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F\u200D]")
+_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+(?=[\"'(A-ZÄÖÅ0-9])")
+
+
+def sentences(parts) -> list[str]:
+    """A reply as the page speaks it (helper.js spoken() and pieces(), kept the same): each line without links,
+    URLs, list markers, markdown or emoji, ended with a period, then split into sentences."""
     parts = [parts] if isinstance(parts, str) else list(parts or [])
-    k = "".join(_norm(p) for p in parts)
+    lines = []
+    for p in parts:
+        for ln in str(p or "").split("\n"):
+            ln = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", ln)
+            ln = re.sub(r"https?://\S+", "", ln)
+            ln = re.sub(r"^\s*(?:[-•*·]|\d+[.)])\s+", "", ln)
+            ln = re.sub(r"[*_`#>~]", "", ln)
+            ln = " ".join(_EMOJI.sub("", ln).split())
+            if ln:
+                lines.append(ln if re.search(r"[.!?:;…]$", ln) else ln + ".")
+    return [x for x in _SENTENCE_END.split(" ".join(lines)) if _norm(x)]
+
+
+def allow(parts) -> None:
+    """Remember a reply (its parts) as one the server said, so it, or a run of its sentences, may be spoken."""
+    said = [(_norm(x), x) for x in sentences(parts)]
+    k = "".join(n for n, _ in said)
     if not k:
         return
     with _lock:
-        _said[k] = None
+        _said[k] = said
         _said.move_to_end(k)
         while len(_said) > SAID_ITEMS:
             _said.popitem(last=False)
 
 
-def allowed(text: str) -> bool:
-    """True for text Oiva said here, whole or a piece of it (the page speaks a long reply a few sentences at a time)."""
-    k = _norm(text)
-    if not k:
-        return False
+def allowed(text: str) -> str | None:
+    """The server's own words for `text` when it is a reply Oiva said here, or a run of whole sentences of one (the
+    page speaks a long reply a few sentences at a time); None for anything else. Only these words are sent on."""
+    want = [_norm(x) for x in sentences(text)]
+    whole = "".join(want)
+    if not whole:
+        return None
     with _lock:
-        return k in _said or any(k in said for said in reversed(_said))
+        if whole in _said:
+            return " ".join(x for _, x in _said[whole])
+        for said in reversed(_said.values()):
+            norms = [n for n, _ in said]
+            for i in range(len(norms) - len(want) + 1):
+                if norms[i:i + len(want)] == want:
+                    return " ".join(x for _, x in said[i:i + len(want)])
+    return None
 
 
 class TTSError(Exception):
@@ -88,9 +119,6 @@ def configured() -> bool:
 
 _AMOUNT = re.compile(r"(?<![\d.,])(\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?![\d])\s?€"
                      r"|€\s?(\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?![\d])")
-_EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F\u200D]")
-
-
 def _amount(m: re.Match, lang: str) -> str:
     """"3 345.06 €" -> "3345 euros and 6 cents" / "3345 euroa 6 senttiä": no thousands gap to trip on."""
     whole, cents = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
@@ -153,7 +181,7 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
     model = os.environ.get("ELEVENLABS_MODEL_ID", "").strip() or DEFAULT_MODEL
     if not re.fullmatch(r"[A-Za-z0-9]{10,40}", voice):
         raise TTSError("bad voice id", 503)
-    if voice in _missing:  # not in this account: the English voice reads it
+    if time.monotonic() - _missing.get(voice, -MISSING_FOR) < MISSING_FOR:  # not in this account: English voice
         voice = voice_for("en")
     ck = hashlib.sha256(f"{voice}|{model}|{lang}|{t}".encode()).hexdigest()
     with _lock:
@@ -181,9 +209,9 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
         r = await c.post(f"{API}/{voice}", params={"output_format": OUTPUT},
                          headers={"xi-api-key": key, "accept": "audio/mpeg"}, json=body)
         fallback = voice_for("en")
-        if r.status_code in (400, 404) and _detail(r) == "voice_not_found" and voice != fallback:
+        if r.status_code in (400, 404) and "voice_not_found" in _codes(r) and voice != fallback:
             log.warning("voice %s is not in this ElevenLabs account; using the English voice", voice)
-            _missing.add(voice)
+            _missing[voice] = time.monotonic()
             voice = fallback
             ck = hashlib.sha256(f"{voice}|{model}|{lang}|{t}".encode()).hexdigest()
             r = await c.post(f"{API}/{voice}", params={"output_format": OUTPUT},
@@ -218,6 +246,14 @@ def voice_for(lang: str) -> str:
 def _refund(n: int) -> None:
     with _lock:
         _spent["chars"] = max(0, _spent["chars"] - n)
+
+
+def _codes(r: httpx.Response) -> set[str]:
+    try:
+        d = r.json().get("detail")
+        return {str(d.get("code") or ""), str(d.get("status") or "")} if isinstance(d, dict) else set()
+    except Exception:
+        return set()
 
 
 def _detail(r: httpx.Response) -> str:

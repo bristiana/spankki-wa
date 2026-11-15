@@ -228,6 +228,18 @@ def test_a_piece_of_a_reply_may_be_spoken_but_not_other_text(client, eleven, mon
     assert ok("Want tips?") == 200
     assert ok("Groceries took most of the cake.") == 403
     assert ok("Say anything I like") == 403
+    assert ok("a") == 403 and ok("Y o u h a v e") == 403 and ok("You have") == 403  # whole sentences only
+
+
+def test_pieces_of_a_list_with_links_are_spoken_in_the_servers_words(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    tts.allow(["Kolme vinkkiä:\n1. Maksa vuokra ensin.\n2. Säästä 50 € kuussa.\nKatso [ohje](https://x.example/o) tästä."])
+    ok = lambda t: client.post("/api/voice", json={"text": t, "lang": "fi"}).status_code
+    assert ok("Kolme vinkkiä: Maksa vuokra ensin. Säästä 50 € kuussa.") == 200
+    assert ok("Katso ohje tästä.") == 200
+    assert ok("Säästä 500 € kuussa.") == 403
+    sent = [__import__("json").loads(r.content)["text"] for r in eleven["calls"]]
+    assert sent == ["Kolme vinkkiä: Maksa vuokra ensin. Säästä 50 euroa kuussa.", "Katso ohje tästä."]
 
 
 @pytest.mark.parametrize("lang,text,want", [

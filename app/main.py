@@ -2014,10 +2014,11 @@ async def voice_api(request: Request):
         return JSONResponse({"error": "text"}, status_code=400)
     if not tts.configured():
         return Response(status_code=204)
-    if not tts.allowed(body["text"]):  # only what Oiva said here: no free text-to-speech for the internet
+    said = tts.allowed(body["text"])  # only what Oiva said here, in his own words: no free text-to-speech
+    if not said:
         return JSONResponse({"error": "not a reply"}, status_code=403)
     try:
-        audio = await tts.speak(body["text"], "en" if body.get("lang") == "en" else "fi")
+        audio = await tts.speak(said, "en" if body.get("lang") == "en" else "fi")
     except tts.TTSError as e:
         return JSONResponse({"error": str(e)}, status_code=e.status)
     return Response(audio, media_type="audio/mpeg")

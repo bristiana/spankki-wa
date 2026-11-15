@@ -200,12 +200,16 @@
   }
   function playClip(url) {  // resolves when it ends (true) or is stopped (false); rejects if playback is refused
     return new Promise((ok, no) => {
-      const done = v => { player.onended = player.onerror = null; stopClip = null; ok(v); };
-      stopClip = () => done(false);
-      player.onended = () => done(true);
-      player.onerror = () => done(true);  // a broken clip: go on with the next one
+      let over = false;
+      const mine = () => !over && stopClip === stop;
+      const end = () => { over = true; player.onended = player.onerror = player.onpause = null; stopClip = null; };
+      const stop = () => { if (mine()) { end(); ok(false); } };
+      stopClip = stop;
+      player.onended = () => { if (mine()) { end(); ok(true); } };
+      player.onerror = player.onended;  // a broken clip: go on with the next one
+      player.onpause = () => { if (!player.ended) stop(); };  // paused from outside (lock screen, a call): he stops
       player.src = url;
-      player.play().catch(e => { player.onended = player.onerror = null; stopClip = null; no(e); });
+      player.play().catch(e => { if (mine()) { end(); no(e); } });  // a late refusal of an old clip touches nothing
     });
   }
   async function speak(parts) {
@@ -218,19 +222,20 @@
     const c = new AbortController(); ctl = c; talking = true;
     // ask for every piece at once (ElevenLabs works on the next while this one plays), play them in order
     const asks = chunks.map(t => clip(t, c.signal).catch(e => (e.name === "AbortError" ? 0 : -1)));
+    let i = 0;
     try {
-      for (let i = 0; i < chunks.length; i++) {
+      for (; i < chunks.length; i++) {
         const got = await asks[i];
         if (my !== seq) return;
         if (typeof got !== "string") {  // no key / budget used: browser voice from here on, this visit
           if (got === 204 || got === 429) serverVoice = false;
           return synth(chunks.slice(i));
         }
-        if (!(await playClip(got)) && my !== seq) return;
-        if (my !== seq) return;
+        const played = await playClip(got);
+        if (my !== seq || !played) return;  // replaced, muted or paused from outside
       }
     } catch (e) {  // autoplay refused (no tap yet on this page): the browser's voice
-      if (my === seq) synth(chunks);
+      if (my === seq) synth(chunks.slice(i));  // from the piece that was refused, not again from the start
     } finally {
       if (my === seq) { talking = false; if (ctl === c) ctl = null; }
     }
@@ -247,7 +252,11 @@
   }
   if (voiceBtn && canSpeak) {
     voiceBtn.classList.add("can");
-    voiceBtn.onclick = () => { const on = !voiceOn; setVoice(on, true); if (on) unlock(); };
+    voiceBtn.onclick = () => {  // unlock inside the tap, before speak() makes him "talking"
+      const on = !voiceOn;
+      if (on) { voiceOn = true; unlock(); }
+      setVoice(on, true);
+    };
     setVoice(voiceOn, false);  // on unless muted earlier in this browser
     // the first tap or key on the page unlocks playback, so the reply to the first question is heard
     const first = () => { unlock(); if (voiceOn && canSynth && !speechSynthesis.speaking) speechSynthesis.speak(new SpeechSynthesisUtterance("")); };
