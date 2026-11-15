@@ -3,7 +3,7 @@
 Answers fit in about 20 seconds each. The source for each claim is in brackets.
 
 **1. How do I know the AI didn't make up a number?**
-The model doesn't compute anything. It calls 24 tools over a deterministic, tested engine (`app/tools.py`, `app/engine.py`, 815 tests). The prompt forbids any figure that isn't in a tool result (`app/agent.py`). A number guard checks every figure in the reply against the tool results. On a mismatch it forces one rewrite (`app/guard.py`). "How I worked this out" shows the steps, the sources and the verdict, e.g. "6 of 6 figures checked" (`app/explain.py`).
+The model doesn't compute anything. It calls 24 tools over a deterministic, tested engine (`app/tools.py`, `app/engine.py`, 815 tests). The prompt forbids any figure that isn't in a tool result (`app/agent.py`). A number guard checks every figure in the reply against the tool results. On a mismatch it forces one rewrite (`app/guard.py`). "How I worked it out" (FI "Näin laskin") shows "✓ 6/6 figures checked" under every answer, and opens to the steps, the sources and the verdict, e.g. "6 of 6 figures checked" (`app/explain.py`).
 *If pressed:* the guard doesn't block. If the rewrite still misses, the reply goes out with "Only M of N figures matched" in the trace and a warning in the log. In production we'd swap in a safe fallback reply.
 
 **2. Can Oiva move my money? What if it's prompt-injected?**
@@ -67,6 +67,6 @@ S-mobiili today has a virtual assistant, but no spending-by-category view and no
 - That the guard "guarantees" or "blocks" wrong numbers. It rewrites once and shows the verdict.
 - A "Viewing as" menu. It's gone: switch customers with `?as=` or Minä → "Switch customer".
 - That WhatsApp voice notes use ElevenLabs. They use Whisper on Workers AI (`app/voice.py`). ElevenLabs is the web voice and mic.
-- Finnish in the number check. "How I worked this out" is English only (`app/static/trace.js`).
+- Finnish in the number check: the line under the answer and the verdict are Finnish, but the steps inside are still English (`app/explain.py`).
 - A "✅ Rent paid" message or a basket-game chip. The reply is "*Rent paid*: …", and the game starts when you type *basket game*.
 - Any statement about the real S-mobiili without checking it on a real phone first (checklist).

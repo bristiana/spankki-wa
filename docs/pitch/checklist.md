@@ -15,7 +15,7 @@
 - [ ] From the stage phone, write "hi" to the Oiva bot.
   - This opens the 24-hour window.
   - `/demo/remind` doesn't check the window, and Meta rejects the message if it's closed (`app/main.py` `demo_remind`).
-- [ ] On the /demo panel, press **Reset demo** (`POST /demo/reset`). This resets the balance, goals, games and chats for every customer.
+- [ ] Open `/demo/reset` and tap **Palauta demo / Reset the demo**. This resets the balance, goals, games and chats for every customer, then asks the stage questions once in the background (warm-up, about 40 s; progress at `/demo/warm`).
 - [ ] Check that the WhatsApp connection is still there after the reset (`docs/aprobare-whatsapp.md` §6).
 - [ ] A container restart also wipes the in-memory app-chat mirror (`app/mirror.py`). Don't redeploy after warm-up.
 - [ ] Wake the container: open `/s-mobiili/` and `/chat` once. It stays warm for 1 hour after the last request (`worker/index.ts`).
