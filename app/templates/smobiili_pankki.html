@@ -173,7 +173,7 @@
     {% else %}
     <section class="card p-goal" id="no-goal">
       <span class="t">{{ t("Aloita hätävara", "Start an emergency buffer") }}</span>
-      <p class="muted" style="margin:6px 0 12px">{% if en %}Three months of your irregular must-haves (a broken washing machine, a dentist): {{ buffer|fimoney }}.{% else %}Kolmen kuukauden epäsäännölliset pakolliset menot (rikkinäinen pesukone, hammaslääkäri): {{ buffer|fimoney }}.{% endif %}</p>
+      <p class="muted" style="margin:6px 0 12px">{% if en %}Three months of your occasional costs (a&nbsp;doctor's visit, a broken laptop): {{ buffer|fimoney }}.{% else %}Kolmen kuukauden satunnaiset menot (lääkärikäynti, rikkoutunut läppäri): {{ buffer|fimoney }}.{% endif %}</p>
       <form method="post" action="/s-mobiili/saastot/aloita{{ k }}"><button class="btn" type="submit" id="start-buffer">{{ t("Aloita hätävara", "Start the buffer") }}</button></form>
     </section>
     {% endfor %}

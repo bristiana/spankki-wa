@@ -1786,7 +1786,7 @@ def smobiili_account(request: Request):
 @app.get("/s-mobiili/maksut", response_class=HTMLResponse)
 def smobiili_payments(request: Request):
     e, lang = pk_ctx(request)
-    return pk_sub(request, "p-maksut", ("Maksut ja e-laskut", "Payments"), PANKKI_TAB,
+    return pk_sub(request, "p-maksut", ("Maksut", "Payments"), PANKKI_TAB,
                   bills=pk_bills(e, lang), regular=pk_regular(e, lang))
 
 
