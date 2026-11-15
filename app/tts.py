@@ -22,14 +22,19 @@ import httpx
 log = logging.getLogger("tts")
 
 API = "https://api.elevenlabs.io/v1/text-to-speech"
-# "George", a premade ElevenLabs voice (warm, calm storyteller), the voice in ElevenLabs' own API examples.
-DEFAULT_VOICE = "JBFqnCBsd6RMkjVDRZzb"
+# One voice per page language (the FI | EN toggle), each overridable: ELEVENLABS_VOICE_ID_EN / _FI, or
+# ELEVENLABS_VOICE_ID for both. EN: "Chris", a premade voice (natural, down-to-earth, conversational).
+# FI: "Jarmo", a native Finnish voice from the ElevenLabs library (warm, natural, verified for Finnish on
+# eleven_multilingual_v2); an English voice reading Finnish keeps an accent. A library voice must be added to the
+# account (My Voices) first; until it is, Finnish falls back to the English voice.
+DEFAULT_VOICES = {"en": "iP95p4xoKVk53GoZ742B", "fi": "W9YsrfUjc4DOYR4fhg8M"}
+DEFAULT_VOICE = DEFAULT_VOICES["en"]
 # Speaks Finnish and English (and ~27 more); it picks the language from the text.
 DEFAULT_MODEL = "eleven_multilingual_v2"
 OUTPUT = "mp3_44100_64"
-MAX_CHARS = 600            # one reply read aloud; longer text is cut at a sentence end
-DAILY_CHARS = 5_000        # sent to ElevenLabs per day (cache hits are free); override ELEVENLABS_DAILY_CHARS
-PER_MINUTE = 12            # calls to ElevenLabs a minute at most
+MAX_CHARS = 1_500          # one request (the page sends a reply in pieces of a few sentences); cut at a sentence end
+DAILY_CHARS = 20_000       # sent to ElevenLabs per day (cache hits are free); override ELEVENLABS_DAILY_CHARS
+PER_MINUTE = 30            # calls to ElevenLabs a minute at most (a reply is 1-4 pieces)
 CACHE_ITEMS = 200
 SAID_ITEMS = 500           # recent texts the server said, the only ones it will speak
 TIMEOUT = httpx.Timeout(20.0, connect=5.0)
@@ -39,6 +44,7 @@ _lock = threading.Lock()
 _spent = {"day": "", "chars": 0}
 _calls: list[float] = []
 _said: OrderedDict[str, None] = OrderedDict()
+_missing: set[str] = set()  # voice ids ElevenLabs said this account doesn't have
 
 
 def _norm(text: str) -> str:
@@ -60,9 +66,12 @@ def allow(parts) -> None:
 
 
 def allowed(text: str) -> bool:
+    """True for text Oiva said here, whole or a piece of it (the page speaks a long reply a few sentences at a time)."""
     k = _norm(text)
+    if not k:
+        return False
     with _lock:
-        return bool(k) and k in _said
+        return k in _said or any(k in said for said in reversed(_said))
 
 
 class TTSError(Exception):
@@ -77,10 +86,46 @@ def configured() -> bool:
     return bool(os.environ.get("ELEVENLABS_API_KEY", "").strip())
 
 
+_AMOUNT = re.compile(r"(?<![\d.,])(\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?![\d])\s?€"
+                     r"|€\s?(\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?![\d])")
+_EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F\u200D]")
+
+
+def _amount(m: re.Match, lang: str) -> str:
+    """"3 345.06 €" -> "3345 euros and 6 cents" / "3345 euroa 6 senttiä": no thousands gap to trip on."""
+    whole, cents = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
+    e = int(re.sub(r"\D", "", whole))
+    c = int((cents or "0").ljust(2, "0"))
+    if e == 0 and c:
+        return (f"{c} senttiä" if c > 1 else "1 sentti") if lang == "fi" else (f"{c} cents" if c > 1 else "1 cent")
+    if lang == "fi":
+        s = f"{e} euro" if e == 1 else f"{e} euroa"
+        return s + (f" {c} senttiä" if c > 1 else " 1 sentti" if c == 1 else "")
+    s = f"{e} euro" if e == 1 else f"{e} euros"
+    return s + (f" and {c} cents" if c > 1 else " and 1 cent" if c == 1 else "")
+
+
 def clean(text: str, lang: str) -> str:
-    """What is read aloud: whitespace folded, the euro sign said as a word, cut to MAX_CHARS at a sentence end."""
-    t = " ".join(str(text or "").split()).replace("€", " euroa" if lang == "fi" else " euros")
-    t = " ".join(t.split())
+    """What is read aloud: markdown, links and emoji dropped, list lines as sentences, amounts and % in words,
+    cut to MAX_CHARS at a sentence end."""
+    t = str(text or "")
+    t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)              # [label](url) -> label
+    t = re.sub(r"https?://\S+", "", t)
+    t = _EMOJI.sub("", t)
+    lines = []
+    for ln in t.splitlines():
+        ln = re.sub(r"^\s*(?:[-•*·]|\d+[.)])\s+", "", ln).strip()  # list markers
+        if ln:
+            lines.append(ln if re.search(r"[.!?:;…]$", ln) else ln + ".")
+    t = " ".join(lines)
+    t = re.sub(r"[*_`#>~]+", "", t)
+    t = _AMOUNT.sub(lambda m: _amount(m, lang), t)
+    t = re.sub(r"(\d)\s?%", r"\1 prosenttia" if lang == "fi" else r"\1 percent", t)
+    t = t.replace("€", " euroa" if lang == "fi" else " euros")
+    t = re.sub(r"\besim\.", "esimerkiksi", t) if lang == "fi" else re.sub(r"\be\.g\.", "for example", t)
+    t = re.sub(r"\s*/\s*kk\b", " kuukaudessa", t) if lang == "fi" else re.sub(r"\s*/\s*(?:mo|month)\b", " a month", t)
+    t = re.sub(r"\s+([.,!?])", r"\1", " ".join(t.split()))
+    t = re.sub(r"\.{2,}", ".", t)
     if len(t) > MAX_CHARS:
         cut = t[:MAX_CHARS]
         end = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
@@ -104,10 +149,12 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
     t = clean(text, lang)
     if not t:
         raise TTSError("empty", 400)
-    voice = os.environ.get("ELEVENLABS_VOICE_ID", "").strip() or DEFAULT_VOICE
+    voice = voice_for(lang)
     model = os.environ.get("ELEVENLABS_MODEL_ID", "").strip() or DEFAULT_MODEL
     if not re.fullmatch(r"[A-Za-z0-9]{10,40}", voice):
         raise TTSError("bad voice id", 503)
+    if voice in _missing:  # not in this account: the English voice reads it
+        voice = voice_for("en")
     ck = hashlib.sha256(f"{voice}|{model}|{lang}|{t}".encode()).hexdigest()
     with _lock:
         if ck in _cache:
@@ -133,6 +180,14 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
     try:
         r = await c.post(f"{API}/{voice}", params={"output_format": OUTPUT},
                          headers={"xi-api-key": key, "accept": "audio/mpeg"}, json=body)
+        fallback = voice_for("en")
+        if r.status_code in (400, 404) and _detail(r) == "voice_not_found" and voice != fallback:
+            log.warning("voice %s is not in this ElevenLabs account; using the English voice", voice)
+            _missing.add(voice)
+            voice = fallback
+            ck = hashlib.sha256(f"{voice}|{model}|{lang}|{t}".encode()).hexdigest()
+            r = await c.post(f"{API}/{voice}", params={"output_format": OUTPUT},
+                             headers={"xi-api-key": key, "accept": "audio/mpeg"}, json=body)
     except httpx.HTTPError as e:
         _refund(len(t))
         log.warning("elevenlabs unreachable: %s", type(e).__name__)
@@ -153,6 +208,13 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
     return audio
 
 
+def voice_for(lang: str) -> str:
+    """The voice for the page language: ELEVENLABS_VOICE_ID_EN / _FI, else ELEVENLABS_VOICE_ID, else the default."""
+    lang = "en" if lang == "en" else "fi"
+    return (os.environ.get(f"ELEVENLABS_VOICE_ID_{lang.upper()}", "").strip()
+            or os.environ.get("ELEVENLABS_VOICE_ID", "").strip() or DEFAULT_VOICES[lang])
+
+
 def _refund(n: int) -> None:
     with _lock:
         _spent["chars"] = max(0, _spent["chars"] - n)
@@ -162,6 +224,6 @@ def _detail(r: httpx.Response) -> str:
     """ElevenLabs' own error code (e.g. quota_exceeded, invalid_api_key), never the request or its headers."""
     try:
         d = r.json().get("detail")
-        return str(d.get("status") or d.get("code") or "")[:60] if isinstance(d, dict) else str(d)[:60]
+        return str(d.get("code") or d.get("status") or "")[:60] if isinstance(d, dict) else str(d)[:60]
     except Exception:
         return ""

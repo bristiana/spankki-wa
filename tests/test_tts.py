@@ -23,7 +23,9 @@ def fresh(monkeypatch):
     tts._spent.update(day="", chars=0)
     tts._said.clear()
     tts._calls.clear()
-    for k in ("ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "ELEVENLABS_DAILY_CHARS"):
+    tts._missing.clear()
+    for k in ("ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID", "ELEVENLABS_VOICE_ID_EN", "ELEVENLABS_VOICE_ID_FI",
+              "ELEVENLABS_MODEL_ID", "ELEVENLABS_DAILY_CHARS"):
         monkeypatch.delenv(k, raising=False)
     yield
 
@@ -52,11 +54,11 @@ def test_endpoint_returns_elevenlabs_audio(client, eleven, monkeypatch):
     r = say(client)
     assert r.status_code == 200 and r.headers["content-type"] == "audio/mpeg" and r.content == MP3
     [req] = eleven["calls"]
-    assert req.url.host == "api.elevenlabs.io" and req.url.path == f"/v1/text-to-speech/{tts.DEFAULT_VOICE}"
+    assert req.url.host == "api.elevenlabs.io" and req.url.path == f"/v1/text-to-speech/{tts.DEFAULT_VOICES['fi']}"
     assert req.headers["xi-api-key"] == KEY
     body = __import__("json").loads(req.content)
     assert body["model_id"] == "eleven_multilingual_v2" and "language_code" not in body
-    assert "183.31 euroa" in body["text"] and "€" not in body["text"]
+    assert "183 euroa 31 senttiä" in body["text"] and "€" not in body["text"]
 
 
 def test_voice_and_model_from_env(client, eleven, monkeypatch):
@@ -150,8 +152,8 @@ def test_bad_voice_id_is_not_put_in_the_url(client, eleven, monkeypatch):
 
 def test_helper_falls_back_to_browser_voice():
     js = open("app/static/oiva/helper.js").read()
-    assert 'fetch("/api/voice"' in js and "r.status === 204" in js and "synth(text)" in js
-    assert "speechSynthesis.speak" in js and 'store.get("oiva-voice") === "on"' in js  # muted until turned on
+    assert 'fetch("/api/voice"' in js and "got === 204" in js and "synth(chunks" in js
+    assert "speechSynthesis.speak" in js and 'store.get("oiva-voice") !== "off"' in js  # talks unless muted
 
 
 def test_only_what_oiva_said_is_spoken(client, eleven, monkeypatch):
@@ -188,3 +190,57 @@ def test_per_minute_cap(client, eleven, monkeypatch):
 def test_huge_body_is_refused(client, eleven, monkeypatch):
     monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
     assert client.post("/api/voice", json={"text": "a" * 6000}).status_code == 400
+
+
+@pytest.mark.parametrize("lang", ["en", "fi"])
+def test_voice_follows_the_page_language(client, eleven, monkeypatch, lang):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    assert say(client, "Hello there. Hei vaan.", lang).status_code == 200
+    [req] = eleven["calls"]
+    assert req.url.path.endswith("/" + tts.DEFAULT_VOICES[lang])
+
+
+def test_per_language_voice_env(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    monkeypatch.setenv("ELEVENLABS_VOICE_ID", "AAAAAAAAAAAAAAAAAAAA")
+    monkeypatch.setenv("ELEVENLABS_VOICE_ID_FI", "FFFFFFFFFFFFFFFFFFFF")
+    say(client, "Hei.", "fi"); say(client, "Hi.", "en")
+    assert [r.url.path.rsplit("/", 1)[1] for r in eleven["calls"]] == ["FFFFFFFFFFFFFFFFFFFF", "AAAAAAAAAAAAAAAAAAAA"]
+
+
+def test_finnish_voice_missing_from_account_falls_back_to_english(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    fi_voice, en_voice = tts.DEFAULT_VOICES["fi"], tts.DEFAULT_VOICES["en"]
+    eleven["answer"] = lambda req: (httpx.Response(400, json={"detail": {"code": "voice_not_found"}})
+                                    if req.url.path.endswith(fi_voice) else
+                                    httpx.Response(200, content=MP3, headers={"content-type": "audio/mpeg"}))
+    assert say(client, "Hei Antti.").content == MP3
+    assert say(client, "Toinen lause.").content == MP3  # remembered: straight to the English voice
+    assert [r.url.path.rsplit("/", 1)[1] for r in eleven["calls"]] == [fi_voice, en_voice, en_voice]
+
+
+def test_a_piece_of_a_reply_may_be_spoken_but_not_other_text(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    tts.allow(["You have **183.31 €** left.", "Groceries took most of it. Want tips?"])
+    ok = lambda t: client.post("/api/voice", json={"text": t, "lang": "en"}).status_code
+    assert ok("You have 183.31 € left.") == 200
+    assert ok("Groceries took most of it.") == 200
+    assert ok("Want tips?") == 200
+    assert ok("Groceries took most of the cake.") == 403
+    assert ok("Say anything I like") == 403
+
+
+@pytest.mark.parametrize("lang,text,want", [
+    ("en", "Rent **1 313.89 €** is due.", "Rent 1313 euros and 89 cents is due."),
+    ("fi", "Vuokra 1 313,89 € erääntyy.", "Vuokra 1313 euroa 89 senttiä erääntyy."),
+    ("en", "Only 0.50 € and 12 € left, 3 % more.", "Only 50 cents and 12 euros left, 3 percent more."),
+    ("fi", "Säästä 1 € päivässä 🐿️", "Säästä 1 euro päivässä."),
+    ("en", "Your baskets:\n- Groceries 40 €\n- Fuel 12 €\nSee [details](https://x.example/a).",
+     "Your baskets: Groceries 40 euros. Fuel 12 euros. See details."),
+])
+def test_spoken_text(lang, text, want):
+    assert tts.clean(text, lang) == want
+
+
+def test_caps_fit_a_whole_reply():
+    assert tts.MAX_CHARS >= 1500 and tts.DAILY_CHARS == 20_000 and tts.PER_MINUTE == 30

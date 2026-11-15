@@ -1,7 +1,7 @@
 // The chat's Helper (docs/plans/squirrel-helper.md): a big Oiva (oiva.js from the mascot set) that takes the
 // pose the server picked for each reply (`mood`, app/mood.py), says one short sentence of the reply in a speech
-// bubble (the full reply is in the log) and, with the sound on, reads the whole reply aloud (ElevenLabs through
-// /api/voice, or the browser's speechSynthesis in fi-FI or en-GB by the page language when the server has no key).
+// bubble (the full reply is in the log) and reads the whole reply aloud unless muted (ElevenLabs through /api/voice
+// in an English or Finnish voice by the page language, or the browser's speechSynthesis when the server has no key).
 (function () {
   const fi = (document.documentElement.lang || "fi").startsWith("fi");
   const T = (a, b) => (fi ? a : b);
@@ -129,65 +129,115 @@
   }
 
   // ---- voice ----
-  // Oiva's own voice from the server (/api/voice, ElevenLabs; the key stays there). With no key on the server
-  // (204) or when a call fails, the browser's speechSynthesis reads it instead. Spoken only after a reply arrives.
+  // Oiva reads his whole reply aloud after each question: ElevenLabs through /api/voice (the key stays on the
+  // server; an English voice on EN, a Finnish one on FI), a few sentences per request so he starts talking
+  // quickly, played back to back. With no key on the server (204), the day's budget used (429) or a failed call,
+  // the browser's speechSynthesis reads it instead. On by default; the sound button mutes him (remembered).
+  // A new question, a new reply or mute stops what he is saying.
   const canSynth = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
   const canSpeak = canSynth || typeof Audio !== "undefined";
-  let voiceOn = store.get("oiva-voice") === "on";
-  let serverVoice = true;        // false after a 204: no key on the server, don't ask again this visit
-  const clips = new Map();       // text -> blob URL, so a repeated sentence isn't fetched twice
+  let voiceOn = store.get("oiva-voice") !== "off";
+  let serverVoice = true;        // false after a 204 or 429: don't ask the server again this visit
+  const clips = new Map();       // text -> blob URL, so a repeated piece isn't fetched twice
   const player = typeof Audio !== "undefined" ? new Audio() : null;
-  let pending = null, seq = 0;
+  let ctl = null, seq = 0, talking = false, stopClip = null;
   const LANG = fi ? "fi-FI" : "en-GB";
   const SILENT = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";  // 10 ms of silence
   function voiceFor() {
     const vs = speechSynthesis.getVoices(), norm = x => (x.lang || "").replace("_", "-").toLowerCase();
     return vs.find(x => norm(x) === LANG.toLowerCase()) || vs.find(x => norm(x).startsWith(LANG.slice(0, 2).toLowerCase()));
   }
-  function speaking() { return (canSynth && speechSynthesis.speaking) || !!(player && !player.paused && !player.ended) || !!pending; }
+  function speaking() { return talking || (canSynth && speechSynthesis.speaking) || !!(player && !player.paused && !player.ended); }
   function hush() {
-    seq++;
-    if (pending) { pending.abort(); pending = null; }
+    seq++; talking = false;
+    if (ctl) { ctl.abort(); ctl = null; }
+    if (stopClip) { stopClip(); stopClip = null; }
     if (player) player.pause();
     if (canSynth) speechSynthesis.cancel();
   }
-  function synth(text) {
-    if (!canSynth) return;
-    const u = new SpeechSynthesisUtterance(text.replace(/€/g, fi ? " euroa" : " euros"));
-    u.lang = LANG;
-    const v = voiceFor();
-    if (v) u.voice = v;
-    u.rate = 1.02;
-    speechSynthesis.speak(u);
+  // What is read: the reply's parts, list lines as sentences, without markdown, links, emoji or list markers
+  // (the server also says amounts in words). Buttons, charts and "How I worked this out" are not in the parts.
+  function spoken(parts) {
+    const lines = [];
+    for (const p of parts || []) for (let l of String(p || "").split(/\n+/)) {
+      l = l.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/https?:\/\/\S+/g, "")
+        .replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "").replace(/[*_`#>~]/g, "")
+        .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, "").replace(/\s+/g, " ").trim();
+      if (l) lines.push(/[.!?:;…]$/.test(l) ? l : l + ".");
+    }
+    return lines.join(" ");
   }
-  function play(url, text, my) {
-    player.src = url;
-    player.play().catch(() => { if (my === seq) synth(text); });  // autoplay refused: the browser's voice
+  // pieces of whole sentences: a short first one so he starts at once, then up to ~350 characters each
+  function pieces(text) {
+    const out = []; let cur = "";
+    for (const s of text.split(/(?<=[.!?…])\s+(?=["'(A-ZÄÖÅ0-9])/)) {
+      const max = out.length ? 350 : 160;
+      if (cur && (cur + " " + s).length > max) { out.push(cur); cur = s; } else cur = cur ? cur + " " + s : s;
+    }
+    if (cur) out.push(cur);
+    return out;
+  }
+  function synth(chunks) {
+    if (!canSynth) return;
+    for (const c of chunks) {  // one utterance per piece: some browsers cut a long one off
+      const u = new SpeechSynthesisUtterance(c.replace(/€/g, fi ? " euroa" : " euros"));
+      u.lang = LANG;
+      const v = voiceFor();
+      if (v) u.voice = v;
+      u.rate = 1.02;
+      speechSynthesis.speak(u);
+    }
+  }
+  async function clip(text, signal) {  // a blob URL, or the HTTP status that says why not
+    if (clips.has(text)) { const u = clips.get(text); clips.delete(text); clips.set(text, u); return u; }
+    const r = await fetch("/api/voice", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, lang: fi ? "fi" : "en" }), signal });
+    if (!r.ok || r.status === 204) return r.status;
+    const url = URL.createObjectURL(await r.blob());
+    if (clips.size >= 40) { const [k, u] = clips.entries().next().value; if (player.src !== u) URL.revokeObjectURL(u); clips.delete(k); }
+    clips.set(text, url);
+    return url;
+  }
+  function playClip(url) {  // resolves when it ends (true) or is stopped (false); rejects if playback is refused
+    return new Promise((ok, no) => {
+      const done = v => { player.onended = player.onerror = null; stopClip = null; ok(v); };
+      stopClip = () => done(false);
+      player.onended = () => done(true);
+      player.onerror = () => done(true);  // a broken clip: go on with the next one
+      player.src = url;
+      player.play().catch(e => { player.onended = player.onerror = null; stopClip = null; no(e); });
+    });
   }
   async function speak(parts) {
     if (!canSpeak || !voiceOn) return;
-    const text = plain((parts || []).join(". "));
+    const text = spoken(parts);
     if (!text) return;
     hush();
-    const my = seq;
-    if (!player || !serverVoice) return synth(text);
-    if (clips.has(text)) { const u = clips.get(text); clips.delete(text); clips.set(text, u); return play(u, text, my); }
-    const ctl = new AbortController(); pending = ctl;
+    const my = seq, chunks = pieces(text);
+    if (!player || !serverVoice) return synth(chunks);
+    const c = new AbortController(); ctl = c; talking = true;
+    // ask for every piece at once (ElevenLabs works on the next while this one plays), play them in order
+    const asks = chunks.map(t => clip(t, c.signal).catch(e => (e.name === "AbortError" ? 0 : -1)));
     try {
-      const r = await fetch("/api/voice", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, lang: fi ? "fi" : "en" }), signal: ctl.signal });
-      if (pending === ctl) pending = null;
-      if (my !== seq) return;  // a newer reply or mute came first
-      if (r.status === 204 || r.status === 429) { serverVoice = false; return synth(text); }  // no key, or the day's budget used
-      if (!r.ok) return synth(text);
-      const url = URL.createObjectURL(await r.blob());
-      if (clips.size >= 30) { const [k, u] = clips.entries().next().value; if (player.src !== u) URL.revokeObjectURL(u); clips.delete(k); }
-      clips.set(text, url);
-      if (my === seq) play(url, text, my);
-    } catch (e) {
-      if (pending === ctl) pending = null;
-      if (my === seq && e.name !== "AbortError") synth(text);
+      for (let i = 0; i < chunks.length; i++) {
+        const got = await asks[i];
+        if (my !== seq) return;
+        if (typeof got !== "string") {  // no key / budget used: browser voice from here on, this visit
+          if (got === 204 || got === 429) serverVoice = false;
+          return synth(chunks.slice(i));
+        }
+        if (!(await playClip(got)) && my !== seq) return;
+        if (my !== seq) return;
+      }
+    } catch (e) {  // autoplay refused (no tap yet on this page): the browser's voice
+      if (my === seq) synth(chunks);
+    } finally {
+      if (my === seq) { talking = false; if (ctl === c) ctl = null; }
     }
+  }
+  function unlock() {  // iOS lets an <audio> play later only if it started inside a tap: a silent clip does that
+    if (!voiceOn || !player || !player.paused || speaking()) return;
+    player.src = SILENT; player.play().catch(() => {});
   }
   function setVoice(v, sayNow) {
     voiceOn = v; store.set("oiva-voice", v ? "on" : "off");
@@ -197,20 +247,12 @@
   }
   if (voiceBtn && canSpeak) {
     voiceBtn.classList.add("can");
-    voiceBtn.onclick = () => {
-      // iOS lets an <audio> play later only if it started inside a tap: unlock it here with a silent clip
-      if (!voiceOn && player) { player.src = SILENT; player.play().catch(() => {}); }
-      setVoice(!voiceOn, true);
-    };
-    setVoice(voiceOn, false);  // remembered per browser; off until turned on
-    // Sound already on from an earlier visit: the first tap or key unlocks playback (iOS needs a gesture)
-    const unlock = () => {
-      if (!voiceOn) return;
-      if (player && player.paused) { player.src = SILENT; player.play().catch(() => {}); }
-      if (canSynth && !speechSynthesis.speaking) speechSynthesis.speak(new SpeechSynthesisUtterance(""));
-    };
-    document.addEventListener("pointerdown", unlock, { once: true, capture: true });
-    document.addEventListener("keydown", unlock, { once: true, capture: true });
+    voiceBtn.onclick = () => { const on = !voiceOn; setVoice(on, true); if (on) unlock(); };
+    setVoice(voiceOn, false);  // on unless muted earlier in this browser
+    // the first tap or key on the page unlocks playback, so the reply to the first question is heard
+    const first = () => { unlock(); if (voiceOn && canSynth && !speechSynthesis.speaking) speechSynthesis.speak(new SpeechSynthesisUtterance("")); };
+    document.addEventListener("pointerdown", first, { once: true, capture: true });
+    document.addEventListener("keydown", first, { once: true, capture: true });
   }
 
   // ---- the big Oiva (oiva.js); a tap pokes him ----
@@ -243,9 +285,9 @@
       glance(document.getElementById("q"), 4000);
       restLater(8000);
     },
-    thinking() {
+    thinking() {  // a new question: he stops talking; the send tap keeps the next reply's audio allowed
       clearTimeout(idleTimer); pose("thinking");
-      hush();
+      hush(); unlock();
       show("thinking", "", true);
     },
     reply(name, parts, trace) {
