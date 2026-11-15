@@ -1,0 +1,43 @@
+# Deploys main to https://spankki-wa.bogdan-c-2206.workers.dev (worker + the Coach container).
+# GitHub's runner has Docker, so the container image is built there, not on a laptop.
+# Needs repo secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID. The worker's own secrets
+# (ANTHROPIC_API_KEY, ELEVENLABS_API_KEY, ...) stay on Cloudflare and are not touched here.
+# Bump INSTANCE in wrangler.jsonc when the container should restart with the new code.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "README.md"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest
+      - run: python -m pytest -q
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.162.0"
+          command: deploy
