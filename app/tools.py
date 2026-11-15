@@ -79,6 +79,14 @@ TOOLS = [
         },
     },
     {
+        "name": "get_where_you_sit",
+        "description": "The comparison on S-mobiili's Your money: this person vs people their age in their area (income, "
+                       "rent share, savings rate, restaurants, shopping, buffer), 12-month averages, with where they sit "
+                       "(percentile). Use for 'how do I compare with people like me / my age in my area' and 'how does "
+                       "my income compare'. Lead with the figure asked about.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
         "name": "get_budgets",
         "description": "The month's budgets shown on S-mobiili's Your money: per everyday category (rent and bills left "
                        "out) the budget, what was spent and what is left, the total left in the budgets and how many "
@@ -434,6 +442,9 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
     if name == "get_spending":
         out = engine.spending(args.get("category"), args.get("period") or "last_month", args.get("start"), args.get("end"),
                               args.get("merchant_type"), bool(args.get("exclude_bills")))
+    elif name == "get_where_you_sit":
+        from .money import where_you_sit
+        out = where_you_sit(engine)
     elif name == "get_budgets":
         out = engine.budgets()
     elif name == "get_baskets":

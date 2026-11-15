@@ -8,11 +8,28 @@ from the whole data set by scripts/build_chart_mockup_fixtures.py.
 """
 from __future__ import annotations
 
+import json
 from datetime import timedelta
+from pathlib import Path
 
 from .engine import BILL_CATEGORIES, FLEX_CATEGORIES, Engine, eur
 
 LABEL = {"Lifestyle": "Shopping"}
+COMPARE = Path(__file__).parent / "static/mockups/charts/data/compare.json"
+COMPARE_PERSONA = "CUST01656"  # the peer comparison was built for Antti's own transactions
+
+
+def where_you_sit(e: Engine) -> dict:
+    """The peer comparison Your money draws (compare.json): this customer vs people their age in their area, monthly
+    averages over the 12 full months it was built on. Only for the customer it was built for."""
+    if Path(e.csv_path).stem != COMPARE_PERSONA:
+        raise ValueError("the Your money comparison is only built for the demo customer; use get_people_like_me")
+    c = json.loads(COMPARE.read_text())
+    return {k: c[k] for k in ("cohort", "figures", "source")} | {
+        "window": f"monthly averages {c['cohort']['from']} to {c['cohort']['to']}",
+        "note": "These are the exact figures on S-mobiili's Your money comparison cards. Lead with the figure asked "
+                "about (income: 'you' and 'median'). Income here is the 12-month average, so it differs from one "
+                "month's salary."}
 
 
 def spend(e: Engine) -> dict:
@@ -30,14 +47,15 @@ def spend(e: Engine) -> dict:
     days, budget_total = b["days_in_month"], b["budget_total_eur"]
     expected = eur(budget_total * d1.day / days)
     cats = [{"category": c, "label": LABEL.get(c, c), "spent_eur": i["spent_eur"],
-             "avg_3m_eur": i["average_last_3_full_months_eur"], "budget_eur": i["limit_eur"]}
+             "avg_3m_eur": i["average_of_the_last_3_full_months_eur"], "budget_eur": i["limit_eur"]}
             for c, i in by.items()]
     bills = [{"name": "Rent" if r.category == "Housing" else "Utility bill", "date": r.date.isoformat(),
               "amount_eur": eur(-r.tx_amount_eur)}
              for r in out_[out_["category"].isin(BILL_CATEGORIES)].sort_values("date").itertuples()]
     paid = {k: [{"date": r.date.isoformat(), "amount_eur": eur(abs(r.tx_amount_eur))}
                 for r in s[s["transaction_type"] == t].sort_values("date").itertuples()]
-            for k, t in (("rent", "housing_payment"), ("investing", "investment_deposit"), ("salary", "salary"))}
+            for k, t in (("rent", "housing_payment"), ("investing", "investment_deposit"), ("salary", "salary"),
+                         ("utilities", "utilities_payment"))}
     return {"as_of": e.today.isoformat(), "paid": paid, "month": d0.isoformat()[:7], "whole_month": whole, "day": d1.day,
             "total_eur": total["total_eur"], "prev_total_eur": total["previous_period"]["total_eur"],
             "budget_total_eur": budget_total,

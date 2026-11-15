@@ -89,8 +89,9 @@
     const W = 318, H = 176, L = 2, R = 46, T0 = 22, Bm = 22, pw = W - L - R, ph = H - T0 - Bm;
     const top = Math.ceil(Math.max(proj, B) * 1.08 / 500) * 500, step = top > 2500 ? 1000 : 500;  // axis room above the higher of budget and projection
     const x = d => L + d / DAYS * pw, y = v => T0 + ph - v / top * ph;  // d = day, 0 = start of the month
-    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": T(
-      `Käytetty ${eur(spent)} ${dm(TODAY)} mennessä; tällä tahdilla ${eur(proj, 0)} kuun loppuun mennessä, budjetti ${eur(B, 0)}`,
+    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": WHOLE
+      ? T(`Käytetty ${eur(spent)} koko ${FI_M}na, budjetti ${eur(B, 0)}`, `Spent ${eur(spent)} in all of ${MONTH_NAME}, budget ${eur(B, 0)}`)
+      : T(`Käytetty ${eur(spent)} ${dm(TODAY)} mennessä; tällä tahdilla ${eur(proj, 0)} kuun loppuun mennessä, budjetti ${eur(B, 0)}`,
       `Spent ${eur(spent)} by ${TODAY} ${MONTH_NAME}; at this rate ${eur(proj, 0)} by the end of the month, budget ${eur(B, 0)}`)});
     const defs = el("defs", {}); defs.innerHTML = `<linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${css("bright")}" stop-opacity=".28"/><stop offset="1" stop-color="${css("bright")}" stop-opacity="0"/></linearGradient>`;
     svg.appendChild(defs);
@@ -153,7 +154,7 @@
       <div class="seg" role="img" aria-label="${T("Kulutuksen jakautuminen luokittain", "Share of spending by category")}">${used.map(c =>
         `<i style="flex:${c.spent_eur};background:${css(COL[c.category])}" title="${lab(c)} ${eur(c.spent_eur)}"></i>`).join("")}</div>
       <div>${used.map(c => `<div class="row">${icon(c.category)}<div class="mid"><div class="nm">${lab(c)}</div>
-        <div class="sm">${pct(c.spent_eur / total)} · ${T("keskimäärin", "usually")} ${eur(c.avg_3m_eur, 0)}${T("/kk", " a month")}</div></div>
+        <div class="sm">${pct(c.spent_eur / total)} · ${T("3 kk:n keskiarvo", "3-month average")} ${eur(c.avg_3m_eur, 0)}${T("/kk", " a month")}</div></div>
         <div class="amt">${eur(c.spent_eur)}</div></div>`).join("")}</div>
 `;
   })();
@@ -175,7 +176,7 @@
         : T(`${FI_M[0].toUpperCase() + FI_M.slice(1)}n budjetit ylittyivät yhteensä`, `${MONTH_NAME}'s budgets, over by`)) : T("Budjeteissa jäljellä", "Left in your budgets");
     const subLine = WHOLE ? T("Koko kuukausi ilman vuokraa ja laskuja. Ei sama kuin tämän päivän turvallinen käyttövara.", "The whole month, without rent and bills. Not the same as what's safe to spend today.")
       : T(`<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> päivässä loppukuun ajan`, `<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> a day for the rest of the month`);
-    host.innerHTML = `<p class="k">${head}</p><p class="hero">${hero(WHOLE ? Math.abs(left) : left)}</p>
+    host.innerHTML = `<p class="k">${head}</p><p class="hero"${left < 0 ? ' style="color:var(--warn)"' : ""}>${hero(WHOLE ? Math.abs(left) : left)}</p>
       <p class="sub">${subLine}</p>
       <div class="chips"><span class="chip ok">${T(`${nWithin}/${set.length} budjetin sisällä`, `${nWithin} of ${set.length} within budget`)}</span>
       ${nFast ? warnChip(T(`${nFast}/${set.length} tasaista tahtia nopeammin`, `${nFast} of ${set.length} faster than an even pace`)) : ""}</div>
@@ -239,7 +240,7 @@
     svg.appendChild(el("text", {x: bx + bw / 2, y: yb - 38, "text-anchor": "middle", style: "font-size:12.5px;font-weight:700;fill:" + css("brand-ink")}, bubble));
     [[f.p25, eur(f.p25, 0)], [f.p75, eur(f.p75, 0)]].forEach(([v, t]) =>
       svg.appendChild(el("text", {x: px(v), y: yb + 24, "text-anchor": "middle"}, t)));
-    host.innerHTML = `<p class="h3">${T("Tulot", f.label)}</p>`;
+    host.innerHTML = `<p class="h3">${T("Tulot", f.label)}</p><p class="k" style="margin-top:2px">${T("12 kuukauden keskiarvo kuussa", "12-month average, a month")}</p>`;
     host.appendChild(svg);
     host.insertAdjacentHTML("beforeend", `<p class="sub">${T(`Tulosi ovat suuremmat kuin noin <b>${Math.round(f.percentile / 10)}:llä kymmenestä</b> kaltaisestasi`, `Higher than about <b>${Math.round(f.percentile / 10)} in 10</b> people like you`)}</p>`);
   })();
@@ -255,7 +256,7 @@
     const parts = [[T("Laskut", "Bills"), bills, css("c6"), billSub],
       [T("Sijoittaminen", "Investing"), inv, css("c3")], [T("Jää kaikkeen muuhun", "Left for everything else"), rest, css("brand")]];
     host.innerHTML = `<p class="h3">${AFTER}</p><p class="k" style="margin-top:2px">${T("Tavallinen kuukausi", "A typical month")}</p><p class="hero">${hero(rest)}</p>
-      <p class="sub">${T(`palkastasi <b>${eur(inc)}</b>`, `of your <b>${eur(inc)}</b> salary`)}</p>
+      <p class="sub">${T(`keskimääräisestä palkastasi <b>${eur(inc)}</b> (3 viimeistä)`, `of your average <b>${eur(inc)}</b> salary (last 3)`)}</p>
       <div class="seg" style="height:18px" role="img" aria-label="${T("Palkan jakautuminen", "Salary split")}">${parts.map(p => `<i style="flex:${p[1]};background:${p[2]}"></i>`).join("")}</div>
       ${parts.map(p => `<div class="row" style="padding:7px 0"><span style="width:12px;height:12px;border-radius:3px;background:${p[2]};flex:none"></span>
         <div class="mid"><div class="nm">${p[0]}</div>${p[3] ? `<div class="sm">${p[3]}</div>` : ""}</div><div class="amt">${eur(p[1])}<small>${pct(p[1] / inc)}</small></div></div>`).join("")}
@@ -271,7 +272,9 @@
     const paid = id => ((spend.paid || {})[id] || []).find(x => dayOf(x.date)), paidDay = id => paid(id) && dayOf(paid(id).date);
     const lanes = [
       {name: T("Vuokra", "Rent"), sub: rentPaid ? T("maksettu ", "paid ") + eur(rentPaid.amount_eur) : eur(by("rent").per_month_eur) + T(" kuukaudessa", " a month"), day: due(by("rent"))},  // the amount paid this month, per spend.json bills
-      {name: T("Asumislaskut", "Utility bills"), sub: "~" + Math.round(u.bills_per_month) + T(" laskua, ", " bills, ") + eur(u.per_month_eur, 0), from: u.day_range.first, to: u.day_range.last, paidDays: paidHere(/utility/i)},
+      {name: T("Asumislaskut", "Utility bills"), sub: (spend.paid || {}).utilities && spend.paid.utilities.some(x => dayOf(x.date))
+        ? (n => n + T(" laskua, ", n === 1 ? " bill, " : " bills, ") + eur(sum(spend.paid.utilities.filter(x => dayOf(x.date)), x => x.amount_eur)))(spend.paid.utilities.filter(x => dayOf(x.date)).length)
+        : "~" + Math.round(u.bills_per_month) + T(" laskua, ", " bills, ") + eur(u.per_month_eur, 0), from: u.day_range.first, to: u.day_range.last, paidDays: paidHere(/utility/i)},
       {name: T("Palkka", by("salary").name), sub: "+" + eur(paid("salary") ? paid("salary").amount_eur : by("salary").per_month_eur), day: paidDay("salary") || due(by("salary")), incoming: true},
       {name: T("Sijoittaminen", "Investing"), sub: paid("investing") ? T("maksettu ", "paid ") + eur(paid("investing").amount_eur) : eur(by("investing").per_month_eur), day: paidDay("investing") || due(by("investing"))}];
     const W = 318, labW = 104, lane = 42, T0 = 30, H = T0 + lanes.length * lane + 18, x0 = labW + 6, x1 = W - 8;

@@ -418,6 +418,17 @@ class Engine:
         names = df["mcc_code"].map(lambda c: MCC_LABELS.get(c, f"Code {c}") if isinstance(c, str) else "No merchant code")
         return {k: eur(-v) for k, v in df["tx_amount_eur"].groupby(names).sum().sort_values().items()}
 
+    def _paid_in_money_month(self) -> dict:
+        """What each regular payment actually came to in Your money's month (money_month), from the transactions."""
+        d0, d1, _ = self.money_month()
+        s = self._slice(d0, d1)
+        out = {"month": d0.isoformat()[:7]}
+        for k, t in (("rent", "housing_payment"), ("utilities", "utilities_payment"), ("investing", "investment_deposit"),
+                     ("salary", "salary")):
+            x = s[s["transaction_type"] == t]
+            out[k] = {"payments": int(len(x)), "total_eur": eur(abs(x["tx_amount_eur"].sum()))}
+        return out
+
     def money_month(self) -> tuple[date, date, bool]:
         """The month S-mobiili's Your money shows and talks about: this month so far, or the last full month (whole)
         when this one has barely started, as get_spending does. (first day, last day shown, whole month?)"""
@@ -444,7 +455,7 @@ class Engine:
             items.append({"category": c, "limit_eur": limit, "spent_eur": sp,
                           "left_eur": eur(limit - sp) if limit else None,
                           "status": ("over" if sp > limit else "within") if limit else "no_budget",
-                          "average_last_3_full_months_eur": self.monthly_avg(c, 3)})
+                          "average_of_the_last_3_full_months_eur": self.monthly_avg(c, 3)})
         items.sort(key=lambda i: -i["spent_eur"])
         set_ = [i for i in items if i["limit_eur"]]
         total, used = sum(i["limit_eur"] for i in set_), eur(sum(i["spent_eur"] for i in set_))
@@ -454,6 +465,7 @@ class Engine:
                "within": sum(1 for i in set_ if i["status"] == "within"), "budgets": len(set_), "items": items,
                "rule": "Each everyday category's budget is the median of its spending in the 6 full months before, "
                        "rounded to 10 EUR; rent and utility bills are not in the budgets.",
+               "average_note": "The average covers the last 3 full months, this month included (as simulate_cut uses).",
                "not_safe_to_spend": "This is the month's budgets, not what is safe to spend today (get_safe_to_spend)."}
         if whole:
             out["note"] = (f"{calendar.month_name[self.today.month]} has only just started, so these are "
@@ -1566,6 +1578,7 @@ class Engine:
             "bills_per_month_eur": eur(sum(x["per_month_eur"] for x in bills)),
             "bills_per_year_eur": eur(sum(x["per_year_eur"] for x in bills)),
             "income_per_month_eur": salary["per_month_eur"] if salary else None,
+            "paid_in_month_shown": self._paid_in_money_month(),
             "left_after_bills_and_investing_per_month_eur": (
                 eur(salary["per_month_eur"] - sum(x["per_month_eur"] for x in bills)
                     - (inv["per_month_eur"] if inv and inv["status"] == "active" else 0)) if salary else None),
