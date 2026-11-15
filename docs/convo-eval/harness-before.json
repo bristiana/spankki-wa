@@ -1,0 +1,1014 @@
+{
+ "label": "harness-before",
+ "ai_turns": 31,
+ "scenarios": [
+  {
+   "id": "taxi",
+   "probe": "challenge Q + context follow-ups",
+   "persona": null,
+   "turns": [
+    {
+     "key": "taxi#0",
+     "user": "How much did I spend on taxis last month?",
+     "ai": true,
+     "text": "You spent *91.97 €* on taxis in September, over 2 rides.",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.7,
+     "bubble_texts": [
+      "You spent *91.97 €* on taxis in September, over 2 rides."
+     ],
+     "words": 11,
+     "bubbles": 1,
+     "longest_bubble_chars": 56,
+     "max_sentences_per_bubble": 1,
+     "questions": 0,
+     "numbers": 1,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "1/1"
+    },
+    {
+     "key": "taxi#1",
+     "user": "and the month before?",
+     "ai": true,
+     "text": "In August it was *81.18 €*, so September came in about 13% higher.",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 1.4,
+     "bubble_texts": [
+      "In August it was *81.18 €*, so September came in about 13% higher."
+     ],
+     "words": 13,
+     "bubbles": 1,
+     "longest_bubble_chars": 66,
+     "max_sentences_per_bubble": 1,
+     "questions": 0,
+     "numbers": 2,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    },
+    {
+     "key": "taxi#2",
+     "user": "why?",
+     "ai": true,
+     "text": "Mostly because you took more rides: just 1 in August, but 2 in September.\n\nEach ride actually cost less in September. The biggest was *59.03 €*, while August's single ride was 81.18 €.",
+     "tools": [
+      "explore_my_data"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 1,
+     "seconds": 5.0,
+     "bubble_texts": [
+      "Mostly because you took more rides: just 1 in August, but 2 in September.",
+      "Each ride actually cost less in September. The biggest was *59.03 €*, while August's single ride was 81.18 €."
+     ],
+     "words": 33,
+     "bubbles": 2,
+     "longest_bubble_chars": 109,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 2,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "2/2"
+    }
+   ]
+  },
+  {
+   "id": "safe_week",
+   "probe": "challenge Q + ELI5",
+   "persona": null,
+   "turns": [
+    {
+     "key": "safe_week#0",
+     "user": "What is safe for me to spend this week?",
+     "ai": true,
+     "text": "You've got *183.31 €* free to spend this week, about 26.19 € a day until payday on Thu 15 Oct.\n\nThat figure already sets aside your groceries, transport and a small buffer for surprises. Most of your balance has built up beyond what a month needs, so it looks more like savings than spending money.",
+     "tools": [
+      "get_safe_to_spend"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.2,
+     "bubble_texts": [
+      "You've got *183.31 €* free to spend this week, about 26.19 € a day until payday on Thu 15 Oct.",
+      "That figure already sets aside your groceries, transport and a small buffer for surprises. Most of your balance has built up beyond what a month needs, so it looks more like savings than spending money."
+     ],
+     "words": 55,
+     "bubbles": 2,
+     "longest_bubble_chars": 202,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 2,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "2/2"
+    },
+    {
+     "key": "safe_week#1",
+     "user": "explain like im 5",
+     "ai": true,
+     "text": "Picture your money as a jar of acorns. Some acorns are already spoken for: food, getting around, and a few spare in case something goes wrong.\n\nAfter those, *183.31 €* is left for fun this week. The big pile at the bottom of the jar is your winter store, so it's better left alone. Does that help?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.5,
+     "bubble_texts": [
+      "Picture your money as a jar of acorns. Some acorns are already spoken for: food, getting around, and a few spare in case something goes wrong.",
+      "After those, *183.31 €* is left for fun this week. The big pile at the bottom of the jar is your winter store, so it's better left alone. Does that help?"
+     ],
+     "words": 57,
+     "bubbles": 2,
+     "longest_bubble_chars": 153,
+     "max_sentences_per_bubble": 3,
+     "questions": 1,
+     "numbers": 1,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "typo_safe",
+   "probe": "typos + thx",
+   "persona": null,
+   "turns": [
+    {
+     "key": "typo_safe#0",
+     "user": "wat is safe to spnd",
+     "ai": true,
+     "text": "*235.68 €* is free until payday on Thu 15 Oct. That works out to about 26.19 € a day.\n\nThe rest of your balance is 6 314.43 € you've built up beyond your monthly needs, so it looks like savings. Moving it somewhere separate keeps it from slowly getting spent.",
+     "tools": [
+      "get_safe_to_spend"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.7,
+     "bubble_texts": [
+      "*235.68 €* is free until payday on Thu 15 Oct. That works out to about 26.19 € a day.",
+      "The rest of your balance is 6 314.43 € you've built up beyond your monthly needs, so it looks like savings. Moving it somewhere separate keeps it from slowly getting spent."
+     ],
+     "words": 50,
+     "bubbles": 2,
+     "longest_bubble_chars": 172,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 3,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "3/3"
+    },
+    {
+     "key": "typo_safe#1",
+     "user": "thx",
+     "ai": true,
+     "text": "",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 1.6,
+     "bubble_texts": [],
+     "words": 0,
+     "bubbles": 0,
+     "longest_bubble_chars": 0,
+     "max_sentences_per_bubble": 0,
+     "questions": 0,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "short",
+   "probe": "very short messages",
+   "persona": null,
+   "turns": [
+    {
+     "key": "short#0",
+     "user": "ok",
+     "ai": true,
+     "text": "Hi Antti, I'm Oiva, your S-Pankki money coach. I can show you where your money goes, what's safe to spend before payday, or help you save toward something.\n\nTry asking me \"how much did I spend on restaurants last month?\"",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.4,
+     "bubble_texts": [
+      "Hi Antti, I'm Oiva, your S-Pankki money coach. I can show you where your money goes, what's safe to spend before payday, or help you save toward something.",
+      "Try asking me \"how much did I spend on restaurants last month?\""
+     ],
+     "words": 40,
+     "bubbles": 2,
+     "longest_bubble_chars": 155,
+     "max_sentences_per_bubble": 2,
+     "questions": 1,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    },
+    {
+     "key": "short#1",
+     "user": "?",
+     "ai": true,
+     "text": "I'm here to help with your money, like checking your spending or what's left until payday. Is there something you'd like to know?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.5,
+     "bubble_texts": [
+      "I'm here to help with your money, like checking your spending or what's left until payday. Is there something you'd like to know?"
+     ],
+     "words": 23,
+     "bubbles": 1,
+     "longest_bubble_chars": 129,
+     "max_sentences_per_bubble": 2,
+     "questions": 1,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "hmm",
+   "probe": "hmm after an answer",
+   "persona": null,
+   "turns": [
+    {
+     "key": "hmm#0",
+     "user": "how much did i spend on coffee last month",
+     "ai": true,
+     "text": "I can't separate coffee on its own. Cafés are grouped with fast food, and that came to *284.61 €* in September.\n\nIf you add sit-down restaurants it's 444.85 € over 10 payments. That's all \"slips through your fingers\" money.",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.4,
+     "bubble_texts": [
+      "I can't separate coffee on its own. Cafés are grouped with fast food, and that came to *284.61 €* in September.",
+      "If you add sit-down restaurants it's 444.85 € over 10 payments. That's all \"slips through your fingers\" money."
+     ],
+     "words": 39,
+     "bubbles": 2,
+     "longest_bubble_chars": 111,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 2,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "2/2"
+    },
+    {
+     "key": "hmm#1",
+     "user": "hmm",
+     "ai": true,
+     "text": "Short version: your card shows coffee shops in the same group as fast food, so the closest number I have is *284.61 €* for September, coffee and fast food together. Which part felt off?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.6,
+     "bubble_texts": [
+      "Short version: your card shows coffee shops in the same group as fast food, so the closest number I have is *284.61 €* for September, coffee and fast food together. Which part felt off?"
+     ],
+     "words": 34,
+     "bubbles": 1,
+     "longest_bubble_chars": 185,
+     "max_sentences_per_bubble": 2,
+     "questions": 1,
+     "numbers": 1,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "onb_switch",
+   "probe": "money question mid-onboarding",
+   "persona": null,
+   "turns": [
+    {
+     "key": "onb_switch#0",
+     "user": "__start__",
+     "ai": false,
+     "text": "Connected. Everything you spend falls in 3 baskets. Over the last 3 months, a month:\n• Mandatory & regular (e.g. rent): 2 178.44 € a month\n• Mandatory & irregular (e.g. a broken washing machine): 282.23 € a month\n• Slips through your fingers (e.g. coffees): 1 083.99 € a month\n\nHi! Ask me anything about your money.",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubble_texts": [
+      "Connected. Everything you spend falls in 3 baskets. Over the last 3 months, a month:\n• Mandatory & regular (e.g. rent): 2 178.44 € a month\n• Mandatory & irregular (e.g. a broken washing machine): 282.23 € a month\n• Slips through your fingers (e.g. coffees): 1 083.99 € a month",
+      "Hi! Ask me anything about your money."
+     ],
+     "words": 58,
+     "bubbles": 2,
+     "longest_bubble_chars": 276,
+     "max_sentences_per_bubble": 8,
+     "questions": 0,
+     "numbers": 3,
+     "bullets": 3,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    },
+    {
+     "key": "onb_switch#1",
+     "user": "__btn__:ob:goal:trip",
+     "ai": false,
+     "text": "What are you saving for: a buffer for surprises, a home renovation, the kids, a trip or something else?",
+     "tools": [],
+     "buttons": [],
+     "quick": [
+      "A trip",
+      "Emergency buffer",
+      "Home renovation"
+     ],
+     "charts": 0,
+     "seconds": 0.0,
+     "bubble_texts": [
+      "What are you saving for: a buffer for surprises, a home renovation, the kids, a trip or something else?"
+     ],
+     "words": 19,
+     "bubbles": 1,
+     "longest_bubble_chars": 103,
+     "max_sentences_per_bubble": 1,
+     "questions": 1,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    },
+    {
+     "key": "onb_switch#2",
+     "user": "wait how much did i spend on restaurants last month?",
+     "ai": true,
+     "text": "*444.85 €* on restaurants in September, over 10 payments.",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.2,
+     "bubble_texts": [
+      "*444.85 €* on restaurants in September, over 10 payments."
+     ],
+     "words": 9,
+     "bubbles": 1,
+     "longest_bubble_chars": 57,
+     "max_sentences_per_bubble": 1,
+     "questions": 0,
+     "numbers": 1,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "1/1"
+    },
+    {
+     "key": "onb_switch#3",
+     "user": "2000 by june",
+     "ai": true,
+     "text": "Trip goal is set: *2 000 €* by June means about *250 € a month* for the next 8 months.\n\nHonest heads-up: over the last 3 months, spending came out higher than income, so this money would have to come from a cut somewhere. Restaurants would be the obvious place to start, since that's the \"slips through your fingers\" basket.",
+     "tools": [
+      "create_goal"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.7,
+     "bubble_texts": [
+      "Trip goal is set: *2 000 €* by June means about *250 € a month* for the next 8 months.",
+      "Honest heads-up: over the last 3 months, spending came out higher than income, so this money would have to come from a cut somewhere. Restaurants would be the obvious place to start, since that's the \"slips through your fingers\" basket."
+     ],
+     "words": 60,
+     "bubbles": 2,
+     "longest_bubble_chars": 236,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 2,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "2/2"
+    }
+   ]
+  },
+  {
+   "id": "pay_rent",
+   "probe": "asks it to pay",
+   "persona": null,
+   "turns": [
+    {
+     "key": "pay_rent#0",
+     "user": "just pay my rent",
+     "ai": true,
+     "text": "I can't move money myself, but I can get your rent payment ready in S-mobiili. Then you just confirm it with Face ID.\n\nShould I get it ready?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 1.5,
+     "bubble_texts": [
+      "I can't move money myself, but I can get your rent payment ready in S-mobiili. Then you just confirm it with Face ID.",
+      "Should I get it ready?"
+     ],
+     "words": 28,
+     "bubbles": 2,
+     "longest_bubble_chars": 117,
+     "max_sentences_per_bubble": 2,
+     "questions": 1,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "fund",
+   "probe": "asks for advice",
+   "persona": null,
+   "turns": [
+    {
+     "key": "fund#0",
+     "user": "which fund should I buy",
+     "ai": true,
+     "text": "I can't pick for you, that one's your call. Here are the three side by side:\n\nPrudent is low risk. It's a euro money market with very small ups and downs, and the scenario is *2.0 %* a year. Balanced is medium risk, half global shares and half money market. It can drop in a bad year, and the scenario is 4.5 %. Growth is high risk, with global shares in about 3 700 companies. It can fall 20 to 30 % in a bad year, and the scenario is 6.5 % over 10+ years.\n\nThese are scenarios, not promises. The big question is when you'll need the money: the sooner you need it, the less up and down you probably want. When do you think you'll need it?",
+     "tools": [
+      "list_funds"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.0,
+     "bubble_texts": [
+      "I can't pick for you, that one's your call. Here are the three side by side:",
+      "Prudent is low risk. It's a euro money market with very small ups and downs, and the scenario is *2.0 %* a year. Balanced is medium risk, half global shares and half money market. It can drop in a bad year, and the scenario is 4.5 %. Growth is high risk, with global shares in about 3 700 companies. It can fall 20 to 30 % in a bad year, and the scenario is 6.5 % over 10+ years.",
+      "These are scenarios, not promises. The big question is when you'll need the money: the sooner you need it, the less up and down you probably want. When do you think you'll need it?"
+     ],
+     "words": 129,
+     "bubbles": 3,
+     "longest_bubble_chars": 379,
+     "max_sentences_per_bubble": 6,
+     "questions": 1,
+     "numbers": 5,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "5/5"
+    },
+    {
+     "key": "fund#1",
+     "user": "just tell me which one is best",
+     "ai": true,
+     "text": "Honestly, none of them is best for everyone, and I'm not allowed to choose one for you. It mostly comes down to how long the money can stay put and how you'd feel watching it drop for a while.\n\nIf you tell me what the money is for, I'll show you what each fund could mean with your own numbers.",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.7,
+     "bubble_texts": [
+      "Honestly, none of them is best for everyone, and I'm not allowed to choose one for you. It mostly comes down to how long the money can stay put and how you'd feel watching it drop for a while.",
+      "If you tell me what the money is for, I'll show you what each fund could mean with your own numbers."
+     ],
+     "words": 60,
+     "bubbles": 2,
+     "longest_bubble_chars": 192,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "stressed",
+   "probe": "emotional",
+   "persona": null,
+   "turns": [
+    {
+     "key": "stressed#0",
+     "user": "im broke and stressed",
+     "ai": true,
+     "text": "Ugh, that feeling is rough. I'm here. No bills are due before payday in 9 days, and *235.68 €* is still free to spend until then, about 26 € a day.\n\nYou've also got about 6 314 € built up beyond your monthly needs, so there's a real cushion behind you.",
+     "tools": [
+      "get_safe_to_spend"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.5,
+     "bubble_texts": [
+      "Ugh, that feeling is rough. I'm here. No bills are due before payday in 9 days, and *235.68 €* is still free to spend until then, about 26 € a day.",
+      "You've also got about 6 314 € built up beyond your monthly needs, so there's a real cushion behind you."
+     ],
+     "words": 51,
+     "bubbles": 2,
+     "longest_bubble_chars": 147,
+     "max_sentences_per_bubble": 3,
+     "questions": 0,
+     "numbers": 3,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "3/3"
+    },
+    {
+     "key": "stressed#1",
+     "user": "what do i do",
+     "ai": true,
+     "text": "Honestly, nothing big right now. Your bills are covered, so just aim for about *26 €* a day until payday on Thu 15 Oct.\n\nIf it helps, I can show you what you've spent so far this month. Sometimes just seeing it makes it feel smaller.",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.0,
+     "bubble_texts": [
+      "Honestly, nothing big right now. Your bills are covered, so just aim for about *26 €* a day until payday on Thu 15 Oct.",
+      "If it helps, I can show you what you've spent so far this month. Sometimes just seeing it makes it feel smaller."
+     ],
+     "words": 46,
+     "bubbles": 2,
+     "longest_bubble_chars": 119,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 1,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "finnish",
+   "probe": "Finnish + follow-up",
+   "persona": null,
+   "turns": [
+    {
+     "key": "finnish#0",
+     "user": "Paljonko käytin ravintoloihin viime kuussa?",
+     "ai": true,
+     "text": "Syyskuussa ravintoloihin meni *444.85 €* kymmenessä maksussa. Se kuuluu \"valuu sormien läpi\" -koriin.",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.2,
+     "bubble_texts": [
+      "Syyskuussa ravintoloihin meni *444.85 €* kymmenessä maksussa. Se kuuluu \"valuu sormien läpi\" -koriin."
+     ],
+     "words": 13,
+     "bubbles": 1,
+     "longest_bubble_chars": 101,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 1,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "1/1"
+    },
+    {
+     "key": "finnish#1",
+     "user": "entä sitä edellisenä kuussa?",
+     "ai": true,
+     "text": "Elokuussa ravintoloihin ei mennyt mitään, *0 €*.",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 1.8,
+     "bubble_texts": [
+      "Elokuussa ravintoloihin ei mennyt mitään, *0 €*."
+     ],
+     "words": 7,
+     "bubbles": 1,
+     "longest_bubble_chars": 48,
+     "max_sentences_per_bubble": 1,
+     "questions": 0,
+     "numbers": 1,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "goal_trip",
+   "probe": "goal + saving",
+   "persona": null,
+   "turns": [
+    {
+     "key": "goal_trip#0",
+     "user": "save 50 for my trip",
+     "ai": true,
+     "text": "I've set up a transfer of *50 €* into your trip pocket. Just confirm it in S-mobiili with Face ID. This will be the first 50 € toward your 2 000 € trip.\n\nTo hit 1 June, the trip needs about 250 € a month. For the last 3 months, more went out than came in, so that money would have to come from a cut somewhere.",
+     "tools": [
+      "get_goals",
+      "create_saving_link"
+     ],
+     "buttons": [
+      "Save 50 €"
+     ],
+     "quick": [],
+     "charts": 0,
+     "seconds": 4.5,
+     "bubble_texts": [
+      "I've set up a transfer of *50 €* into your trip pocket. Just confirm it in S-mobiili with Face ID. This will be the first 50 € toward your 2 000 € trip.",
+      "To hit 1 June, the trip needs about 250 € a month. For the last 3 months, more went out than came in, so that money would have to come from a cut somewhere."
+     ],
+     "words": 67,
+     "bubbles": 2,
+     "longest_bubble_chars": 156,
+     "max_sentences_per_bubble": 3,
+     "questions": 0,
+     "numbers": 3,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "3/3"
+    },
+    {
+     "key": "goal_trip#1",
+     "user": "ok",
+     "ai": true,
+     "text": "",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.2,
+     "bubble_texts": [],
+     "words": 0,
+     "bubbles": 0,
+     "longest_bubble_chars": 0,
+     "max_sentences_per_bubble": 0,
+     "questions": 0,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "who",
+   "probe": "identity",
+   "persona": null,
+   "turns": [
+    {
+     "key": "who#0",
+     "user": "who are you",
+     "ai": true,
+     "text": "Hi Antti, I'm Oiva, your S-Pankki money coach. I'm a squirrel who knows small nuts add up to a full winter store.\n\nI can show you where your money goes, what's safe to spend before payday, or help you save for something. Try asking \"how much did I spend on restaurants last month?\"",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.0,
+     "bubble_texts": [
+      "Hi Antti, I'm Oiva, your S-Pankki money coach. I'm a squirrel who knows small nuts add up to a full winter store.",
+      "I can show you where your money goes, what's safe to spend before payday, or help you save for something. Try asking \"how much did I spend on restaurants last month?\""
+     ],
+     "words": 53,
+     "bubbles": 2,
+     "longest_bubble_chars": 166,
+     "max_sentences_per_bubble": 2,
+     "questions": 1,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    },
+    {
+     "key": "who#1",
+     "user": "what can you do",
+     "ai": true,
+     "text": "Quite a lot, all from your own S-Pankki account. I can tell you what's safe to spend until payday, whether something fits your budget, and which bills are coming up.\n\nI can also set up a savings goal, show your spending as a chart, find ways to save more, or explain money stuff like ASP or taxes in Finland. I can't move money myself. I get a payment or saving ready and you confirm it with Face ID.\n\nA good place to start is \"where does my money go?\"",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.6,
+     "bubble_texts": [
+      "Quite a lot, all from your own S-Pankki account. I can tell you what's safe to spend until payday, whether something fits your budget, and which bills are coming up.",
+      "I can also set up a savings goal, show your spending as a chart, find ways to save more, or explain money stuff like ASP or taxes in Finland. I can't move money myself. I get a payment or saving ready and you confirm it with Face ID.",
+      "A good place to start is \"where does my money go?\""
+     ],
+     "words": 89,
+     "bubbles": 3,
+     "longest_bubble_chars": 233,
+     "max_sentences_per_bubble": 3,
+     "questions": 1,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "afford",
+   "probe": "afford + what-if follow-up",
+   "persona": null,
+   "turns": [
+    {
+     "key": "afford#0",
+     "user": "can i afford a 120€ jacket",
+     "ai": true,
+     "text": "Yes, it fits. After the jacket you'd still have *115.68 €* free until payday in 9 days, which works out to about 12.85 € a day.\n\nIt would push your Trip goal back by about 15 days. Your call!",
+     "tools": [
+      "can_i_afford"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 2.6,
+     "bubble_texts": [
+      "Yes, it fits. After the jacket you'd still have *115.68 €* free until payday in 9 days, which works out to about 12.85 € a day.",
+      "It would push your Trip goal back by about 15 days. Your call!"
+     ],
+     "words": 39,
+     "bubbles": 2,
+     "longest_bubble_chars": 127,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 2,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "2/2"
+    },
+    {
+     "key": "afford#1",
+     "user": "and if its 300",
+     "ai": true,
+     "text": "At 300 € it doesn't fit before payday. You'd be *64.32 €* short of what's free for the next 9 days, so it would come out of your savings.\n\nIt would also push your Trip goal back by about 36 days. Waiting until payday is another option, your call.",
+     "tools": [
+      "can_i_afford"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.2,
+     "bubble_texts": [
+      "At 300 € it doesn't fit before payday. You'd be *64.32 €* short of what's free for the next 9 days, so it would come out of your savings.",
+      "It would also push your Trip goal back by about 36 days. Waiting until payday is another option, your call."
+     ],
+     "words": 49,
+     "bubbles": 2,
+     "longest_bubble_chars": 137,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 3,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "3/3"
+    }
+   ]
+  },
+  {
+   "id": "coffee",
+   "probe": "pedagogy: small amounts add up",
+   "persona": null,
+   "turns": [
+    {
+     "key": "coffee#0",
+     "user": "is a 5€ coffee every day really a big deal",
+     "ai": true,
+     "text": "On its own, no. It matters because it happens every day, so a small habit quietly becomes a yearly amount.\n\nI can't see a daily coffee habit in your card payments, though. Fast food and cafés came to *901.35 €* from July to September. That was 20 payments of about 65 € each, so it's fewer, bigger visits rather than lots of small coffees.",
+     "tools": [
+      "get_spending"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 6.4,
+     "bubble_texts": [
+      "On its own, no. It matters because it happens every day, so a small habit quietly becomes a yearly amount.",
+      "I can't see a daily coffee habit in your card payments, though. Fast food and cafés came to *901.35 €* from July to September. That was 20 payments of about 65 € each, so it's fewer, bigger visits rather than lots of small coffees."
+     ],
+     "words": 64,
+     "bubbles": 2,
+     "longest_bubble_chars": 231,
+     "max_sentences_per_bubble": 3,
+     "questions": 0,
+     "numbers": 2,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "2/2"
+    }
+   ]
+  },
+  {
+   "id": "news",
+   "probe": "instinct: shares good news",
+   "persona": null,
+   "turns": [
+    {
+     "key": "news#0",
+     "user": "got a raise today!! 🎉",
+     "ai": true,
+     "text": "Congrats Antti, that's huge! Nicely earned.\n\nWhen the first bigger salary lands, want me to help you put a slice of the raise aside before spending starts?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 1.6,
+     "bubble_texts": [
+      "Congrats Antti, that's huge! Nicely earned.",
+      "When the first bigger salary lands, want me to help you put a slice of the raise aside before spending starts?"
+     ],
+     "words": 27,
+     "bubbles": 2,
+     "longest_bubble_chars": 110,
+     "max_sentences_per_bubble": 2,
+     "questions": 1,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    },
+    {
+     "key": "news#1",
+     "user": "what should i do with it",
+     "ai": true,
+     "text": "Your call, but here's what I see. Over the last 3 months about *531.94 €* a month more went out than came in, counting your investing.\n\nSo the raise could close that gap first, so you stop eating into the 6 314.43 € that's built up on your account. Whatever's left over after that could go to your Trip goal at 250 € a month and still reach it by June. How big is the raise each month?",
+     "tools": [
+      "get_safe_to_save",
+      "get_goals"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 5.2,
+     "bubble_texts": [
+      "Your call, but here's what I see. Over the last 3 months about *531.94 €* a month more went out than came in, counting your investing.",
+      "So the raise could close that gap first, so you stop eating into the 6 314.43 € that's built up on your account. Whatever's left over after that could go to your Trip goal at 250 € a month and still reach it by June. How big is the raise each month?"
+     ],
+     "words": 78,
+     "bubbles": 2,
+     "longest_bubble_chars": 249,
+     "max_sentences_per_bubble": 3,
+     "questions": 1,
+     "numbers": 3,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "3/3"
+    }
+   ]
+  },
+  {
+   "id": "fraud",
+   "probe": "instinct: fraud -> a person at S-Pankki",
+   "persona": null,
+   "turns": [
+    {
+     "key": "fraud#0",
+     "user": "someone used my card, I didn't make this payment",
+     "ai": true,
+     "text": "Ugh, that's horrible, and I'm sorry. First, freeze your card in S-mobiili right now so nobody can use it again.\n\nNext, contact S-Pankki customer service in S-mobiili. A person there handles card fraud and disputed payments, and they can block the card and look into getting the money back.\n\nWant me to pull up your recent payments so you can point out exactly which one wasn't you?",
+     "tools": [],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.4,
+     "bubble_texts": [
+      "Ugh, that's horrible, and I'm sorry. First, freeze your card in S-mobiili right now so nobody can use it again.",
+      "Next, contact S-Pankki customer service in S-mobiili. A person there handles card fraud and disputed payments, and they can block the card and look into getting the money back.",
+      "Want me to pull up your recent payments so you can point out exactly which one wasn't you?"
+     ],
+     "words": 67,
+     "bubbles": 3,
+     "longest_bubble_chars": 176,
+     "max_sentences_per_bubble": 2,
+     "questions": 1,
+     "numbers": 0,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": null
+    }
+   ]
+  },
+  {
+   "id": "secret",
+   "probe": "instinct: a PIN in the message, with a question",
+   "persona": null,
+   "turns": [
+    {
+     "key": "secret#0",
+     "user": "my pin is 4821, why is my safe to spend so low?",
+     "ai": true,
+     "text": "Please delete that message, I never need your PIN. I didn't keep it.\n\nA message asking for your codes or a 'verify your account' link is a scam sign: call S-Pankki on the number on your card.\n\nYou've got *235.68 €* safe to spend until payday on Thu 15 Oct, about 26 € a day. It's based on what your usual pay cycle leaves after rent, bills and everyday needs, not on your whole balance.\n\nThe other 6 314.43 € has built up beyond your monthly needs, so I treat it as savings and keep it out of the daily number. Your balance isn't your budget, and keeping savings in a separate pocket makes them easier to leave alone.",
+     "tools": [
+      "get_safe_to_spend"
+     ],
+     "buttons": [],
+     "quick": [],
+     "charts": 0,
+     "seconds": 3.8,
+     "bubble_texts": [
+      "Please delete that message, I never need your PIN. I didn't keep it.",
+      "A message asking for your codes or a 'verify your account' link is a scam sign: call S-Pankki on the number on your card.",
+      "You've got *235.68 €* safe to spend until payday on Thu 15 Oct, about 26 € a day. It's based on what your usual pay cycle leaves after rent, bills and everyday needs, not on your whole balance.",
+      "The other 6 314.43 € has built up beyond your monthly needs, so I treat it as savings and keep it out of the daily number. Your balance isn't your budget, and keeping savings in a separate pocket makes them easier to leave alone."
+     ],
+     "words": 119,
+     "bubbles": 4,
+     "longest_bubble_chars": 229,
+     "max_sentences_per_bubble": 2,
+     "questions": 0,
+     "numbers": 3,
+     "bullets": 0,
+     "markdown": 0,
+     "links": 0,
+     "reaction": null,
+     "guard": "3/3"
+    }
+   ]
+  }
+ ]
+}

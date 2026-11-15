@@ -153,8 +153,8 @@ def test_coach_reply_carries_the_chart_and_passes_the_number_guard(engine):
     r = coach.ask("u", "When do I spend most on restaurants?")
     assert r.tools_used == ["explore_my_data"] and r.buttons[0]["chart"]["type"] == "bar"
     assert r.text.startswith("*Saturday*") and coach.client.calls == 2  # no guard rewrite
-    tool_result = coach.histories["u"][2]["content"][0]["content"]
-    assert ungrounded_numbers(r.text, [tool_result]) == []
+    note = coach.notes["u"][-1]["note"]  # the tool JSON stays out of the history; its note keeps the figures
+    assert note.startswith("explore_my_data: ") and ungrounded_numbers(r.text, [note]) == []
 
 
 # ---------- web chat and WhatsApp ----------

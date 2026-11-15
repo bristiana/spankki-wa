@@ -77,7 +77,10 @@ TOOLS = [
     {
         "name": "get_baskets",
         "description": "Splits spending into the three baskets (mandatory & regular, mandatory & irregular, slips through "
-                       "your fingers), with income, money invested and what was left over.",
+                       "your fingers), with income, money invested and what was left over."
+                       " Use for 'where does my money go?' with last_3_months: one short line per basket, in order, "
+                       "with its name, € a month, share and its examples in brackets (start straight with the list, no "
+                       "lead-in line), then one line: basket 3 is the only one they can change today, with its number.",
         "input_schema": {"type": "object", "properties": {"period": PERIOD_PROP}, "required": ["period"],
                          "additionalProperties": False},
     },
@@ -93,14 +96,23 @@ TOOLS = [
         "description": "How much is safe to spend until next payday, per day and this week, after bills, usual needs and a "
                        "buffer for surprises, and never more than the usual pay cycle sustains (cycle_budget_eur). "
                        "Also returns the current balance, the reserve (money built up beyond the cycle, likely "
-                       "savings) and a one-line basis.",
+                       "savings) and a one-line basis."
+                       " Use for 'what is safe to spend?': give the amount until payday, per day or this week. It is "
+                       "this pay cycle's flexible money, never the whole balance. If they ask why it's less than the "
+                       "balance and reserve_eur is a few hundred euros or more: the rest has built up beyond their "
+                       "monthly needs and looks like savings. If cycle_budget_eur is 0, say kindly that usual income "
+                       "doesn't cover usual costs. If status is overdrawn or nothing_free, say plainly nothing is free "
+                       "to spend right now; with no payday, follow not_enough_data (next_7_days).",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
         "name": "get_safe_to_save",
         "description": "How much can go to savings now without touching bills before payday or the buffer for irregular "
                        "costs (including the reserve built up beyond the pay cycle), and a sustainable monthly amount from the average monthly surplus. When there is no "
-                       "surplus, where a cut could come from. Includes goal ids for create_saving_link.",
+                       "surplus, where a cut could come from. Includes goal ids for create_saving_link."
+                       " Use for 'how much can I save?': the amount for now and the monthly one. If the monthly "
+                       "surplus is zero or less, say so plainly and name where a cut could come from. To act: "
+                       "create_saving_link.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
@@ -108,7 +120,10 @@ TOOLS = [
         "description": "'How could I save more?': up to three ideas from the customer's own data, best first, each "
                        "with the one number to say (number_to_say): the biggest lever (20% less on the largest 'slips "
                        "through your fingers' category, per year), money that can go to savings now (or every "
-                       "payday), and one regular payment worth a review. Plus the monthly picture and one next step.",
+                       "payday), and one regular payment worth a review. Plus the monthly picture and one next step. "
+                       "Lead with the first idea and only its "
+                       "number_to_say, at most one more idea, then its next_step as one offer. Follow its note, "
+                       "no_lever_reason, moved_note or overdrawn_note when there is one.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
@@ -117,13 +132,18 @@ TOOLS = [
                        "balances, credit card debt, net position, the next card bill and how many months savings could "
                        "cover the irregular basket. For a bank marked real data (e.g. Revolut): its balance, spending per month "
                        "by category and recent transactions, so use it for any question about that bank's spending. "
-                       "Tells you when no other bank is linked.",
+                       "Tells you when no other bank is linked. A bank marked real data is their own account (Enable "
+                       "Banking, read only): use its numbers as they are. None linked: on WhatsApp they write *add "
+                       "bank* (Revolut, OP, Nordea and other Finnish banks).",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
         "name": "can_i_afford",
         "description": "Whether a purchase fits this month's flexible budget and what is safe to spend until payday: "
-                       "what is left after it, per day until payday, and how many days it pushes back each savings goal.",
+                       "what is left after it, per day until payday, and how many days it pushes back each savings goal. "
+                       "Use for 'can I afford X?': say what fits "
+                       "and what it leaves. If only fits_with_reserve is true, it would come out of savings. Never "
+                       "forbid; the choice is theirs.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -137,7 +157,10 @@ TOOLS = [
     {
         "name": "simulate_cut",
         "description": "What-if: how much the user saves per month and year by cutting a category by a percentage, and what "
-                       "that saving could grow to in each demo fund (a scenario, not a promise).",
+                       "that saving could grow to in each demo fund (a scenario, not a promise). "
+                       "Use for 'what if I cut X "
+                       "by N%': the monthly and yearly saving; fund growth only if they ask about investing. The fund "
+                       "scenarios use real ETF prices, a source you may name in a few words.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -152,7 +175,12 @@ TOOLS = [
     {
         "name": "get_spender_profile",
         "description": "What kind of spender the user is: traits, savings rate, and how they compare with other S-Pankki "
-                       "customers of the same age group.",
+                       "customers of the same age group. Use for 'what kind of spender am I?'. First bubble: "
+                       "the kind of spender in plain, kind words (their strongest trait, never a label that judges) "
+                       "with the one number behind it. Second bubble: when there is a peer group, how they compare "
+                       "with people their age, gently and with one number (or one thing that is going well). Plain "
+                       "adult words: no 'treat yourself', no 'good times'. You may name Statistics Finland 2022 as a "
+                       "source.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
@@ -190,7 +218,13 @@ TOOLS = [
                        "stopped, paused_by_you), the trend (last 3 full months vs the 3 before, with both numbers) and, "
                        "for utilities, a bill well above the usual range. Also says whether there are any "
                        "subscriptions (subscriptions_found; in this data there are none). Use for subscriptions, "
-                       "regular payments, fixed costs and 'what goes out every month'.",
+                       "regular payments, fixed costs and 'what goes out every month'. There are no subscriptions "
+                       "in this data: never name or invent one. Give each payment's monthly cost; when one went up, "
+                       "say the old and the new number. 'Stop, cancel or deactivate (all) my subscriptions': say "
+                       "plainly you see none, name the real regular payments (if_asked_to_cancel_subscriptions has the "
+                       "words) and offer to pause the monthly investing; create_pause_investing_link only when they "
+                       "say yes or ask. Rent and utility bills can't be stopped: offer a reminder before rent is due, "
+                       "or to pay it.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
@@ -204,7 +238,9 @@ TOOLS = [
     {
         "name": "create_goal",
         "description": "Create a savings goal (e.g. a trip, a laptop, an emergency fund) and get a plan: monthly amounts, "
-                       "how long each takes, and what a deadline needs.",
+                       "how long each takes, and what a deadline needs. Call it when they name a target, and give "
+                       "the one most realistic option. To save into a goal that doesn't exist yet, ask one thing only: "
+                       "the total.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -235,14 +271,17 @@ TOOLS = [
     {
         "name": "get_portfolio",
         "description": "What the user has invested so far (from their account history), their monthly investing plan, "
-                       "linked investment platforms and orders placed through the coach.",
+                       "linked investment platforms and orders placed through the coach. Values use real ETF prices, "
+                       "a source you may name in a few words.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
         "name": "get_money_guide",
         "description": "Checked facts about money in Finland, with the official source link: emergency fund, Kela housing "
                        "allowance, student aid, ASP first-home saving, equity savings account (osakesäästötili), capital "
-                       "income tax, deposit guarantee, consumer credit and pay-later, S-Bank basics.",
+                       "income tax, deposit guarantee, consumer credit and pay-later, S-Bank basics. "
+                       "Use for these Finland topics, and cite its "
+                       "source.",
         "input_schema": {"type": "object", "properties": {"topic": {"type": "string", "enum": list(GUIDE)}},
                          "required": ["topic"], "additionalProperties": False},
     },
@@ -282,7 +321,10 @@ TOOLS = [
         "description": "'Ready for my first home?': from the user's salary and S-Pankki's mortgage application data, the "
                        "loan and price range people with that income carried, the deposit and one-off costs typically "
                        "needed, what they have, months to the deposit at several saving paces, what banks look at "
-                       "(rejection reasons), and the ASP pointer. Educational estimate, not a loan offer.",
+                       "(rejection reasons), and the ASP pointer. Educational estimate, not a loan offer. "
+                       "Use for a first "
+                       "home or a mortgage, with the price if they named one: never a loan offer; mention ASP; offer a "
+                       "'First home deposit' goal.",
         "input_schema": {"type": "object", "properties": {
             "price_eur": {"type": ["number", "null"], "description": "A specific home price to check, or null."}},
             "required": ["price_eur"], "additionalProperties": False},
@@ -295,7 +337,14 @@ TOOLS = [
                        "Use for 'how much do I need a month in Helsinki', 'is 400 € on food normal for my area', 'what "
                        "does a first flat in Espoo cost a month', 'how do people my age live', 'what if I moved to "
                        "Vantaa'. Only groups of at least 30 customers; fallback_reason says when a broader group was "
-                       "used. A what-if (another area or age) has no personal comparison.",
+                       "used. A what-if (another area or age) has no personal comparison. "
+                       "Compare only to reassure or help a "
+                       "choice, never to shame or rank: lead with what is in line, name the heavy part for most people "
+                       "(usually rent), and say how far off they are as a plain fact: 'a bit above' only for a small gap, "
+                       "'about double' or 'about half' when it is that big. Give the typical figure itself, never "
+                       "'more than most' or other rank claims. Always say in a few words that it is the typical month "
+                       "of that many S-Pankki customers (at least 30), never one person, like '(the typical month of "
+                       "228 S-Pankki customers)', and mention a fallback_reason in a few words.",
         "input_schema": {"type": "object", "properties": {
             "area": {"type": ["string", "null"], "description": "City or postal code for a what-if: Helsinki, Espoo, "
                                                                 "Vantaa (the data covers only the capital region). "

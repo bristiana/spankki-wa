@@ -56,7 +56,7 @@ def confirm(client, route, pid, **body):
 # ---------------- screens ----------------
 def test_home_shows_accounts_and_recent_from_the_engine(client):
     page = client.get("/s-mobiili/").text
-    assert LABEL not in page and "Savings pocket" in page and "Funds" in page and "Not opened yet" in page
+    assert LABEL not in page and "Savings" in page and "Funds" in page and "Not opened yet" in page
     assert main.fi_money(main.engine.balance()) in page  # S-mobiili writes money the Finnish way
     assert main.engine.recent(8)[0]["what"] in page
     assert [s["target"] for s in steps(page)] == ["acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
@@ -91,18 +91,69 @@ def test_pay_review_is_prefilled_and_guided(client):
     assert "?pin=1" in page  # the PIN page stays one tap away
 
 
-def test_save_first_time_opens_the_pocket(client):
-    p = goal_saving(97)
+def emergency_saving(amount=100):
+    g = main.engine.create_goal("Emergency buffer", 4000, "2027-06-30")["goal"]
+    return main.engine.create_saving(g["id"], amount)
+
+
+SAVE_STEPS = ["sv-goal", "sv-where", "sv-amount", "sv-review"]
+
+
+def test_save_shows_the_four_savings_steps_prefilled(client):
+    p = emergency_saving()
     page = client.get(f"/s-mobiili/save/{p['pending_id']}").text
-    assert 'id="step-pocket"' in page and "Open Savings pocket" in page
-    assert steps(page, "pocket-steps")[0]["target"] == "open-pocket"
-    assert steps(page)[0]["say"] == "This is the amount we planned: 97 €"  # an amount never breaks
-    assert "Your Savings pocket" in steps(page)[1]["say"]
-    assert confirm(client, "save", p["pending_id"], open_pocket=True).json()["title"] == "Saved"
-    assert main.engine.state["savings_pocket_opened"] == "2026-10-06"
-    again = main.engine.create_saving(p["goal_id"], 10)
-    assert 'id="step-pocket"' not in client.get(f"/s-mobiili/save/{again['pending_id']}").text  # only the first time
-    assert main.fi_money(97) in client.get("/s-mobiili/").text
+    for i, sec in enumerate(SAVE_STEPS, 1):
+        assert f'id="{sec}"' in page and f"<i>{i}</i>" in page
+    sec = lambda a, b: page[page.index(f'id="{a}"'):page.index(f'id="{b}"')]  # noqa: E731
+    goal = sec("sv-goal", "sv-where")
+    assert "Emergency buffer" in goal and main.nb(main.money(4000)) in goal and main.nb("30 June 2027") in goal
+    where = sec("sv-where", "sv-amount")
+    assert re.search(r'aria-checked="true"><span class="dot"></span><span><b>Savings account', where)
+    assert re.search(r'aria-checked="false" aria-disabled="true"><span class="dot"></span><span><b>Funds', where)
+    amount = sec("sv-amount", "sv-review")
+    assert main.money_nb(100) in amount and "Current account" in amount and "One-off" in amount
+    for row in ("row-goal", "row-so-far", "row-after", "row-debit", "row-to"):
+        assert f'id="{row}"' in page
+    assert "Confirm with Face ID" in page
+    flow = page[page.index('id="step-review"'):page.index('id="step-done"')]
+    for word in ("onthly", "Bonus", "Round", "round-up", "Säästäjä", "pocket"):  # only the one-off amount, no other ways in
+        assert word not in flow, word
+
+
+def test_save_guide_walks_the_steps_in_one_line_each(client):
+    p = emergency_saving()
+    s = steps(client.get(f"/s-mobiili/save/{p['pending_id']}?autoplay=1").text)
+    assert [x["target"] for x in s] == SAVE_STEPS
+    assert [x["say"] for x in s] == [main.nb("This is your goal: 4 000 € by June 2027."),
+                                     "The money goes to a savings account, separate from your spending.",
+                                     main.nb("Just 100 € now, nothing automatic."), "Check it and confirm with Face ID."]
+
+
+def test_save_in_finnish(client):
+    p = emergency_saving()
+    client.cookies.set("lang", "fi")
+    page = client.get(f"/s-mobiili/save/{p['pending_id']}").text
+    for fi in ("Säästöt", "Säästötavoite", "Tavoitesumma", "Tavoitepäivä", "30.6.2027", "Mihin rahat menevät",
+               "Säästötili", "Rahastot", "Siirrettävä summa", "Tililtä", "Käyttötili", "Kertasiirto", "Tilille",
+               "Vahvista Face ID:llä"):
+        assert fi in page, fi
+    assert "Säästäjä" not in page and "Taloustili" not in page
+    assert [x["say"] for x in steps(page)] == [main.nb("Tämä on tavoitteesi: 4 000 € kesäkuuhun 2027 mennessä."),
+                                               "Rahat menevät säästötilille, erilleen käyttörahoista.",
+                                               main.nb("Vain 100 € nyt, ei mitään automaattista."),
+                                               "Tarkista ja vahvista Face ID:llä."]
+
+
+def test_save_without_a_goal_date_and_confirm(client):
+    p = main.engine.create_saving(main.engine.create_goal("Laptop", 900)["goal"]["id"], 50)
+    page = client.get(f"/s-mobiili/save/{p['pending_id']}").text
+    assert "Not set" in page and steps(page)[0]["say"] == main.nb("This is your goal: 900 €.")
+    before = main.engine.balance()
+    j = confirm(client, "save", p["pending_id"]).json()
+    assert j["title"] == "Saved" and main.engine.balance() == round(before - 50, 2)
+    assert main.engine.state["savings_pocket_opened"] == "2026-10-06"  # step 2 set up the savings account
+    assert confirm(client, "save", p["pending_id"]).status_code == 409
+    assert main.fi_money(50) in client.get("/s-mobiili/").text
 
 
 def test_invest_shows_the_chosen_fund_and_risk_in_plain_words(client):
@@ -230,7 +281,7 @@ def test_ready_card_for_save_invest_and_pause(client):
     g = main.engine.create_goal("Trip", 500)["goal"]
     save = main.engine.create_saving(g["id"], 200)
     _, card = ready_card(client.get(f"/s-mobiili/?ready=save:{save['pending_id']}").text)
-    assert main.nb("Save 200 € into Savings pocket") in card and "For Trip" in card
+    assert main.nb("Save 200 € to your savings account") in card and "For Trip" in card
     inv = main.engine.create_investment(30, "growth", True)
     _, card = ready_card(client.get(f"/s-mobiili/?ready=invest:{inv['pending_id']}").text)
     assert main.nb("Invest 30 € a month") in card
@@ -291,7 +342,7 @@ def test_prefilled_fields_are_escaped(client):
     p = goal_saving(20, name=evil)
     page = client.get(f"/s-mobiili/save/{p['pending_id']}").text
     assert "<img src=x" not in page and "&lt;img src=x" in page
-    for sid in ("guide-steps", "pocket-steps", "flow"):
+    for sid in ("guide-steps", "flow"):
         block = re.search(rf'id="{sid}">(.*?)</script>', page, re.S).group(1)
         assert "<" not in block  # tojson escapes < > & inside the script tag
     assert "<img src=x" not in client.get("/s-mobiili/").text
