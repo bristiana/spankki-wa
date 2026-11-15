@@ -190,9 +190,11 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
     model = os.environ.get("ELEVENLABS_MODEL_ID", "").strip() or DEFAULT_MODEL
     if not re.fullmatch(r"[A-Za-z0-9]{10,40}", voice):
         raise TTSError("bad voice id", 503)
-    if time.monotonic() - _missing.get(voice, -MISSING_FOR) < MISSING_FOR:  # not in this account: the fallback
-        voice = _fallback(voice)
-    settings = voice_settings() if voice != FALLBACK_VOICE else None
+    chosen = voice
+    for _ in range(2):  # not in this account (remembered for an hour): the next voice down
+        if time.monotonic() - _missing.get(voice, -MISSING_FOR) < MISSING_FOR and voice != FALLBACK_VOICE:
+            voice = _fallback(voice)
+    settings = _settings_for(voice, chosen, model)
     ck = hashlib.sha256(f"{voice}|{model}|{lang}|{settings}|{t}".encode()).hexdigest()
     with _lock:
         if ck in _cache:
@@ -220,14 +222,17 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
     try:
         r = await c.post(f"{API}/{voice}", params={"output_format": OUTPUT},
                          headers={"xi-api-key": key, "accept": "audio/mpeg"}, json=body)
-        fallback = _fallback(voice)
-        if r.status_code in (400, 404) and "voice_not_found" in _codes(r) and voice != fallback:
+        for _ in range(2):  # FI voice missing -> the English voice -> Chris
+            fallback = _fallback(voice)
+            if not (r.status_code in (400, 404) and "voice_not_found" in _codes(r) and voice != fallback):
+                break
             log.warning("voice %s is not in this ElevenLabs account; using %s", voice, fallback)
             _missing[voice] = time.monotonic()
             voice = fallback
-            if voice == FALLBACK_VOICE:  # Chris speaks with his own settings, not the squirrel's
-                body.pop("voice_settings", None)
-                settings = None
+            settings = _settings_for(voice, chosen, model)
+            body.pop("voice_settings", None)
+            if settings:
+                body["voice_settings"] = settings
             ck = hashlib.sha256(f"{voice}|{model}|{lang}|{settings}|{t}".encode()).hexdigest()
             r = await c.post(f"{API}/{voice}", params={"output_format": OUTPUT},
                              headers={"xi-api-key": key, "accept": "audio/mpeg"}, json=body)
@@ -264,6 +269,17 @@ def _fallback(voice: str) -> str:
     en = voice_for("en")
     gone = time.monotonic() - _missing.get(en, -MISSING_FOR) < MISSING_FOR
     return en if en != voice and not gone and re.fullmatch(r"[A-Za-z0-9]{10,40}", en) else FALLBACK_VOICE
+
+
+def _settings_for(voice: str, chosen: str, model: str) -> dict | None:
+    """The squirrel's settings, unless Chris is speaking as the fallback (then his own). eleven_v3 takes only
+    stability 0, 0.5 or 1: the nearest."""
+    if voice == FALLBACK_VOICE and voice != chosen:
+        return None
+    out = voice_settings()
+    if model.startswith("eleven_v3"):
+        out["stability"] = min((0.0, 0.5, 1.0), key=lambda x: abs(x - out["stability"]))
+    return out
 
 
 def voice_settings() -> dict:

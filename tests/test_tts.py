@@ -236,6 +236,31 @@ def test_squirrel_missing_from_account_falls_back_to_chris_with_his_own_settings
     assert "voice_settings" in bodies[0] and all("voice_settings" not in b for b in bodies[1:])
 
 
+def test_both_voices_missing_falls_through_to_chris_in_one_request(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    fi, en = tts.DEFAULT_VOICES["fi"], tts.DEFAULT_VOICES["en"]
+    eleven["answer"] = lambda req: (httpx.Response(400, json={"detail": {"code": "voice_not_found"}})
+                                    if not req.url.path.endswith(tts.FALLBACK_VOICE) else
+                                    httpx.Response(200, content=MP3, headers={"content-type": "audio/mpeg"}))
+    assert say(client, "Hei Antti.").content == MP3
+    assert say(client, "Toinen lause.").content == MP3  # remembered: straight to Chris
+    assert [r.url.path.rsplit("/", 1)[1] for r in eleven["calls"]] == [fi, en, tts.FALLBACK_VOICE, tts.FALLBACK_VOICE]
+
+
+def test_chris_chosen_on_purpose_keeps_the_settings(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    monkeypatch.setenv("ELEVENLABS_VOICE_ID", tts.FALLBACK_VOICE)
+    say(client, "Hi.", "en")
+    assert "voice_settings" in __import__("json").loads(eleven["calls"][0].content)
+
+
+def test_v3_model_gets_a_stability_it_takes(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    monkeypatch.setenv("ELEVENLABS_MODEL_ID", "eleven_v3")
+    say(client, "Hei.")
+    assert __import__("json").loads(eleven["calls"][0].content)["voice_settings"]["stability"] == 0.5
+
+
 def test_default_voices_are_the_squirrel_and_sini():
     assert tts.DEFAULT_VOICES == {"en": "M5t0724ORuAGCh3p3DUR", "fi": "8X97zFR9k9pK2xyFI7Nr"}
     assert tts.FALLBACK_VOICE not in tts.DEFAULT_VOICES.values()
