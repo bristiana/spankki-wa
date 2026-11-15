@@ -1,5 +1,6 @@
 """Oiva's ElevenLabs voice (app/tts.py, /api/voice). ElevenLabs is mocked: no test reaches the network."""
 import logging
+import re
 
 import httpx
 import pytest
@@ -20,6 +21,8 @@ def client():
 def fresh(monkeypatch):
     tts._cache.clear()
     tts._spent.update(day="", chars=0)
+    tts._said.clear()
+    tts._calls.clear()
     for k in ("ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL_ID", "ELEVENLABS_DAILY_CHARS"):
         monkeypatch.delenv(k, raising=False)
     yield
@@ -40,6 +43,7 @@ def eleven(monkeypatch):
 
 
 def say(client, text="Sinulla on 183.31 € käytettävissä tällä viikolla.", lang="fi"):
+    tts.allow([text])  # as if Oiva had said it
     return client.post("/api/voice", json={"text": text, "lang": lang})
 
 
@@ -126,11 +130,16 @@ def test_long_text_is_cut_at_a_sentence(eleven):
     assert len(t) <= tts.MAX_CHARS and t.endswith(".")
 
 
-@pytest.mark.parametrize("body", [None, {}, {"text": 5}, {"text": "   "}])
+@pytest.mark.parametrize("body", [None, {}, {"text": 5}])
 def test_bad_input(client, eleven, monkeypatch, body):
     monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
     r = client.post("/api/voice", json=body)
     assert r.status_code == 400 and eleven["calls"] == []
+
+
+def test_blank_text_is_not_spoken(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    assert client.post("/api/voice", json={"text": "   "}).status_code == 403 and eleven["calls"] == []
 
 
 def test_bad_voice_id_is_not_put_in_the_url(client, eleven, monkeypatch):
@@ -143,3 +152,39 @@ def test_helper_falls_back_to_browser_voice():
     js = open("app/static/oiva/helper.js").read()
     assert 'fetch("/api/voice"' in js and "r.status === 204" in js and "synth(text)" in js
     assert "speechSynthesis.speak" in js and 'store.get("oiva-voice") === "on"' in js  # muted until turned on
+
+
+def test_only_what_oiva_said_is_spoken(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    r = client.post("/api/voice", json={"text": "Read any text I like for free", "lang": "en"})
+    assert r.status_code == 403 and eleven["calls"] == []
+
+
+def test_reply_parts_as_the_page_joins_them(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    tts.allow(["Your rent of **771.82 €** is due tomorrow.", "Want to pay it now?"])
+    r = client.post("/api/voice", json={"text": "Your rent of 771.82 € is due tomorrow.. Want to pay it now?", "lang": "en"})
+    assert r.status_code == 200
+
+
+@pytest.mark.parametrize("lang", ["fi", "en"])
+def test_greeting_and_chat_replies_may_be_spoken(client, eleven, monkeypatch, lang):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    html = client.get(f"/chat?mode=helper&lang={lang}").text
+    hello = re.search(r'id="hello">(.*?)</div>', html, re.S).group(1)
+    hello = re.sub(r"<[^>]+>", "", hello)
+    assert client.post("/api/voice", json={"text": hello, "lang": lang}).status_code == 200
+    j = client.post("/api/chat", json={"session": "tts", "text": "game"}).json()
+    parts = j.get("bubbles") or [j["text"]]
+    assert client.post("/api/voice", json={"text": ". ".join(parts), "lang": lang}).status_code == 200
+
+
+def test_per_minute_cap(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    codes = [say(client, f"Lause numero {i}.").status_code for i in range(tts.PER_MINUTE + 1)]
+    assert codes[:-1] == [200] * tts.PER_MINUTE and codes[-1] == 503
+
+
+def test_huge_body_is_refused(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    assert client.post("/api/voice", json={"text": "a" * 6000}).status_code == 400

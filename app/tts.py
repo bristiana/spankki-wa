@@ -2,14 +2,16 @@
 
 The key stays on the server (ELEVENLABS_API_KEY in the environment); the browser only ever gets the audio.
 With no key, or when ElevenLabs fails, `speak` returns None and the page falls back to the browser's own
-speechSynthesis. Same text, same voice -> one call: the audio is cached in memory. A daily character budget
-caps what a public URL can spend.
+speechSynthesis. Only text the server itself said (a reply, the greeting, a mirrored message: `allow`) is
+spoken, so the public URL is no free text-to-speech proxy. Same text, same voice -> one call: the audio is cached
+in memory. A daily character budget and a per-minute call cap bound what it can spend.
 """
 from __future__ import annotations
 
 import hashlib
 import logging
 import os
+import re
 import threading
 import time
 from collections import OrderedDict
@@ -26,13 +28,41 @@ DEFAULT_VOICE = "JBFqnCBsd6RMkjVDRZzb"
 DEFAULT_MODEL = "eleven_multilingual_v2"
 OUTPUT = "mp3_44100_64"
 MAX_CHARS = 600            # one reply read aloud; longer text is cut at a sentence end
-DAILY_CHARS = 40_000       # sent to ElevenLabs per day (cache hits are free); override ELEVENLABS_DAILY_CHARS
+DAILY_CHARS = 5_000        # sent to ElevenLabs per day (cache hits are free); override ELEVENLABS_DAILY_CHARS
+PER_MINUTE = 12            # calls to ElevenLabs a minute at most
 CACHE_ITEMS = 200
+SAID_ITEMS = 500           # recent texts the server said, the only ones it will speak
 TIMEOUT = httpx.Timeout(20.0, connect=5.0)
 
 _cache: OrderedDict[str, bytes] = OrderedDict()
 _lock = threading.Lock()
 _spent = {"day": "", "chars": 0}
+_calls: list[float] = []
+_said: OrderedDict[str, None] = OrderedDict()
+
+
+def _norm(text: str) -> str:
+    """Letters and digits only: the page joins a reply's parts with ". " and drops markdown; this ignores both."""
+    return re.sub(r"[\W_]+", "", str(text or "").lower())
+
+
+def allow(parts) -> None:
+    """Remember a reply (its parts, as the page will join them) as one the server said, so it may be spoken."""
+    parts = [parts] if isinstance(parts, str) else list(parts or [])
+    k = "".join(_norm(p) for p in parts)
+    if not k:
+        return
+    with _lock:
+        _said[k] = None
+        _said.move_to_end(k)
+        while len(_said) > SAID_ITEMS:
+            _said.popitem(last=False)
+
+
+def allowed(text: str) -> bool:
+    k = _norm(text)
+    with _lock:
+        return bool(k) and k in _said
 
 
 class TTSError(Exception):
@@ -66,7 +96,7 @@ def _budget() -> int:
 
 
 async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = None) -> bytes:
-    """MP3 bytes for `text`. Raises TTSError (no key: 503; empty: 400; budget: 429; ElevenLabs down: 502)."""
+    """MP3 bytes for `text`. Raises TTSError (no key or busy: 503; empty: 400; day's budget: 429; ElevenLabs down: 502)."""
     key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
     if not key:
         raise TTSError("no key", 503)
@@ -76,7 +106,7 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
         raise TTSError("empty", 400)
     voice = os.environ.get("ELEVENLABS_VOICE_ID", "").strip() or DEFAULT_VOICE
     model = os.environ.get("ELEVENLABS_MODEL_ID", "").strip() or DEFAULT_MODEL
-    if not voice.isalnum():
+    if not re.fullmatch(r"[A-Za-z0-9]{10,40}", voice):
         raise TTSError("bad voice id", 503)
     ck = hashlib.sha256(f"{voice}|{model}|{lang}|{t}".encode()).hexdigest()
     with _lock:
@@ -88,6 +118,11 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
             _spent.update(day=today, chars=0)
         if _spent["chars"] + len(t) > _budget():
             raise TTSError("daily budget used", 429)
+        now = time.monotonic()
+        _calls[:] = [x for x in _calls if now - x < 60]
+        if len(_calls) >= PER_MINUTE:
+            raise TTSError("too many calls a minute", 503)  # this reply only: not 429, which ends it for the visit
+        _calls.append(now)
         _spent["chars"] += len(t)  # counted before the call so parallel requests can't overshoot
     body: dict = {"text": t, "model_id": model}
     if not model.startswith("eleven_multilingual"):  # flash/turbo v2.5 take a language; multilingual_v2 refuses it

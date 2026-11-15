@@ -1815,7 +1815,10 @@ def chat_page(request: Request, q: str = "", embed: str = ""):
     mirrored = mirror_viewer(request)
     if mirrored:  # the app's chat is the owner's WhatsApp conversation, on the WhatsApp demo customer's data
         persona = DEFAULT_PERSONA
-    return templates.TemplateResponse(request, "chat.html", {"name": name_for(persona), "q": q[:500],
+    name = name_for(persona)
+    tts.allow([f"Hei {name}! Olen Oiva, S-Pankin rahavalmentajasi. Kysy minulta mitä vain rahoistasi."])  # #hello
+    tts.allow([f"Hi {name}! I'm Oiva, your S-Pankki money coach. Ask me anything about your money."])
+    return templates.TemplateResponse(request, "chat.html", {"name": name, "q": q[:500],
                                                              "embed": True, "mirror": mirrored,
                                                              "framed": embed != "1", "persona": PERSONAS[persona]})
 
@@ -1943,6 +1946,9 @@ async def chat_api(request: Request):
     (the app's chat) it is the owner's conversation: the same history as their WhatsApp, kept in the mirror log."""
     out = with_mood(web_words(await chat_turn(request)))
     body = await request.json()
+    said = json.loads(out.body) if isinstance(out, JSONResponse) else out
+    if isinstance(said, dict):  # the parts as the page reads them aloud (/api/voice speaks only these)
+        tts.allow(said.get("bubbles") or ([said["text"]] if said.get("text") else []))
     if isinstance(body, dict) and body.get("mirror") and mirror_viewer(request):
         said = str(body.get("shown") or body.get("text") or "").strip()
         if said and not said.startswith("__"):
@@ -1965,15 +1971,17 @@ async def voice_api(request: Request):
         body = await request.json()
     except Exception:
         body = None
-    if not isinstance(body, dict) or not isinstance(body.get("text"), str):
+    if not isinstance(body, dict) or not isinstance(body.get("text"), str) or len(body["text"]) > 5000:
         return JSONResponse({"error": "text"}, status_code=400)
     if not tts.configured():
         return Response(status_code=204)
+    if not tts.allowed(body["text"]):  # only what Oiva said here: no free text-to-speech for the internet
+        return JSONResponse({"error": "not a reply"}, status_code=403)
     try:
         audio = await tts.speak(body["text"], "en" if body.get("lang") == "en" else "fi")
     except tts.TTSError as e:
         return JSONResponse({"error": str(e)}, status_code=e.status)
-    return Response(audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=86400"})
+    return Response(audio, media_type="audio/mpeg")
 
 
 @app.get("/api/mirror")
@@ -1981,7 +1989,11 @@ def mirror_api(request: Request, after: int = 0):
     """The owner's conversation, WhatsApp and app, from message `after` on; the app's chat polls it. Owner only."""
     if not mirror_viewer(request):
         return {"on": False, "messages": []}
-    return {"on": True, "messages": mirror.since(after)}
+    msgs = mirror.since(after)
+    for m in msgs:
+        if m.get("role") != "me":
+            tts.allow([m.get("text") or ""])
+    return {"on": True, "messages": msgs}
 
 
 async def chat_turn(request: Request):

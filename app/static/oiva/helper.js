@@ -166,17 +166,17 @@
     hush();
     const my = seq;
     if (!player || !serverVoice) return synth(text);
-    if (clips.has(text)) return play(clips.get(text), text, my);
+    if (clips.has(text)) { const u = clips.get(text); clips.delete(text); clips.set(text, u); return play(u, text, my); }
     const ctl = new AbortController(); pending = ctl;
     try {
       const r = await fetch("/api/voice", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, lang: fi ? "fi" : "en" }), signal: ctl.signal });
       if (pending === ctl) pending = null;
       if (my !== seq) return;  // a newer reply, mute or mode change came first
-      if (r.status === 204) { serverVoice = false; return synth(text); }
+      if (r.status === 204 || r.status === 429) { serverVoice = false; return synth(text); }  // no key, or the day's budget used
       if (!r.ok) return synth(text);
       const url = URL.createObjectURL(await r.blob());
-      if (clips.size >= 30) { const [k, u] = clips.entries().next().value; URL.revokeObjectURL(u); clips.delete(k); }
+      if (clips.size >= 30) { const [k, u] = clips.entries().next().value; if (player.src !== u) URL.revokeObjectURL(u); clips.delete(k); }
       clips.set(text, url);
       if (my === seq) play(url, text, my);
     } catch (e) {
@@ -198,6 +198,14 @@
       setVoice(!voiceOn, true);
     };
     setVoice(voiceOn, false);  // remembered per browser; off until turned on
+    // Sound already on from an earlier visit: the first tap or key unlocks playback (iOS needs a gesture)
+    const unlock = () => {
+      if (!voiceOn) return;
+      if (player && player.paused) { player.src = SILENT; player.play().catch(() => {}); }
+      if (canSynth && !speechSynthesis.speaking) speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+    };
+    document.addEventListener("pointerdown", unlock, { once: true, capture: true });
+    document.addEventListener("keydown", unlock, { once: true, capture: true });
   }
 
   // ---- modes ----
