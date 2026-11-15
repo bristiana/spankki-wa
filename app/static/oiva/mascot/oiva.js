@@ -12,7 +12,7 @@
      b* body, c* crest, iri* iridescent rim, accent2 = hat feather / confetti. */
   /* Fur colours; the vault-keeper uniform stays the same in every variant. */
   const PALETTES = {
-    red:    { label: 'Red squirrel', b0: '#f4ad6a', b1: '#e5853f', b2: '#c9622b', cream: '#fbead3', inner: '#f3bfa2', tuft: '#b8622f',
+    red:    { label: 'Red squirrel', b0: '#fbab52', b1: '#f08a2c', b2: '#d56b1e', cream: '#fde8cb', inner: '#fbd6b2', tuft: '#c4601e',
               shadow: '#b9a58f', blush: '#ff8f8f', brow: '#7d4224', accent: '#b3323f', accentDk: '#7d1f2c', accent2: '#d6ae58',
               iri0: '#ffe2b8', iri1: '#9fc7d3', iri2: '#ffd27a' },
     winter: { label: 'Winter grey', b0: '#dcd6d1', b1: '#b9b1aa', b2: '#958c85', cream: '#f7f3ef', inner: '#efd0ca', tuft: '#7d746e',
@@ -23,7 +23,8 @@
               iri0: '#fff0c8', iri1: '#9fc7d3', iri2: '#ffd27a' }
   };
   // vault-keeper uniform (from the campaign look): blue coat, red piping, brass/gold
-  const NEON = '#c6f03c';  // highlighter only (approximate)
+  const NEON = '#c6f03c';
+  const SCARF0 = '#1fae69', SCARF1 = '#118a50', SCARF_DK = '#0e7443';  // highlighter only (approximate)
   const INK = '#1f2035', COAT0 = '#3f74b9', COAT1 = '#244a82', PIPING = '#c8323c', GOLD = '#d6ae58', GOLD_DK = '#a8822f';
 
   /* Tail spine (three bezier segments) sampled into overlapping fur puffs */
@@ -48,7 +49,7 @@
     const heart = 'M0 4 C-7 -1 -5 -8 0 -4.5 C5 -8 7 -1 0 4 Z';
     // a squirrel paw: round mitt + thumb + little toe lines
     const glove = (tx) => `<circle cx="${tx}" cy="-4" r="3.6" fill="${url('paw')}" stroke="${C.b2}" stroke-width="1"/>
-      <circle r="8.2" fill="${url('paw')}" stroke="${C.b2}" stroke-width="1"/>
+      <circle r="9" fill="${url('paw')}" stroke="${C.b2}" stroke-width="1"/>
       <path d="M-3.4 4.6 L-3 7.4 M0 5.2 L0 8.2 M3.4 4.6 L3 7.4" stroke="${C.b2}" stroke-width="1.1" stroke-linecap="round" opacity=".7"/>
       <ellipse cx="-2.6" cy="-3.4" rx="2.8" ry="1.8" fill="#fff" opacity=".55"/>`;
     const confColors = [C.accent, GOLD, COAT0, C.iri1, C.blush, C.b1];
@@ -56,10 +57,9 @@
       `<rect data-p="conf${i}" x="-2.5" y="-4" width="5" height="8" rx="1.5" fill="${c}" opacity="0"/>`).join('');
     const ear = (side) => {
       const m = (x) => 100 + side * (x - 100);
-      return `<path d="M${m(63)} 80 Q${m(58)} 52 ${m(70)} 38 Q${m(82)} 52 ${m(86)} 74 Z" fill="${url('fur')}"/>
-        <path d="M${m(67)} 74 Q${m(64)} 56 ${m(71)} 46 Q${m(78)} 58 ${m(80)} 72 Z" fill="${C.inner}"/>
-        <path d="M${m(66)} 44 C${m(64)} 36 ${m(67)} 30 ${m(71)} 26 C${m(71)} 31 ${m(73.5)} 32 ${m(75)} 29 C${m(78)} 34 ${m(77.5)} 41 ${m(75)} 46 Z" fill="${C.tuft}"/>
-        <path d="M${m(68)} 40 C${m(67)} 34 ${m(68.5)} 30 ${m(70.5)} 27" fill="none" stroke="${C.b0}" stroke-width="1.3" stroke-linecap="round" opacity=".7"/>`;
+      return `<path d="M${m(57)} 86 Q${m(58)} 56 ${m(65)} 30 Q${m(67)} 28 ${m(69)} 30 Q${m(86)} 46 ${m(94)} 74 Z" fill="${url('fur')}" stroke="${C.b2}" stroke-width=".8" stroke-linejoin="round"/>
+        <path d="M${m(64)} 76 Q${m(64)} 58 ${m(67.5)} 42 Q${m(80)} 54 ${m(85)} 72 Z" fill="${C.cream}"/>
+        <path d="M${m(66.5)} 31 L${m(63)} 21.5 M${m(67.5)} 31 L${m(72.5)} 22" fill="none" stroke="${C.tuft}" stroke-width="2.8" stroke-linecap="round"/>`;
     };
     return `
 <svg viewBox="-10 -20 220 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Oiva Orava, the vault-keeper squirrel">
@@ -70,9 +70,11 @@
     <radialGradient id="${id('paw')}" cx=".35" cy=".3" r=".8">
       <stop offset="0" stop-color="${C.b0}"/><stop offset="1" stop-color="${C.b1}"/>
     </radialGradient>
-    <linearGradient id="${id('tail')}" gradientUnits="userSpaceOnUse" x1="140" y1="170" x2="195" y2="40">
+    <linearGradient id="${id('tail')}" gradientUnits="userSpaceOnUse" x1="140" y1="178" x2="190" y2="40">
       <stop offset="0" stop-color="${C.b2}"/><stop offset=".45" stop-color="${C.b1}"/><stop offset="1" stop-color="${C.b0}"/>
     </linearGradient>
+    <radialGradient id="${id('coinFace')}" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#ffe680"/><stop offset=".6" stop-color="#f8c42c"/><stop offset="1" stop-color="#eaa514"/></radialGradient>
+    <linearGradient id="${id('scarf')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${SCARF0}"/><stop offset="1" stop-color="${SCARF1}"/></linearGradient>
     <linearGradient id="${id('coat')}" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="${COAT0}"/><stop offset="1" stop-color="${COAT1}"/>
     </linearGradient>
@@ -97,56 +99,29 @@
 
   <g data-p="float"><g data-p="lean"><g data-p="body">
     <!-- big fluffy tail (behind) -->
-    <!-- bushy tail: rises behind his back in an S, tip curls outward above the ear -->
+    <!-- big round tail (v2 style): rises behind the body, top bulges up beside the head -->
     <g data-p="tail">
-      <path d="M128 160 C150 174 182 163 187 132 C191 106 181 92 180 74 C179 56 187 40 200 40 C211 41 211 59 200 61 C191 63 185 58 176 61 C161 65 148 72 142 86 C135 102 131 126 128 160 Z" fill="${C.b2}" transform="translate(2.2 2.4)"/>
-      <path d="M128 160 C150 174 182 163 187 132 C191 106 181 92 180 74 C179 56 187 40 200 40 C211 41 211 59 200 61 C191 63 185 58 176 61 C161 65 148 72 142 86 C135 102 131 126 128 160 Z" fill="${url('tail')}"/>
-      <g clip-path="${url('tailClip')}">
-        <path d="M146 168 C170 160 182 136 180 112 C178 94 168 82 170 66 C171 55 178 48 190 46" fill="none" stroke="${C.cream}" stroke-width="8" stroke-linecap="round" opacity=".3"/>
-        <path d="M160 150 q8 -6 12 -16 M166 118 q4 -8 3 -18 M174 82 q0 -8 4 -14" fill="none" stroke="${C.b2}" stroke-width="1.6" stroke-linecap="round" opacity=".35"/>
-        <path d="M186 132 C190 112 186 98 180 86" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".28"/>
-      </g>
-      <path d="M181 47 C186 42 195 41 201 45" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".7"/>
+      <path d="M116 186 C156 196 202 178 203 130 C204 84 188 46 158 41 C138 38 124 52 127 70 C130 86 150 92 156 112 C162 134 150 158 118 170 Z" fill="${C.b2}" transform="translate(1.6 2)"/>
+      <path d="M116 186 C156 196 202 178 203 130 C204 84 188 46 158 41 C138 38 124 52 127 70 C130 86 150 92 156 112 C162 134 150 158 118 170 Z" fill="${url('tail')}"/>
+      <path d="M174 54 C190 66 197 92 196 118" fill="none" stroke="#fff" stroke-width="4.6" stroke-linecap="round" opacity=".45"/>
+      <path d="M195 142 C191 160 180 172 162 179" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".18"/>
     </g>
-    <!-- hind legs + feet (behind the coat) -->
-    ${[-1, 1].map((sd) => { const m = (x) => 100 + sd * (x - 100);
-      return `<path d="M${m(84)} 148 C${m(82.5)} 165 ${m(82)} 176 ${m(84)} 186 L${m(96)} 186 C${m(97)} 175 ${m(96.5)} 163 ${m(95)} 148 Z" fill="${url('fur')}"/>
-        <path d="M${m(86)} 160 C${m(85.5)} 170 ${m(85.5)} 177 ${m(86.5)} 183" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".3"/>
-        <g transform="translate(${m(88)} 188) rotate(${sd * -9})">
-          <ellipse rx="11" ry="5.4" fill="${url('paw')}" stroke="${C.b2}" stroke-width="1.1"/>
-          <path d="M-2.5 -1 v3 M2.5 -1 v3" stroke="${C.b2}" stroke-width=".9" stroke-linecap="round" opacity=".45"/>
-          <ellipse cx="-3.6" cy="-2.4" rx="3.6" ry="1.3" fill="#fff" opacity=".5"/>
-        </g>`; }).join('')}
-    <!-- coat tails -->
-    <path d="M70 151 Q65 162 65 171 Q74 170 82 160 Z" fill="${url('coat')}"/>
-    <path d="M130 151 Q135 162 135 171 Q126 170 118 160 Z" fill="${url('coat')}"/>
-    <path d="M70 151 Q65 162 65 171" fill="none" stroke="${PIPING}" stroke-width="1.6" stroke-linecap="round"/>
-    <path d="M130 151 Q135 162 135 171" fill="none" stroke="${PIPING}" stroke-width="1.6" stroke-linecap="round"/>
-
-    <!-- round fur body -->
-    <circle cx="100" cy="112" r="50" fill="${url('fur')}"/>
-    <g clip-path="${url('bodyClip')}">
-      <!-- double-breasted vault-keeper coat -->
-      <path d="M40 133 Q66 124 88 128 L100 153 L112 128 Q134 124 160 133 L160 175 L40 175 Z" fill="${url('coat')}"/>
-      <path d="M88 128 Q100 125 112 128 L100 153 Z" fill="#f4f6fb"/>
-      <path d="M88 128 L100 153 L112 128" fill="none" stroke="${PIPING}" stroke-width="2.2" stroke-linejoin="round"/>
-      <path d="M100 153 L100 175" stroke="${PIPING}" stroke-width="1.8"/>
-      <ellipse cx="72" cy="146" rx="14" ry="5" fill="#fff" opacity=".12" transform="rotate(-20 72 146)"/>
-      ${[[90, 142], [110, 142], [91, 152], [109, 152], [92, 162], [108, 162]].map(([x, y]) =>
-        `<circle cx="${x}" cy="${y}" r="2.3" fill="${url('gold')}" stroke="${GOLD_DK}" stroke-width=".7"/>`).join('')}
+    <!-- feet -->
+    <g data-p="legs">
+      ${[83, 117].map((x) => `<ellipse cx="${x}" cy="191" rx="13.5" ry="6.6" fill="${url('paw')}" stroke="${C.b2}" stroke-width=".9"/>
+        <ellipse cx="${x - 3.5}" cy="188.2" rx="4.6" ry="1.6" fill="#fff" opacity=".4"/>`).join('')}
     </g>
-    <!-- gold epaulettes -->
-    ${[-1, 1].map((sd) => { const m = (x) => 100 + sd * (x - 100);
-      return `<path d="M${m(49)} 128 Q${m(55)} 119 ${m(67)} 123 L${m(65)} 131 Q${m(56)} 133 ${m(49)} 131 Z" fill="${url('gold')}" stroke="${GOLD_DK}" stroke-width=".8"/>
-        <path d="M${m(51)} 131 l${sd * -.5} 5 M${m(54.5)} 132 l0 5.5 M${m(58)} 132.5 l0 5.5 M${m(61.5)} 132.5 l0 5 M${m(64.5)} 131.5 l${sd * .4} 4.5" stroke="${GOLD}" stroke-width="1.3" stroke-linecap="round"/>`; }).join('')}
-    <!-- soft fur lighting -->
-    <ellipse cx="68" cy="104" rx="6" ry="14" fill="#fff" opacity=".28" filter="${url('blur2')}"/>
-    <path d="M62 92 A42 42 0 0 1 80 70" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".55"/>
+    <!-- small pear body with a cream belly -->
+    <path d="M100 121 C129 121 141 148 141 167 C141 184 123 192 100 192 C77 192 59 184 59 167 C59 148 71 121 100 121 Z" fill="${url('fur')}"/>
+    <path d="M100 137 C119 137 128 155 128 170 C128 183 116 189 100 189 C84 189 72 183 72 170 C72 155 81 137 100 137 Z" fill="${C.cream}"/>
+    <path d="M70 158 C71 146 78 134 88 129" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".28"/>
 
-    <!-- ears + peaked cap -->
+    <!-- head (with ears and cap) -->
     <g data-p="crest">
       <g data-p="earL">${ear(1)}</g>
       <g data-p="earR">${ear(-1)}</g>
+      <circle cx="100" cy="96" r="41" fill="${url('fur')}"/>
+      <path d="M68 82 C72 70 82 61 95 58" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".3"/>
       <!-- LEARNED: idea bulb above the cap -->
       <g data-p="bulb" opacity="0">
         <g data-p="bulbRays" stroke="#f2c14e" stroke-width="2.4" stroke-linecap="round">
@@ -158,7 +133,7 @@
         <path d="M-4.4 10.6 H4.4" stroke="#7d8fa6" stroke-width="1"/>
         <ellipse cx="-3.6" cy="-4" rx="2.6" ry="1.6" fill="#fff" opacity=".9"/>
       </g>
-      <g data-p="hat"><g transform="translate(100 60) scale(1.12) translate(-100 -60)">
+      <g data-p="hat"><g transform="translate(97 60) scale(.8) translate(-100 -64)">
         <path d="M79 60 Q77 42 100 39 Q123 42 121 60 Z" fill="${url('coat')}"/>
         <rect x="79.2" y="52" width="41.6" height="2.4" fill="${PIPING}"/>
         <rect x="79" y="54.4" width="42" height="4.2" fill="${url('gold')}"/>
@@ -169,47 +144,54 @@
       </g></g>
     </g>
 
+    <!-- scarf -->
+    <path d="M66 128 Q100 143 134 128 L136 137 Q100 153 64 137 Z" fill="${url('scarf')}"/>
+    <path d="M70 131 Q100 144 130 131" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".35"/>
+
     <g data-p="face">
-      <ellipse cx="70" cy="117" rx="7" ry="4.2" data-p="blushL" fill="${C.blush}" filter="${url('blur2')}"/>
-      <ellipse cx="130" cy="117" rx="7" ry="4.2" data-p="blushR" fill="${C.blush}" filter="${url('blur2')}"/>
-      <!-- cream muzzle + cheek fluff -->
-      <ellipse cx="100" cy="115" rx="17" ry="11.5" fill="${C.cream}"/>
-      <ellipse cx="80" cy="113" rx="9" ry="7" fill="${C.cream}" opacity=".85"/>
-      <ellipse cx="120" cy="113" rx="9" ry="7" fill="${C.cream}" opacity=".85"/>
-      <g data-p="eyeL"><ellipse cx="84" cy="102" rx="6.2" ry="7.2" fill="${INK}"/><circle cx="82" cy="99" r="2.3" fill="#fff"/><circle cx="86.2" cy="104.6" r="1" fill="#fff"/></g>
-      <g data-p="eyeR"><ellipse cx="116" cy="102" rx="6.2" ry="7.2" fill="${INK}"/><circle cx="114" cy="99" r="2.3" fill="#fff"/><circle cx="118.2" cy="104.6" r="1" fill="#fff"/></g>
-      <path data-p="happy" d="M77 104 Q84 96 91 104 M109 104 Q116 96 123 104" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" opacity="0"/>
-      <path data-p="squint" d="M79 97 L88 102 L79 107 M121 97 L112 102 L121 107" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0"/>
-      <path data-p="browL" d="M79 89 L89 89" stroke="${C.brow}" stroke-width="2.4" stroke-linecap="round" opacity=".8"/>
-      <path data-p="browR" d="M111 89 L121 89" stroke="${C.brow}" stroke-width="2.4" stroke-linecap="round" opacity=".8"/>
-      <!-- whiskers -->
-      <path d="M86 115 L74 113 M86 118 L75 119.5 M114 115 L126 113 M114 118 L125 119.5" stroke="${C.brow}" stroke-width=".9" stroke-linecap="round" opacity=".45"/>
+      <!-- cream muzzle -->
+      <path d="M100 100 C116 100 128 109 128 120 C128 130 115 136 100 136 C85 136 72 130 72 120 C72 109 84 100 100 100 Z" fill="${C.cream}"/>
+      <circle cx="73" cy="117" r="7" data-p="blushL" fill="${C.blush}"/>
+      <circle cx="127" cy="117" r="7" data-p="blushR" fill="${C.blush}"/>
+      <g data-p="eyeL"><ellipse cx="84" cy="102" rx="7.6" ry="8.6" fill="${INK}"/><circle cx="86.8" cy="98.4" r="3.3" fill="#fff"/><circle cx="81.4" cy="106" r="1.4" fill="#fff"/></g>
+      <g data-p="eyeR"><ellipse cx="116" cy="102" rx="7.6" ry="8.6" fill="${INK}"/><circle cx="118.8" cy="98.4" r="3.3" fill="#fff"/><circle cx="113.4" cy="106" r="1.4" fill="#fff"/></g>
+      <path data-p="happy" d="M76 104 Q84 95 92 104 M108 104 Q116 95 124 104" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round" opacity="0"/>
+      <path data-p="squint" d="M78 96 L89 102 L78 108 M122 96 L111 102 L122 108" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" opacity="0"/>
+      <path data-p="browL" d="M77.5 88.5 Q84 84 90.5 88" fill="none" stroke="${C.brow}" stroke-width="2.8" stroke-linecap="round"/>
+      <path data-p="browR" d="M109.5 88 Q116 84 122.5 88.5" fill="none" stroke="${C.brow}" stroke-width="2.8" stroke-linecap="round"/>
       <!-- nose -->
-      <path d="M96.5 109.5 Q100 108 103.5 109.5 Q101.5 113.5 100 113.5 Q98.5 113.5 96.5 109.5 Z" fill="#4a2a22" stroke="#4a2a22" stroke-width="1.2" stroke-linejoin="round"/>
-      <ellipse cx="98.8" cy="109.6" rx="1.1" ry=".6" fill="#fff" opacity=".6"/>
-      <path d="M100 113.5 L100 116.5" stroke="#4a2a22" stroke-width="1.2" stroke-linecap="round"/>
-      <path data-p="mouth" d="M95 118 Q100 118 105 118 Q100 118 95 118 Z" fill="#4a2a22" stroke="#4a2a22" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>
-      <!-- little buck teeth (ride on the upper lip) -->
-      <g data-p="teeth"><rect x="98" y="118.4" width="4" height="3.4" rx=".9" fill="#fff" stroke="#e2d8ca" stroke-width=".6"/>
-      <path d="M100 118.6 L100 121.6" stroke="#e2d8ca" stroke-width=".5"/></g>
-      <path data-p="tear" d="M78 106 Q81.4 111.6 78 114.6 Q74.6 111.6 78 106 Z" fill="#9fd0f0" stroke="#fff" stroke-width=".8" opacity="0"/>
-      <path data-p="sweat" d="M136 84 Q141 92 136 96 Q131 92 136 84 Z" fill="#a9d6f2" opacity="0"/>
+      <path d="M96 109.4 Q100 107.6 104 109.4 Q101.8 114 100 114 Q98.2 114 96 109.4 Z" fill="#6b3a1f" stroke="#6b3a1f" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M100 114 L100 117" stroke="#6b3a1f" stroke-width="1.3" stroke-linecap="round"/>
+      <path data-p="mouth" d="M95 118 Q100 118 105 118 Q100 118 95 118 Z" fill="#6b3a1f" stroke="#6b3a1f" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- one buck tooth -->
+      <g data-p="teeth"><rect x="97.5" y="118.4" width="5" height="4.4" rx="1.1" fill="#fff" stroke="#e5dccf" stroke-width=".6"/></g>
+      <path data-p="tear" d="M78 108 Q81.4 113.6 78 116.6 Q74.6 113.6 78 108 Z" fill="#9fd0f0" stroke="#fff" stroke-width=".8" opacity="0"/>
+      <path data-p="sweat" d="M136 82 Q141 90 136 94 Q131 90 136 82 Z" fill="#a9d6f2" opacity="0"/>
       <g data-p="monocle" opacity="0"></g>
     </g>
 
-    <!-- tie -->
+    <!-- scarf knot + tails (the rig calls it the tie) -->
     <g data-p="tie">
-      <path d="M100 130 L90.5 125 Q88.8 130 90.5 135 Z" fill="${url('tie')}" stroke="${C.accentDk}" stroke-width="1.3" stroke-linejoin="round"/>
-      <path d="M100 130 L109.5 125 Q111.2 130 109.5 135 Z" fill="${url('tie')}" stroke="${C.accentDk}" stroke-width="1.3" stroke-linejoin="round"/>
-      <rect x="97" y="127" width="6" height="6" rx="2" fill="${C.accentDk}"/>
+      <path d="M115 140 L110 157 Q114 158 118 155 L121 141 Z" fill="${url('scarf')}"/>
+      <path d="M121 140 L129 154 Q132 151 133 147 L125 139 Z" fill="${url('scarf')}"/>
+      <ellipse cx="119" cy="139" rx="6" ry="5" fill="${SCARF_DK}"/>
+      <ellipse cx="117.4" cy="137.6" rx="2.4" ry="1.4" fill="#fff" opacity=".3"/>
     </g>
 
     <!-- SAVING: golden acorn held in the paw -->
     <g data-p="acorn" opacity="0">${ACORN}</g>
     <!-- coat sleeves -->
-    ${['L', 'R'].map((n) => `<path data-p="sleeve${n}" fill="none" stroke="${COAT1}" stroke-width="11" stroke-linecap="round"/>
-      <path data-p="sleeve${n}i" fill="none" stroke="${url('coat')}" stroke-width="8.4" stroke-linecap="round"/>
-      <circle data-p="cuff${n}" r="5.6" fill="#f4f6fb" stroke="${GOLD}" stroke-width="1.4"/>`).join('')}
+    ${['L', 'R'].map((n) => `<path data-p="sleeve${n}" fill="none" stroke="${C.b2}" stroke-width="15" stroke-linecap="round"/>
+      <path data-p="sleeve${n}i" fill="none" stroke="${url('paw')}" stroke-width="12.6" stroke-linecap="round"/>
+      <circle data-p="cuff${n}" r="0" opacity="0"/>`).join('')}
+    <!-- gold € coin held at the chest (shows when both paws are close together) -->
+    <g data-p="chestCoin"><g transform="scale(1.3)">
+      <circle r="16" fill="#e7a514"/>
+      <circle r="14.6" fill="${url('coinFace')}"/>
+      <circle r="11.2" fill="none" stroke="#f9d65a" stroke-width="1.8"/>
+      <path d="M4.4 -5.6 A7.2 7.2 0 1 0 4.4 5.6 M-7.6 -1.7 H2.4 M-7.6 1.9 H2.4" fill="none" stroke="#8f5a07" stroke-width="2.6" stroke-linecap="round"/>
+      <ellipse cx="-6.4" cy="-8.4" rx="3.8" ry="2" fill="#fff" opacity=".7" transform="rotate(-32 -6.4 -8.4)"/>
+    </g></g>
     <g data-p="trayC" opacity="0"><g>
       <ellipse cx="0" cy="0" rx="24" ry="4.5" fill="#b9c0d8"/>
       <ellipse cx="0" cy="-1.5" rx="23" ry="3.6" fill="#f3f5fb"/>
@@ -298,11 +280,7 @@
       <circle cy="-29" r="2.6" fill="${C.accent2}" stroke="#fff" stroke-width="1"/>
     </g>
 
-    <g data-p="napkin">
-      <circle cy="6" r="4.2" fill="none" stroke="${GOLD}" stroke-width="1.4"/>
-      <g transform="translate(-2 9) rotate(12)"><circle r="2.4" fill="none" stroke="${GOLD_DK}" stroke-width="1.4"/><path d="M0 2.4 V12 M0 9 h2.6 M0 11.4 h2" stroke="${GOLD_DK}" stroke-width="1.4" stroke-linecap="round"/></g>
-      <g transform="translate(3 9) rotate(-14)"><circle r="2.2" fill="none" stroke="${GOLD}" stroke-width="1.3"/><path d="M0 2.2 V10.5 M0 8 h2.3 M0 10 h1.8" stroke="${GOLD}" stroke-width="1.3" stroke-linecap="round"/></g>
-    </g>
+    <g data-p="napkin"></g>
 
     <g data-p="gloveR">${glove(-5.5)}<g data-p="thumbR" opacity="0">
       <rect x="-3" y="-17" width="6" height="10" rx="3" fill="${url('paw')}" stroke="${C.b2}" stroke-width="1"/>
@@ -384,8 +362,8 @@
     eyeOpen: 1, happy: 0, squint: 0, smile: 0, mouthO: 0, blush: 0.55,
     browL: 0, browR: -8, browLY: 0, browRY: -1.5,
     earL: 0, earR: 0,
-    hatLift: 0, hatRot: -8, hatX: 0, tieRot: 0,
-    rhx: 50, rhy: 142, lhx: 150, lhy: 144,
+    hatLift: 0, hatRot: -14, hatX: 0, tieRot: 0,
+    rhx: 78, rhy: 160, lhx: 122, lhy: 160,
     attChin: 0, attEar: 0, attHat: 0,
     trayC: 0, trayK: 0, glass: 0, glassRot: 0,
     sweat: 0, spark: 0, think: 0, monoDrop: 0,
@@ -498,7 +476,7 @@
       const bow = win(ph, .18, .32, .5, .66);
       const hop = win(ph, .68, .75, .75, .86);
       T.attHat = up;
-      T.hatLift = 12 * up; T.hatRot = -8 - 16 * up; T.hatX = -3 * up;
+      T.hatLift = 12 * up; T.hatRot = -14 - 14 * up; T.hatX = -3 * up;
       T.fy += 4 * bow; T.cry += 3 * bow; T.sqy -= 0.03 * bow; T.floatY -= 12 * hop;
       T.sqy += 0.05 * hop; T.sqx -= 0.03 * hop;
       T.happy = 1; T.smile = 1; T.blush = 0.95;
@@ -507,21 +485,18 @@
       T.confT = ph;
       T.scr = 1; T.checkDraw = 1;                          // job done: the window shows a tick
     },
-    error(T, tau, L) {
+    error(T, tau, L) {                                     // "oh no!": paws to cheeks, worried brows, wobbly mouth, then regroups
       const ph = phase(tau, 3.4);
-      const w = win(ph, 0, .05, .26, .38);
-      const fix = win(ph, .3, .42, .76, .88);
-      const straight = smooth(.44, .8, ph);
-      T.tieRot = 20 * (1 - straight) + 4 * Math.sin(tau * 20) * fix * (1 - straight);
-      T.squint = w; T.eyeOpen = 0.85; T.mouthO = w;
-      const worry = Math.max(w, 0.55);
-      T.browL = -16 * worry; T.browR = 16 * worry; T.browLY = 1; T.browRY = 1;
-      T.floatY += 5 * w; T.lean += 1.5 * Math.sin(tau * 42) * w; T.sqy -= 0.04 * w; T.sqx += 0.025 * w;
-      T.earL = -12 * w; T.earR = 12 * w; T.fy += 2;
-      T.sweat = Math.max(w, fix * 0.9); T.sweatY = ph * 8;
-      T.monoDrop = 1 - smooth(.78, .95, ph);               // monocle pops, dangles, gets put back
-      T.rhx = lerp(56, 91, fix); T.rhy = lerp(138, 131, fix);
-      T.lhx = lerp(144, 109, fix); T.lhy = lerp(138, 131, fix);
+      const jolt = win(ph, 0, .04, .1, .16);
+      const oh = win(ph, .02, .1, .6, .74);
+      T.squint = jolt; T.eyeOpen = 1 + .12 * oh;
+      T.frown = .75 * oh; T.mouthO = .32 * oh * (1 + .25 * Math.sin(tau * 16)); T.smile = 0;
+      T.browL = -24 * oh; T.browR = 24 * oh; T.browLY = -1 * oh; T.browRY = -1 * oh;
+      T.floatY += 4 * jolt; T.lean += 1.5 * Math.sin(tau * 42) * jolt; T.sqy -= 0.04 * jolt; T.sqx += 0.025 * jolt;
+      T.earL = -14 * oh; T.earR = 14 * oh; T.fy += 1;
+      T.sweat = oh; T.sweatY = ph * 8; T.blush = .35 + .3 * oh;
+      T.rhx = lerp(T.rhx, 70, oh); T.rhy = lerp(T.rhy, 124, oh);   // paws to cheeks
+      T.lhx = lerp(T.lhx, 130, oh); T.lhy = lerp(T.lhy, 124, oh);
     },
     learned(T, tau) {                                     // "aha!": bulb pops on, happy hop, paw up
       const ph = phase(tau, 2.6), pop = win(ph, .04, .14, .8, .95);
@@ -586,7 +561,7 @@
   };
   const STATIC_TAU = { learned: .9, saving: 2.4, spent: 2.2, safe_to_spend: 0, caution: 0, what_if: 2.6, compare: 2.2,
                        idle: 0, listening: 2.6, thinking: 0, working: 0.6, teaching: 2 * TEACH_STEP + 1.1,
-                       checking: 2.9, needs_approval: 0, success: 1.26, error: 2.04 };
+                       checking: 2.9, needs_approval: 0, success: 1.26, error: 1.2 };
 
   function rot([x, y], [cx, cy], deg) {
     const c = Math.cos(deg * DEG), s = Math.sin(deg * DEG), dx = x - cx, dy = y - cy;
@@ -606,7 +581,7 @@
       if (opts.framing === 'head') {                          // head-and-shoulders crop for chat avatars / icons
         const sv = container.querySelector('svg');
         sv.setAttribute('viewBox', '30 6 140 140'); sv.style.overflow = 'hidden'; sv.setAttribute('aria-label', 'Oiva avatar');
-        ['shadow', 'vault', 'okBadge', 'warnBadge', 'think', 'scr', 'chart', 'spark1', 'spark2', 'coinOut', 'acornFly', 'baton', 'glass', 'lap', 'trayK', 'trayC', 'pad'].forEach((n) => { const e = sv.querySelector(`[data-p="${n}"]`); if (e) e.style.display = 'none'; });
+        ['shadow', 'vault', 'okBadge', 'warnBadge', 'think', 'scr', 'chart', 'spark1', 'spark2', 'coinOut', 'acornFly', 'baton', 'glass', 'lap', 'trayK', 'trayC', 'pad', 'chestCoin'].forEach((n) => { const e = sv.querySelector(`[data-p="${n}"]`); if (e) e.style.display = 'none'; });
       }
       svg = container.querySelector('svg');
       el = {};
@@ -730,7 +705,7 @@
       set('tie', 'transform', `rotate(${f(P.tieRot)} ${TIE[0]} ${TIE[1]})`);
       // tail: lazy swish, flicks up on success, puffs out when startled
       const tailRot = (rm ? 0 : 5 * Math.sin(t * 1.7) * (1 - .7 * P.tailDrop)) + P.lean * .8 - 8 * P.spark + (rm ? 0 : 5 * Math.sin(t * 11) * P.sweat) + 7 * P.tailDrop - 9 * P.flick;
-      const tailPuff = 1 + .14 * P.sweat;
+      const tailPuff = 1 + .05 * P.sweat;
       set('tail', 'transform', `rotate(${f(tailRot)} 126 164) translate(126 164) scale(${f(tailPuff * (1 - .06 * P.tailDrop))} ${f(tailPuff * (1 - .2 * P.tailDrop))}) translate(-126 -164)`);   // droops: lower and slumped
 
       // monocle: drops to hang on its chain, swinging
@@ -746,6 +721,9 @@
       set('gloveR', 'transform', `translate(${f(rx)} ${f(ry)})`);
       set('gloveL', 'transform', `translate(${f(P.lhx)} ${f(P.lhy)})`);
       set('thumbR', 'opacity', f(clamp(P.thumb * 1.4 - .2, 0, 1)));
+      const pawGap = Math.hypot(P.lhx - rx, P.lhy - ry), cv = (1 - smooth(48, 58, pawGap)) * (1 - smooth(6, 14, Math.abs(P.lhy - ry)));
+      set('chestCoin', 'opacity', f(cv));
+      set('chestCoin', 'transform', `translate(${f((rx + P.lhx) / 2)} ${f(Math.max(150, (ry + P.lhy) / 2 + 1))}) scale(${f(Math.max(.01, .8 + .2 * cv))})`);
       // --- new-mood props ---
       const popS = (v) => f(Math.max(.01, rm ? (v > .5 ? 1 : 0) : (v <= 0 ? 0 : v >= 1 ? 1 : 1 + 2.7 * (v - 1) ** 3 + 1.7 * (v - 1) ** 2)));
       set('bulb', 'opacity', f(clamp(P.bulb * 2, 0, 1)));
@@ -754,10 +732,10 @@
       set('acorn', 'opacity', f(clamp(P.acorn * 1.4 - .2, 0, 1)));
       set('acorn', 'transform', `translate(${f(rx + 2)} ${f(ry - 11)}) scale(${f(.6 + .4 * P.acorn)})`);
       [['L', 1, P.lhx, P.lhy], ['R', -1, rx, ry]].forEach(([n, side, hx, hy]) => {
-        const sx = 100 + side * 40, sy = 128;                                 // shoulder, under the epaulette
+        const sx = 100 + side * 27, sy = 141;                                 // shoulder, under the epaulette
         const dx = hx - sx, dy = hy - sy, len = Math.max(1, Math.hypot(dx, dy));
         const ex = hx - dx / len * 6.5, ey = hy - dy / len * 6.5;            // stop just inside the paw
-        const cx2 = (sx + ex) / 2 + side * len * .18, cy2 = (sy + ey) / 2 + len * .12;
+        const cx2 = (sx + ex) / 2 + side * len * .12, cy2 = (sy + ey) / 2 + len * .08;
         const d = `M${f(sx)} ${f(sy)} Q${f(cx2)} ${f(cy2)} ${f(ex)} ${f(ey)}`;
         set('sleeve' + n, 'd', d); set('sleeve' + n + 'i', 'd', d);
         set('cuff' + n, 'transform', `translate(${f(hx - dx / len * 4)} ${f(hy - dy / len * 4)})`);
