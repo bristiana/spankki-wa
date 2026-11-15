@@ -120,8 +120,8 @@ def test_your_money_screen(client):
 
 
 @pytest.mark.parametrize("lang, oiva, cats, say", [
-    ("en", "Tell me about my spending this month", "Where did my money go in September?", "Ask Oiva about your money"),
-    ("fi", "Kerro kulutuksestani tässä kuussa", "Mihin rahani menivät syyskuussa?", "Kysy Oivalta rahoistasi")])
+    ("en", "How's my spending this month?", "Where did my money go in September?", "Ask Oiva about your money"),
+    ("fi", "Miten kulutukseni sujuu tässä kuussa?", "Mihin rahani menivät syyskuussa?", "Kysy Oivalta rahoistasi")])
 def test_your_money_asks_oiva(client, lang, oiva, cats, say):
     """Oiva floats on Your money; tapping her or a chart card asks her about it in the chat, in the screen's language."""
     import re

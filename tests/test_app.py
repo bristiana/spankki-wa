@@ -113,7 +113,18 @@ def test_stop_switches_off(client):
     main.engine.state["connected"]["40700000000"] = {}
     post_signed(client, wa_payload(text="STOP", mid="m9"))
     assert "40700000000" not in main.engine.state["connected"]
-    assert "switched off" in client.sent[-1]["text"]["body"]
+    body = client.sent[-1]["text"]["body"]
+    assert "switched off" in body
+    # the same story as the privacy page: messages went to Anthropic and through Meta; never "data never left"
+    assert "Anthropic" in body and "Meta" in body and "never left" not in body
+
+
+def test_lopeta_switches_off_in_finnish(client):
+    main.engine.state["connected"]["40700000000"] = {}
+    post_signed(client, wa_payload(text="Lopeta", mid="m-lopeta"))
+    assert "40700000000" not in main.engine.state["connected"]
+    body = client.sent[-1]["text"]["body"]
+    assert "pois päältä" in body and "Anthropicille" in body and "Metan kautta" in body
 
 
 def test_quick_reaction_and_redaction():
