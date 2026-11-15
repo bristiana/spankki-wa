@@ -523,10 +523,12 @@ def flow_turn(e: Engine, user: str, text: str, bid: str = "") -> onboarding.Turn
     return flow_turn_named(e, user, text, bid)[1]
 
 
-def flow_turn_named(e: Engine, user: str, text: str, bid: str = "") -> tuple[str, onboarding.Turn | None]:
-    """flow_turn, and which flow answered ("learn", "quiz", "interview"; "" = none): the helper squirrel's pose."""
+def flow_turn_named(e: Engine, user: str, text: str, bid: str = "",
+                    lang: str | None = None) -> tuple[str, onboarding.Turn | None]:
+    """flow_turn, and which flow answered ("learn", "quiz", "interview"; "" = none): the helper squirrel's pose.
+    lang: the web chat's language, for the basket game (WhatsApp leaves it out)."""
     for name, flow in (("learn", learn), ("quiz", quiz), ("interview", onboarding)):
-        t = flow.turn(e, user, text, bid)
+        t = quiz.turn(e, user, text, bid, lang) if flow is quiz else flow.turn(e, user, text, bid)
         if t:
             return name, t
     return "", None
@@ -2462,6 +2464,7 @@ async def chat_turn(request: Request):
     persona = valid_persona(body.get("as")) if body.get("as") else persona_of(request)
     session_persona[sid] = persona
     e, name = engine_for(persona), name_for(persona)
+    lang = body.get("lang") if body.get("lang") in LANGS else None  # the page's language, for the basket game
 
     def quick(buttons):
         return [{"label": t, "send": f"__btn__:{i}"} for i, t in buttons]
@@ -2520,7 +2523,7 @@ async def chat_turn(request: Request):
     asked = bool(bid) and ask_text(e, sid, bid) is not None
     if not asked:
         typed = "" if bid else text
-        flow, t = flow_turn_named(e, sid, typed, bid)
+        flow, t = flow_turn_named(e, sid, typed, bid, lang)
         if t:
             remember(persona, sid, typed or f"[tapped {bid}]", t)
             return interview(t, flow=flow)
