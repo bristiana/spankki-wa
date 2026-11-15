@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bills, broker, enable_banking, guardrails, learn, mirror, mood, onboarding, quiz, receipts, rules, tts, voice
+from . import bills, broker, enable_banking, guardrails, learn, mirror, mood, onboarding, quiz, receipts, rules, stt, tts, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import BASKETS, DEMO_BANK, HIDE_DEMO_BANK, FUNDS_BY_ID, RESERVE_NOTE_EUR, Engine, eur, merchant_name
@@ -2196,7 +2196,8 @@ def chat_page(request: Request, q: str = "", embed: str = ""):
     return templates.TemplateResponse(request, "chat.html", {"name": name, "q": q[:500], "back_url": tab(None),
                                                              "tab_urls": {t: tab(t) for t in ("etukortti", "pankki", "mina")},
                                                              "embed": True, "mirror": mirrored,
-                                                             "framed": embed != "1", "persona": PERSONAS[persona]})
+                                                             "framed": embed != "1", "persona": PERSONAS[persona],
+                                                             "listen_server": stt.configured()})
 
 
 # ---------------- S-mobiili integration: native home-screen cards, no AI ----------------
@@ -2359,6 +2360,65 @@ async def voice_api(request: Request):
     except tts.TTSError as e:
         return JSONResponse({"error": str(e)}, status_code=e.status)
     return Response(audio, media_type="audio/mpeg")
+
+
+def visitor_of(request: Request) -> str:
+    """Who is asking, for the per-visitor caps: the address Cloudflare saw, else the first forwarded one, else the peer."""
+    h = request.headers
+    ip = (h.get("cf-connecting-ip") or (h.get("x-forwarded-for") or "").split(",")[0]).strip()
+    ip = ip or (request.client.host if request.client else "") or "?"
+    if ":" in ip:  # IPv6: one home or phone has a whole /64, so that is one visitor
+        try:
+            import ipaddress
+            return str(ipaddress.ip_network(ip + "/64", strict=False))
+        except ValueError:
+            pass
+    return ip[:64]
+
+
+def same_site(request: Request) -> bool:
+    """A request from this site's own page (the mic in /chat), not another site posting audio through ours. Browsers
+    say so in Sec-Fetch-Site; older ones only send Origin, checked against this host and PUBLIC_URL (behind the
+    Worker the container sees Host: container)."""
+    site = request.headers.get("sec-fetch-site")
+    if site:
+        return site in ("same-origin", "none")
+    origin = request.headers.get("origin")
+    if origin and origin != "null":
+        from urllib.parse import urlsplit
+        own = {request.headers.get("host", ""), urlsplit(os.environ.get("PUBLIC_URL", "")).netloc} - {""}
+        return urlsplit(origin).netloc in own
+    return True
+
+
+@app.post("/api/listen")
+async def listen_api(request: Request, lang: str = "fi"):
+    """What you said to Oiva (the Helper's mic): the recorded clip as the body (Content-Type audio/webm, audio/mp4,
+    ...), ?lang=fi|en -> {"text"} from ElevenLabs Speech-to-Text (app/stt.py). 204 when no ELEVENLABS_API_KEY is set
+    (the page uses the browser's own recognition then). Errors are {"error": <code>} with the status saying why;
+    the page puts them in words. The key never leaves the server; the audio is not kept."""
+    if not same_site(request):
+        return JSONResponse({"error": "origin"}, status_code=403)
+    if not stt.configured():
+        return Response(status_code=204)
+    if not stt.kind(request.headers.get("content-type", "")):
+        return JSONResponse({"error": "type"}, status_code=415)
+    try:
+        if int(request.headers.get("content-length") or 0) > stt.MAX_BYTES:  # before reading it
+            return JSONResponse({"error": "too long"}, status_code=413)
+    except ValueError:
+        return JSONResponse({"error": "length"}, status_code=400)
+    audio = bytearray()
+    async for chunk in request.stream():  # no Content-Length (chunked): still cut off at the cap
+        audio += chunk
+        if len(audio) > stt.MAX_BYTES:
+            return JSONResponse({"error": "too long"}, status_code=413)
+    try:
+        text = await stt.transcribe(bytes(audio), request.headers["content-type"], "en" if lang == "en" else "fi",
+                                    visitor_of(request))
+    except stt.STTError as e:
+        return JSONResponse({"error": str(e)}, status_code=e.status)
+    return {"text": text}
 
 
 @app.get("/api/mirror")
