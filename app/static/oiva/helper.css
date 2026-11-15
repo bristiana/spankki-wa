@@ -13,7 +13,7 @@
 .sm-top .voice span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 
 /* the stage: Oiva stands on the left, what he says is in a bubble pointing at him */
-#stage{display:grid;grid-template-columns:var(--pal) 1fr;align-items:center;gap:4px;flex:none;
+#stage{display:grid;grid-template-columns:var(--pal) 1fr;align-items:center;gap:10px;flex:none;
   --pal:clamp(104px,16dvh,132px);padding:6px 14px 4px 4px;background:var(--bg);border-bottom:1px solid var(--line)}
 #pal{width:var(--pal);height:var(--pal);cursor:pointer;-webkit-tap-highlight-color:transparent;align-self:end}
 #pal svg{width:100%;height:100%;display:block}
