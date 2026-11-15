@@ -37,11 +37,13 @@
   function nb(s) { return s.replace(/(\d) (?=\d{3}(?!\d))/g, "$1\u00a0").replace(/(\d) €/g, "$1\u00a0€"); }
   // The bubble: one sentence, not a copy of the log. For a comparison, the sentence that holds it (a spender
   // profile opens with the type and compares in its second part).
-  const PEER = /\b(people|customers|typical|average|most|others|their|asiakk\w*|tyypilli\w*|keskim\w*|muut\w*|kaltais\w*|ikäis\w*)\b/i;
+  const PEER = /\b(people|customers|typical|average|most|others|their|year[- ]olds|asiakk\w*|tyypilli\w*|keskim\w*|muut\w*|muill\w*|kaltais\w*|ikäis\w*|\w*vuotiai\w*)\b|\d+\s*[–-]\s*\d+[- ]?(year|vuot)/i;
   function sentences(s) { return plain(s).split(/(?<=[.!?…])\s+(?=["'(A-ZÄÖÅ0-9])/); }
   function first(parts, m) {
     const all = (parts || []).flatMap(sentences).filter(Boolean);
-    let s = (m === "compare" && all.find(x => PEER.test(x))) || all[0] || "";
+    // a comparison: the sentence with both a peer word and an amount, else any peer sentence
+    const peer = m === "compare" && (all.find(x => PEER.test(x) && /\d[\d\s.,]*\s?€/.test(x)) || all.find(x => PEER.test(x)));
+    let s = peer || all[0] || "";
     return s.length > 150 ? s.slice(0, 146).replace(/\s+\S*$/, "") + " …" : s;
   }
   function pose(name) {
@@ -152,7 +154,9 @@
     mood: () => mood,
   };
   const hello = document.getElementById("hello");
-  if (hello) { last = first([hello.textContent]); lastParts = [hello.textContent]; show("", last); }
+  if (hello) {  // the greeting: its first two sentences ("Hi Antti! I'm Oiva, your S-Pankki money coach.")
+    last = sentences(hello.textContent).slice(0, 2).join(" "); lastParts = [hello.textContent]; show("", last);
+  }
   setMode(startMode, false);
   pose("idle");
   if (startMode === "helper" && oiva) oiva.setState("idle");
