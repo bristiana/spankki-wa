@@ -1,12 +1,13 @@
 """S-mobiili's Pankki tab, one level down: every tile opens its own screen with the customer's real data, money moves
 open the same review and Face ID as Oiva's buttons, and back always returns to where the customer came from."""
+from html import escape
 import re
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main
+from app import main, txview
 from app.engine import Engine
 
 ANTTI = "CUST01656"
@@ -77,8 +78,8 @@ def test_accounts_and_s_tili_show_the_engines_numbers(client):
     page = get(client, "/s-mobiili/tilit/s-tili")
     assert fi(e.balance()) in page
     assert "FI00 3939 0000 0016 56" in page  # check digits 00: never a real account
-    for x in e.recent(5):
-        assert x["what"] in page and fi(x["amount_eur"]) in page
+    for x in txview.rows(e, "en", 5):  # the place by its kind, its quiet number, the amount without its sign
+        assert x["name"] in page and f"<i>{x['num']}</i>" in page and fi(abs(x["amount_eur"])) in page
 
 
 def test_payments_list_rent_and_regular_payments(client):
@@ -244,3 +245,38 @@ def test_e_invoices_never_break_after_the_hyphen(client):
         page = get(client, "/s-mobiili/?tab=pankki", lang)
         tile = re.search(r'id="tile-payments".*?</a>', page, re.S).group(0)
         assert re.search(r"e-(laskut|laskuja|invoices)", tile) is None and "e-⁠" in tile
+
+
+def test_transactions_by_day_with_a_detail_and_a_full_list(client):
+    e = client.engine
+    x = txview.rows(e, "en", 1)[0]
+    home = get(client, "/s-mobiili/")
+    assert 'id="see-all"' in home and f'data-sheet="txs-{x["id"]}"' in home and f'id="txs-{x["id"]}"' in home
+    assert txview.day_label(x["date"], e.today, "en") in home and escape(x["basket_label"]) in home
+    fi_home = get(client, "/s-mobiili/", "fi")
+    assert txview.day_label(x["date"], e.today, "fi") in fi_home and escape(x["basket_label"]) not in fi_home
+    detail = get(client, f"/s-mobiili/tapahtumat/{x['id']}")  # the sheet's body as a page, without JavaScript
+    assert escape(x["name"]) in detail and fi(abs(x["amount_eur"])) in detail and escape(x["basket_line"]) in detail
+    if x["receipt"]:
+        assert f"/s-mobiili/kuitit/{x['id']}" in detail
+    assert client.get("/s-mobiili/tapahtumat/999999").status_code == 404
+    def shown(page):  # the rows a filter shows; the rest are drawn hidden, so the list can widen again in place
+        return re.findall(r'<a class="txr" id="tx-\d+" href="[^"]*" data-sheet="[^"]*" data-basket="(\w+)"', page)
+    full = get(client, "/s-mobiili/tapahtumat")
+    fun = get(client, "/s-mobiili/tapahtumat?kori=everyday")
+    assert len(shown(full)) > len(shown(fun)) > 0 and set(shown(fun)) == {"everyday"}
+    assert fun.count('class="txr"') == full.count('class="txr"')  # "All" can bring the others back
+    none = get(client, "/s-mobiili/tapahtumat?q=zzzz")
+    assert not shown(none) and re.search(r'id="tx-empty"(?! hidden)', none) and re.search(r'id="all-tx" hidden', none)
+    grocery = get(client, "/s-mobiili/tapahtumat?q=ruokakauppa", "fi")  # Finnish words find Finnish names
+    assert shown(grocery) and "everyday" not in shown(grocery)
+
+
+def test_day_totals_count_spending_only(client):
+    e = client.engine
+    days = txview.by_day(txview.rows(e, "en", None, since=e.today - timedelta(days=365)), e.today, "en")
+    for d in days:
+        out = [x["amount_eur"] for x in d["rows"] if not x["income"]]
+        assert d["n_out"] == len(out) and abs(d["total_eur"] - round(sum(out), 2)) < 0.005 and d["total_eur"] <= 0
+    paid = next(d for d in days if any(x["income"] for x in d["rows"]) and d["n_out"] > 1)
+    assert paid["total_eur"] < 0  # a payday's header shows what went out, not salary minus spending

@@ -58,7 +58,7 @@ def test_home_shows_accounts_and_recent_from_the_engine(client):
     page = client.get("/s-mobiili/").text
     assert LABEL not in page and "Savings" in page and "Funds" in page and "Not opened yet" in page
     assert main.fi_money(main.engine.balance()) in page  # S-mobiili writes money the Finnish way
-    assert main.engine.recent(8)[0]["what"] in page
+    assert main.txview.rows(main.engine, "en", 1)[0]["name"] in page  # the latest transaction, by its kind of place
     assert [s["target"] for s in steps(page)] == ["oiva-card", "acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
     for s in steps(page):
         assert f'id="{s["target"]}"' in page
