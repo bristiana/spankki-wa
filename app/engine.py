@@ -56,6 +56,8 @@ WEEK_DAYS = 7  # "this week" in safe to spend
 LEVER_MIN_EUR_YEAR = 60  # a 20% everyday cut smaller than this a year is not a lever worth naming
 WEEKEND_MIN_VISITS = 4  # restaurant visits in 3 months before a weekend share means anything
 SPEND_CATEGORIES = list(CATEGORY_BASKET)
+BILL_CATEGORIES = ["Housing", "Utilities"]  # rent and utility bills: Your money's charts and budgets leave them out
+FLEX_CATEGORIES = [c for c in SPEND_CATEGORIES if c not in BILL_CATEGORIES]
 
 # Demo funds. Clearly labelled as demo products; the assistant explains them but never picks one.
 FUNDS = [
@@ -337,7 +339,8 @@ class Engine:
 
     # ---------- questions ----------
     def spending(self, category: str | None = None, period: str = "last_month",
-                 start: str | None = None, end: str | None = None, merchant_type: str | None = None) -> dict:
+                 start: str | None = None, end: str | None = None, merchant_type: str | None = None,
+                 exclude_bills: bool = False) -> dict:
         requested = period
         if start and not (end and end < self.today.isoformat()) and start == month_start(self.today).isoformat():
             period, start, end = "this_month", None, None  # 'from the 1st of this month' is this month
@@ -356,13 +359,18 @@ class Engine:
             df = df[df["tx_amount_eur"] < 0]
             if codes:
                 return df[df["mcc_code"].isin(codes)]
-            return df[df["category"] == category] if category else df[df["category"].isin(SPEND_CATEGORIES)]
+            if category:
+                return df[df["category"] == category]
+            return df[df["category"].isin(FLEX_CATEGORIES if exclude_bills else SPEND_CATEGORIES)]
 
         s = pick(self._slice(d0, d1))
         total = -s["tx_amount_eur"].sum()
         # Same-length window right before, for "vs before"
         span = (d1 - d0).days + 1
-        if period in ("last_month", "this_month") and not (start or end):
+        whole_month = d0 == month_start(d0) and d1 == add_months(d0, 1) - timedelta(days=1)
+        if whole_month and (start or end):  # a calendar month given by dates is compared with the month before, like last_month
+            p0, p1 = add_months(d0, -1), d0 - timedelta(days=1)
+        elif period in ("last_month", "this_month") and not (start or end):
             p0 = add_months(d0, -1)
             p1 = d0 - timedelta(days=1) if period == "last_month" else p0 + timedelta(days=span - 1)
         else:
@@ -371,7 +379,8 @@ class Engine:
         top = (s.dropna(subset=["merchant_id"]).groupby("merchant_id")["tx_amount_eur"]
                .agg(["sum", "count"]).sort_values("sum").head(3))
         out = {
-            "category": category or (None if codes else "all spending"),
+            "category": category or (None if codes else "all spending, not counting rent and utility bills" if exclude_bills
+                                     else "all spending, rent and utility bills included"),
             "basket": BASKETS[CATEGORY_BASKET[category]]["label"] if category in CATEGORY_BASKET else None,
             "from": d0.isoformat(), "to": d1.isoformat(),
             "total_eur": eur(total), "transactions": int(len(s)),
@@ -408,6 +417,48 @@ class Engine:
         df = df[(df["category"] == category) & (df["tx_amount_eur"] < 0)]
         names = df["mcc_code"].map(lambda c: MCC_LABELS.get(c, f"Code {c}") if isinstance(c, str) else "No merchant code")
         return {k: eur(-v) for k, v in df["tx_amount_eur"].groupby(names).sum().sort_values().items()}
+
+    def money_month(self) -> tuple[date, date, bool]:
+        """The month S-mobiili's Your money shows and talks about: this month so far, or the last full month (whole)
+        when this one has barely started, as get_spending does. (first day, last day shown, whole month?)"""
+        if self._month_barely_started():
+            d1 = month_start(self.today) - timedelta(days=1)
+            return month_start(d1), d1, True
+        return month_start(self.today), self.today, False
+
+    def budgets(self) -> dict:
+        """Your money's budgets for its month (money_month): per everyday category, the median of its spending in the 6
+        full months before, rounded to 10 EUR (a median of 0 gets no budget). Rent and utility bills are left out."""
+        d0, d1, whole = self.money_month()
+        days = (add_months(d0, 1) - d0).days
+
+        def spent(a, b, c):
+            s = self._slice(a, b)
+            return -s[(s["tx_amount_eur"] < 0) & (s["category"] == c)]["tx_amount_eur"].sum()
+
+        items = []
+        for c in FLEX_CATEGORIES:
+            hist = [spent(add_months(d0, -i), add_months(d0, -i + 1) - timedelta(days=1), c) for i in range(6, 0, -1)]
+            limit = round(float(pd.Series(hist).median()) / 10) * 10 or None
+            sp = eur(spent(d0, d1, c))
+            items.append({"category": c, "limit_eur": limit, "spent_eur": sp,
+                          "left_eur": eur(limit - sp) if limit else None,
+                          "status": ("over" if sp > limit else "within") if limit else "no_budget",
+                          "average_last_3_full_months_eur": self.monthly_avg(c, 3)})
+        items.sort(key=lambda i: -i["spent_eur"])
+        set_ = [i for i in items if i["limit_eur"]]
+        total, used = sum(i["limit_eur"] for i in set_), eur(sum(i["spent_eur"] for i in set_))
+        out = {"month": d0.isoformat()[:7], "from": d0.isoformat(), "to": d1.isoformat(), "whole_month": whole,
+               "days_in_month": days, "budget_total_eur": eur(total), "spent_in_budgets_eur": used,
+               "left_in_budgets_eur": eur(total - used),
+               "within": sum(1 for i in set_ if i["status"] == "within"), "budgets": len(set_), "items": items,
+               "rule": "Each everyday category's budget is the median of its spending in the 6 full months before, "
+                       "rounded to 10 EUR; rent and utility bills are not in the budgets.",
+               "not_safe_to_spend": "This is the month's budgets, not what is safe to spend today (get_safe_to_spend)."}
+        if whole:
+            out["note"] = (f"{calendar.month_name[self.today.month]} has only just started, so these are "
+                           f"{calendar.month_name[d0.month]}'s budgets, for the whole month. Say so in one short clause.")
+        return out
 
     def baskets(self, period: str = "last_3_months", start: str | None = None, end: str | None = None) -> dict:
         d0, d1 = self.period_range(period, start, end)
@@ -1515,6 +1566,9 @@ class Engine:
             "bills_per_month_eur": eur(sum(x["per_month_eur"] for x in bills)),
             "bills_per_year_eur": eur(sum(x["per_year_eur"] for x in bills)),
             "income_per_month_eur": salary["per_month_eur"] if salary else None,
+            "left_after_bills_and_investing_per_month_eur": (
+                eur(salary["per_month_eur"] - sum(x["per_month_eur"] for x in bills)
+                    - (inv["per_month_eur"] if inv and inv["status"] == "active" else 0)) if salary else None),
             "subscriptions_found": len(cards),
             "card_subscriptions": cards,
             "subscriptions_note": (

@@ -1353,25 +1353,40 @@ SM_TABS = ("koti", "etukortti", "pankki", "mina", "kortti", "raha")
 # scripts/build_chart_mockup_fixtures.py). Those figures are one customer's own (the one their "source" names), so
 # the tile shows on that account only.
 MONEY_DATA = Path(__file__).parent / "static/mockups/charts/data"
-MONEY_SPEND = json.loads((MONEY_DATA / "spend.json").read_text())
-MONEY_PERSONA = next(iter(re.findall(r"CUST\d{5}", MONEY_SPEND["source"])), None)
+MONEY_PERSONA = next(iter(re.findall(r"CUST\d{5}", json.loads((MONEY_DATA / "spend.json").read_text())["source"])), None)
 FI_MONTH_FROM = ("tammikuulta", "helmikuulta", "maaliskuulta", "huhtikuulta", "toukokuulta", "kesäkuulta",
                  "heinäkuulta", "elokuulta", "syyskuulta", "lokakuulta", "marraskuulta", "joulukuulta")
 
 
-def money_asks() -> dict:
-    """What tapping Oiva or a chart card on Your money asks her, (FI, EN), each built from the card's own title in
-    money.js (the month is the charts' month, from the data). "oiva" is the floating Oiva's question about the screen."""
-    m = int(MONEY_SPEND["month"][5:7])
-    fi, en = FI_MONTH_FROM[m - 1].removesuffix("lta"), date(2000, m, 1).strftime("%B")  # syyskuu, September
-    return {"oiva": ("Kerro kulutuksestani tässä kuussa", "Tell me about my spending this month"),
-            "trend": (f"Miltä kulutukseni {fi}ssa näyttää?", f"How is my spending in {en} going?"),
-            "cats": (f"Mihin rahani menivät {fi}ssa?", f"Where did my money go in {en}?"),
-            "budget": ("Paljonko budjeteissani on jäljellä?", "How much is left in my budgets?"),
+def money_asks(e: Engine) -> dict:
+    """What tapping Oiva or a chart card on Your money asks her, (FI, EN). Each asks exactly what its card shows, for the
+    month the card shows (Engine.money_month), so the answer leads with the card's own headline figure."""
+    d0, _, whole = e.money_month()
+    fi, en = FI_MONTH_FROM[d0.month - 1].removesuffix("lta"), d0.strftime("%B")  # syyskuu, September
+    budget = ((f"Miten pärjäsin {fi}n budjeteissani?", f"How did I do against my {en} budgets?") if whole
+              else ("Paljonko budjeteissani on jäljellä?", "How much is left in my budgets?"))
+    return {"oiva": (f"Kerro kulutuksestani {fi}ssa", f"Tell me about my spending in {en}"),
+            "trend": (f"Paljonko käytin {fi}ssa, kun vuokraa ja laskuja ei lasketa?",
+                      f"How much did I spend in {en}, not counting rent and bills?"),
+            "cats": (f"Mihin rahani menivät {fi}ssa, kun vuokraa ja laskuja ei lasketa?",
+                     f"Where did my money go in {en}, not counting rent and bills?"),
+            "budget": budget,
             "sit": ("Miten vertaudun kaltaisiini?", "Where do I sit compared with people like me?"),
             "fig": ("Miten tuloni vertautuvat kaltaisiini?", "How does my income compare with people like me?"),
-            "income": ("Paljonko jää laskujen ja sijoittamisen jälkeen?", "What is left after bills and investing?"),
-            "cal": (f"Mitkä ovat {fi}n säännölliset maksuni?", f"What are my regular payments in {en}?")}
+            "income": ("Paljonko palkastani jää tavallisena kuukautena laskujen ja sijoittamisen jälkeen?",
+                       "In a typical month, how much of my salary is left after bills and investing?"),
+            "cal": (f"Mitkä olivat {fi}n säännölliset maksuni?", f"What were my regular payments in {en}?")}
+
+
+@app.get("/s-mobiili/money-data/{name}.json", include_in_schema=False)
+def money_data(name: str):
+    """Your money's chart data, from the engine Oiva answers with (app/money.py); compare.json is the peer fixture."""
+    from . import money
+    if name == "compare":
+        return JSONResponse(json.loads((MONEY_DATA / "compare.json").read_text()))
+    if name not in money.BUILD:
+        raise HTTPException(404)
+    return JSONResponse(money.BUILD[name](engine_for(MONEY_PERSONA)))
 
 
 def chat_url(request: Request, q: str, persona: str) -> str:
@@ -1473,7 +1488,7 @@ def smobiili_home(request: Request):
     if tab != "koti":  # the other tabs: the bank's own screens, no guide walk
         bills_due = e.upcoming_bills(30)
         en = ui_lang(request) == "en"
-        asks = {k: chat_url(request, q[en], persona) for k, q in money_asks().items()} if tab == "raha" else {}
+        asks = {k: chat_url(request, q[en], persona) for k, q in money_asks(e).items()} if tab == "raha" else {}
         return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
             request, persona, screen="tab", tab=tab, a=a, steps=[], ready=None, bills_due=bills_due,
             personas=[{"id": k, "name": v["name"], "label": v["label"]} for k, v in PERSONAS.items()],

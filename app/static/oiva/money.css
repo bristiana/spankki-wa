@@ -52,3 +52,6 @@
   font-size:12.5px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,60,25,.16)}
 .money .ask-oiva .oiva{--s:56px}
 @media (prefers-reduced-motion:reduce){.money .ask-oiva .oiva{--row:0}}
+/* the "Ask me about this" words show for a few seconds, then only Oiva stays in the corner: they never sit on a figure */
+.money .ask-oiva .say{animation:say-out .4s ease 4s forwards}
+@keyframes say-out{to{opacity:0;visibility:hidden}}

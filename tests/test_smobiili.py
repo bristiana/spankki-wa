@@ -113,15 +113,38 @@ def test_your_money_screen(client):
         assert f'id="{card}"' in r.text
     assert "/static/oiva/money.js" in r.text and "/static/oiva/money.css" in r.text
     src = r.text.split('data-src="')[1].split('"')[0]
-    static = Path(main.__file__).parent / "static"
+    assert src == "/s-mobiili/money-data/"
     for name in ("spend", "budget", "compare", "recurring"):
-        assert (static / src.removeprefix("/static/") / f"{name}.json").is_file()
         assert client.get(f"{src}{name}.json").status_code == 200
+    assert client.get(f"{src}nope.json").status_code == 404
+
+
+def test_your_money_and_oiva_share_one_set_of_numbers(client):
+    """Each Your money headline is the figure the engine gives Oiva for that card's own question."""
+    e = main.engine_for(main.MONEY_PERSONA)
+    sp = client.get("/s-mobiili/money-data/spend.json").json()
+    bu = client.get("/s-mobiili/money-data/budget.json").json()
+    rec = client.get("/s-mobiili/money-data/recurring.json").json()
+    d0, d1, whole = e.money_month()
+    assert whole and sp["month"] == "2026-09" and sp["as_of"] == e.today.isoformat()  # 6 Oct: September, whole
+    oiva = e.spending(None, "last_month", exclude_bills=True)
+    assert sp["total_eur"] == oiva["total_eur"] and sp["prev_total_eur"] == oiva["previous_period"]["total_eur"]
+    assert bu["left_in_budgets_eur"] == e.budgets()["left_in_budgets_eur"]
+    assert round(sum(i["left_eur"] for i in bu["items"] if i["limit_eur"]), 2) == bu["left_in_budgets_eur"]
+    rest = rec["left_after_bills_and_investing_per_month_eur"]
+    assert rest == e.commitments()["left_after_bills_and_investing_per_month_eur"]
+    rest_c = {c["category"]: c["avg_3m_eur"] for c in sp["categories"]}["Restaurants"]
+    assert rest_c == e.simulate_cut("Restaurants", 20)["current_per_month_eur"]  # the what-if's monthly figure
+    # last month is the same however the month is asked for (FI and EN answers used different windows)
+    by_dates = e.spending(None, start=d0.isoformat(), end=d1.isoformat())
+    assert by_dates["previous_period"] == e.spending(None, "last_month")["previous_period"]
 
 
 @pytest.mark.parametrize("lang, oiva, cats, say", [
-    ("en", "Tell me about my spending this month", "Where did my money go in September?", "Ask me about this"),
-    ("fi", "Kerro kulutuksestani tässä kuussa", "Mihin rahani menivät syyskuussa?", "Kysy minulta tästä")])
+    ("en", "Tell me about my spending in September", "Where did my money go in September, not counting rent and bills?",
+     "Ask me about this"),
+    ("fi", "Kerro kulutuksestani syyskuussa", "Mihin rahani menivät syyskuussa, kun vuokraa ja laskuja ei lasketa?",
+     "Kysy minulta tästä")])
 def test_your_money_asks_oiva(client, lang, oiva, cats, say):
     """Oiva floats on Your money; tapping her or a chart card asks her about it in the chat, in the screen's language."""
     import re

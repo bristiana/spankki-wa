@@ -69,10 +69,22 @@ TOOLS = [
                 "period": PERIOD_PROP,
                 "start": DATE_PROP,
                 "end": DATE_PROP,
+                "exclude_bills": {"type": "boolean",
+                                  "description": "With category null: leave rent and utility bills out, as S-mobiili's "
+                                                 "Your money charts do. Use when they ask about spending 'not counting "
+                                                 "rent and bills' / 'ilman vuokraa ja laskuja'."},
             },
             "required": ["category", "period"],
             "additionalProperties": False,
         },
+    },
+    {
+        "name": "get_budgets",
+        "description": "The month's budgets shown on S-mobiili's Your money: per everyday category (rent and bills left "
+                       "out) the budget, what was spent and what is left, the total left in the budgets and how many "
+                       "stayed within, plus each category's average of the last 3 full months. Use for 'how much is "
+                       "left in my budgets', 'how did I do against my budgets'. It is not what is safe to spend today.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
         "name": "get_baskets",
@@ -421,7 +433,9 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
     """Run one tool. Returns JSON text; appends a URL button when a money move was prepared."""
     if name == "get_spending":
         out = engine.spending(args.get("category"), args.get("period") or "last_month", args.get("start"), args.get("end"),
-                              args.get("merchant_type"))
+                              args.get("merchant_type"), bool(args.get("exclude_bills")))
+    elif name == "get_budgets":
+        out = engine.budgets()
     elif name == "get_baskets":
         out = engine.baskets(args.get("period") or "last_3_months")
     elif name == "get_upcoming_bills":

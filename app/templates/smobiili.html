@@ -411,7 +411,7 @@
       <span class="s">{{ t("Sijoitustesi arvo", "Value of your investments") }}</span><span class="v">{{ a.funds|fimoney }}</span></span>{{ icon("chevron", "i chev") }}</a>
     </div>
   {% elif screen == "tab" and tab == "raha" %}
-    <div class="pad money" id="money" data-src="/static/mockups/charts/data/">
+    <div class="pad money" id="money" data-src="/s-mobiili/money-data/">
       {# each card is a link: tapping it asks Oiva about that card (money.js fills it in) #}
       {% for id in ("trend", "cats", "budget", "sit", "fig", "income", "cal") %}<a class="card{{ ' rel' if id == 'trend' }}" id="{{ id }}" href="{{ asks[id] }}"></a>
       {% endfor %}
