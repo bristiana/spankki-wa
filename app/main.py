@@ -399,8 +399,8 @@ def send_reply(to: str, reply, message_id: str | None = None):
 STOP_WORDS = {"stop", "unsubscribe", "delete my data", "switch off", "lopeta"}
 
 
-def switch_off(to: str):
-    """Consent withdrawn: forget the connection, the chat history and the name."""
+def switch_off(to: str, lang: str = "en"):
+    """Consent withdrawn: forget the connection, the chat history and the name. The reply in `lang` (fi|en)."""
     engine.state.setdefault("connected", {}).pop(to, None)
     engine.state.setdefault("switched_off", {})[to] = engine.today.isoformat()
     engine._save()
@@ -409,10 +409,12 @@ def switch_off(to: str):
     quiz.forget(engine, to)
     learn.forget(engine, to)
     names.pop(to, None)
-    wa.send_text(to, STOP_REPLY[wa_lang(to)].format(url=public_url()))
+    if mirror.is_owner(to):  # the app's copy of the owner's WhatsApp chat goes too ("our chat history is deleted")
+        mirror.reset()
+    wa.send_text(to, STOP_REPLY["fi" if lang == "fi" else "en"].format(url=public_url()))
 
 
-# What STOP deletes and where things went, as the code sends them (see PRIVACY): chat -> Anthropic, through Meta;
+# What STOP deletes and where things went, said as the privacy page (PRIVACY) and connect.html say it: chat -> Anthropic, through Meta;
 # voice notes -> Whisper on Cloudflare; ElevenLabs only in the app (mic, read aloud). A linked bank stays until removed.
 STOP_REPLY = {
     "en": "Done. Oiva is switched off for this number and our chat history is deleted.\n\n"
@@ -421,7 +423,7 @@ STOP_REPLY = {
           "Oiva kept none of the audio. A bank you linked stays linked until you remove it on the Add a bank page.\n\n"
           "Details: {url}/privacy?lang=en\nWrite *Hi* any time to start again.",
     "fi": "Valmis. Oiva on nyt pois päältä tälle numerolle, ja keskusteluhistoriamme on poistettu.\n\n"
-          "Keskustellessamme viestisi ja niihin tarvittavat luvut menivät Anthropicille (tekoäly) WhatsAppin (Meta) kautta, "
+          "Keskustellessamme viestisi ja niihin tarvittavat luvut menivät Anthropicille (tekoäly) Metan kautta (WhatsApp), "
           "ja ääniviestit Cloudflarelle tekstiksi. ElevenLabsia käytetään vain sovelluksen mikrofonissa ja äänessä. "
           "Oiva ei säilyttänyt ääntä. Yhdistämäsi pankki pysyy yhdistettynä, kunnes poistat sen Lisää pankki -sivulla.\n\n"
           "Lisätietoa: {url}/privacy?lang=fi\nKirjoita *Hei* milloin vain, niin aloitetaan alusta.",
@@ -709,7 +711,7 @@ def handle_message(m: dict):
         # mid-game or mid-course, a bare "stop" pauses it
         stop = word in ("stop", "lopeta") and (quiz.active(engine, to) or learn.active(engine, to))
         if word in STOP_WORDS and not stop:
-            switch_off(to)
+            switch_off(to, lang)  # in the language they write in ("lopeta" is Finnish)
             return
         bid = m.get("button_id") or ""
         secret = [] if bid else guardrails.secrets(m["text"])
