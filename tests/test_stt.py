@@ -1,6 +1,7 @@
 """The Helper's mic (app/stt.py, /api/listen). ElevenLabs is mocked: no test reaches the network."""
 import json
 import logging
+from pathlib import Path
 
 import httpx
 import pytest
@@ -183,3 +184,16 @@ def test_read_timeout_is_not_refunded(client, monkeypatch):
 
     monkeypatch.setattr(stt.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(slow), **kw))
     assert post(client).status_code == 502 and stt._spent["calls"] == 1  # they may have billed it
+
+
+def test_auto_send_pieces_exist():
+    """The transcript sends itself after a short countdown; touching the box or the pill cancels it."""
+    root = Path(main.__file__).parent / "static" / "oiva"
+    js, helper, css = [(root / n).read_text() for n in ("listen.js", "helper.js", "helper.css")]
+    assert "Sending… tap to edit" in js and "Lähetetään… napauta muokataksesi" in js
+    assert "requestSubmit" in js and "SEND_MS = 1800" in js and "> 1500" in js
+    for ev in ('"input"', '"focus"', '"pointerdown"'):
+        assert ev in js  # each cancels the countdown
+    assert "cancelSend" in js and "pagehide" in js
+    assert "Got it — sending…" in helper and "Selvä — lähetän…" in helper and "check and send" not in helper
+    assert "#mic-note.send" in css and "send-bar" in css

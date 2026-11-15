@@ -229,3 +229,18 @@ def test_paused_investing_reads_paused_on_payments_and_paid_rent_reads_paid(clie
     page = get(client, "/s-mobiili/maksut")
     assert re.search(r'id="reg-investing".*?Paused', page, re.S) and "Stopped" not in page
     assert re.search(r'id="reg-rent".*?Paid \(due 3 Nov\)', page, re.S)
+
+
+def test_every_pankki_screen_has_the_chat_icon_and_the_new_basket_name(client):
+    for url in SCREENS:  # like the Card screen: the chat bubble top right opens the Helper as the same customer
+        assert href(get(client, url + "?persona=" + ANTTI), "ask").startswith(f"/chat?as={ANTTI}"), url
+    en, fi = get(client, "/s-mobiili/saastot"), get(client, "/s-mobiili/saastot", "fi")
+    assert "occasional costs" in en and "satunnaiset menot" in fi
+    assert "irregular" not in en and "epäsäännöll" not in fi
+
+
+def test_e_invoices_never_break_after_the_hyphen(client):
+    for lang in ("en", "fi"):
+        page = get(client, "/s-mobiili/?tab=pankki", lang)
+        tile = re.search(r'id="tile-payments".*?</a>', page, re.S).group(0)
+        assert re.search(r"e-(laskut|laskuja|invoices)", tile) is None and "e-⁠" in tile

@@ -68,6 +68,9 @@
   .how{max-width:85%;margin:-2px 0 8px;font-size:13px}
   .how summary{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 4px;cursor:pointer;list-style:none;color:var(--brand);font-weight:600}
   .how summary::-webkit-details-marker{display:none}
+  .how summary{flex-wrap:wrap;row-gap:2px;white-space:nowrap}
+  .how-ok{font-weight:600;font-size:12px;color:var(--brand);background:var(--soft);border-radius:999px;padding:3px 8px}
+  .how-ok.warn{color:#9a4b00;background:#fff3e0}
   .how summary::after{content:"›";display:inline-block;font-size:16px;transition:transform .15s}
   .how[open] summary::after{transform:rotate(90deg)}
   .how-body{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;color:var(--ink)}
@@ -124,7 +127,7 @@
   <a href="{{ tab_urls.mina }}">{{ icon("me") }}{{ t("Minä", "Me") }}</a>
 </nav>
 <div id="sheet" role="dialog" aria-modal="true" aria-label="{{ t('Vahvista S-Pankissa', 'Confirm in S-Pankki') }}">
-  <div class="panel"><div class="top"><span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>S-Pankki</span><button id="close" aria-label="{{ t('Sulje ja palaa chattiin', 'Close and go back to the chat') }}">×</button></div><iframe id="frame" title="Confirm"></iframe></div>
+  <div class="panel"><div class="top"><span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>S-Pankki</span><button id="close" aria-label="{{ t('Sulje ja palaa chattiin', 'Close and go back to the chat') }}">×</button></div><iframe id="frame" title="{{ t('Vahvista', 'Confirm') }}"></iframe></div>
 </div>
 </div>
 <script src="{{ static('oiva/mascot/oiva.js') }}"></script>
@@ -226,7 +229,7 @@ async function send(text, shown, image) {
   t.setAttribute("role", "status");
   try {
     const r = await fetch("/api/chat", {method: "POST", headers: {"content-type": "application/json"},
-                                         body: JSON.stringify({session: sid, text, image, as: {{ persona.id|tojson }}, mirror: MIRROR,
+                                         body: JSON.stringify({session: sid, text, image, as: {{ persona.id|tojson }}, mirror: MIRROR, lang: document.documentElement.lang,
                                                                 shown: shown === null ? "" : (shown || text || "")})});
     const j = r.ok ? await r.json() : {text: r.status === 413 ? "That photo is too big for me. Could you try a smaller one?"
                                              : "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
@@ -245,7 +248,8 @@ async function send(text, shown, image) {
       d.classList.add("has-chart");
       const box = document.createElement("div"), plot = document.createElement("div");
       box.className = "chart"; plot.className = "plot";
-      box.innerHTML = "<b>" + esc(c.title) + "</b><small>" + esc(c.subtitle) + "</small>";
+      const fi = document.documentElement.lang === "fi";  // a chart carries both languages
+      box.innerHTML = "<b>" + esc(fi && c.title_fi || c.title) + "</b><small>" + esc(fi && c.subtitle_fi || c.subtitle) + "</small>";
       box.appendChild(plot); d.appendChild(box);
       window.oivaChart(plot, c);
     }
