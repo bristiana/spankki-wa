@@ -617,12 +617,16 @@ class Engine:
 
     def upcoming_bills(self, days: int = 14) -> list[dict]:
         out = []
+        paid = {p.get("bill_id") for p in self.state.get("pending", {}).values()
+                if p.get("kind") == "payment" and p.get("status") == "done"}
         for r in self.recurring():
             if r.direction != "out" or self.state.get("paused", {}).get(r.transaction_type):
                 continue  # a paused monthly investment is not coming up
             d = self._next_due(r)
             if (d - self.today).days <= days:
                 bill_id = f"{r.key}-{d.isoformat()}"
+                if bill_id in paid:  # paid early (before its due date): it is not coming up again
+                    continue
                 out.append({"bill_id": bill_id, "name": r.name, "category": r.category,
                             "amount_eur": r.avg_amount, "due_date": d.isoformat(),
                             "days_away": (d - self.today).days,
@@ -1227,6 +1231,21 @@ class Engine:
         self._save()
         return {"pending_id": pid, **self.state["pending"][pid]}
 
+    def create_transfer(self, name: str, iban: str, amount: float, reference: str | None = None,
+                        due_date: str | None = None) -> dict:
+        """A new payment typed in S-mobiili (Pankki -> Payments -> New payment): any recipient and IBAN, paid once
+        after Face ID, like a bill photo. The caller checks the IBAN; the amount must fit the balance."""
+        if not 0.01 <= amount <= 10000:
+            raise ValueError("amount must be between 0.01 and 10000 EUR")
+        if amount > self.balance():
+            raise ValueError(f"not enough money: your balance is {self.balance():.2f} EUR")
+        if due_date:
+            date.fromisoformat(due_date)
+        return self._pend({"kind": "payment", "source": "manual", "bill_id": f"manual-{uuid.uuid4().hex[:8]}",
+                           "name": name.strip()[:60], "category": "Other", "amount": eur(amount),
+                           "due_date": due_date, "iban": iban, "reference": reference or None,
+                           "transaction_type": "bill_payment"})
+
     def create_investment(self, amount: float, fund_id: str, monthly: bool) -> dict:
         if fund_id not in FUNDS_BY_ID:
             raise ValueError(f"unknown fund {fund_id!r}; use one of {list(FUNDS_BY_ID)}")
@@ -1256,7 +1275,8 @@ class Engine:
         if p["status"] == "done":
             return {"pending_id": pid, **p, "balance_eur": self.balance(), "first_time": False}
         kind = p["kind"]
-        if kind == "payment" and p.get("source") == "photo":  # a bill from a photo (app/bills.py): paid once
+        if kind == "payment" and p.get("source") in ("photo", "manual"):  # a bill photo (app/bills.py) or a new
+            # payment typed in S-mobiili (create_transfer): paid once
             if any(q is not p and q.get("bill_id") == p["bill_id"] and q["status"] == "done"
                    for q in self.state["pending"].values()):
                 raise ValueError(f"the {p['name']} bill is already paid")
