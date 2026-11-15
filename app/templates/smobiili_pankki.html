@@ -69,7 +69,7 @@
       <a class="li tap" id="acct-s-tili" href="/s-mobiili/tilit/s-tili{{ k }}">{{ icon("bars") }}<span class="txt">S-Tili<small>{{ iban }}</small></span><span class="amt">{{ a.current|fimoney }}</span>{{ icon("chevron", "i chev") }}</a>
       <a class="li tap" id="acct-savings" href="/s-mobiili/saastot{{ k }}">{{ icon("trophy") }}<span class="txt">{{ t("Säästötili", "Savings account") }}<small>{% if a.pocket_open %}{{ a.goals|length }} {{ t("tavoite", "goal") if a.goals|length == 1 else t("tavoitetta", "goals") }}{% else %}{{ t("Ei vielä avattu", "Not opened yet") }}{% endif %}</small></span><span class="amt">{{ a.pocket|fimoney if a.pocket_open else "–" }}</span>{{ icon("chevron", "i chev") }}</a>
       <a class="li tap" id="acct-funds" href="/s-mobiili/sijoitukset{{ k }}">{{ icon("case") }}<span class="txt">{{ t("Rahastot", "Funds") }}<small>{{ t("Rahastoihin maksettu", "Paid into funds") }}</small></span><span class="amt">{{ a.funds|fimoney }}</span>{{ icon("chevron", "i chev") }}</a>
-      <a class="li tap" id="acct-card" href="{{ tab_urls.kortti }}">{{ icon("scard-fill") }}<span class="txt">S-Etukortti Visa<small>{{ t("Luottoa käytettävissä", "Credit available") }}</small></span><span class="amt">2&nbsp;000,00&nbsp;€</span>{{ icon("chevron", "i chev") }}</a>
+      <a class="li tap" id="acct-card" href="{{ tab_urls.kortti }}">{{ icon("scard-fill") }}<span class="txt">S-Etukortti Visa<small>{{ t("Luottoa käytettävissä", "Credit available") }}</small></span><span class="amt">{{ 2000|fimoney }}</span>{{ icon("chevron", "i chev") }}</a>
     </section>
     {{ ask_oiva("Paljonko voin käyttää palkkapäivään asti?", "How much can I spend until payday?", "ask-accounts", cls="card") }}
   </div>

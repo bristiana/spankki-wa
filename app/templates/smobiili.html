@@ -357,9 +357,9 @@
       <div class="lvl"><b>{{ t("Seuraavaan tasoon", "To the next level") }} {{ bonus.to_next|fimoney }}</b>
         <small>{{ t("Saatat jo olla seuraavalla bonustasolla", "You may already be on the next bonus level") }} {{ icon("info") }}</small></div>
       <div class="scale">
-        <div class="lbl"><span>5 %</span><span>900 €</span></div>
+        <div class="lbl"><span>{{ t("5 %", "5%") }}</span><span>900 €</span></div>
         <div class="dash"></div>
-        <div class="row2 base"><span>1,0 %</span>
+        <div class="row2 base"><span>{{ t("1,0 %", "1.0%") }}</span>
           <div class="house"><span>{{ t("Bonusta tulossa", "Bonus coming") }}</span><b>{{ "%.2f"|format(bonus.coming) if ui_lang(request) == "en" else "%.2f"|format(bonus.coming)|replace(".", ",") }}<small>€</small></b></div>
           <span>50 €</span></div>
       </div>
@@ -389,7 +389,7 @@
     <h2 class="sec">{{ t("Tilit ja kortit", "Accounts and cards") }}</h2>
     <section class="card list">
       <div class="li" id="acct-current">{{ icon("bars") }}<span class="txt">{{ t("Käyttötili", "Current account") }}</span><span class="amt">{{ a.current|fimoney }}</span></div>
-      <div class="li">{{ icon("scard-fill") }}<span class="txt">S-Etukortti Visa Credit/Debit<small>Credit **** 4821</small></span><span class="amt">2&nbsp;000,00&nbsp;€<small>{{ t("Luottoa käytettävissä", "Credit available") }}</small></span></div>
+      <div class="li">{{ icon("scard-fill") }}<span class="txt">S-Etukortti Visa Credit/Debit<small>Credit **** 4821</small></span><span class="amt">{{ 2000|fimoney }}<small>{{ t("Luottoa käytettävissä", "Credit available") }}</small></span></div>
       <a class="hide-link" href="{{ tab_urls.kortti }}">{{ t("Näytä kortin tiedot", "Show card details") }}</a>
     </section>
     <{{ 'div' if web else 'a' }} class="card bk" id="baskets"{% if not web %} href="{{ ask('Mihin rahani menevät?', 'Where does my money go?') }}"{% endif %}>
@@ -431,7 +431,7 @@
     <a class="card tile" id="tile-payments" href="/s-mobiili/maksut{{ keep }}">{{ icon("bill") }}<span class="txt"><span class="t">{{ t("Maksut ja e-⁠laskut", "Payments and e-⁠invoices") }}</span>
       <span class="s">{{ t("Tee uusi maksu tai tarkastele ja tilaa e-⁠laskuja", "Make a new payment, or view and order e-⁠invoices") }}</span></span>{{ icon("chevron", "i chev") }}</a>
     <a class="card tile" id="tile-cards" href="{{ tab_urls.kortti }}">{{ icon("scard") }}<span class="txt"><span class="t">{{ t("Kortit", "Cards") }}</span>
-      <span class="s">S-Etukortti Visa Credit/Debit</span><span class="v">2&nbsp;000,00&nbsp;€</span></span>{{ icon("chevron", "i chev") }}</a>
+      <span class="s">S-Etukortti Visa Credit/Debit</span><span class="v">{{ 2000|fimoney }}</span></span>{{ icon("chevron", "i chev") }}</a>
     <a class="card tile" id="tile-savings" href="/s-mobiili/saastot{{ keep }}">{{ icon("trophy") }}<span class="txt"><span class="t">{{ t("Säästöt", "Savings") }}</span>
       {% set g = a.goals[0] if a.goals else none %}<span class="s">{% if g %}{{ t("Hätävara", g.name) if g.id == "emergencybuffer" else g.name }}{% else %}{{ t("Aloita säästötavoite", "Start a savings goal") }}{% endif %}</span>
       <span class="v">{{ g.saved|fimoney if g else t("Ei vielä tavoitetta", "No goal yet") }}</span></span>{{ icon("chevron", "i chev") }}</a>
@@ -478,7 +478,7 @@
     </section>
     <section class="plain">
       <a class="li tap" id="card-transactions" href="/s-mobiili/kortti/tapahtumat{{ keep }}">{{ icon("list") }}<span class="txt">{{ t("Korttitapahtumat", "Card transactions") }}</span>{{ icon("chevron", "i chev") }}</a>
-      <div class="li"><span class="txt">{{ t("Luottoraja", "Credit limit") }}<small>{{ t("Korttiostot veloitetaan S-Tililtä (debit)", "Card purchases come off your S-Tili (debit)") }}</small></span><span class="val">2&nbsp;000,00&nbsp;€</span></div>
+      <div class="li"><span class="txt">{{ t("Luottoraja", "Credit limit") }}<small>{{ t("Korttiostot veloitetaan S-Tililtä (debit)", "Card purchases come off your S-Tili (debit)") }}</small></span><span class="val">{{ 2000|fimoney }}</span></div>
       {{ ask_oiva("Mihin rahani menivät tässä kuussa?", "Where did my money go this month?", "ask-card-spend") }}
       <div class="grey">{{ t("Korttiturvallisuus", "Card security") }}</div>
       <label class="li" for="card-lock"><span class="txt">{{ t("Lukitse kortti väliaikaisesti", "Lock the card for now") }}<small>{{ t("Avaa lukitus milloin vain", "Unlock it any time") }}</small></span><input class="p-tog" type="checkbox" role="switch" id="card-lock"></label>
