@@ -52,7 +52,7 @@
     Travel: '<path d="M3 13l18-7-5 14-3-6z"/>'
   };
   const COL = {Groceries: "c0", Restaurants: "c1", Lifestyle: "c2", Transportation: "c3", Entertainment: "c4", "Home & Tech": "c5", Health: "c6", Travel: "c7"};
-  const CAT_FI = {Groceries: "Ruoka", Restaurants: "Ravintolat", Lifestyle: "Ostokset", Transportation: "Liikkuminen",
+  const CAT_FI = {Groceries: "Ruoka", Restaurants: "Ravintolat", Lifestyle: "Shoppailu", Transportation: "Liikkuminen",
     Entertainment: "Viihde", "Home & Tech": "Koti ja tekniikka", Health: "Terveys", Travel: "Matkailu"};
   const lab = c => FI ? CAT_FI[c.category] || c.label : c.label;  // a category's name, in the screen's language
   const css = v => getComputedStyle(HOST).getPropertyValue("--" + v).trim();

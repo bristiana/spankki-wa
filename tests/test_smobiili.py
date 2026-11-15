@@ -225,3 +225,15 @@ def test_finnish_pay_page_and_koti_have_no_english_or_iso_dates(client):
         assert not re.search(r"\b\d{4}-\d{2}-\d{2}\b(?![^<]*>)", re.sub(r"<script.*?</script>", "", page, flags=re.S))
         assert not re.search(r"\d\.\d{2}(&nbsp;|\s| )?€", page)
     assert "Vuokranantaja" in pay and "Vuokra" in koti
+
+
+def test_demo_reset_link_needs_a_tap(client, monkeypatch):
+    """GET only shows the button (a link preview can't wipe the demo); the button resets and opens S-mobiili."""
+    called = []
+    monkeypatch.setattr(main, "demo_reset", lambda: called.append("reset"))
+    monkeypatch.setattr(main, "warm_up", lambda *a: called.append("warm"))
+    page = client.get("/demo/reset?lang=fi").text
+    assert "Palauta demo" in page and 'action="/demo/reset/go"' in page and not called
+    r = client.post("/demo/reset/go", data={"lang": "fi"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == f"/s-mobiili/?persona={main.DEFAULT_PERSONA}&lang=fi"
+    assert called == ["reset", "warm"]

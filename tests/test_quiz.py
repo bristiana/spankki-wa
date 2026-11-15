@@ -255,3 +255,30 @@ def test_whatsapp_game_with_reply_buttons_and_stop(client):
     assert client.sent[-1]["text"]["body"] == "You can spend 50 € this week."  # no game note after a chosen pause
     main.handle_message(msg("stop", mid="m5"))  # no game running: STOP switches Oiva off as before
     assert not main.connected(to) and to not in main.engine.state["quiz"]
+
+
+# ---------------- Finnish ----------------
+@pytest.mark.parametrize("phrase", ["Pelataan koripeliä", "pelaa", "peli", "koripeli", "aloita peli", "pelataan"])
+def test_finnish_start_phrase_starts_the_game_in_finnish(e, phrase):
+    t = quiz.turn(e, "u", phrase)
+    assert t and t.text.startswith("*1/5*") and "Mikä kori?" in t.text
+    assert e.state["quiz"]["u"]["lang"] == "fi" and "Koripeli" in t.lead[0]
+
+
+def test_finnish_game_uses_finnish_money_date_and_basket_buttons(e):
+    t = quiz.turn(e, "u", "x", "quiz:start", "fi")
+    p = e.state["quiz"]["u"]["picks"][0]
+    d = date.fromisoformat(p["date"])
+    assert money(p["amount_eur"]).replace(".", ",") in t.text and f"{d.day}.{d.month}." in t.text
+    assert [b[1] for b in t.buttons] == ["Laskut ja perusmenot", "Satunnaiset menot", "Valinnaiset menot"]
+    r = e.state["quiz"]["u"]
+    fb = quiz.turn(e, "u", "", f"quiz:0:0:{p['basket']}").lead[0]
+    assert fb.startswith("Oikein.") and "Right" not in fb
+    quiz.turn(e, "u", "stop")
+    assert quiz.turn(e, "u", "peli").lead == ["Takaisin peliin."]
+
+
+def test_english_page_stays_english(e):
+    t = quiz.turn(e, "u", "x", "quiz:start", "en")
+    assert "Which basket?" in t.text and [b[1] for b in t.buttons] == [b["label"] for b in BASKETS.values()]
+    assert e.state["quiz"]["u"]["lang"] == "en"

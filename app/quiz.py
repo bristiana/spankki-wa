@@ -13,7 +13,7 @@ import random
 import re
 from datetime import date, timedelta
 
-from .engine import BASKETS, CATEGORY_BASKET, MCC_LABELS, SPEND_CATEGORIES, Engine, merchant_name
+from .engine import BASKETS, CATEGORY_BASKET, CATEGORY_FI, MCC_LABELS, SPEND_CATEGORIES, Engine, merchant_name
 from .onboarding import Turn, _money
 
 ROUNDS = 5
@@ -27,20 +27,56 @@ KIND = {"Housing": "Housing", "Utilities": "Utility bills", "Transportation": "T
         "Home & Tech": "Home & tech", "Travel": "Travel", "Groceries": "Groceries", "Restaurants": "Eating out",
         "Lifestyle": "Shopping", "Entertainment": "Entertainment"}
 NAME = {"Housing": "Housing payment", "Utilities": "Utility bill"}  # rows with no merchant
+ANSWER_FI = {"regular": "Laskut ja perusmenot", "irregular": "Satunnaiset menot", "everyday": "Valinnaiset menot"}  # = main.BASKET_FI
+NAME_FI = {"Housing": "Vuokranmaksu", "Utilities": "Sähkölasku"}
+MCC_FI = {"4111": "Joukkoliikenne", "4121": "Taksit", "4722": "Matkatoimistot", "5200": "Rautakaupat",
+          "5411": "Supermarketit", "5422": "Lihakaupat", "5451": "Maitokaupat", "5499": "Ruokakaupat",
+          "5541": "Huoltoasemat", "5542": "Polttoaine (itsepalvelu)", "5712": "Kalustekaupat",
+          "5732": "Elektroniikkakaupat", "5812": "Ravintolat", "5813": "Baarit ja pubit", "5814": "Pikaruoka ja kahvilat",
+          "5912": "Apteekit", "5941": "Urheilukaupat", "5942": "Kirjakaupat", "5945": "Lelukaupat",
+          "5999": "Muut kaupat", "7011": "Hotellit", "7523": "Pysäköinti", "7832": "Elokuvat",
+          "7922": "Teatteri- ja tapahtumaliput", "7991": "Nähtävyydet", "7996": "Huvipuistot", "7999": "Vapaa-aika",
+          "8011": "Lääkärit", "8021": "Hammaslääkärit", "8099": "Terveyspalvelut"}
+WD_FI = ["ma", "ti", "ke", "to", "pe", "la", "su"]
+MONTH_FI = ["tammikuussa", "helmikuussa", "maaliskuussa", "huhtikuussa", "toukokuussa", "kesäkuussa", "heinäkuussa",
+            "elokuussa", "syyskuussa", "lokakuussa", "marraskuussa", "joulukuussa"]
+WHY_FI = {
+    "regular": "{kind}: välttämätön ja toistuu aikataulussa, joten sen voi ennakoida. Sinulla {amt} {period}.",
+    "irregular": "{kind}: välttämätön, mutta et tiedä milloin, joten pieni puskuri auttaa. Sinulla {amt} {period}.",
+    "everyday": "{kind}: oma valintasi, pieniä asioita jotka kasautuvat. Sinulla {amt} {period}.",
+}
+PERIOD_FI = {"last month": "viime kuussa", "over the last 3 months": "kolmen viime kuukauden aikana"}
 WHY = {
     "regular": "{kind}: needed, and it comes back on a schedule, so you can plan for it. {amt} of yours {period}.",
     "irregular": "{kind}: needed, but you can't know when, so a small buffer helps. {amt} of yours {period}.",
     "everyday": "{kind}: your own choice, small things that add up. {amt} of yours {period}.",
 }
 
+START_FI = re.compile(r"^\W*(koripeli|koripeliä|peli|peliä|pelaa|pelataan|pelataan koripeliä|pelaa koripeliä|"
+                      r"pelataan peliä|aloita peli|aloita koripeli|pelataan peli|jatka peliä|jatketaan peliä|"
+                      r"haluan pelata|pelataanko)\W*$", re.I)
 START = re.compile(r"^\W*(quiz|game|basket game|the basket game|play|play the basket game|play the game|"
                    r"play a game|start the game|resume the game|continue the game)\W*$", re.I)
 EXIT = re.compile(r"^\W*(stop|stop the game|stop game|quit|exit|end|enough|pause|later|not now|bye|no more|"
-                  r"lopeta)\W*$", re.I)
-TYPED = [("irregular", re.compile(r"^\W*(2|occasional( costs?)?|irregular( must-?pay)?)\W*$", re.I)),
-         ("regular", re.compile(r"^\W*(1|bills?( (&|and) basics)?|basics|regular( must-?pay)?)\W*$", re.I)),
+                  r"lopeta|tauko|keskeytä|riittää|ei enää|myöhemmin)\W*$", re.I)
+TYPED = [("irregular", re.compile(r"^\W*(2|occasional( costs?)?|irregular( must-?pay)?|satunnaiset( menot)?)\W*$", re.I)),
+         ("regular", re.compile(r"^\W*(1|bills?( (&|and) basics)?|basics|regular( must-?pay)?|laskut( ja perusmenot)?|"
+                                r"perusmenot)\W*$", re.I)),
          ("everyday", re.compile(r"^\W*(3|fun( (&|and) extras)?|extras|slips?( through)?( your fingers)?|everyday|"
-                                 r"fingers)\W*$", re.I))]
+                                 r"fingers|valinnaiset( menot)?)\W*$", re.I))]
+
+
+def _fi(r) -> bool:
+    return (r or {}).get("lang") == "fi"
+
+
+def _fmoney(x: float, fi: bool) -> str:
+    s = _money(x)
+    return s.replace(".", ",") if fi else s
+
+
+def _answers(fi: bool) -> dict:
+    return ANSWER_FI if fi else ANSWER
 
 
 def _rec(engine: Engine, user: str) -> dict | None:
@@ -110,28 +146,54 @@ def pick(engine: Engine, game: int = 0) -> list[dict]:
 
 
 def _buttons(r: dict) -> list:
-    return [(f"quiz:{r['game']}:{r['round']}:{b}", label) for b, label in ANSWER.items()]
+    return [(f"quiz:{r['game']}:{r['round']}:{b}", label) for b, label in _answers(_fi(r)).items()]
+
+
+def _kind_fi(p: dict) -> str:
+    mcc = next((c for c, l in MCC_LABELS.items() if l == p["kind"]), None)
+    return MCC_FI[mcc] if mcc else CATEGORY_FI.get(p["category"], p["kind"]).capitalize()
+
+
+def _name_fi(p: dict) -> str:
+    if p["place"]:
+        return p["name"]
+    return NAME_FI.get(p["category"]) or f"{_kind_fi(p)} (maksu)"
 
 
 def _question(r: dict) -> Turn:
     p = r["picks"][r["round"]]
     d = date.fromisoformat(p["date"])
+    fi = _fi(r)
+    if fi:
+        kind, name = _kind_fi(p), _name_fi(p)
+        what = f"{name} · {kind.lower()}" if p["place"] else name
+        return Turn(f"*{r['round'] + 1}/{len(r['picks'])}* {what} · {_fmoney(p['amount_eur'], True)} · "
+                    f"{WD_FI[d.weekday()]} {d.day}.{d.month}. Mikä kori?", _buttons(r))
     what = f"{p['name']} · {p['kind'].lower()}" if p["place"] else p["name"]
     return Turn(f"*{r['round'] + 1}/{len(r['picks'])}* {what} · {_money(p['amount_eur'])} · "
                 f"{d.strftime('%a')} {d.day} {d.strftime('%b')}. Which basket?", _buttons(r))
 
 
-def start(engine: Engine, user: str) -> Turn:
+def start(engine: Engine, user: str, lang: str = "en") -> Turn:
     """A new game (the next one if they played before: other payments, same rules)."""
     games = engine.state.setdefault("quiz", {})
     game = games[user]["game"] + 1 if user in games else 0
     picks = pick(engine, game)
     if not picks:
+        if lang == "fi":
+            return Turn("Tarvitsen muutaman korttimaksusi koripeliin, enkä löydä tuoreita vielä.")
         return Turn("I need a few of your card payments to play the basket game, and I can't find recent ones yet.")
     r = games[user] = {"game": game, "round": 0, "picks": picks, "right": 0, "paused": False, "note": False,
-                       "done": False}
+                       "done": False, "lang": lang}
     engine._save()
     t = _question(r)
+    if lang == "fi":
+        t.lead = [f"*Koripeli.* Jokainen käyttämäsi euro päätyy yhteen kolmesta korista. Näytän {len(picks)} omaa "
+                  "maksuasi, ja sinä valitset korin.\n"
+                  "• Laskut ja perusmenot: tarvitaan joka kuukausi, kuten vuokra ja ruokaostokset\n"
+                  "• Satunnaiset menot: tarvitaan silloin tällöin, kuten lääkäri tai korjaus\n"
+                  "• Valinnaiset menot: oma valintasi, kuten ravintolat ja shoppailu"]
+        return t
     t.lead = [f"*The basket game.* Every euro you spend lands in one of three baskets. I'll show you "
               f"{len(picks)} of your own payments, you pick the basket.\n"
               "• Bills & basics: needed every month, like rent and groceries\n"
@@ -140,11 +202,34 @@ def start(engine: Engine, user: str) -> Turn:
     return t
 
 
-def _feedback(p: dict, guess: str) -> str:
+def _feedback(p: dict, guess: str, fi: bool = False) -> str:
+    if fi:
+        why = WHY_FI[p["basket"]].format(kind=_kind_fi(p), amt=_fmoney(p["total_eur"], True),
+                                         period=PERIOD_FI.get(p["period"], p["period"]))
+        if guess == p["basket"]:
+            return f"Oikein. {why}"
+        return f"Helppo sekoittaa: tämä kuuluu koriin *{ANSWER_FI[p['basket']]}*. {why}"
     why = WHY[p["basket"]].format(kind=p["kind"], amt=_money(p["total_eur"]), period=p["period"])
     if guess == p["basket"]:
         return f"Right. {why}"
     return f"Easy to mix up: this one is *{ANSWER[p['basket']]}*. {why}"
+
+
+def _summary_fi(engine: Engine, r: dict, b: dict, n: int, right: int) -> Turn:
+    month = MONTH_FI[date.fromisoformat(b["from"]).month - 1]
+    head = ("Hyvin tiedät korisi." if right == n else "Suurin osa oikein." if right * 2 > n
+            else "Nyt tiedät mistä katsoa.")
+    lines = [f"*{right}/{n}*. {head}", "", f"Todellinen jakosi {month}:"]
+    lines += [f"• {ANSWER_FI[k['basket']]}: {_fmoney(k['total_eur'], True)} ({k['share_pct']}%)"
+              for k in b["baskets"]]
+    cuts = [engine.simulate_cut(c, CUT_PCT) for c in BASKETS["everyday"]["categories"]]
+    per_month = round(sum(c["current_per_month_eur"] for c in cuts), 2)
+    per_year = round(sum(c["saving_per_year_eur"] for c in cuts), 2)
+    if per_year:
+        lines += ["", f"Valinnaisiin menoihin meni keskimäärin {_fmoney(per_month, True)} kuukaudessa kolmen viime "
+                      f"kuukauden aikana. −{CUT_PCT} % vapauttaisi noin *{_fmoney(per_year, True)} vuodessa*."]
+    return Turn("\n".join(lines), [("ask:everyday", "Mihin se menee?"), ("quiz:again", "Pelaa uudestaan"),
+                                   ("quiz:money", "Avaa S-mobiili")], done=True)
 
 
 def summary(engine: Engine, r: dict) -> Turn:
@@ -152,6 +237,8 @@ def summary(engine: Engine, r: dict) -> Turn:
     b = engine.baskets("last_month")
     month = date.fromisoformat(b["from"]).strftime("%B")
     n, right = len(r["picks"]), r["right"]
+    if _fi(r):
+        return _summary_fi(engine, r, b, n, right)
     head = ("All right, you know your baskets." if right == n else "Most of them right." if right * 2 > n
             else "Now you know where to look.")
     lines = [f"*{right}/{n}*. {head}", "", f"Your real split for {month}:"]
@@ -171,7 +258,7 @@ def _answer(engine: Engine, r: dict, guess: str) -> Turn:
     p["guess"] = guess
     r["right"] += guess == p["basket"]
     r["round"] += 1
-    fb = _feedback(p, guess)
+    fb = _feedback(p, guess, _fi(r))
     if r["round"] < len(r["picks"]):
         engine._save()
         t = _question(r)
@@ -183,22 +270,25 @@ def _answer(engine: Engine, r: dict, guess: str) -> Turn:
     return t
 
 
-def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | None:
+def turn(engine: Engine, user: str, text: str, button_id: str = "", lang: str | None = None) -> Turn | None:
     """One game step. None = not a game turn (the coach or the interview answers)."""
     r = _rec(engine, user)
     text = (text or "").strip()
-    if button_id in ("quiz:start", "quiz:again", "quiz:resume") or (not button_id and START.match(text)):
+    typed_fi = not button_id and bool(START_FI.match(text))
+    if button_id in ("quiz:start", "quiz:again", "quiz:resume") or (typed_fi or (not button_id and START.match(text))):
         # "game" while paused, or the "Keep playing" of a follow-up the day after: back where they left
         if r and not r["done"] and (r["paused"] or button_id == "quiz:resume") and button_id != "quiz:again":
             r["paused"] = r["note"] = False
             engine._save()
             t = _question(r)
-            t.lead = ["Back to the game."]
+            t.lead = ["Takaisin peliin." if _fi(r) else "Back to the game."]
             return t
-        return start(engine, user)
+        return start(engine, user, "fi" if typed_fi or lang == "fi" else "en")
     if button_id.startswith("quiz:") and button_id.count(":") == 3:
         _, game, rnd, guess = button_id.split(":")
         if not r or r["done"] or int(game) != r["game"]:
+            if lang == "fi" or _fi(r):
+                return Turn("Peli on päättynyt. Pelataanko uusi kierros?", [("quiz:again", "Pelaa uudestaan")])
             return Turn("That game is over. Want another round?", [("quiz:again", "Play again")])
         r["paused"] = r["note"] = False
         if int(rnd) != r["round"] or guess not in BASKETS:
@@ -210,6 +300,8 @@ def turn(engine: Engine, user: str, text: str, button_id: str = "") -> Turn | No
     if EXIT.match(text):
         r["paused"] = True
         engine._save()
+        if _fi(r):
+            return Turn(f"Peli on tauolla kohdassa {r['round'] + 1}/{len(r['picks'])}. Kirjoita *peli*, kun haluat jatkaa.")
         return Turn(f"Paused at {r['round'] + 1}/{len(r['picks'])}. Write *game* when you want to pick it up.")
     guess = next((b for b, rx in TYPED if rx.match(text)), None)
     if guess:
@@ -234,4 +326,6 @@ def paused_note(engine: Engine, user: str) -> str | None:
         return None
     r["note"] = False
     engine._save()
+    if _fi(r):
+        return f"Koripeli on tauolla kohdassa {r['round'] + 1}/{len(r['picks'])}. Kirjoita *peli* jatkaaksesi."
     return f"The basket game is paused at {r['round'] + 1}/{len(r['picks'])}. Write *game* to pick it up."

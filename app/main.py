@@ -553,15 +553,16 @@ SECRET_CONTEXT = ("Their message had a {what} in it; it was removed before it re
                   "asked them to delete it. Don't mention it again; answer only the rest, in one bubble.")
 
 
-def flow_turn(e: Engine, user: str, text: str, bid: str = "") -> onboarding.Turn | None:
+def flow_turn(e: Engine, user: str, text: str, bid: str = "", lang: str | None = None) -> onboarding.Turn | None:
     """The no-AI flows, in order: the Learn course, the basket game, the interview. None = the coach answers."""
-    return flow_turn_named(e, user, text, bid)[1]
+    return flow_turn_named(e, user, text, bid, lang)[1]
 
 
-def flow_turn_named(e: Engine, user: str, text: str, bid: str = "") -> tuple[str, onboarding.Turn | None]:
+def flow_turn_named(e: Engine, user: str, text: str, bid: str = "",
+                    lang: str | None = None) -> tuple[str, onboarding.Turn | None]:
     """flow_turn, and which flow answered ("learn", "quiz", "interview"; "" = none): the helper squirrel's pose."""
     for name, flow in (("learn", learn), ("quiz", quiz), ("interview", onboarding)):
-        t = flow.turn(e, user, text, bid)
+        t = flow.turn(e, user, text, bid, lang) if flow is quiz else flow.turn(e, user, text, bid)
         if t:
             return name, t
     return "", None
@@ -2252,10 +2253,25 @@ def warm_up(persona: str = DEFAULT_PERSONA):
         warm_state.update(running=False, seconds=round(time.time() - t0, 1))
 
 
-@app.get("/demo/reset", include_in_schema=False)
-def demo_reset_link(request: Request, bg: BackgroundTasks, lang: str = "", warm: str = "1"):
-    """The presenter's reset link: the demo back to its start (every persona, every chat, the basket game and the
-    course), then the warm-up in the background, then S-mobiili. /demo/warm shows how far the warm-up got."""
+@app.get("/demo/reset", response_class=HTMLResponse, include_in_schema=False)
+def demo_reset_page(lang: str = ""):
+    """The presenter's reset link: one button (a link preview or prefetch can't wipe the demo by opening it)."""
+    fi = lang != "en"
+    return HTMLResponse(
+        '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>Demo reset</title><body style="font:17px system-ui;margin:0;display:grid;place-items:center;min-height:100vh;'
+        'background:#ebf7ec"><form method="post" action="/demo/reset/go" style="text-align:center;padding:16px">'
+        f'<input type="hidden" name="lang" value="{"fi" if fi else "en"}"><p>'
+        + ("Palauta demo alkuun: kaikki keskustelut, peli ja kurssi nollataan, ja Oiva lämmittelee demokysymykset."
+           if fi else "Reset the demo: every chat, the game and the course start over, and Oiva warms up the demo questions.")
+        + '</p><button style="font:inherit;font-weight:600;padding:14px 28px;border:0;border-radius:999px;background:#00703c;'
+        f'color:#fff">{"Palauta demo" if fi else "Reset the demo"}</button></form></body>')
+
+
+@app.post("/demo/reset/go", include_in_schema=False)
+def demo_reset_link(bg: BackgroundTasks, lang: str = Form(""), warm: str = Form("1")):
+    """Reset: the demo back to its start (every persona, every chat, the basket game and the course), then the
+    warm-up in the background, then S-mobiili. /demo/warm shows how far the warm-up got."""
     demo_reset()
     if warm != "0":
         bg.add_task(warm_up)
@@ -2640,7 +2656,7 @@ async def chat_turn(request: Request):
     asked = bool(bid) and ask_text(e, sid, bid) is not None
     if not asked:
         typed = "" if bid else text
-        flow, t = flow_turn_named(e, sid, typed, bid)
+        flow, t = flow_turn_named(e, sid, typed, bid, body.get("lang") if body.get("lang") in LANGS else None)
         if t:
             remember(persona, sid, typed or f"[tapped {bid}]", t)
             return interview(t, flow=flow)
@@ -2693,12 +2709,11 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=(), asked: str = ""
         owner[pending_id_of(b["url"])] = sid
         out.append({"label": b["label"], "url": with_web(b["url"].replace(public_url(), ""))})
     # a paused game never adds its own line to an answer about something else: a quiet button to go back instead
-    paused, back = quiz.paused_note(e, sid), []
-    if paused:
-        at = re.search(r"\d+/\d+", paused)
-        fi = agent_mod.is_finnish(reply.text)
-        back = [("quiz:resume", (f"Jatka peliä ({at.group(0)})" if fi else f"Back to the game ({at.group(0)})")
-                 if at else ("Jatka peliä" if fi else "Back to the game"))]
+    quiz.paused_note(e, sid)  # said as the button below, never as a line in the answer
+    game, back = quiz._rec(e, sid), []
+    if game and game.get("paused") and not game.get("done"):  # on every side answer while the game waits
+        at = f"{game['round'] + 1}/{len(game['picks'])}"
+        back = [("quiz:resume", f"Jatka peliä ({at})" if agent_mod.is_finnish(reply.text) else f"Back to the game ({at})")]
     waiting = learn.paused_note(e, sid)
     onboarding.side_question(e, sid, asked)  # mid-interview: never re-sent; another topic pauses it
     parts = wa.bubbles(reply.text) if reply.text.strip() else []

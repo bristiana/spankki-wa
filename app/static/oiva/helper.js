@@ -406,7 +406,7 @@
       show("listening", last || ""); if (say) say.classList.add("rest");
       restLater(6000);
     },
-    hearCancel() { show("listening", T("Muokkaa viestiä ja paina Lähetä", "Edit it, then tap Send")); restLater(8000); },  // the countdown was stopped
+    hearCancel() { pose("talk"); show("", T("Muokkaa viestiä ja paina Lähetä", "Edit it, then tap Send")); restLater(8000); },  // the countdown was stopped
     mood: () => mood,
     _test: { bubble, pairFor },  // tests/test_mood.py runs these in node
   };
