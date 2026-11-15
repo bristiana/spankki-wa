@@ -65,6 +65,7 @@
     }
     const poke = () => {  // a tap: a little hop, then back to the pose
       if (gaze) return;
+      el.style.removeProperty("--row"); el.style.removeProperty("--col");  // a look frame's row would win over happy's
       el.className = "oiva happy";
       setTimeout(draw, 700);
     };
@@ -73,6 +74,7 @@
       setState(n) { state = n; draw(); },
       setFps() {},
       lookAt(x, y) { gaze = x == null ? null : { x, y }; draw(); },
+      redraw: draw,  // the stage changed size (keyboard): aim at the bubble again
       destroy() { box.removeEventListener("click", poke); box.textContent = ""; },
     };
   }
@@ -208,7 +210,7 @@
     document.querySelectorAll(".modes [data-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
     if (remember) store.set("oiva-mode", m);
     if (stage) stage.hidden = !helper;
-    if (oiva && made !== m) { oiva.destroy(); oiva = null; }
+    if (oiva && (!helper || made !== m)) { oiva.destroy(); oiva = null; made = ""; }  // Chat runs no Oiva
     if (helper && !oiva && pal) {
       if (m === "coin") oiva = coinOiva(pal);
       else if (window.Oiva) oiva = window.Oiva.create(pal, { palette: "red", state: mood, hoverReact: true, fps: mood === "idle" ? 20 : 30 });  // a tap pokes him (oiva.js)
@@ -231,7 +233,7 @@
 
   // ---- keyboard: a smaller stage when the visual viewport is short ----
   if (window.visualViewport) {
-    const fit = () => phone.classList.toggle("kb", visualViewport.height < 560);
+    const fit = () => { phone.classList.toggle("kb", visualViewport.height < 560); if (oiva && oiva.redraw) oiva.redraw(); };
     visualViewport.addEventListener("resize", fit); fit();
   }
 
