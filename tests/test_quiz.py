@@ -45,9 +45,11 @@ def test_picks_five_real_payments_across_all_three_baskets(e):
                  & ((tx["tx_amount_eur"] + p["amount_eur"]).abs() < 0.005)]
         assert len(row) >= 1, p  # a payment that is really in her history
         assert (e.today - date.fromisoformat(p["date"])).days <= quiz.IRREGULAR_WINDOW_DAYS
-    # the first game starts with where most of the money went: her rent and her fast food
-    assert {p["kind"] for p in picks} >= {"Housing", "Fast food and cafés"}
-    fast = next(p for p in picks if p["kind"] == "Fast food and cafés")
+    # the first game: things anyone can sort at a glance, named by the kind of place, never "Shopping payment"
+    assert {p["kind"] for p in picks} >= {"Rent", "Café or fast food"}
+    sortable = {fi for b in quiz.SORTABLE.values() for fi in b.values()}
+    assert all((p["name"], p["name_fi"]) in sortable and not p["place"] for p in picks)
+    fast = next(p for p in picks if p["kind"] == "Café or fast food")
     assert fast["total_eur"] == e.spending(merchant_type="5814", period="last_month")["total_eur"] == 449.87
 
 
@@ -253,3 +255,26 @@ def test_whatsapp_game_with_reply_buttons_and_stop(client):
     assert client.sent[-1]["text"]["body"] == "You can spend 50 € this week."  # no game note after a chosen pause
     main.handle_message(msg("stop", mid="m5"))  # no game running: STOP switches Oiva off as before
     assert not main.connected(to) and to not in main.engine.state["quiz"]
+
+
+@pytest.mark.parametrize("p", WITH_FILE, ids=lambda p: p["name"])
+def test_every_persona_gets_recognisable_items(p, tmp_path):
+    e = Engine(csv_path=main.PERSONA_DIR / p["file"], today=date(2026, 10, 6), state_path=tmp_path / "s.json",
+               age=p["age"])
+    for game in (0, 1, 2):
+        picks = quiz.pick(e, game)
+        assert not any(x["name"].endswith(" payment") or "#" in x["name"] for x in picks), picks
+
+
+def test_the_game_plays_in_finnish(e):
+    t = quiz.turn(e, "u", "peli", lang="fi")
+    p = e.state["quiz"]["u"]["picks"][0]
+    assert t.lead[0].startswith("*Koripeli.*") and t.text.endswith("Mihin koriin?") and p["name_fi"] in t.text
+    assert [label for _, label in t.buttons] == ["Laskut ja perusmenot", "Satunnaiset menot", "Valinnaiset menot"]
+    assert quiz._eur(12.5, True) == "12,50 €" and quiz._eur(p["amount_eur"], True) in t.text
+    t = quiz.turn(e, "u", "", f"quiz:0:0:{p['basket']}", lang="fi")
+    assert t.lead[0].startswith("Oikein. ")
+    for _ in range(4):
+        r = e.state["quiz"]["u"]
+        t = quiz.turn(e, "u", "", f"quiz:0:{r['round']}:{r['picks'][r['round']]['basket']}", lang="fi")
+    assert t.text.startswith("*5/5*. Hienoa") and "Todellinen jakosi" in t.text
