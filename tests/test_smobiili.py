@@ -1,4 +1,5 @@
 """S-mobiili integration: native widget cards, chat deep links, embed mode, the concept page."""
+import re
 from datetime import date
 from urllib.parse import parse_qs, urlparse
 
@@ -138,3 +139,35 @@ def test_your_money_is_only_for_its_own_customer(client):
     """Another customer asking for ?tab=raha gets Pankki, never Antti's figures."""
     r = client.get("/s-mobiili/?tab=raha&persona=CUST04831&lang=en")
     assert r.status_code == 200 and 'id="money"' not in r.text and "money.js" not in r.text
+
+
+# "Ask Oiva" on every S-mobiili screen: one row (or the baskets card) that opens the Helper asking that question, in
+# the page's language, embedded under ?web=1 and as the shown customer under ?persona=.
+ASK_ROWS = {"": ["ask-spend", "ask-save", "ask-recent"], "?tab=pankki": ["ask-bills"], "?tab=mina": ["ask-me"],
+            "?tab=kortti": ["ask-card-spend"], "?tab=etukortti": ["ask-groceries"]}
+
+
+@pytest.mark.parametrize("lang", ["fi", "en"])
+def test_every_screen_has_an_ask_oiva_row_in_its_language(client, lang):
+    from html import unescape
+    from urllib.parse import parse_qs, urlsplit
+    pid = main.DEFAULT_PERSONA
+    for tab, ids in ASK_ROWS.items():
+        url = "/s-mobiili/" + (tab + "&" if tab else "?") + f"lang={lang}&persona={pid}&web=1"
+        page = client.get(url).text
+        for i in ids:
+            m = re.search(rf'<a class="ask-o[^"]*" id="{i}" href="([^"]+)" aria-label="([^"]+)"', page)
+            assert m, (tab, i)
+            q = parse_qs(urlsplit(unescape(m.group(1))).query)
+            assert q["embed"] == ["1"] and q["as"] == [pid] and q["q"][0]
+            assert unescape(m.group(2)).startswith("Kysy Oivalta: " if lang == "fi" else "Ask Oiva: ")
+            assert q["q"][0] in unescape(m.group(2))  # the row shows the question it asks
+        assert page.count('class="ask-o') <= 4  # one per section, not a wall of buttons
+    rec = client.get(f"/s-mobiili/kuitit?lang={lang}&persona={pid}").text
+    assert 'id="ask-receipts"' in rec
+
+
+def test_chat_back_keeps_the_customer(client):
+    pid = main.DEFAULT_PERSONA
+    assert f'href="/s-mobiili/?persona={pid}"' in client.get(f"/chat?as={pid}").text
+    assert 'href="/s-mobiili/"' in client.get("/chat").text

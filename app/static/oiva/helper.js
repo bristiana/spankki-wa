@@ -1,7 +1,7 @@
-// The chat's Helper mode (docs/plans/squirrel-helper.md): a big Oiva (oiva.js from the mascot set) that takes the
+// The chat's Helper (docs/plans/squirrel-helper.md): a big Oiva (oiva.js from the mascot set) that takes the
 // pose the server picked for each reply (`mood`, app/mood.py), says one short sentence of the reply in a speech
 // bubble (the full reply is in the log) and, with the sound on, reads the whole reply aloud (ElevenLabs through
-// /api/voice, or the browser's speechSynthesis in fi-FI or en-GB by the page language when the server has no key). Chat mode is the chat as it was.
+// /api/voice, or the browser's speechSynthesis in fi-FI or en-GB by the page language when the server has no key).
 (function () {
   const fi = (document.documentElement.lang || "fi").startsWith("fi");
   const T = (a, b) => (fi ? a : b);
@@ -31,53 +31,10 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   };
   let oiva = null, mood = "idle", idleTimer = 0, last = "", lastParts = [];
-  const on = () => phone.classList.contains("helper");
 
-  // ---- the coin squirrel (the chat's own sprite, oiva.css) as the Helper's Oiva: the same calls as oiva.js ----
-  // It has 9 moods and 16 look directions, no compare pose: each reply state takes its closest mood, and compare
-  // looks across at the bubble, where the two bars do the comparing.
-  const COIN = {
-    idle: "idle", listening: "idle", thinking: "think", working: "busy", teaching: "talk", checking: "busy",
-    needs_approval: "wave", success: "talk", error: "worried", learned: "happy", saving: "happy", spent: "talk",
-    safe_to_spend: "happy", caution: "worried", what_if: "think", compare: "look",
-  };
-  function coinOiva(box) {
-    const el = document.createElement("span");
-    el.className = "oiva idle"; el.setAttribute("aria-hidden", "true");
-    box.textContent = ""; box.appendChild(el);
-    let state = "idle", gaze = null;
-    // 16 look directions, 22.5 deg each clockwise from up: row 9 + floor(N / 8), column N % 8 (oiva.css)
-    function look(x, y) {
-      const r = el.getBoundingClientRect();
-      const deg = (Math.atan2(x - (r.left + r.width / 2), -(y - (r.top + r.height * 0.4))) * 180 / Math.PI + 360) % 360;
-      const n = Math.round(deg / 22.5) % 16;
-      el.className = "oiva look";
-      el.style.setProperty("--row", 9 + Math.floor(n / 8)); el.style.setProperty("--col", n % 8);
-    }
-    function draw() {
-      if (gaze) return look(gaze.x, gaze.y);
-      el.style.removeProperty("--row"); el.style.removeProperty("--col");
-      if (state === "compare") {  // across at the bubble and its bars
-        const b = say && say.getBoundingClientRect();
-        if (b && b.width) return look(b.left + b.width * 0.3, b.top + b.height / 2);
-      }
-      el.className = "oiva " + (COIN[state] === "look" ? "idle" : (COIN[state] || "idle"));
-    }
-    const poke = () => {  // a tap: a little hop, then back to the pose
-      if (gaze) return;
-      el.style.removeProperty("--row"); el.style.removeProperty("--col");  // a look frame's row would win over happy's
-      el.className = "oiva happy";
-      setTimeout(draw, 700);
-    };
-    box.addEventListener("click", poke);
-    return {
-      setState(n) { state = n; draw(); },
-      setFps() {},
-      lookAt(x, y) { gaze = x == null ? null : { x, y }; draw(); },
-      redraw: draw,  // the stage changed size (keyboard): aim at the bubble again
-      destroy() { box.removeEventListener("click", poke); box.textContent = ""; },
-    };
-  }
+  // the reply states oiva.js has a pose for (app/mood.py); anything else is a plain answer
+  const POSES = ["idle", "listening", "thinking", "working", "teaching", "checking", "needs_approval", "success", "error",
+    "learned", "saving", "spent", "safe_to_spend", "caution", "what_if", "compare"];
 
   function plain(s) { return String(s || "").replace(/[*_]/g, "").replace(/\s+/g, " ").trim(); }
   // amounts never break across lines in the bubble: "3 345.06 €" keeps its spaces non-breaking
@@ -206,7 +163,7 @@
     player.play().catch(() => { if (my === seq) synth(text); });  // autoplay refused: the browser's voice
   }
   async function speak(parts) {
-    if (!canSpeak || !voiceOn || !on()) return;
+    if (!canSpeak || !voiceOn) return;
     const text = plain((parts || []).join(". "));
     if (!text) return;
     hush();
@@ -218,7 +175,7 @@
       const r = await fetch("/api/voice", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, lang: fi ? "fi" : "en" }), signal: ctl.signal });
       if (pending === ctl) pending = null;
-      if (my !== seq) return;  // a newer reply, mute or mode change came first
+      if (my !== seq) return;  // a newer reply or mute came first
       if (r.status === 204 || r.status === 429) { serverVoice = false; return synth(text); }  // no key, or the day's budget used
       if (!r.ok) return synth(text);
       const url = URL.createObjectURL(await r.blob());
@@ -254,39 +211,14 @@
     document.addEventListener("keydown", unlock, { once: true, capture: true });
   }
 
-  // ---- modes ----
-  let made = "";  // which Oiva is on the stage: "helper" (oiva.js) or "coin" (the sprite)
-  function setMode(m, remember) {
-    const helper = m === "helper" || m === "coin";
-    phone.classList.toggle("helper", helper);
-    phone.classList.toggle("coin", m === "coin");
-    document.querySelectorAll(".modes [data-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
-    if (remember) store.set("oiva-mode", m);
-    if (stage) stage.hidden = !helper;
-    if (oiva && (!helper || made !== m)) { oiva.destroy(); oiva = null; made = ""; }  // Chat runs no Oiva
-    if (helper && !oiva && pal) {
-      if (m === "coin") oiva = coinOiva(pal);
-      else if (window.Oiva) oiva = window.Oiva.create(pal, { palette: "red", state: mood, hoverReact: true, fps: mood === "idle" ? 20 : 30 });  // a tap pokes him (oiva.js)
-      made = oiva ? m : "";
-      if (oiva) oiva.setState(mood);
-    }
-    if (!helper) hush();
-    const log = document.getElementById("log");
-    if (log) log.scrollTop = log.scrollHeight;
-  }
-  document.querySelectorAll(".modes [data-mode]").forEach(b => b.onclick = () => {
-    setMode(b.dataset.mode, true);
-    const u = new URL(location.href);
-    if (b.dataset.mode !== "chat") u.searchParams.set("mode", b.dataset.mode); else u.searchParams.delete("mode");
-    history.replaceState(null, "", u.pathname + u.search);
-  });
-  const asked = new URLSearchParams(location.search).get("mode");
-  const MODES = ["chat", "helper", "coin"], kept = store.get("oiva-mode");
-  const startMode = MODES.includes(asked) ? asked : (MODES.includes(kept) ? kept : "chat");
+  // ---- the big Oiva (oiva.js); a tap pokes him ----
+  if (pal && window.Oiva) oiva = window.Oiva.create(pal, { palette: "red", state: mood, hoverReact: true, fps: 20 });
+  const log = document.getElementById("log");
+  if (log) log.scrollTop = log.scrollHeight;
 
   // ---- keyboard: a smaller stage when the visual viewport is short ----
   if (window.visualViewport) {
-    const fit = () => { phone.classList.toggle("kb", visualViewport.height < 560); if (oiva && oiva.redraw) oiva.redraw(); };
+    const fit = () => { phone.classList.toggle("kb", visualViewport.height < 560); };
     visualViewport.addEventListener("resize", fit); fit();
   }
 
@@ -315,7 +247,7 @@
       show("thinking", "", true);
     },
     reply(name, parts, trace) {
-      const m = (name in COIN) ? name : "success";
+      const m = POSES.includes(name) ? name : "success";
       last = first(parts, m); lastParts = parts || [];
       pose(m);
       show(m, last || T("Tässä.", "Here you go."), false, pairFor(m, trace, parts));
@@ -329,17 +261,7 @@
   if (hello) {  // the greeting: its first two sentences ("Hi Antti! I'm Oiva, your S-Pankki money coach.")
     last = plain(hello.textContent); lastParts = [hello.textContent]; show("", last);
   }
-  const icon = document.querySelector('.modes [data-mode="helper"] .vk');
-  if (icon && window.Oiva) {  // one still frame of oiva.js's head crop, no animation running in the switch
-    const o = window.Oiva.create(icon, { palette: "red", framing: "head", trackPointer: false, hoverReact: false, reducedMotion: true });
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const svg = icon.querySelector("svg"), still = svg && svg.cloneNode(true);
-      o.destroy(); if (still) icon.appendChild(still);
-    }));
-  }
-  setMode(startMode, false);
   pose("idle");
-  if (startMode === "helper" && oiva) oiva.setState("idle");
   const q = document.getElementById("q");
   if (q) q.addEventListener("input", () => { if (q.value.trim()) window.oivaHelper.listening(); });
 })();

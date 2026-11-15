@@ -1,28 +1,19 @@
-/* The chat's two modes (docs/plans/squirrel-helper.md): "Chat" is the chat as it was; "Helper" adds a big Oiva
-   (design/mascot oiva.js) that takes the pose of each reply and says it in a speech bubble.
-   Helper uses only the chat's own tokens (chat.html :root): same surfaces, green, ink, lines and font, light like the
-   chat. No palette or theme of its own. */
-.modes{display:flex;align-items:center;gap:8px;padding:4px 12px;background:var(--card);border-bottom:1px solid var(--line);flex:none}
-.modes .seg{display:inline-flex;padding:2px;border-radius:99px;background:#eef3ef}  /* the FI | EN switch's track */
-.modes .seg button{border:0;background:transparent;color:var(--muted);font:600 13.5px var(--font);min-height:30px;position:relative;
-  padding:0 14px;border-radius:99px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background-color .15s,color .15s}
-.modes .seg button[aria-pressed="true"]{background:var(--brand);color:#fff}
-.modes .seg svg,.modes .seg img,.modes .seg .vk{width:16px;height:16px;flex:none}
-.modes .seg .vk{display:inline-block;border-radius:50%;overflow:hidden}.modes .seg .vk svg{width:100%;height:100%;display:block}
-.modes .seg button{padding:0 11px}
-.modes .seg button::after,.modes .voice::after{content:"";position:absolute;inset:-7px 0}  /* 44 px to tap */
-.modes button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-/* sound: an icon button, so the switch row stays one quiet line */
-.modes .voice{margin-left:auto;display:none;align-items:center;justify-content:center;width:44px;height:36px;
-  border:1px solid var(--line);border-radius:99px;background:var(--card);color:var(--muted);cursor:pointer;padding:0;position:relative}
-.modes .voice svg{width:20px;height:20px}
-.modes .voice[aria-pressed="true"]{color:var(--brand);border-color:var(--brand);background:var(--bg)}
-.helper .modes .voice.can{display:inline-flex}
-.modes .voice .w{display:none}.modes .voice[aria-pressed="true"] .w{display:inline}.modes .voice[aria-pressed="true"] .x{display:none}
+/* The chat's Helper (docs/plans/squirrel-helper.md): a big Oiva (design/mascot oiva.js) that takes the pose of each
+   reply and says it in a speech bubble, above the conversation.
+   It uses only the chat's own tokens (chat.html :root): same surfaces, green, ink, lines and font. */
+/* sound: an icon button next to Back in the top bar */
+.sm-top .voice{display:none;align-items:center;justify-content:center;width:40px;height:36px;padding:0;position:relative;
+  border:1px solid var(--line);border-radius:99px;background:var(--card);color:var(--muted);cursor:pointer}
+.sm-top .voice.can{display:inline-flex}
+.sm-top .voice::after{content:"";position:absolute;inset:-4px -2px}  /* 44 px to tap */
+.sm-top .voice svg{width:20px;height:20px}
+.sm-top .voice[aria-pressed="true"]{color:var(--brand);border-color:var(--brand);background:var(--bg)}
+.sm-top .voice:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.sm-top .voice .w{display:none}.sm-top .voice[aria-pressed="true"] .w{display:inline}.sm-top .voice[aria-pressed="true"] .x{display:none}
+.sm-top .voice span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 
 /* the stage: Oiva stands on the left, what he says is in a bubble pointing at him */
-#stage{display:none}
-.helper #stage{display:grid;grid-template-columns:var(--pal) 1fr;align-items:center;gap:4px;flex:none;
+#stage{display:grid;grid-template-columns:var(--pal) 1fr;align-items:center;gap:4px;flex:none;
   --pal:clamp(104px,16dvh,132px);padding:6px 14px 4px 4px;background:var(--bg);border-bottom:1px solid var(--line)}
 #pal{width:var(--pal);height:var(--pal);cursor:pointer;-webkit-tap-highlight-color:transparent;align-self:end}
 #pal svg{width:100%;height:100%;display:block}
@@ -58,27 +49,13 @@
 .say.pop{animation:say-pop .32s cubic-bezier(.2,.9,.3,1.3)}
 @keyframes say-pop{from{transform:scale(.9) translateX(-6px);opacity:0}to{transform:none;opacity:1}}
 
-/* the conversation keeps most of the screen; the big Oiva is the speaker, so no little avatars in the log */
-.helper .who-is .oiva{display:none}
-.helper .bot{margin-left:0}
-.helper .bot::before{display:none}
-.helper #hello{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);margin:0;padding:0;border:0}  /* the greeting is in his bubble; screen readers still read it here */
-.helper .typing{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}  /* the bubble shows the dots; screen readers still hear it */
-.modes .voice span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
-.helper .how{margin-left:0}
-.helper #log{padding-top:10px}
+/* the greeting is in his bubble; screen readers still read it in the log */
+#hello{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);margin:0;padding:0;border:0}
+#log{padding-top:10px}
 
 /* keyboard open (short visual viewport): a strip; the log keeps its room */
-.helper.kb #stage{--pal:64px;padding-top:6px;padding-bottom:2px}
-.helper.kb .say{min-height:0;padding:5px 10px}.helper.kb .say p{-webkit-line-clamp:2;font-size:13.5px}
-.helper.kb .bars{margin:2px 0;gap:2px 8px}.helper.kb .say.has-bars p{display:none}
+.kb #stage{--pal:64px;padding-top:6px;padding-bottom:2px}
+.kb .say{min-height:0;padding:5px 10px}.kb .say p{-webkit-line-clamp:2;font-size:13.5px}
+.kb .bars{margin:2px 0;gap:2px 8px}.kb .say.has-bars p{display:none}
 
 @media (prefers-reduced-motion:reduce){.say.pop{animation:none}.bars i b{transition:none}.say .dots b{animation:none;opacity:.6}}
-
-/* "Coin": the same Helper with the chat's coin squirrel (oiva.css sprite, 12:13), standing in the same box */
-.coin #pal{display:flex;align-items:flex-end;justify-content:center}
-.coin #pal .oiva{--s:var(--pal)}  /* the sprite's cell has air around him: full box width, a little taller than it */
-/* caution and error: the worried row without its neutral first and last frames, so every frame looks worried */
-.coin #pal .oiva.worried{--n:6;animation-name:coin-worried}
-@keyframes coin-worried{from{background-position-x:calc(100% / 7)}to{background-position-x:100%}}
-@media (prefers-reduced-motion:reduce){.coin #pal .oiva.worried{background-position-x:calc(100% / 7)}}

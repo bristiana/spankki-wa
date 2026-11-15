@@ -17,11 +17,11 @@
   .sm-top{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;min-height:60px;padding:0 8px;background:#fff;border-bottom:1px solid var(--line);flex:none}
   .sm-top a{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:#333}
   .sm-top .who-is{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
-  .sm-top .who-is .oiva{--s:46px;margin:-6px 0 -4px}  /* the animated Oiva: thinks, talks, waves with the chat */
   .sm-top h1{margin:0;font-size:17px;font-weight:600;color:#222;line-height:1.15}
   .sm-top h1 small{display:block;font-size:12.5px;font-weight:400;color:var(--muted)}
   .i{width:28px;height:28px;flex:none}
   .sm-top{grid-template-columns:92px 1fr 92px}.sm-top .end{grid-column:3;display:flex;justify-content:flex-end}
+  .sm-top .start{display:flex;align-items:center;gap:2px}
   /* FI | EN, as on the S-mobiili screens */
   .lang{display:inline-flex;align-items:center;padding:2px;border-radius:99px;background:#eef3ef;flex:none}
   .sm-top .lang a{display:grid;place-items:center;width:auto;height:26px;min-width:30px;padding:0 6px;border-radius:99px;
@@ -43,18 +43,11 @@
   .msg.wa-tag{}
   .msg{max-width:85%;padding:10px 12px;border-radius:14px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px}
   .me{width:fit-content;margin-left:auto;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px;position:relative}
-  .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;margin-left:40px;position:relative}
-  /* every Oiva bubble carries the animated Oiva (oiva.css sprite), not a still picture */
-  .bot::before{content:"";position:absolute;left:-42px;bottom:-4px;width:34px;height:37px;border-radius:50%;
-    background:#fff6e8 url(/static/oiva/oiva.webp) 0 0/800% 1100% no-repeat;border:1px solid var(--line);
-    --n:6;animation:oiva-play 1.2s steps(6) infinite}
-  .bot:nth-of-type(3n+1)::before{animation-delay:-.4s}.bot:nth-of-type(3n+2)::before{animation-delay:-.8s}
-  @media (prefers-reduced-motion:reduce){.bot::before{animation:none}}
+  .bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;position:relative}  /* the big Oiva above is the speaker */
   .bot .btn{margin-top:10px;padding:11px;min-height:44px;font-size:15px}
   .bot .btn:disabled{opacity:.45;cursor:default}.bot .btn.picked{opacity:1;background:var(--soft);border-color:var(--brand)}
-  .typing{color:var(--muted);font-size:14px;padding:6px 2px 6px 40px;display:flex;align-items:center;gap:8px}
-  .typing i{display:inline-flex;gap:3px}.typing i b{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite both}
-  .typing i b:nth-child(2){animation-delay:.2s}.typing i b:nth-child(3){animation-delay:.4s}
+  /* "Oiva is thinking": the stage's bubble shows the dots; screen readers hear this */
+  .typing{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
   @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
   .chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px;width:100%;scrollbar-width:none;
     -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
@@ -83,7 +76,7 @@
   .chart b{display:block;font-size:14px}.chart small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
   .chart .plot{width:100%}  .embed #sheet .panel{max-width:none;height:92%}
   /* "How I worked this out": the steps, figures and sources behind a reply, folded under its bubble */
-  .how{max-width:85%;margin:-2px 0 8px 40px;font-size:13px}
+  .how{max-width:85%;margin:-2px 0 8px;font-size:13px}
   .how summary{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 4px;cursor:pointer;list-style:none;color:var(--brand);font-weight:600}
   .how summary::-webkit-details-marker{display:none}
   .how summary::after{content:"›";display:inline-block;font-size:16px;transition:transform .15s}
@@ -97,7 +90,6 @@
   .how-src b{color:var(--ink);font-weight:600}
   .how-check{margin:8px 0 0;color:var(--brand);font-weight:600}.how-check.warn{color:var(--warn)}
 </style>
-<link rel="stylesheet" href="/static/oiva/oiva.css">
 <link rel="stylesheet" href="/static/oiva/helper.css">
 <script src="/static/kchart.js"></script>
 <script src="/static/trace.js"></script>
@@ -116,20 +108,12 @@
 <div class="phone{{ '' if framed else ' bare' }}" id="phone">
 <div class="status" aria-hidden="true"><span>9:41</span><i></i><svg viewBox="0 0 52 14"><path d="M2 12a12 12 0 0 1 16 0l-8 0z" fill="#ddd"/><path d="M22 13L33 2v11z" fill="#222"/><rect x="38" y="2" width="7" height="11" rx="1" fill="#222"/></svg></div>
 <header class="sm-top">
-  <a href="/s-mobiili/" aria-label="{{ t('Takaisin', 'Back') }}" data-back>{{ icon("back") }}</a>
-  <div class="who-is"><span class="oiva idle" id="oiva" role="img" aria-label="Oiva"></span><h1>Oiva<small>{{ t("Viestit · rahavalmentajasi", "Messages · money coach") }}</small></h1></div>
+  <span class="start"><a href="{{ back_url }}" aria-label="{{ t('Takaisin', 'Back') }}" data-back>{{ icon("back") }}</a><button type="button" class="voice" id="voice" aria-pressed="false" title="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}" aria-label="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h4l5-4v13l-5-4H4z"/><path class="w" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>{{ t("Mykistetty", "Muted") }}</span></button></span>
+  <div class="who-is"><h1>Oiva<small>{{ t("Viestit · rahavalmentajasi", "Messages · money coach") }}</small></h1></div>
   <span class="end"><span class="lang" role="group" aria-label="{{ t('Kieli', 'Language') }}">{% for code in ("fi", "en") %}<a href="{{ lang_url(request, code) }}" hreflang="{{ code }}" lang="{{ code }}"{% if ui_lang(request) == code %} aria-current="true"{% endif %}>{{ code|upper }}</a>{% endfor %}</span></span>
 </header>
-<!-- Two ways to talk to Oiva (docs/plans/squirrel-helper.md): the chat as it was, or the big Oiva helper -->
-<div class="modes">
-  <span class="seg" role="group" aria-label="{{ t('Näkymä', 'View') }}">
-    <button type="button" data-mode="chat" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-4 3.5V16H4z"/></svg>Chat</button>
-    <button type="button" data-mode="helper" aria-pressed="false"><span class="vk" aria-hidden="true"></span>{{ t("Apuri", "Helper") }}</button>
-    <button type="button" data-mode="coin" aria-pressed="false"><img src="/static/oiva/oiva.png" alt="" width="16" height="16">{{ t("Kolikko", "Coin") }}</button>
-  </span>
-  <button type="button" class="voice" id="voice" aria-pressed="false" title="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}" aria-label="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h4l5-4v13l-5-4H4z"/><path class="w" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>{{ t("Mykistetty", "Muted") }}</span></button>
-</div>
-<section id="stage" hidden aria-hidden="true">
+<!-- The Helper (docs/plans/squirrel-helper.md): a big Oiva who takes the pose of each reply and says it in a bubble -->
+<section id="stage" aria-hidden="true">
   <div id="pal" aria-hidden="true"></div>
   <div class="say" aria-hidden="true"><span class="tag" id="say-tag"></span><div class="bars" id="say-bars"></div><span class="dots"><b></b><b></b><b></b></span><p id="say-text"></p></div>
 </section>
@@ -156,7 +140,7 @@
 <script src="/static/oiva/mascot/oiva.js"></script>
 <script src="/static/oiva/helper.js"></script>
 <script>
-const H = window.oivaHelper || {thinking() {}, reply() {}, listening() {}};  // the Helper mode's big Oiva
+const H = window.oivaHelper || {thinking() {}, reply() {}, listening() {}};  // the big Oiva on the stage (helper.js)
 const UI = {{ {"thinking": t("Oiva miettii", "Oiva is thinking"), "more": t("Lisää ideoita", "More ideas"), "fewer": t("Vähemmän", "Fewer"), "conn": t("Yhteysongelma, yritä uudelleen.", "Connection problem, try again.")}|tojson }};
 const MIRROR = {{ mirror|tojson }};  // the app's chat: the owner's WhatsApp conversation, live (app/mirror.py)
 const log = document.getElementById("log"), q = document.getElementById("q");
@@ -211,15 +195,6 @@ function linkOf(url) {
   let u = url; try { const x = new URL(url, location.href); u = x.pathname + x.search; } catch (e) {}
   return /[?&]web=1/.test(u) ? u : u + (u.includes("?") ? "&" : "?") + "web=1";
 }
-// Oiva in the header acts out the chat: thinking while it works, talking when it answers, waving at WhatsApp news.
-const oiva = document.getElementById("oiva");
-let moodTimer = 0;
-function act(mood, ms) {
-  clearTimeout(moodTimer);
-  oiva.className = "oiva " + mood;
-  if (ms) moodTimer = setTimeout(() => { oiva.className = "oiva idle"; }, ms);
-}
-act("wave", 1800);  // hello
 function drawMirrored(m) {
   if (m.role === "me") return add("me", esc(m.text));
   const d = add("bot", fmt(m.text || ""));
@@ -242,7 +217,6 @@ async function pollMirror() {
       if (loaded && m.source === "app") continue;
       last = drawMirrored(m);
       if (loaded && m.role !== "me") H.reply("success", [m.text || ""]);
-      if (loaded) act(m.role === "me" ? "wave" : "talk", m.role === "me" ? 1800 : 2600);
     }
     if (last) reveal(last);
   } catch (e) {}
@@ -256,7 +230,7 @@ async function send(text, shown, image) {
   if (!text && !image) return;
   const mine = image ? add("me", '<img alt="Your photo" src="' + image + '">' + esc(text || ""))
                      : shown !== null ? add("me", esc(shown || text)) : null;
-  act("think"); H.thinking();
+  H.thinking();
   const t = add("typing", UI.thinking + ' <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
   t.setAttribute("role", "status");
   try {
@@ -266,7 +240,6 @@ async function send(text, shown, image) {
     const j = r.ok ? await r.json() : {text: r.status === 413 ? "That photo is too big for me. Could you try a smaller one?"
                                              : "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
     t.remove();
-    act(r.ok ? "talk" : "worried", 2600);
     // One bubble per part, a beat apart, like a person typing; buttons and charts ride on the last one.
     const parts = (j.bubbles && j.bubbles.length) ? j.bubbles : (j.text ? [j.text] : []);
     H.reply(r.ok ? j.mood : "error", parts, j.trace);
@@ -305,7 +278,7 @@ async function send(text, shown, image) {
     const how = window.oivaTrace(j.trace);  // collapsed under the bubble: what Oiva looked up and checked
     if (how) d.insertAdjacentHTML("afterend", how);
     reveal(d);
-  } catch (e) { t.remove(); act("worried", 2600); H.reply("error", [UI.conn]); add("bot", UI.conn); }
+  } catch (e) { t.remove(); H.reply("error", [UI.conn]); add("bot", UI.conn); }
 }
 
 document.getElementById("f").onsubmit = e => { e.preventDefault(); const v = q.value.trim(); q.value = ""; send(v); };
@@ -338,7 +311,7 @@ document.querySelectorAll("#top button, #chips button").forEach(b => b.onclick =
 // Deep link /chat?q=...: ask once, then drop q from the address so a reload doesn't ask again.
 const deepQ = {{ q|tojson }};
 if (deepQ) {
-  const u = new URL(location.href); u.searchParams.delete("q");  // keep embed, lang and mode
+  const u = new URL(location.href); u.searchParams.delete("q");  // keep embed, as and lang
   history.replaceState(null, "", u.pathname + u.search);
   deepQ.startsWith("__") ? send(deepQ, null) : send(deepQ);
 }

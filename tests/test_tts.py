@@ -110,7 +110,7 @@ def test_key_never_reaches_the_browser(client, eleven, monkeypatch, caplog):
     caplog.set_level(logging.DEBUG)
     r = say(client)
     assert KEY.encode() not in r.content and KEY not in str(r.headers)
-    for url in ("/chat?mode=helper", "/chat?mode=helper&lang=en", "/static/oiva/helper.js"):
+    for url in ("/chat", "/chat?lang=en", "/static/oiva/helper.js"):
         page = client.get(url)
         assert page.status_code == 200 and KEY not in page.text and "ELEVENLABS" not in page.text
     assert KEY not in caplog.text
@@ -170,7 +170,7 @@ def test_reply_parts_as_the_page_joins_them(client, eleven, monkeypatch):
 @pytest.mark.parametrize("lang", ["fi", "en"])
 def test_greeting_and_chat_replies_may_be_spoken(client, eleven, monkeypatch, lang):
     monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
-    html = client.get(f"/chat?mode=helper&lang={lang}").text
+    html = client.get(f"/chat?lang={lang}").text
     hello = re.search(r'id="hello">(.*?)</div>', html, re.S).group(1)
     hello = re.sub(r"<[^>]+>", "", hello)
     assert client.post("/api/voice", json={"text": hello, "lang": lang}).status_code == 200

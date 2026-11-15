@@ -71,10 +71,12 @@ def test_the_ai_failing_is_error(client, monkeypatch):
     assert j["mood"] == "error"
 
 
-@pytest.mark.parametrize("lang,helper,coin", [("fi", "Apuri", "Kolikko"), ("en", "Helper", "Coin")])
-def test_chat_page_has_three_modes_with_chat_first(client, lang, helper, coin):
+@pytest.mark.parametrize("lang", ["fi", "en"])
+def test_chat_page_is_the_helper_only(client, lang):
     html = client.get(f"/chat?lang={lang}").text
-    assert 'data-mode="chat" aria-pressed="true"' in html and f"{helper}</button>" in html
-    assert 'data-mode="coin"' in html and f"{coin}</button>" in html
-    assert 'id="stage" hidden' in html and "/static/oiva/mascot/oiva.js" in html
+    assert 'id="stage"' in html and 'id="stage" hidden' not in html and "/static/oiva/mascot/oiva.js" in html
+    assert "data-mode" not in html and 'class="modes"' not in html and "oiva.css" not in html  # no Chat | Helper | Coin
+    assert 'id="voice"' in html and 'id="photo"' in html
+    js = open("app/static/oiva/helper.js").read()
+    assert "coin" not in js.lower() and "setMode" not in js and "oiva-mode" not in js
     assert client.get("/static/oiva/mascot/oiva.js").status_code == 200

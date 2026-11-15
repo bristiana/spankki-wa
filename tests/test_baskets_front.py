@@ -40,7 +40,7 @@ def test_smobiili_home_shows_the_baskets_card_with_engine_numbers(client):
     assert card.count('class="k1"') + card.count('class="k2"') + card.count('class="k3"') >= 6  # bar + dots
     for b in baskets():
         row = card[card.index(f'id="basket-{b["basket"]}"'):]
-        row = row[:re.search(r'class="bk-(row|ask)', row).start()]  # up to the next row
+        row = row[:re.search(r'class="(bk-row|ask-o)', row).start()]  # up to the next row
         assert b["label"].replace("&", "&amp;") in row and f"e.g. {b['example']}" in row
         assert main.fi_money(b["per_month_eur"]) in row and f"{b['share_pct']}%" in row
         assert ("the only basket you can change today" in row) == (b["basket"] == "everyday")
@@ -49,13 +49,15 @@ def test_smobiili_home_shows_the_baskets_card_with_engine_numbers(client):
 
 
 def test_baskets_card_opens_the_chat_with_the_question(client):
-    page = client.get("/s-mobiili/?web=1&persona=" + main.DEFAULT_PERSONA).text
+    page = client.get("/s-mobiili/?lang=en&web=1&persona=" + main.DEFAULT_PERSONA).text
     href = unescape(re.search(r'id="baskets" href="([^"]+)"', page).group(1))
     u = urlsplit(href)
     assert u.path == "/chat" and parse_qs(u.query) == {"q": ["Where does my money go?"], "embed": ["1"],
                                                        "as": [main.DEFAULT_PERSONA]}
-    assert urlsplit(re.search(r'id="baskets" href="([^"]+)"', client.get("/s-mobiili/").text).group(1)).query \
+    assert urlsplit(re.search(r'id="baskets" href="([^"]+)"', client.get("/s-mobiili/?lang=en").text).group(1)).query \
         == "q=Where+does+my+money+go%3F"
+    fi = re.search(r'id="baskets" href="([^"]+)"', client.get("/s-mobiili/?lang=fi").text).group(1)
+    assert parse_qs(urlsplit(unescape(fi)).query) == {"q": ["Mihin rahani menevät?"]}  # asked in the page's language
 
 
 def test_guide_points_at_the_baskets_card(client):

@@ -1,13 +1,15 @@
 # Plan: Oiva as a squirrel helper that reacts to the conversation
 
-Status: planned 15 Nov 2026, built on branch `squirrel-helper`.
+Status: planned 15 Nov 2026, built on branch `squirrel-helper`. Since 15 Nov the Helper is the only chat: the
+Chat | Helper | Coin switch, the plain chat view and the coin-squirrel Helper are gone (§6), and every S-mobiili
+screen has an "Ask Oiva" row that opens it with a question (§9).
 
 ## What we want
 
 A second way to talk to Oiva in the S-mobiili mock: a big squirrel that acts out what the conversation is about,
 says its answer in a speech bubble (and, if you turn the sound on, out loud), with most of the screen still left for
 the conversation. Its most important change: when you compare yourself with other people, it switches to its
-*compare* pose. A switch at the top of the chat picks the mode. The current chat stays the default and is unchanged.
+*compare* pose. It is the chat: opening Oiva from S-mobiili always gives the Helper.
 
 ## 1. The existing chat
 
@@ -19,7 +21,7 @@ the conversation. Its most important change: when you compare yourself with othe
   engine's tools on the persona's real data (Antti, `CUST01656`). The JSON back is
   `{text, bubbles[], tools[], trace[], buttons[], charts[], quick[]}`; `web_words()` strips emoji and the reaction.
 - The page draws one bubble per part, then charts, PIN/Face ID buttons (open a sheet), quick replies and the
-  "How I worked this out" trace. The 46 px sprite Oiva in the header thinks/talks/waves (`act()`).
+  "How I worked this out" trace. (Before the Helper, a 46 px sprite Oiva in the header acted this out; it is gone.)
 
 ## 2. The mascot art
 
@@ -34,7 +36,7 @@ The helper uses the **mascot set's `oiva.js`** (red fur): it is the one with a s
 conversation, including a dedicated *compare* pose (bar chart and magnifier), and it is animated, vector and
 dependency-free (63 KB), so it stays sharp at 150+ px. Only `oiva.js` is copied into the app
 (`app/static/oiva/mascot/oiva.js`); the 35 MB of stills stay out of the deploy. No new character is drawn.
-The chat mode keeps the coin squirrel as it is.
+The coin squirrel stays on S-mobiili (the guide and Your money), not in the chat.
 
 ## 3. How a state is chosen
 
@@ -78,8 +80,7 @@ mentioned nobody else).
 ## 4. Layout (360 px)
 
 ```
-┌ header: back · Oiva · FI|EN ───────────┐
-│ [ Chat | Helper ]  switch    [ 🔈 Muted ] │  ~40 px
+┌ header: back · 🔈 sound · Oiva · FI|EN ─┐
 │ ┌────────┐  ┌─ speech bubble ───────┐  │
 │ │ squirrel│ ◄ tag: Compared with …   │  │  squirrel: clamp(120px, 20dvh, 168px)
 │ │ ~150 px │  one sentence of reply   │  │
@@ -96,7 +97,7 @@ mentioned nobody else).
   gets about 45-50 % of a 360×760 screen; embedded in the app (no tab bar) more than half.
 - The stage shrinks to a strip when the keyboard opens (visual viewport < 560 px: 76 px squirrel, bubble 2 lines).
 - Colours, theme and font are the chat's own (chat.html `:root`), light like the chat: no palette or dark mode of
-  Helper's own, so switching modes never changes the theme. Caution uses base.html's light warn `#8a5a00`.
+  Helper's own. Caution uses base.html's light warn `#8a5a00`.
 - The bubble: the tag (sentence case, green; warn for caution) and one short sentence; long ones keep the part before a
   colon or second clause. For compare, caution/safe to spend, what if and spent, two bars from the reply's own trace
   figures (you vs typical, price vs free now, now vs after, this time vs before), only when the reply states one of
@@ -109,18 +110,18 @@ mentioned nobody else).
 ## 5. Talking
 
 - Speech bubble: always on (above).
-- Voice: off by default; a speaker button next to the switch turns it on (remembered per browser). It reads the
+- Voice: off by default; a speaker button next to Back in the top bar turns it on (remembered per browser). It reads the
   whole reply (bubbles joined, `*bold*` marks removed) with `speechSynthesis`, voice language `fi-FI` or `en-GB` by the
   page language (not guessed from the text), an exact-language voice first, then any of that language. A new message or turning it off cancels speech. If the browser
   has no `speechSynthesis`, the button is not shown. While speaking Oiva stays in the reply's state.
 
-## 6. The switch
+## 6. One chat, no switch
 
-- A two-option segmented switch under the header: **Chat** · **Helper** (FI: *Chat* · *Apuri*), `aria-pressed`.
-- Default: Chat. The choice is kept per browser (`localStorage`, guarded) and in the address (`?mode=helper`,
-  works for deep links and the demo). Switching keeps the conversation (same log, same session); it only shows or
-  hides the stage and changes the bubble spacing.
-- Chat mode is the page as it was: same markup, same `send()`; the only visible addition is the switch row.
+- `/chat` is always the Helper; `?mode=` is ignored and nothing is remembered per browser. `/chat?embed=1` (S-mobiili's
+  WebView) and `/chat?q=` deep links land in it and ask straight away.
+- What the plain chat had stays: the log, charts, PIN/Face ID buttons in the sheet, quick replies, bill photos and
+  "How I worked this out". Only its little avatars (the coin sprite on each bubble and in the header) are gone: the big
+  Oiva is the speaker.
 
 ## 7. Out of scope
 
@@ -135,6 +136,26 @@ mentioned nobody else).
 ## 8. Tests
 
 - `tests/test_mood.py`: the mapping (peer tools → compare; spending → spent; afford fits/doesn't; approval buttons;
-  error; small talk) and that `/api/chat` returns `mood` for fixed flows; chat page renders the switch in FI and EN.
+  error; small talk) and that `/api/chat` returns `mood` for fixed flows; the chat page is the Helper only in FI and EN.
 - Screenshots at 360 px through real conversations with Claude: a peer-comparison question, a plain spending question,
   an affordability question, light and dark, the switch, and chat mode still working.
+
+## 9. Ask Oiva on S-mobiili
+
+One row look everywhere (Oiva's face, "Ask Oiva" over the question, a chevron), inside a section's card or as a card of
+its own, at most one per section. Each opens the Helper asking its question in the page's language (`ask()` in
+`sm_ctx`, keeping `?web=` and `?persona=`):
+
+| Screen | Where | Asks (EN) |
+|---|---|---|
+| Koti | Accounts card | How much can I spend until payday? |
+| Koti | 3 baskets card (was already there) | Where does my money go? |
+| Koti | Savings and investments card | How much could I save a month? |
+| Koti | Transactions card | What have I spent the most on lately? |
+| Pankki | top | What bills do I have coming up? |
+| Pankki → Your money | each chart and the floating Oiva (already there) | per chart |
+| Kortti | under Transactions | Where did my money go this month? |
+| S-Etukortti | under the offers | How much do I spend on groceries a month? |
+| S-Etukortti → Receipts | under the list | Is my grocery spending normal for my area? |
+| Minä | top | What kind of spender am I? |
+

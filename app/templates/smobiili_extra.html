@@ -78,6 +78,7 @@
         <span class="amt">{{ k.total_eur|fimoney }}</span>{{ icon("chevron", "i chev") }}</a>
       {% else %}<p class="muted">{{ t("Ei vielä kuitteja.", "No grocery purchases yet.") }}</p>{% endfor %}
     </section>
+    {{ ask_oiva("Onko ruokakulutukseni tavallista alueellani?", "Is my grocery spending normal for my area?", "ask-receipts", cls="card") }}
   </div>
 {% elif extra == "kuitti" %}
   <div class="pad">

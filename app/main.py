@@ -1313,7 +1313,10 @@ def sm_ctx(request: Request, persona: str, **extra) -> dict:
     keep = {k: q[k] for k in ("persona", "web", "autoplay") if q.get(k)}
     tab_url = lambda t: "/s-mobiili/" + (f"?{urlencode({**keep, **({'tab': t} if t else {})})}"  # noqa: E731
                                          if keep or t else "")
+    en = ui_lang(request) == "en"
+    # "Ask Oiva" on any screen: ask(fi, en) is the Helper chat asking that question in the page's language
     return {"wa": wa_back(request), "web": bool(q.get("web")), "autoplay": q.get("autoplay") == "1",
+            "ask": lambda fi="", en_q="": chat_url(request, en_q if en else fi, persona),
             "home_url": tab_url(None), "tab_urls": {t: tab_url(t) for t in SM_TABS if t != "koti"},
             "name": name_for(persona), "full_name": full_name(persona), "tab": "koti", **extra}
 
@@ -1346,10 +1349,12 @@ def money_asks() -> dict:
 
 
 def chat_url(request: Request, q: str, persona: str) -> str:
-    """The S-mobiili chat asking q once: embedded in the web mock (?web=1), as the shown persona when ?persona= picks it."""
+    """The S-mobiili chat asking q once (no q: just open it): embedded in the web mock (?web=1), as the shown persona
+    when ?persona= picks it."""
     p = request.query_params
-    return "/chat?" + urlencode({"q": q, **({"embed": "1"} if p.get("web") else {}),
-                                 **({"as": persona} if p.get("persona") else {})})
+    query = urlencode({**({"q": q} if q else {}), **({"embed": "1"} if p.get("web") else {}),
+                       **({"as": persona} if p.get("persona") else {})})
+    return "/chat" + (f"?{query}" if query else "")
 
 
 def demo_bonus(persona: str, today: date) -> dict:
@@ -1362,7 +1367,6 @@ def demo_bonus(persona: str, today: date) -> dict:
             "month_en": date(2000, (today.month - 2) % 12 + 1, 1).strftime("%B"), "pay_day": f"10.{pay_month}."}
 
 
-BASKETS_Q = "Where does my money go?"  # the S-mobiili baskets card and the 4th chat chip ask the same question
 
 
 def ready_param(request: Request) -> tuple[str, str] | tuple[None, None]:
@@ -1463,7 +1467,7 @@ def smobiili_home(request: Request):
     bill = next(iter(bills_due), None)
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
         request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps), baskets=b, ready=ready,
-        baskets_url=chat_url(request, BASKETS_Q, persona), bonus=demo_bonus(persona, e.today), bills_due=bills_due,
+        bonus=demo_bonus(persona, e.today), bills_due=bills_due,
         bill={**bill, "due": fi_date(bill["due_date"])} if bill else None))
 
 
@@ -1849,7 +1853,9 @@ def chat_page(request: Request, q: str = "", embed: str = ""):
     name = name_for(persona)
     tts.allow([f"Hei {name}! Olen Oiva, S-Pankin rahavalmentajasi. Kysy rahoistasi, vaikka paljonko on jäljellä palkkapäivään."])  # #hello
     tts.allow([f"Hi {name}! I'm Oiva, your S-Pankki money coach. Ask me about your money, like what's left until payday."])
-    return templates.TemplateResponse(request, "chat.html", {"name": name, "q": q[:500],
+    shown = request.query_params.get("as")  # Back keeps the customer the chat was opened for
+    back_url = "/s-mobiili/" + (f"?{urlencode({'persona': shown})}" if shown in PERSONAS else "")
+    return templates.TemplateResponse(request, "chat.html", {"name": name, "q": q[:500], "back_url": back_url,
                                                              "embed": True, "mirror": mirrored,
                                                              "framed": embed != "1", "persona": PERSONAS[persona]})
 
