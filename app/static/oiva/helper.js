@@ -1,7 +1,7 @@
 // The chat's Helper mode (docs/plans/squirrel-helper.md): a big Oiva (oiva.js from the mascot set) that takes the
 // pose the server picked for each reply (`mood`, app/mood.py), says one short sentence of the reply in a speech
-// bubble (the full reply is in the log) and, with the sound on, reads the whole reply aloud (speechSynthesis, fi-FI
-// or en-GB by the page language). Chat mode is the chat as it was.
+// bubble (the full reply is in the log) and, with the sound on, reads the whole reply aloud (ElevenLabs through
+// /api/voice, or the browser's speechSynthesis in fi-FI or en-GB by the page language when the server has no key). Chat mode is the chat as it was.
 (function () {
   const fi = (document.documentElement.lang || "fi").startsWith("fi");
   const T = (a, b) => (fi ? a : b);
@@ -163,42 +163,95 @@
   function restLater(ms) {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(function rest() {
-      if (window.speechSynthesis && speechSynthesis.speaking) { idleTimer = setTimeout(rest, 2000); return; }
+      if (speaking()) { idleTimer = setTimeout(rest, 2000); return; }
       pose("idle");
       if (say) say.classList.add("rest");  // the tag fades with the pose; the sentence stays readable
     }, ms);
   }
 
   // ---- voice ----
-  const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+  // Oiva's own voice from the server (/api/voice, ElevenLabs; the key stays there). With no key on the server
+  // (204) or when a call fails, the browser's speechSynthesis reads it instead. Spoken only after a reply arrives.
+  const canSynth = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+  const canSpeak = canSynth || typeof Audio !== "undefined";
   let voiceOn = store.get("oiva-voice") === "on";
+  let serverVoice = true;        // false after a 204: no key on the server, don't ask again this visit
+  const clips = new Map();       // text -> blob URL, so a repeated sentence isn't fetched twice
+  const player = typeof Audio !== "undefined" ? new Audio() : null;
+  let pending = null, seq = 0;
   const LANG = fi ? "fi-FI" : "en-GB";
+  const SILENT = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";  // 10 ms of silence
   function voiceFor() {
     const vs = speechSynthesis.getVoices(), norm = x => (x.lang || "").replace("_", "-").toLowerCase();
     return vs.find(x => norm(x) === LANG.toLowerCase()) || vs.find(x => norm(x).startsWith(LANG.slice(0, 2).toLowerCase()));
   }
-  function speak(parts) {
-    if (!canSpeak || !voiceOn || !on()) return;
-    const text = plain((parts || []).join(". ")).replace(/€/g, fi ? " euroa" : " euros");
-    if (!text) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
+  function speaking() { return (canSynth && speechSynthesis.speaking) || !!(player && !player.paused && !player.ended) || !!pending; }
+  function hush() {
+    seq++;
+    if (pending) { pending.abort(); pending = null; }
+    if (player) player.pause();
+    if (canSynth) speechSynthesis.cancel();
+  }
+  function synth(text) {
+    if (!canSynth) return;
+    const u = new SpeechSynthesisUtterance(text.replace(/€/g, fi ? " euroa" : " euros"));
     u.lang = LANG;
     const v = voiceFor();
     if (v) u.voice = v;
     u.rate = 1.02;
     speechSynthesis.speak(u);
   }
+  function play(url, text, my) {
+    player.src = url;
+    player.play().catch(() => { if (my === seq) synth(text); });  // autoplay refused: the browser's voice
+  }
+  async function speak(parts) {
+    if (!canSpeak || !voiceOn || !on()) return;
+    const text = plain((parts || []).join(". "));
+    if (!text) return;
+    hush();
+    const my = seq;
+    if (!player || !serverVoice) return synth(text);
+    if (clips.has(text)) { const u = clips.get(text); clips.delete(text); clips.set(text, u); return play(u, text, my); }
+    const ctl = new AbortController(); pending = ctl;
+    try {
+      const r = await fetch("/api/voice", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, lang: fi ? "fi" : "en" }), signal: ctl.signal });
+      if (pending === ctl) pending = null;
+      if (my !== seq) return;  // a newer reply, mute or mode change came first
+      if (r.status === 204 || r.status === 429) { serverVoice = false; return synth(text); }  // no key, or the day's budget used
+      if (!r.ok) return synth(text);
+      const url = URL.createObjectURL(await r.blob());
+      if (clips.size >= 30) { const [k, u] = clips.entries().next().value; if (player.src !== u) URL.revokeObjectURL(u); clips.delete(k); }
+      clips.set(text, url);
+      if (my === seq) play(url, text, my);
+    } catch (e) {
+      if (pending === ctl) pending = null;
+      if (my === seq && e.name !== "AbortError") synth(text);
+    }
+  }
   function setVoice(v, sayNow) {
     voiceOn = v; store.set("oiva-voice", v ? "on" : "off");
     if (voiceBtn) { voiceBtn.setAttribute("aria-pressed", v); voiceBtn.querySelector("span").textContent = v ? T("Ääni", "Sound") : T("Mykistetty", "Muted"); }
-    if (!v && canSpeak) speechSynthesis.cancel();
+    if (!v) hush();
     if (v && sayNow && lastParts.length) speak(lastParts);
   }
   if (voiceBtn && canSpeak) {
     voiceBtn.classList.add("can");
-    voiceBtn.onclick = () => setVoice(!voiceOn, true);
+    voiceBtn.onclick = () => {
+      // iOS lets an <audio> play later only if it started inside a tap: unlock it here with a silent clip
+      if (!voiceOn && player) { player.src = SILENT; player.play().catch(() => {}); }
+      setVoice(!voiceOn, true);
+    };
     setVoice(voiceOn, false);  // remembered per browser; off until turned on
+    // Sound already on from an earlier visit: the first tap or key unlocks playback (iOS needs a gesture)
+    const unlock = () => {
+      if (!voiceOn) return;
+      if (player && player.paused) { player.src = SILENT; player.play().catch(() => {}); }
+      if (canSynth && !speechSynthesis.speaking) speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+    };
+    document.addEventListener("pointerdown", unlock, { once: true, capture: true });
+    document.addEventListener("keydown", unlock, { once: true, capture: true });
   }
 
   // ---- modes ----
@@ -217,7 +270,7 @@
       made = oiva ? m : "";
       if (oiva) oiva.setState(mood);
     }
-    if (!helper && canSpeak) speechSynthesis.cancel();
+    if (!helper) hush();
     const log = document.getElementById("log");
     if (log) log.scrollTop = log.scrollHeight;
   }
@@ -258,7 +311,7 @@
     },
     thinking() {
       clearTimeout(idleTimer); pose("thinking");
-      if (canSpeak) speechSynthesis.cancel();
+      hush();
       show("thinking", "", true);
     },
     reply(name, parts, trace) {

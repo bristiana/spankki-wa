@@ -6,7 +6,8 @@ const PORT = 8080;
 const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // keep the demo warm for an hour after the last request
 
 const SECRET_KEYS = ["ANTHROPIC_API_KEY", "WA_TOKEN", "WA_PHONE_NUMBER_ID", "WA_APP_SECRET", "WA_VERIFY_TOKEN",
-  "DEMO_PHONE", "WA_DISPLAY_NUMBER", "DEMO_PROACTIVE", "EB_APP_ID", "EB_PRIVATE_KEY"] as const;
+  "DEMO_PHONE", "WA_DISPLAY_NUMBER", "DEMO_PROACTIVE", "EB_APP_ID", "EB_PRIVATE_KEY",
+  "ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID", "ELEVENLABS_DAILY_CHARS"] as const;
 
 export class Coach extends DurableObject<any> {
   private starting: Promise<void> | undefined;
