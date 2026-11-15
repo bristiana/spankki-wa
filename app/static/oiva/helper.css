@@ -1,0 +1,61 @@
+/* The chat's Helper (docs/plans/squirrel-helper.md): a big Oiva (design/mascot oiva.js) that takes the pose of each
+   reply and says it in a speech bubble, above the conversation.
+   It uses only the chat's own tokens (chat.html :root): same surfaces, green, ink, lines and font. */
+/* sound: an icon button next to Back in the top bar */
+.sm-top .voice{display:none;align-items:center;justify-content:center;width:40px;height:36px;padding:0;position:relative;
+  border:1px solid var(--line);border-radius:99px;background:var(--card);color:var(--muted);cursor:pointer}
+.sm-top .voice.can{display:inline-flex}
+.sm-top .voice::after{content:"";position:absolute;inset:-4px -2px}  /* 44 px to tap */
+.sm-top .voice svg{width:20px;height:20px}
+.sm-top .voice[aria-pressed="true"]{color:var(--brand);border-color:var(--brand);background:var(--bg)}
+.sm-top .voice:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.sm-top .voice .w{display:none}.sm-top .voice[aria-pressed="true"] .w{display:inline}.sm-top .voice[aria-pressed="true"] .x{display:none}
+.sm-top .voice span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+
+/* the stage: Oiva stands on the left, what he says is in a bubble pointing at him */
+#stage{display:grid;grid-template-columns:var(--pal) 1fr;align-items:center;gap:10px;flex:none;
+  --pal:clamp(104px,16dvh,132px);padding:6px 14px 4px 4px;background:var(--bg);border-bottom:1px solid var(--line)}
+#pal{width:var(--pal);height:var(--pal);cursor:pointer;-webkit-tap-highlight-color:transparent;align-self:end}
+#pal svg{width:100%;height:100%;display:block}
+.say{position:relative;align-self:center;background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:8px 12px 10px;min-height:48px;transform-origin:0 70%}
+/* the tail points at Oiva's mouth */
+.say::before{content:"";position:absolute;left:-7px;top:calc(50% - 12px);width:12px;height:12px;background:var(--card);
+  border-left:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(45deg)}
+.say .tag{display:block;font:600 12.5px/1.3 var(--font);color:var(--brand);margin-bottom:2px}
+.say .tag:empty{display:none}
+.say.rest .tag{color:var(--muted);transition:color .6s}
+.say[data-mood="caution"] .tag,.say[data-mood="error"] .tag{color:#8a5a00}  /* base.html's light --warn */
+.say p{margin:0;font-size:14.5px;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:4;overflow:hidden}
+.say p:empty{display:none}
+.say.has-bars p{-webkit-line-clamp:2;font-size:13.5px;color:var(--muted)}
+/* waiting: the chat's own three dots, inside the bubble */
+.say .dots{display:none;gap:4px;padding:6px 0 2px}
+.say.thinking .dots{display:inline-flex}.say.thinking p{display:none}
+.say .dots b{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite both}
+.say .dots b:nth-child(2){animation-delay:.2s}.say .dots b:nth-child(3){animation-delay:.4s}
+
+/* two bars from the reply's own figures (its "How I worked this out" trace): you vs typical, price vs free, ... */
+.bars{display:none;margin:4px 0 6px;font-size:12.5px}
+.has-bars .bars{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 8px}
+.bars span{color:var(--muted);white-space:nowrap}
+.bars i{display:block;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bars i b{display:block;height:100%;width:0;border-radius:99px;background:var(--faint);transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.bars .you b{background:var(--brand)}
+.bars .over b{background:#8a5a00}
+.bars em{font-style:normal;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.say.pop{animation:say-pop .32s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes say-pop{from{transform:scale(.9) translateX(-6px);opacity:0}to{transform:none;opacity:1}}
+
+/* the greeting is in his bubble; screen readers still read it in the log */
+#hello{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);margin:0;padding:0;border:0}
+#log{padding-top:10px}
+
+/* keyboard open (short visual viewport): a strip; the log keeps its room */
+.kb #stage{--pal:64px;padding-top:6px;padding-bottom:2px}
+.kb .say{min-height:0;padding:5px 10px}.kb .say p{-webkit-line-clamp:2;font-size:13.5px}
+.kb .bars{margin:2px 0;gap:2px 8px}.kb .say.has-bars p{display:none}
+
+@media (prefers-reduced-motion:reduce){.say.pop{animation:none}.bars i b{transition:none}.say .dots b{animation:none;opacity:.6}}

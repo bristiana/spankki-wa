@@ -19,12 +19,12 @@ from urllib.parse import urlencode
 from dotenv import load_dotenv
 from jinja2 import pass_context
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bills, broker, enable_banking, guardrails, learn, mirror, onboarding, quiz, receipts, rules, voice
+from . import bills, broker, enable_banking, guardrails, learn, mirror, mood, onboarding, quiz, receipts, rules, tts, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import BASKETS, DEMO_BANK, HIDE_DEMO_BANK, FUNDS_BY_ID, RESERVE_NOTE_EUR, Engine
@@ -256,6 +256,25 @@ templates.env.filters["money"] = money_nb
 templates.env.filters["fimoney"] = fi_money
 templates.env.globals.update(t=_t, ui_lang=ui_lang, lang_url=lang_url, persona_label=persona_label, basket_fi=BASKET_FI,
                              basket_fi_by_label={BASKETS[k]["label"]: v["label"] for k, v in BASKET_FI.items()})
+_STATIC_DIR = Path(__file__).parent / "static"
+_static_v: dict[str, tuple[float, str]] = {}
+
+
+def static_url(path: str) -> str:
+    """/static/<path>?v=<content hash>: a changed file gets a new URL, so no browser keeps showing the old one."""
+    f = _STATIC_DIR / path
+    try:
+        mtime = f.stat().st_mtime
+    except OSError:
+        return f"/static/{path}"
+    hit = _static_v.get(path)
+    if not hit or hit[0] != mtime:
+        hit = (mtime, hashlib.sha1(f.read_bytes()).hexdigest()[:10])
+        _static_v[path] = hit
+    return f"/static/{path}?v={hit[1]}"
+
+
+templates.env.globals["static"] = static_url
 DEMO_COOKIE = "oiva_demo"
 templates.env.globals["wa_login"] = lambda request: (enable_banking.mask(wa_phone(request))
                                                      or ("Demo" if request.cookies.get(DEMO_COOKIE) else ""))
@@ -375,7 +394,7 @@ def button_reply(user: str, bid: str, web: bool = False, e: Engine | None = None
     if bid.startswith("later:"):
         note_later(e, user, bid)
         if bid == "later:unusual":
-            return {"text": "Great, enjoy it! I'll keep an eye on your safe-to-spend."}
+            return {"text": "Okay, enjoy! I'll keep an eye on what's left until payday."}
         if bid == "later:goal":
             return {"text": "Okay. I'll look at your pace again next week."}
         if bid == "later:bills":
@@ -500,7 +519,16 @@ SECRET_CONTEXT = ("Their message had a {what} in it; it was removed before it re
 
 def flow_turn(e: Engine, user: str, text: str, bid: str = "") -> onboarding.Turn | None:
     """The no-AI flows, in order: the Learn course, the basket game, the interview. None = the coach answers."""
-    return learn.turn(e, user, text, bid) or quiz.turn(e, user, text, bid) or onboarding.turn(e, user, text, bid)
+    return flow_turn_named(e, user, text, bid)[1]
+
+
+def flow_turn_named(e: Engine, user: str, text: str, bid: str = "") -> tuple[str, onboarding.Turn | None]:
+    """flow_turn, and which flow answered ("learn", "quiz", "interview"; "" = none): the helper squirrel's pose."""
+    for name, flow in (("learn", learn), ("quiz", quiz), ("interview", onboarding)):
+        t = flow.turn(e, user, text, bid)
+        if t:
+            return name, t
+    return "", None
 
 
 def remember(persona: str | None, user: str, said: str, t: onboarding.Turn):
@@ -575,7 +603,7 @@ def bill_photo(to: str, name: str, m: dict):
     except Exception as e:  # no WA token, Meta or the AI down: say so plainly, keep the details in the log
         log.warning("bill photo %s failed: %s", m["media_id"], e)
         bills.note_unreadable(engine, to)  # a follow-up "explain this bill" then refers to this photo
-        wa.send_text(to, "Sorry, I couldn't open that photo. Could you send it again in a moment?")
+        wa.send_text(to, "That photo didn't open for me. Can you send it again?")
         return
     problem = bills.reply_problem(bill)
     if problem:
@@ -635,13 +663,13 @@ def handle_message(m: dict):
             if onboarding.GREETING.match(said) or not said:
                 welcome(to)
                 return
-            wa.send_text(to, f"Hi {name}! I'm *Oiva*, your S-Pankki money coach. Ask me anything about your "
-                             "money. Write *add bank* to bring your own Revolut too.")
+            wa.send_text(to, f"Hi {name}, I'm *Oiva* from S-Pankki. Ask me what's left until payday, or where last "
+                             "month's money went. Write *add bank* to bring in your Revolut too.")
         if not connected(to):
             wa.send_url_button(
                 to,
-                f"Hi {name}! I'm *Oiva*, your S-Pankki money coach. I answer questions about your spending, remind you "
-                "before bills and help you save.\n\nTo start, connect your S-Pankki account. You choose what I can see, "
+                f"Hi {name}, I'm *Oiva*, S-Pankki's money coach. I can tell you where your money goes and nudge you "
+                "before a bill is due.\n\nFirst, connect your S-Pankki account. You pick what I see, "
                 "and you can switch me off any time.",
                 "Connect S-Pankki", f"{public_url()}/connect?u={to}")
             return
@@ -704,7 +732,7 @@ def handle_message(m: dict):
         onboarding.side_question(engine, to, text)  # mid-interview: never re-sent; another topic pauses it
     except Exception:
         log.exception("handling message failed")
-        wa.send_text(to, "Sorry, something went wrong on my side. Try again in a minute.")
+        wa.send_text(to, "Something broke on my end. Try again in a minute?")
 
 
 # ---------------- Connect (consent) ----------------
@@ -1304,7 +1332,10 @@ def sm_ctx(request: Request, persona: str, **extra) -> dict:
     keep = {k: q[k] for k in ("persona", "web", "autoplay") if q.get(k)}
     tab_url = lambda t: "/s-mobiili/" + (f"?{urlencode({**keep, **({'tab': t} if t else {})})}"  # noqa: E731
                                          if keep or t else "")
+    en = ui_lang(request) == "en"
+    # "Ask Oiva" on any screen: ask(fi, en) is the Helper chat asking that question in the page's language (ask() opens it)
     return {"wa": wa_back(request), "web": bool(q.get("web")), "autoplay": q.get("autoplay") == "1",
+            "ask": lambda fi="", en_q="": chat_url(request, en_q if en else fi, persona),
             "home_url": tab_url(None), "tab_urls": {t: tab_url(t) for t in SM_TABS if t != "koti"},
             "name": name_for(persona), "full_name": full_name(persona), "tab": "koti", **extra}
 
@@ -1337,10 +1368,12 @@ def money_asks() -> dict:
 
 
 def chat_url(request: Request, q: str, persona: str) -> str:
-    """The S-mobiili chat asking q once: embedded in the web mock (?web=1), as the shown persona when ?persona= picks it."""
+    """The S-mobiili chat asking q once (no q: just open it), as the shown persona when ?persona= picks it. Under
+    ?web=1 (this page is inside the web chat's confirm sheet) it is the bare ?embed=1 chat."""
     p = request.query_params
-    return "/chat?" + urlencode({"q": q, **({"embed": "1"} if p.get("web") else {}),
-                                 **({"as": persona} if p.get("persona") else {})})
+    query = urlencode({**({"q": q} if q else {}), **({"embed": "1"} if p.get("web") else {}),
+                       **({"as": persona} if p.get("persona") else {})})
+    return "/chat" + (f"?{query}" if query else "")
 
 
 def demo_bonus(persona: str, today: date) -> dict:
@@ -1353,7 +1386,6 @@ def demo_bonus(persona: str, today: date) -> dict:
             "month_en": date(2000, (today.month - 2) % 12 + 1, 1).strftime("%B"), "pay_day": f"10.{pay_month}."}
 
 
-BASKETS_Q = "Where does my money go?"  # the S-mobiili baskets card and the 4th chat chip ask the same question
 
 
 def ready_param(request: Request) -> tuple[str, str] | tuple[None, None]:
@@ -1454,7 +1486,7 @@ def smobiili_home(request: Request):
     bill = next(iter(bills_due), None)
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
         request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps), baskets=b, ready=ready,
-        baskets_url=chat_url(request, BASKETS_Q, persona), bonus=demo_bonus(persona, e.today), bills_due=bills_due,
+        bonus=demo_bonus(persona, e.today), bills_due=bills_due,
         bill={**bill, "due": fi_date(bill["due_date"])} if bill else None))
 
 
@@ -1837,7 +1869,14 @@ def chat_page(request: Request, q: str = "", embed: str = ""):
     mirrored = mirror_viewer(request)
     if mirrored:  # the app's chat is the owner's WhatsApp conversation, on the WhatsApp demo customer's data
         persona = DEFAULT_PERSONA
-    return templates.TemplateResponse(request, "chat.html", {"name": name_for(persona), "q": q[:500],
+    name = name_for(persona)
+    tts.allow([f"Hei {name}! Olen Oiva, S-Pankin rahavalmentajasi. Kysy rahoistasi, vaikka paljonko on jäljellä palkkapäivään."])  # #hello
+    tts.allow([f"Hi {name}! I'm Oiva, your S-Pankki money coach. Ask me about your money, like what's left until payday."])
+    shown = request.query_params.get("as")  # Back and the tab bar keep the customer the chat was opened for
+    keep = {"persona": shown} if shown in PERSONAS else {}
+    tab = lambda t: "/s-mobiili/" + (f"?{urlencode({**keep, **({'tab': t} if t else {})})}" if keep or t else "")  # noqa: E731
+    return templates.TemplateResponse(request, "chat.html", {"name": name, "q": q[:500], "back_url": tab(None),
+                                                             "tab_urls": {t: tab(t) for t in ("etukortti", "pankki", "mina")},
                                                              "embed": True, "mirror": mirrored,
                                                              "framed": embed != "1", "persona": PERSONAS[persona]})
 
@@ -1947,12 +1986,27 @@ def web_words(out):
     return out
 
 
+def with_mood(out):
+    """Every web chat reply names the helper squirrel's pose (app/mood.py); a reply without one is a plain answer."""
+    if isinstance(out, JSONResponse):
+        j = json.loads(out.body)
+        if isinstance(j, dict) and "mood" not in j:
+            return JSONResponse({**j, "mood": "error" if j.get("error") else "success"}, status_code=out.status_code)
+        return out
+    if isinstance(out, dict) and "mood" not in out:
+        return {**out, "mood": "success"}
+    return out
+
+
 @app.post("/api/chat")
 async def chat_api(request: Request):
     """One turn of the web chat; its words carry no emoji and it has no reaction (web_words). With "mirror": true
     (the app's chat) it is the owner's conversation: the same history as their WhatsApp, kept in the mirror log."""
-    out = web_words(await chat_turn(request))
+    out = with_mood(web_words(await chat_turn(request)))
     body = await request.json()
+    said = json.loads(out.body) if isinstance(out, JSONResponse) else out
+    if isinstance(said, dict):  # the parts as the page reads them aloud (/api/voice speaks only these)
+        tts.allow(said.get("bubbles") or ([said["text"]] if said.get("text") else []))
     if isinstance(body, dict) and body.get("mirror") and mirror_viewer(request):
         said = str(body.get("shown") or body.get("text") or "").strip()
         if said and not said.startswith("__"):
@@ -1966,12 +2020,39 @@ async def chat_api(request: Request):
     return out
 
 
+@app.post("/api/voice")
+async def voice_api(request: Request):
+    """Oiva's reply read aloud (Helper mode with the sound on): {"text", "lang": "fi"|"en"} -> audio/mpeg from
+    ElevenLabs (app/tts.py). 204 when no ELEVENLABS_API_KEY is set, an error status when it fails: either way the
+    page reads it with the browser's own voice instead. The key never leaves the server."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict) or not isinstance(body.get("text"), str) or len(body["text"]) > 5000:
+        return JSONResponse({"error": "text"}, status_code=400)
+    if not tts.configured():
+        return Response(status_code=204)
+    said = tts.allowed(body["text"])  # only what Oiva said here, in his own words: no free text-to-speech
+    if not said:
+        return JSONResponse({"error": "not a reply"}, status_code=403)
+    try:
+        audio = await tts.speak(said, "en" if body.get("lang") == "en" else "fi")
+    except tts.TTSError as e:
+        return JSONResponse({"error": str(e)}, status_code=e.status)
+    return Response(audio, media_type="audio/mpeg")
+
+
 @app.get("/api/mirror")
 def mirror_api(request: Request, after: int = 0):
     """The owner's conversation, WhatsApp and app, from message `after` on; the app's chat polls it. Owner only."""
     if not mirror_viewer(request):
         return {"on": False, "messages": []}
-    return {"on": True, "messages": mirror.since(after)}
+    msgs = mirror.since(after)
+    for m in msgs:
+        if m.get("role") != "me":
+            tts.allow([m.get("text") or ""])
+    return {"on": True, "messages": msgs}
 
 
 async def chat_turn(request: Request):
@@ -2006,15 +2087,15 @@ async def chat_turn(request: Request):
         t, rent = reminder_text(name, e)
         if not rent:
             return {"text": "No rent or housing payment is due in the next 45 days.", "buttons": []}
-        return {"text": t, "buttons": [], "quick": quick([(f"pay:{rent['bill_id']}", "Pay rent now"),
+        return {"text": t, "buttons": [], "mood": "checking", "quick": quick([(f"pay:{rent['bill_id']}", "Pay rent now"),
                                                           (f"later:{rent['bill_id']}", "Remind me later"),
                                                           ("ask:tight", "How do I stretch it?")])}
     if text.startswith("__alert__:"):
         m = alert_message(text.split(":", 1)[1], name, e)
-        return {"text": m[0], "buttons": [], "quick": quick(m[1])} if m else {"text": "Nothing to flag right now.", "buttons": []}
-    def interview(t: onboarding.Turn, buttons=()):
+        return {"text": m[0], "buttons": [], "mood": "caution", "quick": quick(m[1])} if m else {"text": "Nothing to flag right now.", "buttons": []}
+    def interview(t: onboarding.Turn, buttons=(), flow: str = "interview"):
         return {"text": "\n\n".join(t.lead + [t.text]), "bubbles": [*t.lead, t.text], "buttons": list(buttons),
-                "quick": quick(t.buttons)}
+                "quick": quick(t.buttons), "mood": mood.for_flow(flow, t)}
 
     def said(reply_text: str, reaction: str | None = None, **more):
         """A plain answer from the app, in bubbles ("---" splits them), with the reaction for their message."""
@@ -2034,10 +2115,11 @@ async def chat_turn(request: Request):
         try:
             direct = button_reply(sid, bid, web=True, e=e)
         except ValueError as err:
-            return {"text": f"I can't do that: {err}", "buttons": []}
+            return {"text": f"I can't do that: {err}", "buttons": [], "mood": "error"}
         if direct:
             url = direct.get("url")
-            return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else []}
+            return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else [],
+                    "mood": "needs_approval" if url else "success"}
         text = ask_text(e, sid, bid) or bid
     else:
         if guardrails.FRESH.match(text):
@@ -2053,10 +2135,10 @@ async def chat_turn(request: Request):
     asked = bool(bid) and ask_text(e, sid, bid) is not None
     if not asked:
         typed = "" if bid else text
-        t = flow_turn(e, sid, typed, bid)
+        flow, t = flow_turn_named(e, sid, typed, bid)
         if t:
             remember(persona, sid, typed or f"[tapped {bid}]", t)
-            return interview(t)
+            return interview(t, flow=flow)
     c = coach(persona)
     if not bid and hasattr(c, "last_said"):
         note_chat_later(e, sid, text, c.last_said(sid))
@@ -2078,10 +2160,10 @@ async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption:
         bill = await anyio.to_thread.run_sync(lambda: bills.read(e, sid, getattr(coach(persona), "client", None),
                                                                  data, None))
     except bills.BillError as err:
-        return {"text": str(err), "buttons": []}
+        return {"text": str(err), "buttons": [], "mood": "error"}
     except Exception:
         log.exception("bill photo failed")
-        return JSONResponse({"text": "Sorry, I couldn't read that photo just now. Could you try again in a moment?",
+        return JSONResponse({"text": "That photo didn't open for me. Can you send it again?",
                              "buttons": []})
     problem = bills.reply_problem(bill)
     if problem:
@@ -2096,8 +2178,8 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=(), asked: str = ""
         reply = await anyio.to_thread.run_sync(run)
     except Exception:
         log.exception("coach failed")
-        return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
-                                     "Bill reminders and payments still work.", "buttons": []})
+        return JSONResponse({"text": "I can't answer right now, something's down on my side. "
+                                     "Bill reminders and payments still work.", "buttons": [], "mood": "error"})
     out, charts = [], []
     for b in reply.buttons:
         if "chart" in b:  # drawn inside the bubble
@@ -2115,7 +2197,8 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=(), asked: str = ""
     return JSONResponse({"text": "\n\n".join(parts + notes), "bubbles": parts + notes,
                          "reaction": "🔒" if secret else getattr(reply, "reaction", None),
                          "tools": reply.tools_used, "trace": reply.trace,
-                         "buttons": out, "charts": charts, "quick": []})
+                         "buttons": out, "charts": charts, "quick": [],
+                         "mood": mood.for_reply(reply.tools_used, out, e, reply.trace)})
 
 
 @app.get("/api/inbox")

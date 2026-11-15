@@ -130,4 +130,4 @@ def test_learn_progress_and_finish_celebration(e):
     assert learn.turn(e, "u", "", "learn:next:2").lead == ["3 of 5 done. Past halfway."]
     assert learn.turn(e, "u", "next").lead == ["4 of 5 done. Last one, 30 seconds."]
     done = learn.turn(e, "u", "", "learn:finish")
-    assert done.lead == ["5 of 5 done!"] and "course done!" in done.text
+    assert done.lead == ["5 of 5 done!"] and "course done." in done.text

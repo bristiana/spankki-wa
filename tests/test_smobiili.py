@@ -1,4 +1,5 @@
 """S-mobiili integration: native widget cards, chat deep links, embed mode, the concept page."""
+import re
 from datetime import date
 from urllib.parse import parse_qs, urlparse
 
@@ -138,3 +139,51 @@ def test_your_money_is_only_for_its_own_customer(client):
     """Another customer asking for ?tab=raha gets Pankki, never Antti's figures."""
     r = client.get("/s-mobiili/?tab=raha&persona=CUST04831&lang=en")
     assert r.status_code == 200 and 'id="money"' not in r.text and "money.js" not in r.text
+
+
+# "Ask Oiva" on every S-mobiili screen: one row (or the baskets card) that opens the Helper asking that question, in
+# the page's language, as the shown customer under ?persona=. None inside the chat's confirm sheet (?web=1).
+ASK_ROWS = {"": ["ask-spend", "ask-save", "ask-recent"], "?tab=pankki": ["ask-bills"], "?tab=mina": ["ask-me"],
+            "?tab=kortti": ["ask-card-spend"], "?tab=etukortti": ["ask-groceries"]}
+
+
+@pytest.mark.parametrize("lang", ["fi", "en"])
+def test_every_screen_has_an_ask_oiva_row_in_its_language(client, lang):
+    from html import unescape
+    from urllib.parse import parse_qs, urlsplit
+    pid = main.DEFAULT_PERSONA
+    for tab, ids in ASK_ROWS.items():
+        url = "/s-mobiili/" + (tab + "&" if tab else "?") + f"lang={lang}&persona={pid}"
+        page = client.get(url).text
+        for i in ids:
+            m = re.search(rf'<a class="ask-o[^"]*" id="{i}" href="([^"]+)" aria-label="([^"]+)"', page)
+            assert m, (tab, i)
+            q = parse_qs(urlsplit(unescape(m.group(1))).query)
+            assert "embed" not in q and q["as"] == [pid] and q["q"][0]
+            assert unescape(m.group(2)).startswith("Kysy Oivalta: " if lang == "fi" else "Ask Oiva: ")
+            assert q["q"][0] in unescape(m.group(2))  # the row shows the question it asks
+        assert page.count('class="ask-o') <= 4  # one per section, not a wall of buttons
+    rec = client.get(f"/s-mobiili/kuitit?lang={lang}&persona={pid}").text
+    assert 'id="ask-receipts"' in rec
+
+
+def test_chat_back_keeps_the_customer(client):
+    pid = main.DEFAULT_PERSONA
+    assert f'href="/s-mobiili/?persona={pid}"' in client.get(f"/chat?as={pid}").text
+    assert 'href="/s-mobiili/"' in client.get("/chat").text
+
+
+def test_no_ask_oiva_rows_inside_the_chats_confirm_sheet(client):
+    for tab in ASK_ROWS:
+        page = client.get("/s-mobiili/" + (tab + "&" if tab else "?") + "web=1").text
+        assert 'class="ask-o' not in page or 'class="ask-o"><img' in page  # only the baskets card's inner span
+        assert not re.search(r'<a class="ask-o', page)
+        assert 'href="/chat' not in page  # no chat inside the chat
+
+
+def test_chat_tab_bar_keeps_the_customer(client):
+    pid = main.DEFAULT_PERSONA
+    page = client.get(f"/chat?as={pid}").text
+    nav = page[page.index('<nav class="tabs"'):]
+    nav = nav[:nav.index("</nav>")]
+    assert nav.count(f"persona={pid}") == 5

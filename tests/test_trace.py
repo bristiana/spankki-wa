@@ -134,7 +134,7 @@ def test_chat_api_returns_the_trace(client):
     assert tool["tool"] == "can_i_afford" and tool["args"]["amount_eur"] == 120
     assert {"label": "Safe left after it", "value": "-51.40 €"} in tool["figures"] and tool["sources"] == [TX]
     assert check["checked"] == check["matched"] == 1
-    assert '<script src="/static/trace.js">' in client.get("/chat").text
+    assert '<script src="/static/trace.js?v=' in client.get("/chat").text
     assert client.get("/static/trace.js").status_code == 200
 
 

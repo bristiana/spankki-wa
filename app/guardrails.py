@@ -150,4 +150,4 @@ def escalation_context(kind: str) -> str:
 # ---------------- a fresh start ----------------
 FRESH = re.compile(r"^\W*(?:/new|/reset|new chat|fresh start|start fresh|fresh slate|clear (?:the )?chat|"
                    r"forget (?:this|our) (?:chat|conversation))\W*$", re.I)
-FRESH_REPLY = "Hi! Ask me anything about your money."  # the same hello as "start over" (onboarding.HELLO)
+FRESH_REPLY = "Hi! Ask me about your money, like what's left until payday."  # the same hello as "start over" (onboarding.HELLO)

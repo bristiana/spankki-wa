@@ -79,8 +79,8 @@ TOOLS = [
         "description": "Splits spending into the three baskets (mandatory & regular, mandatory & irregular, slips through "
                        "your fingers), with income, money invested and what was left over."
                        " Use for 'where does my money go?' with last_3_months: one short line per basket, in order, "
-                       "with its name, € a month and share, then one line: basket 3 is the only one they can change "
-                       "today, with its number.",
+                       "with its name, € a month, share and its examples in brackets (start straight with the list, no "
+                       "lead-in line), then one line: basket 3 is the only one they can change today, with its number.",
         "input_schema": {"type": "object", "properties": {"period": PERIOD_PROP}, "required": ["period"],
                          "additionalProperties": False},
     },
@@ -340,8 +340,11 @@ TOOLS = [
                        "used. A what-if (another area or age) has no personal comparison. "
                        "Compare only to reassure or help a "
                        "choice, never to shame or rank: lead with what is in line, name the heavy part for most people "
-                       "(usually rent), say 'a bit above' gently as a fact; always say it is averages of at least 30 "
-                       "S-Pankki customers, never one person, and mention a fallback_reason in a few words.",
+                       "(usually rent), and say how far off they are as a plain fact: 'a bit above' only for a small gap, "
+                       "'about double' or 'about half' when it is that big. Give the typical figure itself, never "
+                       "'more than most' or other rank claims. Always say in a few words that it is the typical month "
+                       "of that many S-Pankki customers (at least 30), never one person, like '(the typical month of "
+                       "228 S-Pankki customers)', and mention a fallback_reason in a few words.",
         "input_schema": {"type": "object", "properties": {
             "area": {"type": ["string", "null"], "description": "City or postal code for a what-if: Helsinki, Espoo, "
                                                                 "Vantaa (the data covers only the capital region). "

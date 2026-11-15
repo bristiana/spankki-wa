@@ -143,7 +143,7 @@ def test_connect_sends_welcome_and_no_question(chat):
     chat.connect()
     assert [t for t in chat.texts() if t.startswith("Connected. ")]
     assert chat.url() == f"{BASE}/s-mobiili/"
-    assert chat.texts()[-1] == "Hi! Ask me anything about your money." and not chat.interactive("button")
+    assert chat.texts()[-1] == "Hi! Ask me about your money, like what's left until payday." and not chat.interactive("button")
 
 
 def test_onboarding_all_buttons_then_save(chat):
@@ -314,7 +314,7 @@ def test_reply_with_two_buttons_and_a_failing_coach(chat):
     main._coach.script = script
     chat.say("rent and saving").say("boom")
     assert len(chat.interactive("cta_url")) == 2
-    assert chat.texts()[-1].startswith("Sorry, something went wrong")
+    assert chat.texts()[-1].startswith("Something broke on my end")
 
 
 # ---------------- proactive ----------------
@@ -425,7 +425,7 @@ def test_fraud_hands_off_to_s_pankki(chat):
 
 def test_fresh_start_clears_the_chat(chat):
     connected(chat).say("learn").say("/new")
-    assert chat.texts()[-1] == "Hi! Ask me anything about your money." and main._coach.resets == [chat.phone]
+    assert chat.texts()[-1] == "Hi! Ask me about your money, like what's left until payday." and main._coach.resets == [chat.phone]
     assert main.engine.state["learn"][chat.phone]["paused"]
 
 
@@ -519,7 +519,7 @@ def test_bill_pdf_that_is_not_a_bill_and_one_that_cannot_be_opened(chat, monkeyp
     assert "can't see anything about money" in chat.texts()[-1] and main._coach.asked == []
     monkeypatch.setattr(bills, "download", download)
     chat.media("image")  # no WA_TOKEN in tests: the download fails and Oiva says so
-    assert chat.texts()[-1].startswith("Sorry, I couldn't open that photo")
+    assert chat.texts()[-1].startswith("That photo didn't open for me")
 
 
 def test_voice_note_is_answered_like_text(chat, monkeypatch):
@@ -579,7 +579,7 @@ def test_demo_phone_start_over_is_a_clean_hello(chat, monkeypatch, words):
     monkeypatch.setenv("DEMO_PHONE", chat.phone)
     chat.say("how much did I spend?").say(words)
     assert main._coach.asked == ["how much did I spend?"] and main._coach.resets == [chat.phone]
-    assert chat.texts()[-1] == "Hi! Ask me anything about your money."
+    assert chat.texts()[-1] == "Hi! Ask me about your money, like what's left until payday."
     assert not chat.interactive("button") and "u" not in main.engine.state.get("onboarding", {})
     assert chat.phone not in main.engine.state.get("onboarding", {})
 
