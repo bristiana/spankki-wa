@@ -14,7 +14,7 @@ import threading
 import time
 from datetime import date, timedelta
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from dotenv import load_dotenv
 from jinja2 import pass_context
@@ -1252,7 +1252,8 @@ def sm_flow(route: str, e: Engine, p: dict, lang: str = "en") -> dict:
         # IBAN and reference
         to = p["name"] if photo else recipient(p)
         due = f", due {nice_date(p['due_date'])}" if p.get("due_date") else ""
-        return {"title": T("Maksa lasku", "Pay a bill"), "fi": "Maksu", "heading": p["name"], "amount": money(p["amount"]),
+        return {"title": T("Uusi maksu", "New payment") if p.get("source") == "manual" else T("Maksa lasku", "Pay a bill"),
+                "fi": "Maksu", "heading": p["name"], "amount": money(p["amount"]),
                 "rows": [("recipient", "Recipient", to), ("iban", "IBAN", bill_iban(p) if photo else DEMO_IBAN),
                          ("reference", "Reference", (p.get("reference") or (T("ei viitettä", "none")
                                                                             if p.get("source") == "manual"
@@ -1588,12 +1589,26 @@ def pk_cat(cat: str, lang: str) -> str:
 
 def pk_tx(e: Engine, lang: str, n: int = 40) -> list[dict]:
     """The S-Tili's latest transactions, newest first, grouped by day."""
+    notes: dict = {}  # moves made in the app (a payment, a saving) carry their recipient in the action's note
+    for a in e.state.get("actions", []):
+        notes.setdefault((a["date"], eur(a["amount"])), []).append(a.get("note") or "")
     days: list[dict] = []
     for x in e.recent(n):
         label = pk_day(x["date"], lang)
         if not days or days[-1]["day"] != label:
             days.append({"day": label, "rows": []})
-        days[-1]["rows"].append({**x, "category": pk_cat(x["category"], lang)})
+        what, cat = x["what"], pk_cat(x["category"], lang)
+        if what == x["category"]:  # no merchant: our own move, or a bill or salary row
+            left = notes.get((x["date"], x["amount_eur"])) or []
+            note = left.pop() if left else ""
+            if note.startswith("Savings pocket"):
+                what = tr(lang, "Siirto säästötilille", "To your savings account")
+            elif note:
+                what = note if lang == "en" else BILL_FI.get(note, note)
+            else:
+                what = cat
+            cat = "" if what == cat else cat
+        days[-1]["rows"].append({**x, "what": what, "category": cat})
     return days
 
 
@@ -1607,8 +1622,13 @@ def pk_bills(e: Engine, lang: str) -> list[dict]:
 
 def pk_regular(e: Engine, lang: str) -> list[dict]:
     """Regular payments going out (rent, utilities, monthly investing), from the customer's own transactions."""
+    paid = {p["transaction_type"]: p["due_date"] for p in e.state.get("pending", {}).values()
+            if p.get("kind") == "payment" and p.get("status") == "done" and p.get("due_date")
+            and p["due_date"] >= e.today.isoformat()}
+    ttype = {"rent": "housing_payment", "investing": "investment_deposit"}
     return [{**x, "label": x["name"] if lang == "en" else BILL_FI.get(x["name"], x["name"]),
-             "next": pk_day(x.get("next_expected"), lang)}
+             "next": pk_day(x.get("next_expected"), lang),
+             "paid_for": pk_short(paid.get(ttype.get(x["id"], "")), lang)}
             for x in e.commitments()["regular_payments"] if x["direction"] == "out"]
 
 
@@ -1634,7 +1654,7 @@ def pk_save_amounts(e: Engine, goal: dict) -> list[int]:
     no more than the goal still needs."""
     cap = min(e.safe_to_save()["now_max_eur"], e.balance())
     left = max(0.0, goal["target"] - goal["saved"])
-    opts = {20, 50, 100, 200} | ({int(left)} if left >= 1 else set())
+    opts = {20, 50, 100, 200} | ({round(left, 2)} if left >= 1 else set())
     return sorted(x for x in opts if 1 <= x <= cap and (left < 1 or x <= left))
 
 
@@ -1649,6 +1669,12 @@ def pk_sub(request: Request, extra: str, title: tuple[str, str], back: str, **mo
 
 
 def pk_ctx(request: Request) -> tuple[Engine, str]:
+    """The persona's engine and the page's language. A POST must come from this site's own page (its Origin, or its
+    Referer when a browser sends no Origin), so another site can't prepare a payment and land someone on its review."""
+    if request.method == "POST":
+        src = request.headers.get("origin") or request.headers.get("referer") or ""
+        if src and urlsplit(src).netloc != request.url.netloc:
+            raise HTTPException(403, "Not from this site.")
     return engine_for(sm_persona(request)), ui_lang(request)
 
 
@@ -1677,7 +1703,7 @@ def smobiili_account(request: Request):
 @app.get("/s-mobiili/maksut", response_class=HTMLResponse)
 def smobiili_payments(request: Request):
     e, lang = pk_ctx(request)
-    return pk_sub(request, "p-maksut", ("Maksut ja e-laskut", "Payments and e-invoices"), PANKKI_TAB,
+    return pk_sub(request, "p-maksut", ("Maksut ja e-laskut", "Payments"), PANKKI_TAB,
                   bills=pk_bills(e, lang), regular=pk_regular(e, lang))
 
 
@@ -1712,15 +1738,21 @@ async def smobiili_new_payment_send(request: Request):
     elif amount > e.balance():
         error = tr(lang, f"Tilillä on {fi_money(e.balance())}, ja summa on sitä suurempi.",
                    f"Your balance is {money(e.balance())}, and the amount is more than that.")
-    due = f.get("due") or ""
-    try:
-        due = due if due and date.fromisoformat(due) >= e.today else e.today.isoformat()
-    except ValueError:
-        due = e.today.isoformat()
+    ref = f.get("reference") or None
+    same = {pid: p for pid, p in e.state.get("pending", {}).items() if p.get("source") == "manual"
+            and (p.get("iban"), p.get("amount"), p.get("reference")) == (iban, eur(amount), ref)}
+    if not error and f.get("again") != "1" and any(p["status"] == "done" and p.get("due_date") == e.today.isoformat()
+                                                   for p in same.values()):
+        error = tr(lang, "Maksoit jo saman summan tälle tilille tänään. Paina Jatka uudelleen, jos haluat maksaa sen "
+                         "toisen kerran.", "You already paid this amount to this account today. Tap Continue again "
+                                          "if you mean to pay it a second time.")
+        f["again"] = "1"
     if error:
         return _new_payment(request, error, f)
-    p = e.create_transfer(f["name"], iban, amount, f.get("reference") or None, due)
-    return pk_go(request, f"/s-mobiili/pay/{p['pending_id']}", "uusi")
+    # a double tap, or Back and Continue again, opens the same review instead of a second payment
+    pid = next((k for k, p in same.items() if p["status"] == "pending"), None) or \
+        e.create_transfer(f["name"], iban, amount, ref, e.today.isoformat())["pending_id"]
+    return pk_go(request, f"/s-mobiili/pay/{pid}", "uusi")
 
 
 @app.post("/s-mobiili/maksut/maksa")

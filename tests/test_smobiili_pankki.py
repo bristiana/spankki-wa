@@ -193,3 +193,39 @@ def test_persona_and_web_are_kept_on_every_link(client):
 def test_the_bottom_bar_plus_opens_a_new_payment(client):
     page = get(client, "/s-mobiili/?tab=pankki")
     assert re.search(r'<a href="/s-mobiili/maksut/uusi" class="pay">', page)
+
+
+def test_a_double_tap_on_new_payment_opens_the_same_review(client):
+    form = {"name": "Taloyhtiö Kuusikko", "iban": "FI2112345600000785", "amount": "45,90", "reference": "13"}
+    a = client.post("/s-mobiili/maksut/uusi", data=form, follow_redirects=False).headers["location"]
+    b = client.post("/s-mobiili/maksut/uusi", data=form, follow_redirects=False).headers["location"]
+    assert a == b
+    pid = re.search(r"/pay/(\w+)", a).group(1)
+    assert "New payment" in get(client, a)
+    assert client.post(f"/s-mobiili/pay/{pid}/confirm", json={}).json()["ok"]
+    r = client.post("/s-mobiili/maksut/uusi", data=form, follow_redirects=False)
+    assert r.status_code == 200 and "already paid this amount" in r.text and 'name="again" value="1"' in r.text
+    r = client.post("/s-mobiili/maksut/uusi", data={**form, "again": "1"}, follow_redirects=False)
+    assert r.status_code == 303 and re.search(r"/pay/(\w+)", r.headers["location"]).group(1) != pid
+    page = get(client, "/s-mobiili/tilit/s-tili")
+    assert "Taloyhtiö Kuusikko" in page  # the S-Tili shows who was paid, not "Other"
+
+
+def test_money_move_posts_only_from_this_site(client):
+    for url in ("/s-mobiili/maksut/uusi", "/s-mobiili/maksut/maksa", "/s-mobiili/saastot/aloita",
+                "/s-mobiili/saastot/lisaa", "/s-mobiili/sijoitukset/tauko"):
+        r = client.post(url, data={}, headers={"origin": "https://evil.example"}, follow_redirects=False)
+        assert r.status_code == 403, url
+    r = client.post("/s-mobiili/saastot/aloita", headers={"origin": "http://testserver"}, follow_redirects=False)
+    assert r.status_code == 303
+
+
+def test_paused_investing_reads_paused_on_payments_and_paid_rent_reads_paid(client):
+    e = client.engine
+    pid = e.create_pause_investing()["pending_id"]
+    e.confirm(pid)
+    rent = next(b for b in e.upcoming_bills(45) if b["category"] == "Housing")
+    e.confirm(e.create_payment(rent["bill_id"])["pending_id"])
+    page = get(client, "/s-mobiili/maksut")
+    assert re.search(r'id="reg-investing".*?Paused', page, re.S) and "Stopped" not in page
+    assert re.search(r'id="reg-rent".*?Paid \(due 3 Nov\)', page, re.S)

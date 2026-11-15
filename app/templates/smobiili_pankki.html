@@ -89,7 +89,7 @@
     {% if payday %}<p class="muted" style="margin:10px 2px 0">{% if en %}Next salary {{ salary|fimoney }} expected {{ payday }}{% else %}Seuraava palkka {{ salary|fimoney }} odotetaan {{ payday }}{% endif %}</p>{% endif %}
     <h2 class="sec">{{ t("Tilitapahtumat", "Transactions") }}</h2>
     {% for d in days %}<p class="p-day">{{ d.day }}</p>
-    <section class="card p-tx">{% for x in d.rows %}<div class="row"><span>{{ x.what }}<small>{{ x.category }}</small></span><b class="{{ 'pos' if x.amount_eur > 0 }}">{{ x.amount_eur|fimoney }}</b></div>{% endfor %}</section>
+    <section class="card p-tx">{% for x in d.rows %}<div class="row"><span>{{ x.what }}{% if x.category %}<small>{{ x.category }}</small>{% endif %}</span><b class="{{ 'pos' if x.amount_eur > 0 }}">{{ x.amount_eur|fimoney }}</b></div>{% endfor %}</section>
     {% else %}<p class="muted">{{ t("Ei vielä tapahtumia.", "No transactions yet.") }}</p>{% endfor %}
     {{ ask_oiva("Mihin olen käyttänyt eniten viime aikoina?", "What have I spent the most on lately?", "ask-tili", cls="card") }}
   </div>
@@ -105,7 +105,7 @@
     <h2 class="sec">{{ t("Toistuvat maksut", "Regular payments") }}<small>{{ t("tililtäsi", "from your account") }}</small></h2>
     <section class="card list p-pad" id="regular">
       {% for x in regular %}{% if x.id == "investing" %}<a class="li tap" id="reg-{{ x.id }}" href="/s-mobiili/sijoitukset{{ k }}">{% else %}<div class="li" id="reg-{{ x.id }}">{% endif %}
-        {{ icon("case" if x.id == "investing" else "bill") }}<span class="txt">{{ x.label }}<small>{% if x.status != "active" %}{{ t("Keskeytetty", "Paused") if x.status == "paused" else t("Päättynyt", "Stopped") }}{% elif x.next %}{{ t("Seuraava", "Next") }} {{ x.next }}{% else %}{{ t("Useita pieniä laskuja, eri päivinä", "Several small bills, on different days") }}{% endif %}</small></span>
+        {{ icon("case" if x.id == "investing" else "bill") }}<span class="txt">{{ x.label }}<small>{% if x.status != "active" %}{{ t("Keskeytetty", "Paused") if x.status.startswith("paused") else t("Päättynyt", "Stopped") }}{% elif x.paid_for %}{{ t("Maksettu", "Paid") }} ({{ t("eräpäivä", "due") }} {{ x.paid_for }}){% elif x.next %}{{ t("Seuraava", "Next") }} {{ x.next }}{% else %}{{ t("Useita pieniä laskuja, eri päivinä", "Several small bills, on different days") }}{% endif %}</small></span>
         <span class="amt" style="font-size:16px">{{ x.per_month_eur|fimoney }}<small>{{ t("kuussa", "a month") }}</small></span>{% if x.id == "investing" %}{{ icon("chevron", "i chev") }}</a>{% else %}</div>{% endif %}
       {% endfor %}
     </section>
@@ -123,8 +123,8 @@
       <label>{{ t("Saajan tilinumero (IBAN)", "Recipient's account (IBAN)") }}<input name="iban" required autocomplete="off" autocapitalize="characters" placeholder="FI.." value="{{ form.iban or '' }}"></label>
       <label>{{ t("Summa (€)", "Amount (€)") }}<input name="amount" required inputmode="decimal" autocomplete="off" placeholder="0,00" value="{{ form.amount or '' }}"></label>
       <label>{{ t("Viitenumero tai viesti (valinnainen)", "Reference or message (optional)") }}<input name="reference" maxlength="40" autocomplete="off" value="{{ form.reference or '' }}"></label>
-      <label>{{ t("Eräpäivä", "Due date") }}<input name="due" type="date" min="{{ today_iso }}" value="{{ form.due or today_iso }}"></label>
-      <p class="muted" style="margin:10px 0 0">{{ t("Tililtä", "From") }}: S-Tili · {{ balance|fimoney }}</p>
+      {% if form.again %}<input type="hidden" name="again" value="1">{% endif %}
+      <p class="muted" style="margin:10px 0 0">{{ t("Tililtä", "From") }}: S-Tili · {{ balance|fimoney }} · {{ t("Maksu lähtee tänään", "It leaves today") }}</p>
       <button class="btn" type="submit" id="pay-continue">{{ t("Jatka tarkistukseen", "Continue to review") }}</button>
     </form>
     {{ ask_oiva("Haluan maksaa laskun kuvasta", "I want to pay a bill from a photo", "ask-photo", cls="card") }}
@@ -162,7 +162,7 @@
       <form method="post" action="/s-mobiili/saastot/lisaa{{ k }}" id="add-{{ g.id }}">
         <input type="hidden" name="goal_id" value="{{ g.id }}">
         <fieldset class="p-chips"><legend>{{ t("Lisää rahaa S-Tililtä", "Add money from your S-Tili") }}</legend>
-          {% for x in gp.amounts %}<label><input type="radio" name="amount" value="{{ x }}"{% if loop.index == ([gp.amounts|length, 2]|min) %} checked{% endif %}><span>{{ x }} €</span></label>{% endfor %}
+          {% for x in gp.amounts %}<label><input type="radio" name="amount" value="{{ x }}"{% if loop.index == ([gp.amounts|length, 2]|min) %} checked{% endif %}><span>{{ x|fimoney|replace(",00 €", " €") }}</span></label>{% endfor %}
         </fieldset>
         <button class="btn" type="submit" id="add-money">{{ t("Lisää rahaa", "Add money") }}</button>
       </form>

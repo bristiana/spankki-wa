@@ -213,6 +213,7 @@
   .vcard .chip{position:absolute;left:46px;top:196px;width:22px;height:28px;border-radius:4px;background:linear-gradient(135deg,#f6d78f,#d9a94a)}
   .vcard .cd{position:absolute;right:9px;bottom:8px;font-size:9px}
   .gpay{background:#000;color:#fff;border-radius:6px;padding:9px 26px;font:500 16px var(--font);border:0;cursor:pointer}
+  .gpay:disabled{opacity:.35;cursor:default}
   .card-state{font-size:14px;font-weight:600;color:var(--brand)}.card-state.locked{color:var(--warn)}
   .vcard.locked{filter:grayscale(1) opacity(.6)}
   .p-tog{appearance:none;-webkit-appearance:none;width:46px;height:26px;border-radius:99px;background:#c9cfcb;position:relative;flex:none;cursor:pointer;margin:0;transition:background .15s}
@@ -447,7 +448,7 @@
     </section>
     <section class="plain">
       <a class="li tap" id="card-transactions" href="/s-mobiili/kortti/tapahtumat{{ keep }}">{{ icon("list") }}<span class="txt">{{ t("Korttitapahtumat", "Card transactions") }}</span>{{ icon("chevron", "i chev") }}</a>
-      <div class="li"><span class="txt">{{ t("Luottoraja", "Credit limit") }}<small>{{ t("Käytetty", "Used") }} 0,00&nbsp;€</small></span><span class="val">2&nbsp;000,00&nbsp;€</span></div>
+      <div class="li"><span class="txt">{{ t("Luottoraja", "Credit limit") }}<small>{{ t("Korttiostot veloitetaan S-Tililtä (debit)", "Card purchases come off your S-Tili (debit)") }}</small></span><span class="val">2&nbsp;000,00&nbsp;€</span></div>
       {{ ask_oiva("Mihin rahani menivät tässä kuussa?", "Where did my money go this month?", "ask-card-spend") }}
       <div class="grey">{{ t("Korttiturvallisuus", "Card security") }}</div>
       <label class="li" for="card-lock"><span class="txt">{{ t("Lukitse kortti väliaikaisesti", "Lock the card for now") }}<small>{{ t("Avaa lukitus milloin vain", "Unlock it any time") }}</small></span><input class="p-tog" type="checkbox" role="switch" id="card-lock"></label>
@@ -460,7 +461,7 @@
       const ss = {get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
                   set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} }};
       const lock = document.getElementById("card-lock"), state = document.getElementById("card-state"), gp = document.getElementById("gpay");
-      const show = () => { state.textContent = lock.checked ? state.dataset.on : state.dataset.off; state.classList.toggle("locked", lock.checked);
+      const show = () => { state.textContent = lock.checked ? state.dataset.on : state.dataset.off; state.classList.toggle("locked", lock.checked); gp.disabled = lock.checked;
                            document.querySelector(".vcard").classList.toggle("locked", lock.checked); };
       lock.checked = ss.get("sm-card-lock") === "1"; show();
       lock.addEventListener("change", () => { ss.set("sm-card-lock", lock.checked ? "1" : "0"); show(); });
