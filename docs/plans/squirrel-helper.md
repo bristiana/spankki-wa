@@ -52,13 +52,14 @@ could drift from what the answer did; the tool list is already there, free, and 
 | Signal (first match wins) | State | Speech-bubble tag (EN / FI) |
 |---|---|---|
 | The AI or the connection failed | `error` | Oops / Hups |
-| **Peer comparison**: `get_people_like_me`, `get_spender_profile`, `get_home_readiness` | **`compare`** | Compared with people like you / Verrattuna kaltaisiisi |
-| A PIN / Face ID button (payment, saving, investing, pause) | `needs_approval` | Your OK is needed / Tarvitaan hyväksyntäsi |
+| A PIN / Face ID button (payment, saving, investing, pause): an action waiting for your OK comes first | `needs_approval` | Your OK is needed / Tarvitaan hyväksyntäsi |
+| **Peer comparison**: `get_people_like_me`, `get_spender_profile` | **`compare`** | Compared with people like you / Verrattuna kaltaisiisi |
 | `can_i_afford` and it does not fit safe to spend | `caution` | Careful / Varovasti |
-| `can_i_afford` and it fits | `safe_to_spend` | That fits / Mahtuu |
+| `can_i_afford` and it fits | `safe_to_spend` | Safe to spend / Turvallisesti käytettävissä |
+| Rent reminder (`__remind__`) / bill alert (`__alert__`) | `checking` / `caution` | Checked for you / Tarkistin · Careful / Varovasti |
 | `simulate_cut` | `what_if` | What if… / Entä jos… |
 | `get_safe_to_spend` | `safe_to_spend` | Safe to spend / Turvallisesti käytettävissä |
-| `get_safe_to_save`, `get_save_more_ideas`, `create_goal`, `get_goals` | `saving` | Saving / Säästöön |
+| `get_safe_to_save`, `get_save_more_ideas`, `create_goal`, `get_goals`, `get_home_readiness` | `saving` | Saving / Säästöön |
 | `get_money_guide`, Learn lesson, basket-game question | `teaching` | Let me show you / Katso |
 | Basket-game answer right / Learn course finished | `learned` | Nice! / Hienoa! |
 | `get_spending`, `get_baskets`, `get_regular_payments`, `get_upcoming_bills` | `spent` | Your spending / Kulutuksesi |
@@ -67,27 +68,33 @@ could drift from what the answer did; the tool list is already there, free, and 
 
 Peer comparison vs not is the key split: *"Am I spending more than people my age?"* → `compare`;
 *"How much did I spend on restaurants last month?"* → `spent`. Between replies the page shows `listening` while you
-type and `thinking` while it waits. After about 12 s on a reply state Oiva eases back to `idle`.
+type (only the pose changes; the bubble keeps the last sentence) and `thinking` while it waits. After about 12 s on
+a reply state Oiva eases back to `idle` and the tag fades.
+
+`get_home_readiness` uses mortgage applications of people with your income, but its answer is about your own
+deposit and price range, so it is `saving`, not `compare` (a review found the compare tag over an answer that
+mentioned nobody else).
 
 ## 4. Layout (360 px, light and dark)
 
 ```
 ┌ header: back · Oiva · FI|EN ───────────┐
-│ [ Chat | Helper ]  switch      [ 🔈 ]  │  ~40 px
+│ [ Chat | Helper ]  switch    [ 🔈 Muted ] │  ~40 px
 │ ┌────────┐  ┌─ speech bubble ───────┐  │
-│ │ squirrel│ ◄ tag: Compared with …   │  │  stage: clamp(150px, 26dvh, 210px)
-│ │ ~140 px │  first line of the reply │  │
+│ │ squirrel│ ◄ tag: Compared with …   │  │  squirrel: clamp(120px, 20dvh, 168px)
+│ │ ~150 px │  one sentence of reply   │  │
 │ └────────┘  └───────────────────────┘  │
-│ conversation log (same bubbles, charts,│  everything left: ~55-60 % of the screen
+│ conversation log (same bubbles, charts,│  everything left: about half the screen at 360×760
 │ buttons, "How I worked this out")      │
 │ [📷] [ Ask about your money… ] [Send]  │
 └ S-mobiili tab bar ─────────────────────┘
 ```
 
 - The squirrel sits left, the speech bubble right of it with a tail pointing at it; the bubble holds the state tag and
-  the reply's first bubble (cut at ~160 characters with "…"; the full reply is in the log below).
-- The stage shrinks when the keyboard opens (visual viewport < 560 px: 110 px squirrel, bubble 3 lines) so the log
-  keeps room.
+  one sentence of the reply (for a comparison, the sentence that compares), not a copy of the log.
+- Room is a trade-off between "bigger" and "space for the conversation": with the S-mobiili frame and tab bar the log
+  gets about 45-50 % of a 360×760 screen; embedded in the app (no tab bar) more than half.
+- The stage shrinks to a strip when the keyboard opens (visual viewport < 560 px: 76 px squirrel, bubble 2 lines).
 - Light uses the chat's S-mobiili tokens. Dark (`prefers-color-scheme: dark`) is scoped to helper mode so chat mode
   stays exactly as it is: dark green-black surfaces from `base.html`'s dark tokens, a soft spotlight behind Oiva.
 - Font: the app's `--font`; amounts keep non-breaking spaces (`nb()`).
@@ -97,7 +104,7 @@ type and `thinking` while it waits. After about 12 s on a reply state Oiva eases
 - Speech bubble: always on (above).
 - Voice: off by default; a speaker button next to the switch turns it on (remembered per browser). It reads the
   whole reply (bubbles joined, `*bold*` marks removed) with `speechSynthesis`, voice language `fi-FI` or `en-GB` by the
-  page language, picking a matching installed voice. A new message or turning it off cancels speech. If the browser
+  page language (not guessed from the text), an exact-language voice first, then any of that language. A new message or turning it off cancels speech. If the browser
   has no `speechSynthesis`, the button is not shown. While speaking Oiva stays in the reply's state.
 
 ## 6. The switch
@@ -115,6 +122,12 @@ type and `thinking` while it waits. After about 12 s on a reply state Oiva eases
 - No speech recognition (talking *to* Oiva by voice); the existing WhatsApp voice notes are untouched.
 - No change to what Oiva says or to the prompt; no new tools.
 - The S-mobiili home screen and "Your money" keep their current art.
+- Messages that arrive from WhatsApp in the owner's mirrored chat take `success`; only replies typed in the app carry a
+  real mood.
+- oiva.js animates at the display's frame rate while Helper mode is on (0 in Chat mode, paused in hidden tabs); no
+  frame-rate cap.
+- Dark mode applies to Helper mode only, so with a dark OS the switch also changes light/dark; Chat mode stays light
+  as it was.
 
 ## 8. Tests
 

@@ -126,11 +126,11 @@
     <button type="button" data-mode="chat" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-4 3.5V16H4z"/></svg>Chat</button>
     <button type="button" data-mode="helper" aria-pressed="false"><img src="/static/oiva/oiva.png" alt="" width="16" height="16">{{ t("Apuri", "Helper") }}</button>
   </span>
-  <button type="button" class="voice" id="voice" aria-pressed="false" title="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}" aria-label="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h4l5-4v13l-5-4H4z"/><path class="w" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>{{ t("Mykistetty", "Muted") }}</span></button>
+  <button type="button" class="voice" id="voice" aria-pressed="false" title="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h4l5-4v13l-5-4H4z"/><path class="w" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>{{ t("Mykistetty", "Muted") }}</span></button>
 </div>
 <section id="stage" hidden aria-label="{{ t('Oiva-apuri', 'Oiva helper') }}">
-  <div id="pal" role="img" aria-label="Oiva"></div>
-  <div class="say" aria-live="polite"><span class="tag" id="say-tag"></span><p id="say-text"></p></div>
+  <div id="pal" aria-hidden="true"></div>
+  <div class="say" aria-hidden="true"><span class="tag" id="say-tag"></span><p id="say-text"></p></div>
 </section>
 <div id="log" aria-live="polite" aria-label="{{ t('Keskustelu Oivan kanssa', 'Conversation with Oiva') }}">
   <div class="msg bot" id="hello">{% if ui_lang(request) == 'en' %}Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.{% else %}Hei {{ name }}! Olen <b>Oiva</b>, S-Pankin rahavalmentajasi. Kysy minulta mitä vain rahoistasi.{% endif %}</div>
@@ -337,7 +337,8 @@ document.querySelectorAll("#top button, #chips button").forEach(b => b.onclick =
 // Deep link /chat?q=...: ask once, then drop q from the address so a reload doesn't ask again.
 const deepQ = {{ q|tojson }};
 if (deepQ) {
-  history.replaceState(null, "", location.pathname + ({{ (not framed)|tojson }} ? "?embed=1" : ""));
+  const u = new URL(location.href); u.searchParams.delete("q");  // keep embed, lang and mode
+  history.replaceState(null, "", u.pathname + u.search);
   deepQ.startsWith("__") ? send(deepQ, null) : send(deepQ);
 }
 </script>

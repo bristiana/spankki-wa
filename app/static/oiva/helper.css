@@ -1,12 +1,12 @@
 /* The chat's two modes (docs/plans/squirrel-helper.md): "Chat" is the chat as it was; "Helper" adds a big Oiva
    (design/mascot oiva.js) that takes the pose of each reply and says it in a speech bubble. */
-.modes{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+.modes{display:flex;align-items:center;gap:8px;padding:4px 12px;background:#fff;border-bottom:1px solid var(--line);flex:none}
 .modes .seg{display:inline-flex;padding:3px;border-radius:99px;background:#eef3ef}
-.modes .seg button{border:0;background:transparent;color:var(--muted);font:600 13.5px var(--font);min-height:32px;
+.modes .seg button{border:0;background:transparent;color:var(--muted);font:600 13.5px var(--font);min-height:30px;
   padding:0 14px;border-radius:99px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .modes .seg button[aria-pressed="true"]{background:var(--brand);color:#fff}
 .modes .seg svg{width:16px;height:16px}
-.modes .voice{margin-left:auto;display:none;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:36px;
+.modes .voice{margin-left:auto;display:none;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:32px;
   padding:0 10px;border:1px solid var(--line);border-radius:99px;background:transparent;color:var(--muted);
   font:600 12.5px var(--font);cursor:pointer}
 .modes .voice svg{width:18px;height:18px}
@@ -17,7 +17,7 @@
 /* the stage: Oiva on the left, what he says on the right */
 #stage{display:none}
 .helper #stage{display:grid;grid-template-columns:var(--pal) 1fr;align-items:center;gap:6px;flex:none;
-  --pal:clamp(112px,19dvh,164px);padding:8px 14px 6px 6px;
+  --pal:clamp(120px,20dvh,168px);padding:4px 14px 4px 6px;
   background:radial-gradient(circle at calc(var(--pal) / 2 + 6px) 55%,#fff6e8 0,#fff6e8 calc(var(--pal) * .38),transparent calc(var(--pal) * .62)),var(--bg);
   border-bottom:1px solid var(--line)}
 #pal{width:var(--pal);height:var(--pal);cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -30,6 +30,7 @@
   color:var(--brand);text-transform:uppercase;margin-bottom:3px}
 .say .tag:empty{display:none}
 .say .tag::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.say.rest .tag{opacity:.45;transition:opacity .6s}
 .say[data-mood="compare"] .tag{color:#3f74b9}
 .say[data-mood="caution"] .tag,.say[data-mood="error"] .tag{color:#b5651d}
 .say p{margin:0;font-size:14.5px;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-box-orient:vertical;
@@ -46,8 +47,8 @@
 .helper #log{padding-top:10px}
 
 /* keyboard open (short visual viewport): a smaller stage, the log keeps its room */
-.helper.kb #stage{--pal:96px;padding-top:4px;padding-bottom:4px}
-.helper.kb .say p{-webkit-line-clamp:3}
+.helper.kb #stage{--pal:76px;padding-top:2px;padding-bottom:2px}
+.helper.kb .say{min-height:0;padding:6px 10px}.helper.kb .say p{-webkit-line-clamp:2;font-size:13.5px}
 
 @media (prefers-reduced-motion:reduce){.say.pop{animation:none}}
 

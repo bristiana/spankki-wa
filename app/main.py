@@ -1996,7 +1996,7 @@ async def chat_turn(request: Request):
         t, rent = reminder_text(name, e)
         if not rent:
             return {"text": "No rent or housing payment is due in the next 45 days.", "buttons": []}
-        return {"text": t, "buttons": [], "mood": "caution", "quick": quick([(f"pay:{rent['bill_id']}", "Pay rent now"),
+        return {"text": t, "buttons": [], "mood": "checking", "quick": quick([(f"pay:{rent['bill_id']}", "Pay rent now"),
                                                           (f"later:{rent['bill_id']}", "Remind me later"),
                                                           ("ask:tight", "How do I stretch it?")])}
     if text.startswith("__alert__:"):

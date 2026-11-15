@@ -22,15 +22,14 @@ def client(e, monkeypatch):
     return TestClient(main.app)
 
 
-@pytest.mark.parametrize("tools", [["get_people_like_me"], ["get_spender_profile"], ["get_home_readiness"],
-                                   ["get_spending", "get_people_like_me"]])
+@pytest.mark.parametrize("tools", [["get_people_like_me"], ["get_spender_profile"], ["get_spending", "get_people_like_me"]])
 def test_comparing_with_other_people_is_compare(tools):
     assert mood.for_reply(tools) == "compare"
 
 
 @pytest.mark.parametrize("tools,want", [(["get_spending"], "spent"), (["get_baskets"], "spent"),
                                         (["get_safe_to_spend"], "safe_to_spend"), (["simulate_cut"], "what_if"),
-                                        (["get_save_more_ideas"], "saving"), (["get_money_guide"], "teaching"),
+                                        (["get_save_more_ideas"], "saving"), (["get_home_readiness"], "saving"), (["get_money_guide"], "teaching"),
                                         (["explore_my_data"], "working"), ([], "success")])
 def test_not_comparing_takes_the_pose_of_what_was_done(tools, want):
     assert mood.for_reply(tools) == want
@@ -38,6 +37,7 @@ def test_not_comparing_takes_the_pose_of_what_was_done(tools, want):
 
 def test_a_pin_button_asks_for_approval():
     assert mood.for_reply(["get_upcoming_bills", "create_payment_link"], [{"label": "Pay", "url": "/pay/x"}]) == "needs_approval"
+    assert mood.for_reply(["get_people_like_me", "create_saving_link"], [{"label": "Save", "url": "/save/x"}]) == "needs_approval"
 
 
 def test_afford_is_caution_only_when_it_does_not_fit(e):
@@ -58,7 +58,7 @@ def test_flows():
 
 
 def test_every_web_reply_names_a_pose(client):
-    assert client.post("/api/chat", json={"text": "__remind__"}).json()["mood"] == "caution"
+    assert client.post("/api/chat", json={"text": "__remind__"}).json()["mood"] == "checking"
     assert client.post("/api/chat", json={"text": "game"}).json()["mood"] == "teaching"
     assert client.post("/api/chat", json={"text": "/new"}).json()["mood"] == "success"
 

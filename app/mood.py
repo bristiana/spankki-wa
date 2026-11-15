@@ -10,14 +10,15 @@ from __future__ import annotations
 STATES = ("idle", "listening", "thinking", "working", "teaching", "checking", "needs_approval", "success", "error",
           "learned", "saving", "spent", "safe_to_spend", "caution", "what_if", "compare")
 
-# Tools whose answer puts the person next to other people: S-Pankki customers of their age and area, Statistics
-# Finland households, or mortgage applicants with their income.
-PEER_TOOLS = {"get_people_like_me", "get_spender_profile", "get_home_readiness"}
+# Tools whose answer puts the person next to other people: S-Pankki customers of their age and area, or Statistics
+# Finland households. (get_home_readiness uses mortgage applications too, but its answer is about the person's own
+# deposit and price range, so it is "saving", not a comparison.)
+PEER_TOOLS = {"get_people_like_me", "get_spender_profile"}
 APPROVAL_TOOLS = {"create_payment_link", "create_saving_link", "create_investment_link", "create_pause_investing_link"}
 TOOL_MOOD = [  # first match wins, after peers, approvals and can_i_afford
     ({"simulate_cut"}, "what_if"),
     ({"get_safe_to_spend"}, "safe_to_spend"),
-    ({"get_safe_to_save", "get_save_more_ideas", "create_goal", "get_goals"}, "saving"),
+    ({"get_safe_to_save", "get_save_more_ideas", "create_goal", "get_goals", "get_home_readiness"}, "saving"),
     ({"get_money_guide"}, "teaching"),
     ({"get_spending", "get_baskets", "get_regular_payments", "get_upcoming_bills"}, "spent"),
     ({"explore_my_data", "get_full_picture", "get_portfolio", "list_funds"}, "working"),
@@ -39,10 +40,10 @@ def afford_fits(engine, trace) -> bool | None:
 def for_reply(tools, buttons=(), engine=None, trace=None) -> str:
     """The pose for an answer from the coach: `tools` it called, `buttons` (PIN / Face ID links) it made."""
     used = set(tools or ())
+    if buttons or used & APPROVAL_TOOLS:  # an action waiting for their OK matters more than anything else said
+        return "needs_approval"
     if used & PEER_TOOLS:
         return "compare"
-    if buttons or used & APPROVAL_TOOLS:
-        return "needs_approval"
     if "can_i_afford" in used:
         fits = afford_fits(engine, trace) if engine is not None else None
         return "caution" if fits is False else "safe_to_spend"
