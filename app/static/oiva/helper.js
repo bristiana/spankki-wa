@@ -39,6 +39,11 @@
   function plain(s) { return String(s || "").replace(/[*_]/g, "").replace(/\s+/g, " ").trim(); }
   // amounts never break across lines in the bubble: "3 345.06 €" keeps its spaces non-breaking
   function nb(s) { return s.replace(/\bS-(?=[A-Za-zÄÖäö])/g, "S\u2011").replace(/(\d) (?=\d{3}(?!\d))/g, "$1\u00a0").replace(/(\d) €/g, "$1\u00a0€"); }
+  // Finnish writes money with a decimal comma ("235,68 €", "3 345,06 €"), as the rest of the app does; the reply's
+  // own text says "235.68 €", so the bubble turns the point of an amount or a percentage into a comma on FI. Only a
+  // point between digits right before € or % changes: a date (31.10.2026) or a time (14.30) stays as it is.
+  function fiNum(s) { return s.replace(/(\d)\.(\d+)(?=[\s\u00a0]?(?:€|%))/g, "$1,$2"); }
+  const bubble = s => nb(fi ? fiNum(String(s || "")) : String(s || ""));
   // The bubble: one sentence, not a copy of the log. For a comparison, the sentence that holds it (a spender
   // profile opens with the type and compares in its second part).
   const PEER = /\b(people|customers|typical|average|most|others|their|year[- ]olds|asiakk\w*|tyypilli\w*|keskim\w*|muut\w*|muill\w*|kaltais\w*|ikäis\w*|\w*vuotiai\w*)\b|\d+\s*[–-]\s*\d+[- ]?(year|vuot)/i;
@@ -80,7 +85,10 @@
       if (price != null) return two(price, free, T("Hinta", "Price"), T("Vapaana", "Free now"), price > free, true);
     }
     if (m === "what_if") return two(get("Now per month"), get("After the cut"), T("Nyt", "Now"), T("Jälkeen", "After"));
-    if (m === "spent") return two(get("Total"), get("Period before"), T("Tämä", "This time"), T("Edellinen", "Before"));
+    if (m === "spent") {  // more spent this time than before is not drawn as "good" green; less or the same is
+      const now = get("Total"), before = get("Period before");
+      return two(now, before, T("Tämä", "This time"), T("Edellinen", "Before"), now > before);
+    }
     return null;
   }
   function eur(x) {  // as the reply writes it: cents under 1 000 €, whole euros above
@@ -115,7 +123,7 @@
     say.dataset.mood = name;
     say.classList.remove("rest");
     tag.textContent = TAGS[name] || "";
-    line.textContent = nb(text);
+    line.textContent = bubble(text);
     say.classList.toggle("thinking", !!thinking);
     say.classList.remove("pop"); void say.offsetWidth; say.classList.add("pop");
   }
@@ -374,6 +382,7 @@
       restLater(12000);
     },
     mood: () => mood,
+    _test: { bubble, pairFor },  // tests/test_mood.py runs these in node
   };
   const hello = document.getElementById("hello");
   if (hello) {  // the greeting: its first two sentences ("Hi Antti! I'm Oiva, your S-Pankki money coach.")

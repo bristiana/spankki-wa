@@ -101,3 +101,46 @@ def test_the_helper_mascot_url_changes_with_the_file(client):
     html = client.get("/chat").text
     assert f"/static/oiva/mascot/oiva.js?v={sha}" in html
     assert re.search(r'/static/oiva/helper\.js\?v=[0-9a-f]{10}"', html)
+
+
+_HELPER_STUB = """
+global.window = global;
+global.document = {documentElement: {lang: %s}, getElementById: () => null, addEventListener() {}, querySelector: () => null};
+global.localStorage = {getItem: () => null, setItem() {}};
+global.requestAnimationFrame = () => 0;
+require(%s);
+const t = window.oivaHelper._test, input = %s;
+process.stdout.write(JSON.stringify({bubble: input.bubble.map(t.bubble), pairs: input.pairs.map(p => t.pairFor(...p))}));
+"""
+
+
+def _helper(lang, bubble=(), pairs=()):
+    import json, os, shutil, subprocess
+    if not shutil.which("node"):
+        pytest.skip("needs node to run the Helper's script")
+    js = _HELPER_STUB % (json.dumps(lang), json.dumps(os.path.abspath("app/static/oiva/helper.js")),
+                         json.dumps({"bubble": list(bubble), "pairs": list(pairs)}))
+    return json.loads(subprocess.run(["node", "-e", js], capture_output=True, text=True, encoding="utf-8", check=True).stdout)
+
+
+def test_the_finnish_bubble_writes_money_with_a_decimal_comma():
+    said = ["Syyskuussa meni *776.48 €*, kun elokuussa 447.80 €.", "Tililläsi on 3 345.06 € ja 12.5 % ennen 31.10.2026 klo 14.30."]
+    fi = _helper("fi", said)["bubble"]
+    assert fi[0] == "Syyskuussa meni *776,48 €*, kun elokuussa 447,80 €."
+    assert fi[1] == "Tililläsi on 3 345,06 € ja 12,5 % ennen 31.10.2026 klo 14.30."  # dates and times keep their points
+    en = _helper("en", said)["bubble"]
+    assert en[0] == "Syyskuussa meni *776.48 €*, kun elokuussa 447.80 €." and "3 345.06 €" in en[1]
+
+
+def _spent(now, before):
+    return ["spent", [{"figures": [{"label": "Total", "value": now}, {"label": "Period before", "value": before}]}], [now, before]]
+
+
+@pytest.mark.parametrize("lang", ["fi", "en"])
+def test_spending_more_than_before_is_not_drawn_in_good_green(lang):
+    higher, lower, same = _helper(lang, pairs=[_spent("776.48 €", "447.80 €"), _spent("447.80 €", "776.48 €"),
+                                               _spent("447.80 €", "447.80 €")])["pairs"]
+    assert higher["over"] is True and (higher["a"], higher["b"]) == (776.48, 447.8)
+    assert lower["over"] is False and same["over"] is False
+    css = open("app/static/oiva/helper.css").read()
+    assert ".bars .over b{background:#8a5a00}" in css  # base.html's warning colour, as the compare bars use
