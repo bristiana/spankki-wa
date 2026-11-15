@@ -6,7 +6,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main
+from app import main, txview
 from app.engine import Engine
 
 ANTTI = "CUST01656"
@@ -77,8 +77,8 @@ def test_accounts_and_s_tili_show_the_engines_numbers(client):
     page = get(client, "/s-mobiili/tilit/s-tili")
     assert fi(e.balance()) in page
     assert "FI00 3939 0000 0016 56" in page  # check digits 00: never a real account
-    for x in e.recent(5):
-        assert x["what"] in page and fi(x["amount_eur"]) in page
+    for x in txview.rows(e, "en", 5):  # the place by its kind, its quiet number, the amount without its sign
+        assert x["name"] in page and f"<i>{x['num']}</i>" in page and fi(abs(x["amount_eur"])) in page
 
 
 def test_payments_list_rent_and_regular_payments(client):
@@ -244,3 +244,26 @@ def test_e_invoices_never_break_after_the_hyphen(client):
         page = get(client, "/s-mobiili/?tab=pankki", lang)
         tile = re.search(r'id="tile-payments".*?</a>', page, re.S).group(0)
         assert re.search(r"e-(laskut|laskuja|invoices)", tile) is None and "e-⁠" in tile
+
+
+def test_transactions_by_day_with_a_detail_and_a_full_list(client):
+    e = client.engine
+    x = txview.rows(e, "en", 1)[0]
+    home = get(client, "/s-mobiili/")
+    assert 'id="see-all"' in home and f'data-sheet="txs-{x["id"]}"' in home and f'id="txs-{x["id"]}"' in home
+    assert txview.day_label(x["date"], e.today, "en") in home and x["basket_label"] in home
+    fi_home = get(client, "/s-mobiili/", "fi")
+    assert txview.day_label(x["date"], e.today, "fi") in fi_home and x["basket_label"] not in fi_home
+    detail = get(client, f"/s-mobiili/tapahtumat/{x['id']}")  # the sheet's body as a page, without JavaScript
+    assert x["name"] in detail and fi(abs(x["amount_eur"])) in detail and x["basket_line"] in detail
+    if x["receipt"]:
+        assert f"/s-mobiili/kuitit/{x['id']}" in detail
+    assert client.get("/s-mobiili/tapahtumat/999999").status_code == 404
+    full = get(client, "/s-mobiili/tapahtumat")
+    fun = get(client, "/s-mobiili/tapahtumat?kori=everyday")
+    assert full.count('class="txr"') > fun.count('class="txr"') > 0
+    assert 'data-basket="regular"' not in fun and 'data-basket="everyday"' in fun
+    none = get(client, "/s-mobiili/tapahtumat?q=zzzz")
+    assert 'class="txr"' not in none and 'id="tx-empty"' in none
+    grocery = get(client, "/s-mobiili/tapahtumat?q=ruokakauppa", "fi")  # Finnish words find Finnish names
+    assert grocery.count('class="txr"') > 0 and 'data-basket="everyday"' not in grocery

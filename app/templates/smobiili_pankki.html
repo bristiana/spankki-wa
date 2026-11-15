@@ -87,12 +87,34 @@
       <a id="tili-save" href="/s-mobiili/saastot{{ k }}">{{ icon("trophy") }}{{ t("Siirrä säästöön", "Move to savings") }}</a>
     </div>
     {% if payday %}<p class="muted" style="margin:10px 2px 0">{% if en %}Next salary {{ salary|fimoney }} expected {{ payday }}{% else %}Seuraava palkka {{ salary|fimoney }} odotetaan {{ payday }}{% endif %}</p>{% endif %}
-    <h2 class="sec">{{ t("Tilitapahtumat", "Transactions") }}</h2>
-    {% for d in days %}<p class="p-day">{{ d.day }}</p>
-    <section class="card p-tx">{% for x in d.rows %}<div class="row"><span>{{ x.what }}{% if x.category %}<small>{{ x.category }}</small>{% endif %}</span><b class="{{ 'pos' if x.amount_eur > 0 }}">{{ x.amount_eur|fimoney }}</b></div>{% endfor %}</section>
-    {% else %}<p class="muted">{{ t("Ei vielä tapahtumia.", "No transactions yet.") }}</p>{% endfor %}
+    <h2 class="sec">{{ t("Tilitapahtumat", "Transactions") }}<a class="see" id="see-all" href="/s-mobiili/tapahtumat{{ k ~ '&' if k else '?' }}from=tili">{{ t("Hae", "Search") }}</a></h2>
+    {% if tx_days %}<section class="card txl" id="tili-tx">{{ tx.tx_days(tx_days, "tili") }}</section>
+    {% else %}<p class="muted">{{ t("Ei vielä tapahtumia.", "No transactions yet.") }}</p>{% endif %}
     {{ ask_oiva("Mihin olen käyttänyt eniten viime aikoina?", "What have I spent the most on lately?", "ask-tili", cls="card") }}
   </div>
+
+{% elif extra == "p-tapahtumat" %}
+  <div class="pad">
+    <form class="txf" method="get" action="/s-mobiili/tapahtumat" role="search" id="tx-filter">
+      {% for name in ("persona", "web", "from") %}{% if request.query_params.get(name) %}<input type="hidden" name="{{ name }}" value="{{ request.query_params.get(name) }}">{% endif %}{% endfor %}
+      {% if kori %}<input type="hidden" name="kori" value="{{ kori }}">{% endif %}
+      <label class="txq"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="14" cy="14" r="8.5"/><path d="M20.5 20.5L27 27"/></svg>
+        <input type="search" name="q" id="tx-q" value="{{ q }}" placeholder="{{ t('Hae paikkaa, summaa tai koria', 'Search a place, amount or basket') }}" aria-label="{{ t('Hae tapahtumista', 'Search transactions') }}" autocomplete="off" enterkeyhint="search"></label>
+      <nav class="txc" aria-label="{{ t('Suodata korin mukaan', 'Filter by basket') }}">
+        <a href="{{ chip_url('') }}" data-kori=""{% if not kori %} aria-current="true"{% endif %}>{{ t("Kaikki", "All") }}</a>
+        {% for kk, dot in (("regular", "#007841"), ("irregular", "#00aa46"), ("everyday", "#9fd8a9")) %}<a href="{{ chip_url(kk) }}" data-kori="{{ kk }}"{% if kori == kk %} aria-current="true"{% endif %}><i style="background:{{ dot }}" aria-hidden="true"></i>{{ basket_text[kk] }}</a>{% endfor %}
+        <a href="{{ chip_url('in') }}" data-kori="in"{% if kori == "in" %} aria-current="true"{% endif %}>{{ t("Tulot", "Money in") }}</a>
+      </nav>
+    </form>
+    <p class="txsum" id="tx-sum" aria-live="polite"><span><b>{{ tx_count }} {{ t("tapahtumaa", "transactions") if tx_count != 1 else t("tapahtuma", "transaction") }}</b>{{ t("viimeiset 12 kk", "last 12 months") }}</span>
+      <span><b id="tx-out"{% if not tx_out %} hidden{% endif %}>{{ t("Menot", "Out") }} {{ (tx_out|abs)|fimoney }}</b><b id="tx-in"{% if not tx_in %} hidden{% endif %}>{{ t("Tulot", "In") }} {{ tx_in|fimoney }}</b></span></p>
+    {% if tx_days %}<section class="card txl" id="all-tx">{{ tx.tx_days(tx_days, "all") }}</section>{% endif %}
+    <p class="tx-empty" id="tx-empty"{% if tx_days %} hidden{% endif %}>{{ t("Ei osumia. Kokeile toista sanaa tai valitse Kaikki.", "Nothing matches. Try another word or pick All.") }}</p>
+    {{ ask_oiva("Mihin olen käyttänyt eniten viime aikoina?", "What have I spent the most on lately?", "ask-all", cls="card") }}
+  </div>
+
+{% elif extra == "p-tapahtuma" %}
+  <div class="pad"><section class="card txl txs-page" id="tx-detail">{{ tx.tx_detail(x, "all") }}</section></div>
 
 {% elif extra == "p-maksut" %}
   <div class="pad">

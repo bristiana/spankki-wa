@@ -222,7 +222,7 @@ class Engine:
                 else pd.read_csv(self.csv_path, dtype={"merchant_id": "string", "mcc_code": "string"}))
         base["date"] = pd.to_datetime(base["tx_date"]).dt.date
         self.base = base[["date", "category", "tx_amount_eur", "transaction_type", "merchant_id", "mcc_code",
-                          "balance_after_eur"]]
+                          "balance_after_eur"] + (["tx_timestamp"] if "tx_timestamp" in base.columns else [])]
         # Which spending category each merchant code belongs to (for "where did the transport money go instead").
         self.mcc_category = (base.dropna(subset=["mcc_code"]).groupby("mcc_code")["category"]
                              .agg(lambda c: c.mode()[0]).to_dict())

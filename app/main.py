@@ -24,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from . import txview
 from . import bills, broker, enable_banking, guardrails, learn, mirror, mood, onboarding, quiz, receipts, rules, stt, tts, voice
 from . import whatsapp as wa
 from .agent import Coach
@@ -255,6 +256,7 @@ def fi_money(x: float) -> str:
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
 templates.env.filters["fimoney"] = fi_money
+templates.env.globals["tx_hay"] = txview.haystack
 templates.env.globals.update(t=_t, ui_lang=ui_lang, lang_url=lang_url, persona_label=persona_label, basket_fi=BASKET_FI,
                              basket_fi_by_label={BASKETS[k]["label"]: v["label"] for k, v in BASKET_FI.items()})
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -1500,7 +1502,8 @@ def smobiili_home(request: Request):
     safe = {"amount": s["safe_to_spend_until_payday_eur"], "per_day": s["safe_per_day_eur"], "days": s["horizon_days"],
             "payday": fi_date(s["next_payday"]["date"]) if s["next_payday"]["date"] else None}
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
-        request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps), baskets=b, ready=ready,
+        request, persona, screen="home", a=a, recent=e.recent(8),
+        recent_days=txview.by_day(txview.rows(e, ui_lang(request), 6), e.today, ui_lang(request)), steps=guide_steps(steps), baskets=b, ready=ready,
         safe=safe,
         bonus=demo_bonus(persona, e.today), bills_due=bills_due,
         bill={**bill, "due": fi_date(bill["due_date"])} if bill else None))
@@ -1548,6 +1551,11 @@ def smobiili_receipt(request: Request, row_id: int):
     if request.query_params.get("from") == "kortti":  # opened from Pankki -> Card -> Card transactions
         return sm_sub(request, persona, "kuitti", tr(ui_lang(request), "Kassakuitti", "Receipt"),
                       "/s-mobiili/kortti/tapahtumat" + sm_keep(request), tab="pankki", r=r)
+    back = {"koti": ("/s-mobiili/", "koti"), "tili": ("/s-mobiili/tilit/s-tili", "pankki"),  # opened from a transaction
+            "all": ("/s-mobiili/tapahtumat", "koti")}.get(request.query_params.get("from", ""))
+    if back:
+        return sm_sub(request, persona, "kuitti", tr(ui_lang(request), "Kassakuitti", "Receipt"),
+                      back[0] + sm_keep(request), tab=back[1], r=r)
     return sm_sub(request, persona, "kuitti", tr(ui_lang(request), "Kassakuitti", "Receipt"),
                   "/s-mobiili/kuitit" + sm_keep(request), r=r)
 
@@ -1595,31 +1603,6 @@ def pk_short(iso: str | None, lang: str) -> str:
 
 def pk_cat(cat: str, lang: str) -> str:
     return cat if lang == "en" else CATEGORY_FI.get(cat, cat)
-
-
-def pk_tx(e: Engine, lang: str, n: int = 40) -> list[dict]:
-    """The S-Tili's latest transactions, newest first, grouped by day."""
-    notes: dict = {}  # moves made in the app (a payment, a saving) carry their recipient in the action's note
-    for a in e.state.get("actions", []):
-        notes.setdefault((a["date"], eur(a["amount"])), []).append(a.get("note") or "")
-    days: list[dict] = []
-    for x in e.recent(n):
-        label = pk_day(x["date"], lang)
-        if not days or days[-1]["day"] != label:
-            days.append({"day": label, "rows": []})
-        what, cat = x["what"], pk_cat(x["category"], lang)
-        if what == x["category"]:  # no merchant: our own move, or a bill or salary row
-            left = notes.get((x["date"], x["amount_eur"])) or []
-            note = left.pop() if left else ""
-            if note.startswith("Savings pocket"):
-                what = tr(lang, "Siirto säästötilille", "To your savings account")
-            elif note:
-                what = note if lang == "en" else BILL_FI.get(note, note)
-            else:
-                what = cat
-            cat = "" if what == cat else cat
-        days[-1]["rows"].append({**x, "what": what, "category": cat})
-    return days
 
 
 def pk_bills(e: Engine, lang: str) -> list[dict]:
@@ -1706,8 +1689,42 @@ def smobiili_account(request: Request):
     e, lang = pk_ctx(request)
     pay = e.next_payday()
     return pk_sub(request, "p-tili", ("S-Tili", "S-Tili"), "/s-mobiili/tilit", a=accounts(e), iban=own_iban(e),
-                  days=pk_tx(e, lang), payday=pk_day(pay.get("date"), lang),
-                  salary=pay.get("expected_eur"))
+                  tx_days=txview.by_day(txview.rows(e, lang, 40), e.today, lang),
+                  payday=pk_day(pay.get("date"), lang), salary=pay.get("expected_eur"))
+
+
+# All transactions (Koti -> Transactions -> See all): the last 12 months, newest first, grouped by day like the S-Tili,
+# with a search and the three baskets as filters. Works without JavaScript (a GET form); tx.js filters as you type.
+TX_FILTERS = ("regular", "irregular", "everyday", "in")
+
+
+@app.get("/s-mobiili/tapahtumat", response_class=HTMLResponse)
+def smobiili_transactions(request: Request, q: str = "", kori: str = ""):
+    e, lang = pk_ctx(request)
+    kori = kori if kori in TX_FILTERS else ""
+    items = txview.rows(e, lang, None, since=e.today - timedelta(days=365))
+    shown = [x for x in items if txview.matches(x, q)
+             and (not kori or (x["income"] if kori == "in" else x["basket"] == kori))]
+    back = "/s-mobiili/tilit/s-tili" if request.query_params.get("from") == "tili" else "/s-mobiili/"
+    return sm_sub(request, sm_persona(request), "p-tapahtumat", tr(lang, "Tapahtumat", "Transactions"),
+                  pk_keep(request, back), tab="pankki" if "tilit" in back else "koti",
+                  tx_days=txview.by_day(shown, e.today, lang), q=q, kori=kori, tx_count=len(shown),
+                  tx_out=eur(sum(x["amount_eur"] for x in shown if not x["income"])),
+                  tx_in=eur(sum(x["amount_eur"] for x in shown if x["income"])),
+                  basket_text={k: v["en" if lang == "en" else "fi"][0] for k, v in txview.BASKET_TEXT.items()},
+                  chip_url=lambda kk: pk_keep(request, "/s-mobiili/tapahtumat", **{
+                      k: v for k, v in {"from": request.query_params.get("from"), "kori": kk, "q": q}.items() if v}))
+
+
+@app.get("/s-mobiili/tapahtumat/{row_id}", response_class=HTMLResponse)
+def smobiili_transaction(request: Request, row_id: int):
+    """One transaction as a page: what the sheet shows, for a browser without JavaScript or a shared link."""
+    e, lang = pk_ctx(request)
+    x = next((r for r in txview.rows(e, lang, None) if r["id"] == row_id), None)
+    if not x:
+        raise HTTPException(404)
+    return sm_sub(request, sm_persona(request), "p-tapahtuma", tr(lang, "Tapahtuma", "Transaction"),
+                  pk_keep(request, "/s-mobiili/tapahtumat"), tab="koti", x=x)
 
 
 @app.get("/s-mobiili/maksut", response_class=HTMLResponse)
