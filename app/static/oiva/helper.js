@@ -19,6 +19,7 @@
     error: T("Hups", "Oops"),
     checking: T("Katsoin", "I had a look"),
     listening: T("Kuuntelen", "Listening"),
+    heard: T("Kuulin näin, tarkista ja lähetä", "I heard this, check and send"),
     thinking: T("Mietin…", "Thinking…"),
   };
   const phone = document.getElementById("phone");
@@ -30,7 +31,7 @@
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   };
-  let oiva = null, mood = "idle", idleTimer = 0, last = "", lastParts = [];
+  let oiva = null, mood = "idle", idleTimer = 0, last = "", lastParts = [], hearing = false;
 
   // the reply states oiva.js has a pose for (app/mood.py); anything else is a plain answer
   const POSES = ["idle", "listening", "thinking", "working", "teaching", "checking", "needs_approval", "success", "error",
@@ -363,13 +364,14 @@
   // ---- what the chat tells us ----
   window.oivaHelper = {
     listening() {  // only the pose: the last reply's sentence stays in the bubble while you type
-      if (mood === "thinking") return;
+      if (mood === "thinking" || hearing) return;
       clearTimeout(idleTimer);
       if (mood !== "listening") pose("listening");
       glance(document.getElementById("q"), 4000);
       restLater(8000);
     },
     thinking() {  // a new question: he stops talking; the send tap keeps the next reply's audio allowed
+      hearing = false;
       clearTimeout(idleTimer); pose("thinking");
       hush(); unlock();
       show("thinking", "", true);
@@ -383,8 +385,26 @@
       const says = x => plain(last).replace(/[\s\u00a0]/g, "").replace(/,/g, ".").includes(x.toFixed(2));
       show(m, pair && !says(pair.a) && !says(pair.b) ? "" : (last || T("Tässä.", "Here you go.")), false, pair);
       glance(say, 2500);
+      if (hearing) return;  // you are speaking to him (the mic): he doesn't talk over you; the sound button repeats it
       speak(parts);
       restLater(12000);
+    },
+    // the mic (listen.js): he stops talking and listens while you speak, waits while it is written down, then
+    // shows the last thing he said again (or why it didn't work)
+    hearStart() {
+      hearing = true;
+      clearTimeout(idleTimer); hush();
+      pose("listening");
+      show("listening", T("Kerro vain, kuuntelen!", "Go ahead, I'm all ears!"));
+    },
+    hearWait() { if (hearing) show("listening", "", true); },
+    hearEnd(note, heard) {  // why it didn't work, or what he heard (it is in the message box to check and send)
+      if (!hearing) return;
+      hearing = false;
+      if (note) { pose("error"); show("error", note); restLater(6000); return; }
+      if (heard) { pose("success"); show("heard", "“" + heard + "”"); restLater(8000); return; }
+      show("listening", last || ""); if (say) say.classList.add("rest");
+      restLater(6000);
     },
     mood: () => mood,
     _test: { bubble, pairFor },  // tests/test_mood.py runs these in node
