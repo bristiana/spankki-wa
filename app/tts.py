@@ -286,7 +286,8 @@ def _settings_for(voice: str, chosen: str, model: str, lang: str = "fi") -> dict
 
 
 def voice_settings(lang: str = "fi") -> dict:
-    """DEFAULT_SETTINGS, with the language's own (LANG_SETTINGS), then any ELEVENLABS_STABILITY / _SIMILARITY / _STYLE / _SPEED / _SPEAKER_BOOST, kept in range;
+    """DEFAULT_SETTINGS with the language's own (LANG_SETTINGS), then any ELEVENLABS_STABILITY / _SIMILARITY /
+    _STYLE / _SPEED / _SPEAKER_BOOST, kept in range;
     a value that isn't a number keeps the default."""
     out = dict(DEFAULT_SETTINGS) | LANG_SETTINGS.get(lang, {})
     for k, (env, lo, hi) in _SETTING_ENV.items():
