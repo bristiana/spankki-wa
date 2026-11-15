@@ -378,10 +378,10 @@
     {# Oiva on the first screen: today's safe to spend from the engine, and the Helper one tap away #}
     <section class="card oiva-card" id="oiva-card" aria-label="Oiva">
       <div class="oc-top"><img src="{{ static('oiva/mascot/head-v3.png') }}" alt="" width="52" height="52">
-        <span class="oc-txt"><span class="oc-k"><b>Oiva</b> · {{ t("Voit käyttää turvallisesti", "Safe to spend") }}</span>
+        <span class="oc-txt"><span class="oc-k"><b>Oiva</b> · {{ t("Turvallisesti käytettävissä", "Safe to spend") }}</span>
           <b class="oc-n" id="oiva-safe">{{ safe.amount|fimoney }}</b>
-          <small>{% if safe.payday %}{{ t("palkkapäivään " ~ safe.payday ~ " asti", "until payday " ~ safe.payday) }}{% else %}{{ t("seuraavat " ~ safe.days ~ " päivää", "next " ~ safe.days ~ " days") }}{% endif %} · <span class="nw">{{ t("noin", "about") }} {{ safe.per_day|fimoney }} {{ t("päivässä", "a day") }}</span></small></span></div>
-      {{ ask_oiva("Paljonko voin käyttää palkkapäivään asti?", "How much can I spend until payday?", "ask-spend") }}
+          <small>{% if safe.payday %}{{ t("palkkapäivään " ~ safe.payday ~ " asti", "until payday " ~ safe.payday) }}{% else %}{{ t("seuraavat " ~ safe.days ~ " päivää", "next " ~ safe.days ~ " days") }}{% endif %} <span class="nw">· {{ t("noin", "about") }} {{ safe.per_day|fimoney }} {{ t("päivässä", "a day") }}</span></small></span></div>
+      {{ ask_oiva("Paljonko voin vielä käyttää?", "How much can I spend until payday?", "ask-spend") }}
     </section>
     <a class="card row-card" href="{{ tab_urls.pankki }}">{{ icon("check") }}<span class="txt"><b>{{ t("Vahvistettavat maksut", "Payments to confirm") }}</b>
       <small>{% if bill %}{{ t("Seuraava eräpäivä", "Next due date") }} {{ bill.due }}{% else %}{{ t("Ei vahvistettavia maksuja", "No payments to confirm") }}{% endif %}</small></span>
@@ -445,7 +445,7 @@
       {{ ask_oiva("Kerro kulutuksestani tässä kuussa", "Tell me about my spending this month", "ask-money", cls="card") }}
       {% for id in ("trend", "cats", "budget", "sit", "fig", "income", "cal") %}<a class="card{{ ' rel' if id == 'trend' }}" id="{{ id }}" href="{{ asks[id] }}"></a>
       {% endfor %}
-      <a class="ask-oiva" id="ask-oiva" href="{{ asks.oiva }}"><span class="say">{{ t("Kysy minulta tästä", "Ask me about this") }}</span>
+      <a class="ask-oiva" id="ask-oiva" href="{{ asks.oiva }}"><span class="say">{{ t("Kysy Oivalta rahoistasi", "Ask Oiva about your money") }}</span>
         <span class="oiva wave once" role="img" aria-label="Oiva" onanimationend="this.className = 'oiva idle'"></span></a>
     </div>
     <script>document.getElementById("trend").addEventListener("click", e => e.target.closest("svg") && e.preventDefault());  // the chart scrubs, the rest asks</script>

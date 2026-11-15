@@ -120,8 +120,8 @@ def test_your_money_screen(client):
 
 
 @pytest.mark.parametrize("lang, oiva, cats, say", [
-    ("en", "Tell me about my spending this month", "Where did my money go in September?", "Ask me about this"),
-    ("fi", "Kerro kulutuksestani tässä kuussa", "Mihin rahani menivät syyskuussa?", "Kysy minulta tästä")])
+    ("en", "Tell me about my spending this month", "Where did my money go in September?", "Ask Oiva about your money"),
+    ("fi", "Kerro kulutuksestani tässä kuussa", "Mihin rahani menivät syyskuussa?", "Kysy Oivalta rahoistasi")])
 def test_your_money_asks_oiva(client, lang, oiva, cats, say):
     """Oiva floats on Your money; tapping her or a chart card asks her about it in the chat, in the screen's language."""
     import re
@@ -199,5 +199,5 @@ def test_koti_shows_oivas_safe_to_spend_card_first(client, lang):
     card = card[:card.index("</section>")]
     assert main.fi_money(s["safe_to_spend_until_payday_eur"]) in card and main.fi_money(s["safe_per_day_eur"]) in card
     assert "mascot/head-v3.png" in card and 'id="ask-spend"' in card and 'href="/chat?q=' in card
-    assert ("Voit käyttää turvallisesti" if lang == "fi" else "Safe to spend") in card
+    assert ("Turvallisesti käytettävissä" if lang == "fi" else "Safe to spend") in card
     assert page.index('class="hero"') < page.index('id="oiva-card"') < page.index("Vahvistettavat maksut" if lang == "fi" else "Payments to confirm")
