@@ -178,7 +178,8 @@ def _question(r: dict) -> Turn:
     fi = _fi(r)
     name = (p.get("name_fi") if fi else None) or p["name"]
     what = f"{name} · {p['kind'].lower()}" if p["place"] else name
-    when = f"{DAY_FI[d.weekday()]} {d.day}.{d.month}." if fi else f"{d.strftime('%a')} {d.day} {d.strftime('%b')}"
+    when = (f"{DAY_FI[d.weekday()]}\u00a0{d.day}.{d.month}." if fi  # the weekday never wraps away from its date
+            else f"{d.strftime('%a')}\u00a0{d.day}\u00a0{d.strftime('%b')}")
     ask = " Mihin koriin?" if fi else ". Which basket?"  # a Finnish date already ends in a full stop
     return Turn(f"*{r['round'] + 1}/{len(r['picks'])}* {what} · {_eur(p['amount_eur'], fi)} · {when}{ask}", _buttons(r))
 

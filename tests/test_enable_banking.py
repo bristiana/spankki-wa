@@ -110,7 +110,7 @@ def test_login_with_whatsapp(monkeypatch):
     c = TestClient(main.app)
     r = c.get("/login")
     assert "wa.me/15550001111?text=login" in r.text and "Log in with WhatsApp" in r.text
-    assert 'href="/login">Log in</a>' in c.get("/privacy").text
+    assert 'href="/login">Kirjaudu</a>' in c.get("/privacy").text and 'href="/login">Log in</a>' in c.get("/privacy?lang=en").text
     r = c.get("/login", params={"t": eb.sign("358401111111")}, follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == "/s-mobiili/"
     r = c.get("/login", params={"t": eb.sign("358401111111"), "next": "/bank"}, follow_redirects=False)

@@ -65,7 +65,7 @@
 {% block head %}{% endblock %}
 </head>
 <body{% if embed or request.query_params.get('web') %} class="embed"{% endif %}>
-{% if not embed and not request.query_params.get('web') %}<div class="bar"><a class="home" href="/s-mobiili/" aria-label="S-Pankki home"><div class="logo" aria-hidden="true">S</div><b>S-Pankki</b></a>{% set me = wa_login(request) %}{% if me %}<a class="login" href="/bank" title="Logged in with WhatsApp">{{ me }}</a>{% else %}<a class="login" href="/login">Log in</a>{% endif %}</div>{% endif %}
+{% if not embed and not request.query_params.get('web') %}<div class="bar"><a class="home" href="/s-mobiili/" aria-label="S-Pankki home"><div class="logo" aria-hidden="true">S</div><b>S-Pankki</b></a>{% set me = wa_login(request) %}{% if me %}<a class="login" href="/bank" title="Logged in with WhatsApp">{{ me }}</a>{% else %}<a class="login" href="/login">{{ t("Kirjaudu", "Log in") }}</a>{% endif %}</div>{% endif %}
 {% block body %}{% endblock %}
 <script>
 // Inside the chat's confirm sheet (an iframe), "back" links close the sheet instead of loading the chat in it.

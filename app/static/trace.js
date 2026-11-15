@@ -8,9 +8,9 @@
   // Amounts never break across lines: "1 313.89 €" keeps its spaces non-breaking.
   function nb(s) { return s.replace(/(\d) (?=\d{3}(?!\d))/g, "$1 ").replace(/(\d) €/g, "$1 €"); }
   function source(s) {  // an official guide's link is clickable; anything else is plain text
-    const m = /^official guide: (https:\/\/[^\s"<>]+)$/.exec(s);
-    return m ? 'official guide: <a href="' + esc(m[1]) + '" target="_blank" rel="noopener">' +
-               esc(m[1].replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, "")) + "</a>" : esc(s);
+    const m = /^(official guide|virallinen opas): (https:\/\/[^\s"<>]+)$/.exec(s);
+    return m ? m[1] + ': <a href="' + esc(m[2]) + '" target="_blank" rel="noopener">' +
+               esc(m[2].replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, "")) + "</a>" : esc(s);
   }
 
   function traceHtml(trace) {
@@ -33,7 +33,7 @@
     h += "</ol>";
     const sources = [...new Set(steps.flatMap(s => s.sources || []))];
     if (sources.length) h += '<p class="how-src"><b>' + (fi ? "Lähteet:" : "Sources:") + '</b> ' + sources.map(source).join(" · ") + "</p>";
-    if (check) h += '<p class="how-check' + (check.matched < check.checked ? " warn" : "") + '">' + esc(fi ? check.matched + "/" + check.checked + " lukua täsmäsi laskelmiin" + (check.rewritten ? " (ensimmäinen luonnos korjattiin)" : "") : check.check) + "</p>";
+    if (check) h += '<p class="how-check' + (check.matched < check.checked ? " warn" : "") + '">' + esc(check.check || (fi ? check.matched + "/" + check.checked + " lukua täsmäsi laskelmiin" + (check.rewritten ? " (ensimmäinen luonnos korjattiin)" : "") : "")) + "</p>";
     return h + "</div></details>";
   }
 

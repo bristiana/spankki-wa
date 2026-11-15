@@ -57,7 +57,7 @@ def confirm(client, route, pid, **body):
 def test_home_shows_accounts_and_recent_from_the_engine(client):
     page = client.get("/s-mobiili/").text
     assert LABEL not in page and "Savings" in page and "Funds" in page and "Not opened yet" in page
-    assert main.fi_money(main.engine.balance()) in page  # S-mobiili writes money the Finnish way
+    assert main.fi_money(main.engine.balance(), "en") in page  # English S-mobiili writes 1 234.56 €
     assert main.engine.recent(8)[0]["what"] in page
     assert [s["target"] for s in steps(page)] == ["oiva-card", "acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
     for s in steps(page):
@@ -69,7 +69,7 @@ def test_persona_override_works_like_as(client):
     other = next(p for p in main.PERSONAS if p != main.DEFAULT_PERSONA)
     page = client.get(f"/s-mobiili/?persona={other}").text
     assert f"Hi {main.PERSONAS[other]['name']}" in page
-    assert main.fi_money(main.engine_for(other).balance()) in page
+    assert main.fi_money(main.engine_for(other).balance(), "en") in page
     assert f"Hi {main.PERSONAS[main.DEFAULT_PERSONA]['name']}" in client.get("/s-mobiili/?persona=nobody").text
 
 
@@ -79,7 +79,7 @@ def test_pay_review_is_prefilled_and_guided(client):
     r = rent()
     assert LABEL not in page and "Pay a bill" in page and "Confirm with Face ID" in page and "no camera" not in page
     for text in ("Landlord · Asunto Oy Demo", "FI00 0000 0000 0000 00", main.nice_date(r["due_date"]),
-                 main.fi_money(r["amount_eur"])):
+                 main.fi_money(r["amount_eur"], "en")):
         assert text in page
     ref = main.demo_reference(r["bill_id"])
     assert ref in page and len(ref.replace(" ", "")) == 10
@@ -153,7 +153,7 @@ def test_save_without_a_goal_date_and_confirm(client):
     assert j["title"] == "Saved" and main.engine.balance() == round(before - 50, 2)
     assert main.engine.state["savings_pocket_opened"] == "2026-10-06"  # step 2 set up the savings account
     assert confirm(client, "save", p["pending_id"]).status_code == 409
-    assert main.fi_money(50) in client.get("/s-mobiili/").text
+    assert main.fi_money(50, "en") in client.get("/s-mobiili/").text
 
 
 def test_invest_shows_the_chosen_fund_and_risk_in_plain_words(client):
@@ -172,7 +172,7 @@ def test_pause_investing_flow(client):
     p = main.engine.create_pause_investing()
     page = client.get(f"/s-mobiili/stop/{p['pending_id']}").text
     assert "Pause monthly investing" in page and f"Day {p['usual_day']} of the month" in page
-    assert main.fi_money(p["amount"]) in page and "Stays invested" in page and main.nice_date(p["next_charge"]) in page
+    assert main.fi_money(p["amount"], "en") in page and "Stays invested" in page and main.nice_date(p["next_charge"]) in page
     assert "card payment" not in page.lower() and "merchant" not in page.lower()
     assert [s["target"] for s in steps(page)] == ["amount", "row-next", "row-invested", "faceid"]
     before = main.engine.balance()
@@ -274,7 +274,7 @@ def test_ready_card_shows_the_payment_and_links_to_the_flow(client):
     s = steps(page)
     assert s[0] == {"target": "ready", "say": "I've got it ready, tap to check and confirm", "mood": "happy"}
     assert [x["target"] for x in s[1:]] == ["oiva-card", "acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
-    assert main.fi_money(main.engine.balance()) in page and 'id="baskets"' in page  # still the bank's home
+    assert main.fi_money(main.engine.balance(), "en") in page and 'id="baskets"' in page  # still the bank's home
 
 
 def test_ready_card_for_save_invest_and_pause(client):
