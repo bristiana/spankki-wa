@@ -42,8 +42,8 @@ def href(page, el_id):
     return m.group(1).replace("&amp;", "&")
 
 
-def fi(x):
-    return main.fi_money(x)
+def fi(x, lang="en"):
+    return main.fi_money(x, lang)  # these pages are read in English: 1 234.56 €
 
 
 def test_every_pankki_tile_opens_its_own_screen(client):
@@ -147,7 +147,7 @@ def test_savings_start_a_buffer_then_add_money(client):
     assert 'Back to Savings' in get(client, r.headers["location"])
     assert client.post(f"/s-mobiili/save/{pid}/confirm", json={}).json()["ok"]
     assert e.state["goals"]["emergencybuffer"]["saved"] == 50
-    assert "50,00" in get(client, "/s-mobiili/saastot")
+    assert "50.00" in get(client, "/s-mobiili/saastot")
 
 
 def test_investments_show_deposits_and_pause_through_face_id(client):

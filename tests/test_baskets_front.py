@@ -46,7 +46,7 @@ def test_smobiili_home_shows_the_baskets_card_with_engine_numbers(client):
         row = card[card.index(f'id="basket-{b["basket"]}"'):]
         row = row[:re.search(r'class="(bk-row|ask-o)', row).start()]  # up to the next row
         assert b["label"].replace("&", "&amp;") in row and f"Mostly {b['example']}" in unescape(row)
-        assert main.fi_money(b["per_month_eur"]) in row and f"{b['share_pct']}%" in row
+        assert main.fi_money(b["per_month_eur"], "en") in row and f"{b['share_pct']}%" in row
         assert ("Easiest place to save" in row) == (b["basket"] == "everyday")
     assert page.index('id="acct-current"') < page.index('id="baskets"') < page.index('id="recent"')
     assert "Concept prototype" not in page
