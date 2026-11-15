@@ -106,7 +106,12 @@ def test_other_sites_cannot_use_it(client, eleven, monkeypatch):
     assert post(client, origin="https://evil.example").status_code == 403
     assert post(client, **{"sec-fetch-site": "cross-site"}).status_code == 403
     assert post(client, origin="http://testserver").status_code == 200
-    assert len(eleven["calls"]) == 1
+    # behind the Worker the container sees Host: container; the browser's own word, or PUBLIC_URL, still lets it in
+    assert post(client, host="container", **{"sec-fetch-site": "same-origin", "origin": "https://oiva.example"}).status_code == 200
+    monkeypatch.setenv("PUBLIC_URL", "https://oiva.example")
+    assert post(client, host="container", origin="https://oiva.example").status_code == 200
+    assert post(client, host="container", origin="https://evil.example").status_code == 403
+    assert len(eleven["calls"]) == 3
 
 
 def test_per_visitor_minute_cap(client, eleven, monkeypatch):
@@ -160,3 +165,21 @@ def test_unreachable(client, monkeypatch):
 
     monkeypatch.setattr(stt.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(boom), **kw))
     assert post(client).status_code == 502
+
+
+def test_ipv6_visitor_is_its_64(client, eleven, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    codes = [post(client, **{"cf-connecting-ip": f"2001:db8:1:2::{i:x}"}).status_code
+             for i in range(stt.PER_VISITOR_MINUTE + 1)]
+    assert codes[-1] == 429  # rotating addresses inside one /64 is still one visitor
+
+
+def test_read_timeout_is_not_refunded(client, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
+    real = httpx.AsyncClient
+
+    def slow(req):
+        raise httpx.ReadTimeout("slow")
+
+    monkeypatch.setattr(stt.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(slow), **kw))
+    assert post(client).status_code == 502 and stt._spent["calls"] == 1  # they may have billed it

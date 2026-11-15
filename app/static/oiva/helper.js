@@ -379,13 +379,13 @@
     reply(name, parts, trace) {
       const m = POSES.includes(name) ? name : "success";
       last = first(parts, m); lastParts = parts || [];
+      if (hearing) return;  // you are speaking to him (the mic): he keeps listening, quiet; the reply is in the log
       pose(m);
       const pair = pairFor(m, trace, parts);
       // with bars, a sentence about another figure (last month vs the bars' three months) would contradict them
       const says = x => plain(last).replace(/[\s\u00a0]/g, "").replace(/,/g, ".").includes(x.toFixed(2));
       show(m, pair && !says(pair.a) && !says(pair.b) ? "" : (last || T("Tässä.", "Here you go.")), false, pair);
       glance(say, 2500);
-      if (hearing) return;  // you are speaking to him (the mic): he doesn't talk over you; the sound button repeats it
       speak(parts);
       restLater(12000);
     },

@@ -2047,18 +2047,29 @@ async def voice_api(request: Request):
 def visitor_of(request: Request) -> str:
     """Who is asking, for the per-visitor caps: the address Cloudflare saw, else the first forwarded one, else the peer."""
     h = request.headers
-    ip = h.get("cf-connecting-ip") or (h.get("x-forwarded-for") or "").split(",")[0]
-    return (ip.strip() or (request.client.host if request.client else "") or "?")[:64]
+    ip = (h.get("cf-connecting-ip") or (h.get("x-forwarded-for") or "").split(",")[0]).strip()
+    ip = ip or (request.client.host if request.client else "") or "?"
+    if ":" in ip:  # IPv6: one home or phone has a whole /64, so that is one visitor
+        try:
+            import ipaddress
+            return str(ipaddress.ip_network(ip + "/64", strict=False))
+        except ValueError:
+            pass
+    return ip[:64]
 
 
 def same_site(request: Request) -> bool:
-    """A request from this site's own page (the mic in /chat), not another site posting audio through ours."""
-    if request.headers.get("sec-fetch-site", "") in ("cross-site", "same-site"):
-        return False
+    """A request from this site's own page (the mic in /chat), not another site posting audio through ours. Browsers
+    say so in Sec-Fetch-Site; older ones only send Origin, checked against this host and PUBLIC_URL (behind the
+    Worker the container sees Host: container)."""
+    site = request.headers.get("sec-fetch-site")
+    if site:
+        return site in ("same-origin", "none")
     origin = request.headers.get("origin")
     if origin and origin != "null":
         from urllib.parse import urlsplit
-        return urlsplit(origin).netloc == request.headers.get("host", "")
+        own = {request.headers.get("host", ""), urlsplit(os.environ.get("PUBLIC_URL", "")).netloc} - {""}
+        return urlsplit(origin).netloc in own
     return True
 
 

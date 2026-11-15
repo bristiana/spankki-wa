@@ -25,16 +25,17 @@ API = "https://api.elevenlabs.io/v1/speech-to-text"
 # ELEVENLABS_STT_MODEL_ID; when the account can't use it, scribe_v2 is tried once.
 DEFAULT_MODEL = "scribe_v3"
 FALLBACK_MODEL = "scribe_v2"
-MAX_BYTES = 1_500_000      # one clip; 30 s of Opus or AAC is 100-500 KB
+MAX_BYTES = 600_000        # one clip; the page records 30 s at 32 kbps (~120 KB; Safari's AAC up to ~500 KB)
 MIN_BYTES = 1_000          # shorter is a tap, not speech
 MAX_SECONDS = 30           # what the page records at most (said here so the page and tests agree)
 PER_MINUTE = 20            # calls to ElevenLabs a minute, all visitors together
 DAILY_CALLS = 400          # a day, all visitors; override ELEVENLABS_STT_DAILY_CALLS
-DAILY_BYTES = 60_000_000   # audio sent a day, all visitors (~1-2 hours of speech)
+DAILY_BYTES = 20_000_000   # audio sent a day, all visitors: ~1.5 h at the page's 32 kbps; less if a client
+                           # sends very low-bitrate audio, which DAILY_CALLS (400 clips of at most MAX_BYTES) also bounds
 PER_VISITOR_MINUTE = 6
 PER_VISITOR_DAY = 60
 VISITORS = 5_000           # visitors remembered for the per-visitor caps
-TIMEOUT = httpx.Timeout(25.0, connect=5.0)
+TIMEOUT = httpx.Timeout(18.0, connect=5.0)  # two tries fit in the page's 45 s
 # Content types MediaRecorder gives on Chrome, Firefox, Safari (desktop and iPhone) and Android.
 TYPES = {"audio/webm": "webm", "audio/mp4": "mp4", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/wav": "wav",
          "audio/x-m4a": "m4a", "audio/aac": "aac", "video/webm": "webm", "video/mp4": "mp4"}
@@ -143,7 +144,8 @@ async def transcribe(audio: bytes, content_type: str, lang: str = "fi", visitor:
             model = FALLBACK_MODEL
             r = await ask(model)
     except httpx.HTTPError as e:
-        _refund(len(audio))
+        if isinstance(e, httpx.ConnectError | httpx.ConnectTimeout):  # never reached them: not billed
+            _refund(len(audio))
         log.warning("elevenlabs stt unreachable: %s", type(e).__name__)
         raise STTError("unreachable") from None
     finally:
