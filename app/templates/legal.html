@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% block lang %}{{ ui_lang(request) }}{% endblock %}
 {% block title %}{{ title }}{% endblock %}
 {% block body %}
 <main>
   <div class="card">
     <h1>{{ title }}</h1>
     {% for h, p in sections %}<h2>{{ h }}</h2><p class="muted">{{ p }}</p>{% endfor %}
-    <p class="muted">Junction 2026 hackathon prototype for the S-Pankki challenge. Not an S-Pankki product.</p>
+    <p class="muted">{{ foot or "Junction 2026 hackathon prototype for the S-Pankki challenge. Not an S-Pankki product." }}</p>
   </div>
 </main>
 {% endblock %}

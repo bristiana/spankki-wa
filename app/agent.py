@@ -269,7 +269,8 @@ def date_style(text: str, today) -> str:
 
 
 _FI_WORDS = re.compile(r"\b(ja|oli|sinun|sinulla|sinulle|kuussa|että|mutta|joten|euroa|käytit|meni|menivät|ovat|"
-                       r"jäi|jää|kun|tämä|kuin|eli|noin|vielä|myös)\b", re.I)
+                       r"jäi|jää|kun|tämä|kuin|eli|noin|vielä|myös|kuukaudessa|olet|sinä|se|on|yleensä|tähän|mennessä|syyskuussa|lokakuussa|"
+                       r"aina|jo|yhteensä|kuussa|paljonko|mihin|voin|minulla|minun|kuinka|jäljellä|sijoitat|sijoitan|olen|ovat|ei|vai)\b", re.I)
 _FI_POINT = re.compile(r"(?<![\d.])(\d+)\.(\d+)(?=(?:[–-]\d+(?:\.\d+)?)?[\s\u00a0]?(?:€|%|euro))")
 _FI_DATE = re.compile(r"\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)( 20\d\d)?\b")
 _MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -277,7 +278,7 @@ _MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "N
 
 def is_finnish(text: str) -> bool:
     """A reply in Finnish: a few of its everyday words (the model answers in the language it was asked in)."""
-    return len(_FI_WORDS.findall(text or "")) >= 3
+    return len({w.lower() for w in _FI_WORDS.findall(text or "")}) >= 3  # distinct: English "on" thrice is not Finnish
 
 
 def fi_style(text: str) -> str:
@@ -487,8 +488,8 @@ class Coach:
         # What a number may come from: this turn's tool results, the person's own words, the interview and game
         # messages, and the notes of earlier lookups. Never Oiva's own earlier replies.
         known = [m["content"] for m in history if m["role"] == "user" or m.get("flow")] + [n["note"] for n in notes]
-        buttons, used, trace, looked_up = [], [], [], []
-        response = self._loop(msgs, system, buttons, used, trace, looked_up)
+        buttons, used, trace, looked_up, raw = [], [], [], [], []
+        response = self._loop(msgs, system, buttons, used, trace, looked_up, raw)
         emoji, text_out = reactions.split_reaction(_text(response))
         text_out = reactions.strip_emoji(text_out)  # the reaction is the only emoji; none in the words
         if text_out and response.stop_reason != "refusal" and msgs[-1]["role"] == "assistant":
@@ -500,7 +501,7 @@ class Coach:
                 why = ([FIX_NUMBERS.format(numbers=", ".join(bad))] if bad else []) + problems
                 draft = len(msgs) - 1
                 msgs.append({"role": "user", "content": FIX.format(problems=" ".join(why))})
-                retry = self._loop(msgs, system, buttons, used, trace, looked_up)
+                retry = self._loop(msgs, system, buttons, used, trace, looked_up, raw)
                 del msgs[draft:draft + 2]  # the draft and the correction go, whatever the retry gave
                 again, retry_text = reactions.split_reaction(_text(retry))
                 retry_text = reactions.strip_emoji(retry_text)
@@ -526,11 +527,16 @@ class Coach:
         reaction = reactions.pace(emoji or reactions.quick_reaction(text), past, bool(text_out), self.roll())
         past.append(reaction)
         del past[:-reactions.PAST]
-        if is_finnish(shown):  # the history keeps one style; the person reads Finnish numbers
+        if is_finnish(shown) or is_finnish(f"{text} {shown}"):  # asked or answered in Finnish: Finnish numbers and steps
             shown = fi_style(shown)
+            if trace:  # and the "Näin laskin" panel is Finnish too: the steps are built again from the same tool results
+                steps = [explain(n, a, o, fi=True) for n, a, o in raw]
+                last = trace[-1]
+                trace = steps + ([{**last, "check": check_line(last["checked"], last["checked"] - last["matched"],
+                                                               last["rewritten"], fi=True)}] if "check" in last else [])
         return Reply(text=shown, buttons=buttons, tools_used=used, trace=trace, reaction=reaction)
 
-    def _loop(self, msgs: list, system: list, buttons: list, used: list, trace: list, looked_up: list):
+    def _loop(self, msgs: list, system: list, buttons: list, used: list, trace: list, looked_up: list, raw: list | None = None):
         """Call Claude and run the tools it asks for until it answers. Appends to msgs (this turn's working copy) and
         one note line per tool call to looked_up; returns the last response."""
         response = None
@@ -562,9 +568,12 @@ class Coach:
                     out = defang(run_tool(self.engine, c.name, c.input or {}, buttons))
                     results.append({"type": "tool_result", "tool_use_id": c.id, "content": out})
                     looked_up.append(tool_note(c.name, out))
-                    step = explain(c.name, c.input or {}, json.loads(out))
+                    parsed = json.loads(out)
+                    step = explain(c.name, c.input or {}, parsed)
                     if not any(t["tool"] == step["tool"] and t["args"] == step["args"] for t in trace):
                         trace.append(step)
+                        if raw is not None:
+                            raw.append((c.name, c.input or {}, parsed))
                     log.info("tool %s %s -> %s", c.name, json.dumps(c.input), out[:300])
                 except Exception as e:  # tool errors go back to the model, not to the user
                     results.append({"type": "tool_result", "tool_use_id": c.id, "content": f"Error: {e}", "is_error": True})

@@ -249,14 +249,22 @@ def money_nb(x: float) -> str:
     return nb(money(x))
 
 
-def fi_money(x: float) -> str:
-    """S-mobiili writes money the Finnish way: 2 000,00 € (non-breaking spaces), -12,30 €."""
-    return f"{x:,.2f}".replace(",", " ").replace(".", ",") + " €"
+def fi_money(x: float, lang: str = "fi") -> str:
+    """S-mobiili money: Finnish 2 000,00 € (non-breaking spaces), -12,30 €. English writes 2 000.00 €, as every
+    English screen, chart, chat reply and voice line does (space thousands, point decimals)."""
+    s = f"{x:,.2f}".replace(",", " ")
+    return (s if lang == "en" else s.replace(".", ",")) + " €"
+
+
+@pass_context
+def _page_money(ctx, x: float) -> str:
+    """The |fimoney filter: the page's language picks the decimal mark."""
+    return fi_money(x, ui_lang(ctx["request"]) if "request" in ctx else "fi")
 
 
 templates.env.filters["nb"] = nb
 templates.env.filters["money"] = money_nb
-templates.env.filters["fimoney"] = fi_money
+templates.env.filters["fimoney"] = _page_money
 _MERCHANT_FI = {"Grocery store": "Ruokakauppa", "Restaurant": "Ravintola", "Health": "Terveys", "Transport": "Liikenne",
                 "Shop": "Kauppa", "Entertainment": "Viihde", "Home & tech store": "Koti ja tekniikka", "Travel": "Matkat",
                 "Merchant": "Kauppias"}
@@ -393,18 +401,6 @@ def send_reply(to: str, reply, message_id: str | None = None):
 STOP_WORDS = {"stop", "unsubscribe", "delete my data", "switch off", "lopeta"}
 
 
-SWITCHED_OFF = {  # what STOP did, said the way the privacy page (PRIVACY) and the consent note (connect.html) say it
-    "en": "Done. Oiva is switched off for this number and our chat history is deleted. While Oiva was on, your "
-          "messages and the numbers needed to answer them went to Anthropic (the AI) and through Meta (WhatsApp). "
-          "Other banks you linked stay linked until you remove them on the Add a bank page. "
-          "Message me any time to connect again.",
-    "fi": "Valmis. Oiva on nyt pois päältä tässä numerossa, ja keskusteluhistoriamme on poistettu. Kun Oiva oli "
-          "päällä, viestisi ja vastauksiin tarvittavat luvut menivät Anthropicille (tekoäly) ja Metan kautta "
-          "(WhatsApp). Muut yhdistämäsi pankit pysyvät yhdistettyinä, kunnes poistat ne Add a bank -sivulla. "
-          "Kirjoita milloin tahansa, niin voit yhdistää uudelleen.",
-}
-
-
 def switch_off(to: str, lang: str = "en"):
     """Consent withdrawn: forget the connection, the chat history and the name. The reply in `lang` (fi|en)."""
     engine.state.setdefault("connected", {}).pop(to, None)
@@ -415,9 +411,43 @@ def switch_off(to: str, lang: str = "en"):
     quiz.forget(engine, to)
     learn.forget(engine, to)
     names.pop(to, None)
-    if mirror.is_owner(to):  # the app's copy of the owner's WhatsApp chat goes too, as the reply says
+    if mirror.is_owner(to):  # the app's copy of the owner's WhatsApp chat goes too ("our chat history is deleted")
         mirror.reset()
-    wa.send_text(to, SWITCHED_OFF["fi" if lang == "fi" else "en"])
+    wa.send_text(to, STOP_REPLY["fi" if lang == "fi" else "en"].format(url=public_url()))
+
+
+# What STOP deletes and where things went, said as the privacy page (PRIVACY) and connect.html say it: chat -> Anthropic, through Meta;
+# voice notes -> Whisper on Cloudflare; ElevenLabs only in the app (mic, read aloud). A linked bank stays until removed.
+STOP_REPLY = {
+    "en": "Done. Oiva is switched off for this number and our chat history is deleted.\n\n"
+          "While we chatted, your messages, the numbers they needed and any bill photos or files went to Anthropic (the AI) "
+          "through WhatsApp (Meta), "
+          "and voice notes to Cloudflare to be written down. ElevenLabs is only used for the mic and voice in the app. "
+          "Oiva kept none of the audio. A bank you linked stays linked until you remove it on the Add a bank page.\n\n"
+          "Details: {url}/privacy?lang=en\nWrite *Hi* any time to start again.",
+    "fi": "Valmis. Oiva on nyt pois päältä tälle numerolle, ja keskusteluhistoriamme on poistettu.\n\n"
+          "Keskustellessamme viestisi, niihin tarvittavat luvut ja lähettämäsi laskukuvat tai tiedostot menivät "
+          "Anthropicille (tekoäly) Metan kautta (WhatsApp), "
+          "ja ääniviestit Cloudflarelle tekstiksi. ElevenLabsia käytetään vain sovelluksen mikrofonissa ja äänessä. "
+          "Oiva ei säilyttänyt ääntä. Yhdistämäsi pankki pysyy yhdistettynä, kunnes poistat sen Lisää pankki -sivulla.\n\n"
+          "Lisätietoa: {url}/privacy?lang=fi\nKirjoita *Hei* milloin vain, niin aloitetaan alusta.",
+}
+_FI_HELLO = re.compile(r"^(hei|heippa|moi|moikka|morjens?|terve|huomenta|iltaa|päivää|lopeta|kiitos|aloita|yhdistä)\b", re.I)
+_EN_HELLO = re.compile(r"^(hi|hello|hey|thanks|start|good (morning|evening|afternoon))\b", re.I)  # not STOP: a Finn writes it too
+
+
+def wa_lang(to: str, text: str | None = None) -> str:
+    """The language this WhatsApp number writes in: from the message when it tells (a Finnish or English word or
+    sentence), otherwise the last one seen, remembered across STOP; Finnish by default (an S-Pankki chat)."""
+    seen = engine.state.setdefault("wa_lang", {})
+    t = (text or "").strip()
+    if _FI_HELLO.match(t) or agent_mod.is_finnish(t):
+        seen[to] = "fi"
+    elif _EN_HELLO.match(t) or len(re.findall(r"[A-Za-z]{2,}", t)) >= 3 and not re.match(r"(?i)^(stop|unsubscribe)\b", t):
+        seen[to] = "en"
+    if to not in seen and re.match(r"(?i)^(stop|unsubscribe|delete my data|switch off)\b", t):
+        seen[to] = "en"
+    return seen.get(to, "fi")
 
 
 OPEN_APP = "Open in S-mobiili"  # the button on a prepared money move (a WhatsApp cta_url label: max 20 chars)
@@ -675,6 +705,9 @@ def handle_message(m: dict):
     mirror.incoming(to, m)  # the owner's messages show in the app's chat too
     try:
         wa.mark_read_typing(m["id"])
+        if (m.get("kind") == "audio" and not m["text"] and not connected(to)
+                and to in engine.state.get("switched_off", {})):  # switched off: no voice note goes to Cloudflare
+            m["media_id"] = None
         if m.get("kind") == "audio" and m.get("media_id") and not m["text"]:  # a voice note: handled like typed text
             try:
                 m["text"] = voice.to_text(m["media_id"])
@@ -682,11 +715,12 @@ def handle_message(m: dict):
                 wa.send_text(to, str(e))
                 return
             wa.send_text(to, f"Heard: _{wa.short(m['text'].replace('_', ' '), 300)}_")  # what Oiva heard, so a mishearing is visible
+        lang = wa_lang(to, m["text"])  # the reply language: this message's, else the last one seen (kept after STOP)
         word = (m["text"] or "").strip().lower().strip(".!")
         # mid-game or mid-course, a bare "stop" pauses it
         stop = word in ("stop", "lopeta") and (quiz.active(engine, to) or learn.active(engine, to))
         if word in STOP_WORDS and not stop:
-            switch_off(to, "fi" if word == "lopeta" else "en")  # the Finnish word gets the Finnish reply
+            switch_off(to, lang)  # in the language they write in ("lopeta" is Finnish)
             return
         bid = m.get("button_id") or ""
         secret = [] if bid else guardrails.secrets(m["text"])
@@ -719,12 +753,20 @@ def handle_message(m: dict):
             wa.send_text(to, f"Hi {name}, I'm *Oiva* from S-Pankki. Ask me what's left until payday, or where last "
                              "month's money went. Write *add bank* to bring in your Revolut too.")
         if not connected(to):
+            if lang == "fi":
+                wa.send_url_button(
+                    to,
+                    f"Hei {name}, olen *Oiva*, S-Pankin rahavalmentaja. Kerron, mihin rahasi menevät, ja muistutan "
+                    "ennen kuin lasku erääntyy.\n\nYhdistä ensin S-Pankin tilisi. Sinä valitset, mitä näen, "
+                    "ja voit sammuttaa minut milloin vain.",
+                    "Yhdistä S-Pankki", f"{public_url()}/connect?u={to}&lang=fi")
+                return
             wa.send_url_button(
                 to,
                 f"Hi {name}, I'm *Oiva*, S-Pankki's money coach. I can tell you where your money goes and nudge you "
                 "before a bill is due.\n\nFirst, connect your S-Pankki account. You pick what I see, "
                 "and you can switch me off any time.",
-                "Connect S-Pankki", f"{public_url()}/connect?u={to}")
+                "Connect S-Pankki", f"{public_url()}/connect?u={to}&lang=en")
             return
         if onboarding.RESTART.match(m["text"] or ""):  # a clean slate and a hello; no flow starts by itself
             fresh_start(engine, to)
@@ -864,14 +906,41 @@ def login(request: Request, next: str = "/s-mobiili/"):
                                                               "expired": bool(t)})
 
 
-PRIVACY = [
-    ("What Oiva sees", "Your S-Pankki demo data, and, only if you link it, your other bank through Enable Banking "
-     "(PSD2, read only): account balances and the last 90 days of transactions. Oiva can't move money there."),
-    ("Who sees it", "Only you: linked banks are tied to your WhatsApp number and shown only after you log in with it. "
-     "To answer you, your messages and the numbers they need go to Anthropic (the AI) and, on WhatsApp, through Meta."),
-    ("How long", "Bank access lasts 90 days, then you confirm again. Remove a bank any time on the Add a bank page; "
-     "write STOP on WhatsApp to switch Oiva off and delete the chat history."),
-]
+# Who gets what, as the code sends it: chat text and the numbers it needs -> Anthropic (agent.py); WhatsApp -> Meta;
+# a WhatsApp voice note -> Whisper on Cloudflare Workers AI (voice.py, worker/index.ts); the app's mic -> ElevenLabs
+# Speech-to-Text (stt.py); Oiva reading a reply aloud in the app -> ElevenLabs Text-to-Speech (tts.py). No audio is kept.
+PRIVACY = {
+    "en": ("Privacy", [
+        ("What Oiva sees", "Your S-Pankki demo data, and, only if you link it, your other bank through Enable Banking "
+         "(PSD2, read only): account balances and the last 90 days of transactions. Oiva can't move money there."),
+        ("Who sees it", "Other people can't see your linked banks: they are tied to your WhatsApp number and shown only "
+         "after you log in with it. To answer you, your messages, the numbers they need, and photos or files of bills you "
+         "send go to Anthropic (the AI), and on WhatsApp they pass through Meta. The service runs on Cloudflare, which "
+         "also stores the chat history and your settings."),
+        ("Voice", "A WhatsApp voice note is written down by Whisper on Cloudflare Workers AI. In the S‑mobiili app, "
+         "what you say into the mic is written down by ElevenLabs, and when Oiva reads a reply aloud, the reply's text "
+         "goes to ElevenLabs to be spoken; ElevenLabs handles it under its own terms. Oiva itself keeps none of the "
+         "audio. If that voice service is off, the app uses your browser's own speech recognition instead (in Chrome "
+         "that sends your voice to Google)."),
+        ("How long", "Bank access lasts 90 days, then you confirm again. Remove a bank any time on the Add a bank page; "
+         "write STOP on WhatsApp to switch Oiva off and delete the chat history."),
+    ], "Junction 2026 hackathon prototype for the S-Pankki challenge. Not an S-Pankki product."),
+    "fi": ("Tietosuoja", [
+        ("Mitä Oiva näkee", "S-Pankin demotietosi ja, vain jos itse yhdistät sen, toisen pankkisi Enable Bankingin kautta "
+         "(PSD2, vain luku): tilien saldot ja viimeisen 90 päivän tapahtumat. Oiva ei voi siirtää rahaa siellä."),
+        ("Kuka sen näkee", "Muut eivät näe yhdistämiäsi pankkeja: ne on sidottu WhatsApp-numeroosi, ja ne näkyvät vasta "
+         "kun kirjaudut sillä. Vastatakseen Oiva lähettää viestisi, niihin tarvittavat luvut sekä lähettämäsi laskukuvat "
+         "ja tiedostot Anthropicille (tekoäly), ja WhatsAppissa ne kulkevat Metan kautta. Palvelu toimii Cloudflaressa, "
+         "joka myös tallentaa keskusteluhistorian ja asetuksesi."),
+        ("Ääni", "WhatsApp-ääniviestin kirjoittaa tekstiksi Whisper Cloudflare Workers AI:ssa. S‑mobiili-sovelluksessa "
+         "mikrofoniin puhumasi kirjoittaa tekstiksi ElevenLabs, ja kun Oiva lukee vastauksen ääneen, vastauksen teksti "
+         "menee ElevenLabsille puheeksi; ElevenLabs käsittelee sen omien ehtojensa mukaan. Oiva itse ei säilytä ääntä. "
+         "Jos äänipalvelu ei ole käytössä, sovellus käyttää selaimesi omaa puheentunnistusta (Chromessa se lähettää "
+         "äänesi Googlelle)."),
+        ("Kuinka kauan", "Pankkiyhteys on voimassa 90 päivää, sitten vahvistat sen uudelleen. Poista pankki milloin vain "
+         "Lisää pankki -sivulla; kirjoita WhatsAppissa LOPETA tai STOP, niin Oiva sammuu ja keskusteluhistoria poistetaan."),
+    ], "Junction 2026 -hackathonin prototyyppi S‑Pankin haasteeseen. Ei S‑Pankin tuote."),
+}
 TERMS = [
     ("What this is", "A hackathon prototype. Information and education about your own money, not financial advice, "
      "not a loan offer."),
@@ -883,7 +952,8 @@ TERMS = [
 
 @app.get("/privacy", response_class=HTMLResponse)
 def privacy(request: Request):
-    return templates.TemplateResponse(request, "legal.html", {"title": "Privacy", "sections": PRIVACY})
+    title, sections, foot = PRIVACY[ui_lang(request)]
+    return templates.TemplateResponse(request, "legal.html", {"title": title, "sections": sections, "foot": foot})
 
 
 @app.get("/terms", response_class=HTMLResponse)
@@ -985,9 +1055,12 @@ def connect_submit(request: Request, bg: BackgroundTasks, u: str = Form(""), sco
     engine._save()
     if u:
         bg.add_task(welcome, u)
+    fi = ui_lang(request) == "fi"
     return templates.TemplateResponse(request, "done.html", {
-        "title": "Connected", "lines": ["Your S-Pankki account is connected.", "Go back to WhatsApp, your coach is ready."],
-        "wa": wa_back(request)})
+        "title": "Yhdistetty" if fi else "Connected",
+        "lines": (["S-Pankin tilisi on yhdistetty.", "Palaa WhatsAppiin, valmentajasi on valmis."] if fi else
+                  ["Your S-Pankki account is connected.", "Go back to WhatsApp, your coach is ready."]),
+        "wa": wa_back(request), "fi_done": fi})
 
 
 def welcome(to: str):
@@ -1934,7 +2007,8 @@ def smobiili_investments(request: Request):
     ifs = pf.get("if_your_deposits_were_in_each_fund") or {}
     years = pf["by_year_eur"]
     return pk_sub(request, "p-sijoitukset", ("Sijoitukset", "Investments"), PANKKI_TAB, pf=pf,
-                  inv=inv and {**inv, "next": pk_day(inv.get("next_expected"), lang)},
+                  inv=inv and {**inv, "next": pk_day(inv.get("next_expected"), lang),
+                                "last_paid": pk_day((inv.get("last_payment") or {}).get("date"), lang)},
                   paused=bool(e.state.get("paused", {}).get("investment_deposit")),
                   funds=[r for r in ifs.get("results") or [] if r], as_of=pk_day(ifs.get("as_of"), lang),
                   years=years, top=max(years.values(), default=0) or 1, plans=pf["new_plans"])
@@ -2367,7 +2441,7 @@ def chat_page(request: Request, q: str = "", embed: str = ""):
     if mirrored:  # the app's chat is the owner's WhatsApp conversation, on the WhatsApp demo customer's data
         persona = DEFAULT_PERSONA
     name = name_for(persona)
-    tts.allow([f"Hei {name}! Olen Oiva, S-Pankin rahavalmentajasi. Kysy rahoistasi, vaikka paljonko on jäljellä palkkapäivään."])  # #hello
+    tts.allow([f"Hei {name}! Olen Oiva, rahavalmentajasi. Kysy vaikka, paljonko on jäljellä palkkapäivään."])  # #hello
     tts.allow([f"Hi {name}! I'm Oiva, your S-Pankki money coach. Ask me about your money, like what's left until payday."])
     shown = request.query_params.get("as")  # Back and the tab bar keep the customer the chat was opened for
     keep = {"persona": shown} if shown in PERSONAS else {}

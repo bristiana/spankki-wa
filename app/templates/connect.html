@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Connect your coach{% endblock %}
+{% block lang %}{{ ui_lang(request) }}{% endblock %}
+{% block title %}{{ t("Yhdistä valmentajasi", "Connect your coach") }}{% endblock %}
 {% block head %}<style>
 .bank{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;font-size:15px;opacity:.55}
 .bank.on{opacity:1;border-color:var(--brand);background:var(--soft)}
@@ -9,19 +10,19 @@
 {% block body %}
 <main>
   <form class="card" method="post" action="/connect">
-    <img src="{{ static('oiva/oiva.png') }}" alt="Oiva the squirrel" width="120" height="120" style="display:block;margin:0 auto 4px">
-    <h1>Chat with your money on WhatsApp</h1>
-    <p class="muted">Your S-Pankki coach answers questions about your own spending, reminds you before bills and helps you save. You decide what it can see.</p>
-    <div class="k" style="font-size:13px;color:var(--muted);margin:14px 0 6px">Accounts</div>
-    <div class="bank on"><span class="dot"></span><b>S-Pankki</b><span class="muted">current account · Visa</span></div>
-    {% if linked %}<div class="bank on"><span class="dot"></span><b>{{ linked.bank }}</b><span class="muted">savings · credit card</span></div>
-    {% else %}<a class="bank" href="/connect/bank?u={{ u }}" style="color:inherit;text-decoration:none;opacity:1"><span class="dot"></span><b>Add another bank</b><span class="muted">via PSD2 consent ›</span></a>{% endif %}
-    <label class="opt"><input type="checkbox" name="scope" value="transactions" checked><span><b>Transactions and balance</b><br><span class="muted">So the coach can answer "how much did I spend on…"</span></span></label>
-    <label class="opt"><input type="checkbox" name="scope" value="reminders" checked><span><b>Bill reminders</b><br><span class="muted">A message before rent and other regular payments</span></span></label>
-    <label class="opt"><input type="checkbox" name="scope" value="payments" checked><span><b>Payment and saving buttons</b><br><span class="muted">You always confirm with your PIN. The coach can't move money by itself.</span></span></label>
-    <div class="note">Messages on WhatsApp pass through Meta's servers. By connecting you agree that your coach's replies, which can include amounts from your account, are sent there. Turn it off any time by writing STOP or in S-mobiili.</div>
+    <img src="{{ static('oiva/oiva.png') }}" alt="{{ t('Oiva-orava', 'Oiva the squirrel') }}" width="120" height="120" style="display:block;margin:0 auto 4px">
+    <h1>{{ t("Juttele rahoistasi WhatsAppissa", "Chat with your money on WhatsApp") }}</h1>
+    <p class="muted">{{ t("S‑Pankin valmentajasi vastaa kysymyksiin omista menoistasi, muistuttaa ennen laskuja ja auttaa säästämään. Sinä päätät, mitä se näkee.", "Your S-Pankki coach answers questions about your own spending, reminds you before bills and helps you save. You decide what it can see.") }}</p>
+    <div class="k" style="font-size:13px;color:var(--muted);margin:14px 0 6px">{{ t("Tilit", "Accounts") }}</div>
+    <div class="bank on"><span class="dot"></span><b>S-Pankki</b><span class="muted">{{ t("käyttötili · Visa", "current account · Visa") }}</span></div>
+    {% if linked %}<div class="bank on"><span class="dot"></span><b>{{ linked.bank }}</b><span class="muted">{{ t("säästötili · luottokortti", "savings · credit card") }}</span></div>
+    {% else %}<a class="bank" href="/connect/bank?u={{ u }}" style="color:inherit;text-decoration:none;opacity:1"><span class="dot"></span><b>{{ t("Lisää toinen pankki", "Add another bank") }}</b><span class="muted" style="white-space:nowrap">{{ t("PSD2‑suostumuksella ›", "via PSD2 consent ›") }}</span></a>{% endif %}
+    <label class="opt"><input type="checkbox" name="scope" value="transactions" checked><span><b>{{ t("Tapahtumat ja saldo", "Transactions and balance") }}</b><br><span class="muted">{{ t("Jotta valmentaja voi vastata: \"paljonko käytin…\"", "So the coach can answer \"how much did I spend on…\"") }}</span></span></label>
+    <label class="opt"><input type="checkbox" name="scope" value="reminders" checked><span><b>{{ t("Laskumuistutukset", "Bill reminders") }}</b><br><span class="muted">{{ t("Viesti ennen vuokraa ja muita säännöllisiä maksuja", "A message before rent and other regular payments") }}</span></span></label>
+    <label class="opt"><input type="checkbox" name="scope" value="payments" checked><span><b>{{ t("Maksu- ja säästöpainikkeet", "Payment and saving buttons") }}</b><br><span class="muted">{{ t("Vahvistat aina PIN-koodillasi. Valmentaja ei voi siirtää rahaa itse.", "You always confirm with your PIN. The coach can't move money by itself.") }}</span></span></label>
+    <div class="note">{{ t("WhatsApp-viestit kulkevat Metan palvelimien kautta. Yhdistämällä hyväksyt, että valmentajan vastaukset, joissa voi olla tilisi summia, lähetetään sinne. Kysymyksiin ja lähettämiisi laskukuviin vastaa Anthropicin tekoäly, ja ääniviestit kirjoittaa tekstiksi Cloudflare. Sammuta milloin vain kirjoittamalla LOPETA.", "Messages on WhatsApp pass through Meta's servers. By connecting you agree that your coach's replies, which can include amounts from your account, are sent there. Anthropic's AI answers your questions and reads bill photos you send, and Cloudflare writes down voice notes. Turn it off any time by writing STOP.") }} <a href="/privacy">{{ t("Tietosuoja", "Privacy") }}</a></div>
     <input type="hidden" name="u" value="{{ u }}">
-    <button class="btn" type="submit">Connect S-Pankki</button>
+    <button class="btn" type="submit">{{ t("Yhdistä S-Pankki", "Connect S-Pankki") }}</button>
   </form>
 </main>
 {% endblock %}

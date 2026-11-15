@@ -247,7 +247,7 @@ def test_koti_shows_oivas_safe_to_spend_card_first(client, lang):
     s = main.engine.safe_to_spend()
     card = page[page.index('id="oiva-card"'):]
     card = card[:card.index("</section>")]
-    assert main.fi_money(s["safe_to_spend_until_payday_eur"]) in card and main.fi_money(s["safe_per_day_eur"]) in card
+    assert main.fi_money(s["safe_to_spend_until_payday_eur"], lang) in card and main.fi_money(s["safe_per_day_eur"], lang) in card
     assert "mascot/head-v3.png" in card and 'id="ask-spend"' in card and 'href="/chat?q=' in card
     assert ("Turvallisesti käytettävissä" if lang == "fi" else "Safe to spend") in card
     assert page.index('class="hero"') < page.index('id="oiva-card"') < page.index("Vahvistettavat maksut" if lang == "fi" else "Payments to confirm")

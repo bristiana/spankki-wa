@@ -135,7 +135,7 @@ def connected(chat):
 def test_first_contact_gets_the_connect_button(chat):
     main.engine.state.setdefault("switched_off", {})[chat.phone] = "2026-10-06"  # a new number goes into the demo
     chat.say("Hi")
-    assert chat.url() == f"{BASE}/connect?u={chat.phone}"
+    assert chat.url() == f"{BASE}/connect?u={chat.phone}&lang=en"
     assert chat.interactive("cta_url")[-1]["action"]["parameters"]["display_text"] == "Connect S-Pankki"
 
 
@@ -678,3 +678,39 @@ def test_builders_split_long_texts_instead_of_cutting(monkeypatch):
 def test_pay_label_fits_a_button():
     assert main.pay_label("Rent") == "Pay rent now"
     assert main.pay_label("Utilities (several small bills)") == "Pay now"
+
+
+def test_lopeta_answers_in_finnish_and_the_connect_button_follows_the_language(chat):
+    """STOP in Finnish: the goodbye, and the Connect button on the next message, are in Finnish; in English, English.
+    The goodbye names where things went (Anthropic through Meta, voice notes to Cloudflare, ElevenLabs only in the app)."""
+    connected(chat).say("lopeta")
+    bye = chat.texts()[-1]
+    assert bye.startswith("Valmis. Oiva on nyt pois päältä") and "Cloudflare" in bye and "ElevenLabs" in bye
+    assert "Anthropic" in bye and "/privacy?lang=fi" in bye
+    chat.say("Hei")
+    assert chat.interactive("cta_url")[-1]["action"]["parameters"]["display_text"] == "Yhdistä S-Pankki"
+    assert chat.url().endswith("&lang=fi")
+    chat.say("Hi")
+    assert chat.interactive("cta_url")[-1]["action"]["parameters"]["display_text"] == "Connect S-Pankki"
+
+
+def test_stop_in_english_names_where_things_went(chat):
+    connected(chat).say("STOP")
+    bye = chat.texts()[-1]
+    assert bye.startswith("Done. Oiva is switched off") and "Cloudflare" in bye and "ElevenLabs" in bye
+    assert "Anthropic" in bye and "/privacy?lang=en" in bye
+
+
+def test_a_finn_writing_stop_keeps_finnish(chat):
+    connected(chat).say("Hei").say("STOP")
+    assert chat.texts()[-1].startswith("Valmis. Oiva on nyt pois päältä")
+    chat.say("ok")
+    assert chat.interactive("cta_url")[-1]["action"]["parameters"]["display_text"] == "Yhdistä S-Pankki"
+
+
+def test_a_switched_off_voice_note_is_not_transcribed(chat, monkeypatch):
+    heard = []
+    monkeypatch.setattr(voice, "to_text", lambda media_id: heard.append(media_id) or "Hello there friend")
+    connected(chat).say("STOP")
+    chat.media("audio")
+    assert heard == [] and chat.interactive("cta_url")[-1]["action"]["parameters"]["display_text"] == "Connect S-Pankki"
