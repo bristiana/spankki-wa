@@ -247,7 +247,7 @@ def test_pay_it_creates_exactly_one_payment_with_the_bill_fields(web):
     assert len(main.engine.state["pending"]) == 1
     page = web.get(f"/pay/{pid}?web=1").text
     assert "FI59 7990 0020 4511 87" in page and "20261005837" in page and "Voltti Energia Oy (demo)" in page
-    sm = web.get(f"/s-mobiili/pay/{pid}?web=1").text  # the S-mobiili review shows the bill's own fields too
+    sm = web.get(f"/s-mobiili/pay/{pid}?web=1&lang=en").text  # the S-mobiili review shows the bill's own fields too
     assert "FI59 7990 0020 4511 87" in sm and "20261005837" in sm and "Voltti Energia Oy (demo)" in sm
     assert "FI00 0000" not in sm and "copied from your bill" in sm
     before = main.engine.balance()

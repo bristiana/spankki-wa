@@ -24,15 +24,17 @@
       .map(el => ({target: el, say: el.dataset.say || "", mood: el.dataset.mood || "talk"}));
   }
 
+  const FI = document.documentElement.lang === "fi";
+
   function create(root, opts = {}) {
     const o = {autoplay: false, dwell: 2600, onEnd: () => {}, ...opts};
     const el = document.createElement("div");
     el.className = "guide";
     el.hidden = true;
     el.innerHTML = '<div class="g-bubble" role="status" aria-live="polite"><p class="g-say"></p>' +
-      '<div class="g-btns"><button type="button" class="g-skip">Skip guide</button>' +
-      '<button type="button" class="g-next">Next</button></div></div>' +
-      '<span class="g-hop"><span class="oiva idle" role="img" aria-label="Oiva the squirrel"></span></span>';
+      '<div class="g-btns"><button type="button" class="g-skip">' + (FI ? "Ohita opas" : "Skip guide") + '</button>' +
+      '<button type="button" class="g-next">' + (FI ? "Seuraava" : "Next") + '</button></div></div>' +
+      '<span class="g-hop"><span class="oiva idle" role="img" aria-label="' + (FI ? "Oiva-orava" : "Oiva the squirrel") + '"></span></span>';
     root.appendChild(el);
     const sprite = el.querySelector(".oiva"), say = el.querySelector(".g-say"), btns = el.querySelector(".g-btns");
     const nextBtn = el.querySelector(".g-next");
@@ -125,7 +127,7 @@
       clearTimeout(timer);
       const s = steps[i];
       const last = i === steps.length - 1;
-      nextBtn.textContent = last ? "Got it" : "Next";
+      nextBtn.textContent = last ? (FI ? "Selvä" : "Got it") : (FI ? "Seuraava" : "Next");
       await point(s.target, s.say, s.mood, {buttons: !o.autoplay});
       if (o.autoplay && active) timer = setTimeout(next, o.dwell);
     }

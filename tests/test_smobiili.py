@@ -141,9 +141,9 @@ def test_your_money_and_oiva_share_one_set_of_numbers(client):
 
 
 @pytest.mark.parametrize("lang, oiva, cats, say", [
-    ("en", "Tell me about my spending in September", "Where did my money go in September, not counting rent and bills?",
+    ("en", "Tell me about my spending in September, not counting rent and bills", "Where did my money go in September, not counting rent and bills?",
      "Ask me about this"),
-    ("fi", "Kerro kulutuksestani syyskuussa", "Mihin rahani menivät syyskuussa, kun vuokraa ja laskuja ei lasketa?",
+    ("fi", "Kerro kulutuksestani syyskuussa, kun vuokraa ja laskuja ei lasketa", "Mihin rahani menivät syyskuussa, kun vuokraa ja laskuja ei lasketa?",
      "Kysy minulta tästä")])
 def test_your_money_asks_oiva(client, lang, oiva, cats, say):
     """Oiva floats on Your money; tapping her or a chart card asks her about it in the chat, in the screen's language."""
@@ -210,3 +210,18 @@ def test_chat_tab_bar_keeps_the_customer(client):
     nav = page[page.index('<nav class="tabs"'):]
     nav = nav[:nav.index("</nav>")]
     assert nav.count(f"persona={pid}") == 5
+
+
+def test_finnish_pay_page_and_koti_have_no_english_or_iso_dates(client):
+    q = question(cards(client)["next_bill"]["actions"][0]["deep_link"])
+    j = client.post("/api/chat", json={"session": "m", "text": q}).json()
+    pid = j["buttons"][0]["url"].split("ready=pay:")[1].split("&")[0]
+    fi = "lang=fi"
+    pay = client.get(f"/s-mobiili/pay/{pid}?{fi}").text
+    koti = client.get(f"/s-mobiili/?{fi}&ready=pay:{pid}").text
+    for page in (pay, koti):
+        for en in ("Landlord", "Pay 1", "Skip guide", "Got it", "Demo Fund", "Grocery store", "Restaurant #"):
+            assert en not in page.replace("Pay a bill", ""), en
+        assert not re.search(r"\b\d{4}-\d{2}-\d{2}\b(?![^<]*>)", re.sub(r"<script.*?</script>", "", page, flags=re.S))
+        assert not re.search(r"\d\.\d{2}(&nbsp;|\s| )?€", page)
+    assert "Vuokranantaja" in pay and "Vuokra" in koti
