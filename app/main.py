@@ -1419,7 +1419,7 @@ def smobiili_home(request: Request):
     first = [("ready", "I've got it ready, tap to check and confirm", "happy")] if ready and not ready["done"] else []
     steps = [("acct-current", f"Your current account: {short_money(a['current'])}", "talk"),
              ("baskets", "Everything you spend falls in 3 baskets. Tap it and I'll show you where it goes", "talk"),
-             ("acct-pocket", "Your Savings pocket" if a["pocket_open"] else "Your Savings pocket, once you open one",
+             ("acct-pocket", "Your savings account" if a["pocket_open"] else "Your savings account, once you open one",
               "talk"),
              ("acct-funds", "Your funds. Only you choose where money goes", "talk"),
              ("recent", "Your latest payments, straight from your account", "talk"),
