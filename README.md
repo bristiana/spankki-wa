@@ -15,7 +15,7 @@ Oiva is for everyday money at any age: the median S-Pankki customer in the chall
 
 | Question | What Oiva answers for Antti (6 Oct 2026) |
 |---|---|
-| "What kind of spender am I?" | An experience spender: 31% of his money slips through his fingers, a bit above S-Pankki customers aged 30-39 in the Vantaa area (228 customers) |
+| "What kind of spender am I?" | An experience spender: 31% of his money goes to fun & extras, a bit above S-Pankki customers aged 30-39 in the Vantaa area (228 customers) |
 | "What can I safely spend this week?" | 183.31 € this week, 235.68 € until payday on the 15th, after bills, usual needs and a buffer for surprises |
 | "How could I save more?" | The biggest lever (20% less on shopping = 1 224.50 € a year), the 6 314.43 € that has built up beyond this month's needs (an emergency buffer goal), and one regular payment worth a review (utility bills, 2 476.44 € a year) (`get_save_more_ideas`) |
 
@@ -26,7 +26,7 @@ Oiva is for everyday money at any age: the median S-Pankki customer in the chall
 | Opt-in | "Connect S-Pankki": choose what Oiva may see, with a clear note that WhatsApp messages pass through Meta. Then Oiva gives a three-basket overview and says hello: no questions pushed, Oiva follows the person's lead. On request, "set a goal" runs a short interview (what you're saving for, how much and by when, then the goal plan from the engine), "my risk profile" asks prudent / balanced / growth (only used to label investment info) and "remind me weekly" turns on a weekly check-in. A question is never sent twice: ask about something else and the interview quietly pauses until "continue" (`app/onboarding.py`, no AI) |
 | Basket game | "Play the basket game" (chip, or write *game*): five of your own payments, one at a time ("Restaurant #1 · fast food and cafés · 117.32 € · Sat 26 Sep. Which basket?") with three reply buttons. Each answer gets ✅ or a kind 🤔 and the reason with your own numbers ("449.87 € of yours last month"); the end shows your score, your real basket split for last month and what −20% on the third basket frees in a year. *stop* or any other question pauses it, *game* picks it up (`app/quiz.py`, no AI) |
 | Learn in 2 minutes | "📚 Learn in 2 minutes" (chip, or write *learn* / *teach me*): five 30-second lessons on your own numbers. The three baskets (your split), safe to spend vs. your balance ("Your balance is 1 001.94 €, but rent of 771.82 € is due tomorrow…"), the buffer (your irregular basket per month, with S-Pankki's rule of thumb and its source), small things add up (your top "slips through" place × 12), pay yourself first (a realistic monthly saving over a labelled 10-year scenario). Each lesson has *Next lesson*, *Ask Oiva* and one action: the basket game, My money, a buffer goal or "Save 34 € now" with PIN. *stop* pauses, *learn* resumes (`app/learn.py`, no AI) |
-| Why it matters | When a reply gives your numbers, Oiva adds at most one line on the idea behind them, never the same one twice: "Rent and bills are basket 1 on autopilot: 894.47 € a month, 10 733.64 € a year, gone before you choose anything". The line comes from code (`app/lessons.py`, `lesson_for`) with the tool's own figures, so the number guard checks it like everything else |
+| Why it matters | When a reply gives your numbers, Oiva adds at most one line on the idea behind them, never the same one twice: "Rent and bills, your bills & basics, run on autopilot: 894.47 € a month, 10 733.64 € a year, gone before you choose anything". The line comes from code (`app/lessons.py`, `lesson_for`) with the tool's own figures, so the number guard checks it like everything else |
 | Rent reminder | "Your rent of 771.82 € is due tomorrow. After rent and your usual bills you have 68.60 € safe to spend until payday, about 7.62 € a day." [Pay rent now] [Remind me later] [How do I stretch it?] |
 | One-tap pay | "Open in S-mobiili" button → the payment opens filled in (recipient, IBAN, reference, amount, due date) → Oiva points at each field → Confirm with Face ID → "✅ Rent paid, balance now …" back in the chat. The S-mobiili screens are our own clearly labelled concept mock ([/s-mobiili/](app/templates/smobiili.html), simulated Face ID, `?autoplay=1` for recording, `?pin=1` for the old PIN page) |
 | Ask anything | "How much did I spend on taxis last month?" · "What kind of spender am I?" (vs S-Pankki customers of your age, in your area for Antti, **and** Statistics Finland households) · "What can I safely spend this week?" · "How could I save more?" |
@@ -48,9 +48,9 @@ Oiva is for everyday money at any age: the median S-Pankki customer in the chall
 
 ### The three baskets
 Every answer uses the challenge's teaching model:
-- **Mandatory & regular**: housing, utilities, groceries, transport
-- **Mandatory & irregular**: health, home & tech, travel (a buffer is kept for these in safe-to-spend)
-- **Slips through your fingers**: restaurants, entertainment, shopping
+- **Bills & basics** (FI *Laskut ja perusmenot*; the challenge's "mandatory & regular"): housing, utilities, groceries, transport
+- **Occasional costs** (FI *Satunnaiset menot*; "mandatory & irregular"): health, home & tech, travel (a buffer is kept for these in safe-to-spend)
+- **Fun & extras** (FI *Valinnaiset menot*; "slips through your fingers"): restaurants, entertainment, shopping
 
 ## Real data, not made up
 

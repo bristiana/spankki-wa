@@ -116,7 +116,7 @@ def explore(a, o):
 
 
 def spender_profile(a, o):
-    figs = _figs(o, [("Share that slips through your fingers", "everyday_share_pct", pct),
+    figs = _figs(o, [("Share that goes to fun & extras", "everyday_share_pct", pct),
                      ("Savings rate", "savings_rate_pct", pct)])
     for d in (_get(o, "peers.biggest_differences") or [])[:2]:
         figs.append({"label": f"{d['category']}: you vs peers", "value": f"{eur(d['you_per_month_eur'])} vs "

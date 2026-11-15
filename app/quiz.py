@@ -22,24 +22,25 @@ WINDOW_DAYS = 90
 IRREGULAR_WINDOW_DAYS = 365  # one-offs are rare: look back a year before giving up on the middle basket
 AMBIGUOUS_MCC = {"4121", "7523"}  # taxis and parking: the engine files them as transport (regular), people may not
 CUT_PCT = 20
-ANSWER = {"regular": "Regular must-pay", "irregular": "Irregular must-pay", "everyday": "Slips through"}
+ANSWER = {k: b["label"] for k, b in BASKETS.items()}  # the button titles: Bills & basics, Occasional costs, Fun & extras
 KIND = {"Housing": "Housing", "Utilities": "Utility bills", "Transportation": "Transport", "Health": "Health",
         "Home & Tech": "Home & tech", "Travel": "Travel", "Groceries": "Groceries", "Restaurants": "Eating out",
         "Lifestyle": "Shopping", "Entertainment": "Entertainment"}
 NAME = {"Housing": "Housing payment", "Utilities": "Utility bill"}  # rows with no merchant
 WHY = {
-    "regular": "{kind}: a must-pay that comes back on a schedule, so you can plan for it. {amt} of yours {period}.",
+    "regular": "{kind}: needed, and it comes back on a schedule, so you can plan for it. {amt} of yours {period}.",
     "irregular": "{kind}: needed, but you can't know when, so a small buffer helps. {amt} of yours {period}.",
-    "everyday": "{kind}: the classic 'slips through your fingers', small choices that add up. {amt} of yours {period}.",
+    "everyday": "{kind}: your own choice, small things that add up. {amt} of yours {period}.",
 }
 
 START = re.compile(r"^\W*(quiz|game|basket game|the basket game|play|play the basket game|play the game|"
                    r"play a game|start the game|resume the game|continue the game)\W*$", re.I)
 EXIT = re.compile(r"^\W*(stop|stop the game|stop game|quit|exit|end|enough|pause|later|not now|bye|no more|"
                   r"lopeta)\W*$", re.I)
-TYPED = [("irregular", re.compile(r"^\W*(2|irregular( must-?pay)?)\W*$", re.I)),
-         ("regular", re.compile(r"^\W*(1|regular( must-?pay)?)\W*$", re.I)),
-         ("everyday", re.compile(r"^\W*(3|slips?( through)?( your fingers)?|everyday|fingers)\W*$", re.I))]
+TYPED = [("irregular", re.compile(r"^\W*(2|occasional( costs?)?|irregular( must-?pay)?)\W*$", re.I)),
+         ("regular", re.compile(r"^\W*(1|bills?( (&|and) basics)?|basics|regular( must-?pay)?)\W*$", re.I)),
+         ("everyday", re.compile(r"^\W*(3|fun( (&|and) extras)?|extras|slips?( through)?( your fingers)?|everyday|"
+                                 r"fingers)\W*$", re.I))]
 
 
 def _rec(engine: Engine, user: str) -> dict | None:
@@ -133,9 +134,9 @@ def start(engine: Engine, user: str) -> Turn:
     t = _question(r)
     t.lead = [f"*The basket game.* Every euro you spend lands in one of three baskets. I'll show you "
               f"{len(picks)} of your own payments, you pick the basket.\n"
-              "• Regular must-pay: rent, bills, groceries\n"
-              "• Irregular must-pay: needed, but not on a schedule\n"
-              "• Slips through: small choices that add up"]
+              "• Bills & basics: needed every month, like rent and groceries\n"
+              "• Occasional costs: needed now and then, like a doctor or a repair\n"
+              "• Fun & extras: your choice, like eating out and shopping"]
     return t
 
 
@@ -159,7 +160,7 @@ def summary(engine: Engine, r: dict) -> Turn:
     per_month = round(sum(c["current_per_month_eur"] for c in cuts), 2)
     per_year = round(sum(c["saving_per_year_eur"] for c in cuts), 2)
     if per_year:
-        lines += ["", f"Slips through your fingers averaged {_money(per_month)} a month over the last 3 months. "
+        lines += ["", f"Fun & extras averaged {_money(per_month)} a month over the last 3 months. "
                       f"−{CUT_PCT}% on it would free about *{_money(per_year)} a year*."]
     return Turn("\n".join(lines), [("ask:everyday", "Where does it go?"), ("quiz:again", "Play again"),
                                    ("quiz:money", "Open S-mobiili")], done=True)

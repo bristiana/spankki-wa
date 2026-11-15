@@ -358,10 +358,10 @@
       {{ ask_oiva("Paljonko voin käyttää palkkapäivään asti?", "How much can I spend until payday?", "ask-spend") }}
     </section>
     <{{ 'div' if web else 'a' }} class="card bk" id="baskets"{% if not web %} href="{{ ask('Mihin rahani menevät?', 'Where does my money go?') }}"{% endif %}>
-      <span class="t">{{ t("Mihin rahasi menevät", "Where your money goes") }}</span><span class="en">{{ t("3 koria", "3 baskets") }}</span>
+      <span class="t">{{ t("Mihin rahasi menevät", "Where your money goes") }}</span><span class="en">{{ t("Keskimäärin kuukaudessa · " ~ baskets.months ~ " viime kuukautta", "Average month · last " ~ baskets.months ~ " months") }}</span>
       <span class="bk-bar" aria-hidden="true">{% for k in baskets.baskets %}<i class="k{{ loop.index }}" style="flex:{{ k.share_pct }}"></i>{% endfor %}</span>
       {% for k in baskets.baskets %}<span class="bk-row" id="basket-{{ k.basket }}"><i class="k{{ loop.index }}"></i>
-        <span><b>{{ k.label if en else basket_fi[k.basket].label }}</b><small>{{ t("esim.", "e.g.") }} {{ k.example if en else basket_fi[k.basket].example }}</small>{% if k.basket == "everyday" %}<span class="bk-hint">{{ t("ainoa kori, jota voit muuttaa jo tänään", "the only basket you can change today") }}</span>{% endif %}</span>
+        <span><b>{{ k.label if en else basket_fi[k.basket].label }}</b><small>{% if en %}Mostly {{ k.example }}{% else %}Eniten {% for c in k.top_categories %}{{ category_fi[c] }}{{ " ja " if not loop.last }}{% else %}{{ basket_fi[k.basket].example }}{% endfor %}{% endif %}</small>{% if k.basket == "everyday" %}<span class="bk-hint">{{ t("Helpoin paikka säästää", "Easiest place to save") }}</span>{% endif %}</span>
         <span class="n">{{ k.per_month_eur|fimoney }}<small>{{ t("kuussa", "a month") }} · {{ k.share_pct }}%</small></span></span>
       {% endfor %}
       {{ ask_oiva("Mihin rahani menevät?", "Where does my money go?", tag="span") }}

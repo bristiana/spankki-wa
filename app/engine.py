@@ -23,22 +23,26 @@ ROOT = Path(__file__).resolve().parents[1]
 # The pedagogical frame from the challenge: every euro you spend lands in one of three baskets.
 BASKETS = {
     "regular": {
-        "label": "Mandatory & regular", "example": "rent",
-        "hint": "Bills you know are coming: rent, utilities, groceries, getting to work.",
+        "label": "Bills & basics", "example": "rent",
+        "hint": "Needed every month: rent, utilities, groceries, getting to work.",
         "categories": ["Housing", "Utilities", "Groceries", "Transportation"],
     },
     "irregular": {
-        "label": "Mandatory & irregular", "example": "a broken washing machine",
-        "hint": "Needed, but you can't predict when: a doctor, a broken laptop, a trip home.",
+        "label": "Occasional costs", "example": "a doctor's visit",
+        "hint": "Needed now and then, but you can't predict when: a doctor, a broken laptop, a trip home.",
         "categories": ["Health", "Home & Tech", "Travel"],
     },
     "everyday": {
-        "label": "Slips through your fingers", "example": "coffees",
+        "label": "Fun & extras", "example": "eating out",
         "hint": "Small choices that add up: dining out, entertainment, shopping.",
         "categories": ["Restaurants", "Entertainment", "Lifestyle"],
     },
 }
 CATEGORY_BASKET = {c: k for k, b in BASKETS.items() for c in b["categories"]}
+# The spending categories in everyday words, for a basket's examples ("Mostly rent and groceries").
+CATEGORY_WORDS = {"Housing": "rent", "Utilities": "utility bills", "Groceries": "groceries",
+                  "Transportation": "transport", "Health": "health", "Home & Tech": "home & tech", "Travel": "travel",
+                  "Restaurants": "eating out", "Entertainment": "entertainment", "Lifestyle": "shopping"}
 EVERYDAY_WORDS = {"Restaurants": "eating out", "Entertainment": "entertainment", "Lifestyle": "shopping"}
 NO_PAYDAY_DAYS = 30  # safe-to-spend horizon when no regular salary is found
 INCOME_TYPES = {"salary", "other_income", "investment_withdrawal"}
@@ -414,8 +418,11 @@ class Engine:
         for key, b in BASKETS.items():
             bs = spend[spend["category"].isin(b["categories"])]
             amt = -bs["tx_amount_eur"].sum()
+            top = [c for c in bs.groupby("category")["tx_amount_eur"].sum().sort_values().index][:2]
             out["baskets"].append({
-                "basket": key, "label": b["label"], "example": b["example"], "explanation": b["hint"],
+                "basket": key, "label": b["label"], "explanation": b["hint"], "top_categories": top,
+                # the example is their own: the one or two categories most of this basket went to
+                "example": " and ".join(CATEGORY_WORDS[c] for c in top) or b["example"],
                 "total_eur": eur(amt), "per_month_eur": eur(amt / months),
                 "share_pct": round(amt / total * 100) if total else 0,
                 "by_category": {c: eur(-v) for c, v in bs.groupby("category")["tx_amount_eur"].sum().sort_values().items()},
@@ -792,7 +799,7 @@ class Engine:
 
     def save_more(self) -> dict:
         """'How could I save more?': at most three ideas, each with one number. The biggest real lever (a 20% cut on
-        the largest 'slips through your fingers' category), what can go to savings now or every payday, and one
+        the largest 'fun & extras' category), what can go to savings now or every payday, and one
         regular payment worth a review."""
         ideas = []
         cuts = [self.simulate_cut(c, 20) for c in BASKETS["everyday"]["categories"] if self.monthly_avg(c, 3) > 0]
@@ -805,7 +812,7 @@ class Engine:
                           "saving_per_month_eur": top["saving_per_month_eur"],
                           "saving_per_year_eur": top["saving_per_year_eur"],
                           "number_to_say": "saving_per_year_eur",
-                          "why": "the largest category in the 'slips through your fingers' basket over the last 3 full "
+                          "why": "the largest category in the 'fun & extras' basket over the last 3 full "
                                  "months; a fifth less there is a habit change, not a sacrifice"})
         save = self.safe_to_save()
         m = save["monthly"]
@@ -847,7 +854,7 @@ class Engine:
                                                   "investing_per_month_eur", "left_per_month_eur")},
             "goals": save["goals"],
             "next_step": step,
-            "method": "biggest lever = simulate_cut(20%) on the largest 'slips through your fingers' category, last 3 "
+            "method": "biggest lever = simulate_cut(20%) on the largest 'fun & extras' category, last 3 "
                       "full months; what built up = the reserve from get_safe_to_save; the review = a regular payment "
                       "from get_regular_payments (one that went up, else the utility bills)",
         }
@@ -1004,7 +1011,7 @@ class Engine:
             **({"not_enough_data": safe["not_enough_data"]} if "not_enough_data" in safe else {}),
             "per_day_after_eur": eur(max(0.0, safe_left - amount) / days),
             "goals": goals,
-            "method": "flexible budget = your average monthly 'slips through your fingers' spending (last 3 months) "
+            "method": "flexible budget = your average monthly 'fun & extras' spending (last 3 months) "
                       "- spent on it this month; safe to spend as in get_safe_to_spend; "
                       "fits_with_reserve: it could be paid by also using the reserve (savings built up beyond the "
                       "pay cycle), which shrinks those savings",
@@ -1141,7 +1148,7 @@ class Engine:
                                 "and travel, costs that come when they come.")
         elif share["regular"] >= 60:
             kind = ("essentials_first", f"Essentials first: {share['regular']}% of your spending is rent, bills, "
-                                        "groceries and getting around; little slips through your fingers.")
+                                        "groceries and getting around; little goes to fun & extras.")
         else:
             kind = ("balanced", f"Balanced spender: no basket dominates ({share['regular']}% essentials, "
                                 f"{share['irregular']}% one-offs, {share['everyday']}% eating out, fun and shopping).")

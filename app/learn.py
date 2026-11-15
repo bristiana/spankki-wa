@@ -74,7 +74,7 @@ def numbers(engine: Engine) -> dict:
 
 
 def _top_everyday(engine: Engine, months: int) -> dict | None:
-    """The kind of place where most 'slips through your fingers' money went over the last 3 months."""
+    """The kind of place where most 'fun & extras' money went over the last 3 months."""
     kinds = {}
     for c in BASKETS["everyday"]["categories"]:
         for label, total in engine.spending(c, "last_3_months")["by_merchant_type"].items():
@@ -124,8 +124,8 @@ def lesson(engine: Engine, i: int, n: dict | None = None) -> tuple[str, tuple[st
     if i == 0:
         rows = "\n".join(f"• {x['label']}: {eur(x['per_month_eur'])} ({x['share_pct']}%)" for x in n["baskets"])
         return (head + f"Every euro lands in one of three baskets. Yours, per month over the last {n['months']} "
-                f"months:\n{rows}\nPlan for the first, keep a buffer for the second. The third is the only one you "
-                "can change today.", ("quiz:start", "Play basket game"))
+                f"months:\n{rows}\nPlan for bills & basics, keep a buffer for occasional costs. Fun & extras is "
+                "where you decide, so it's the easiest place to save.", ("quiz:start", "Play basket game"))
     if i == 1:
         s = n["safe"]
         bills = s["bills_before_payday"]
@@ -154,16 +154,16 @@ def lesson(engine: Engine, i: int, n: dict | None = None) -> tuple[str, tuple[st
                  if n["set_apart"] > 0 and m is not None else
                  f"Nothing is set apart for it yet: {BUFFER_MONTHS} months of it, {eur(n['buffer_target'])}, would "
                  "be a first buffer.")
-        return (head + f"Basket 2, the doctor or a broken laptop, cost you {eur(n['irregular_per_month'])} a month "
+        return (head + f"Occasional costs, like the doctor or a broken laptop, cost you {eur(n['irregular_per_month'])} a month "
                 "on average. You can't know when, so a buffer turns those surprises into non-events. "
                 f"{cover} S-Pankki's rule of thumb over time: 2-3 × your monthly net pay.\nSource: {src}",
                 ("learn:buffer", "Set a buffer goal") if (m or 0) < BUFFER_MONTHS else ("ask:goal", "Set a savings goal"))
     if i == 3:
         t = n["top"]
         if not t:
-            return (head + "Small daily amounts × 365 add up to real money. I can't see 'slips through your "
-                    "fingers' payments yet, so there is nothing to add up for you.", ("ask:everyday", "Where does it go?"))
-        return (head + f"Your biggest 'slips through your fingers' place over the last {n['months']} months: "
+            return (head + "Small daily amounts × 365 add up to real money. I can't see 'fun & extras' "
+                    "payments yet, so there is nothing to add up for you.", ("ask:everyday", "Where does it go?"))
+        return (head + f"Your biggest 'fun & extras' place over the last {n['months']} months: "
                 f"*{t['kind'].lower()}*, {t['payments']} payments, {eur(t['total'])}. That's about "
                 f"{eur(t['per_month'])} a month, or *{eur(t['per_year'])} a year*, {eur(t['per_day'])} a day. "
                 "Nobody decides to spend that much at once; it goes one payment at a time.",
@@ -213,8 +213,8 @@ def start(engine: Engine, user: str) -> Turn:
 def finish(engine: Engine, r: dict) -> Turn:
     r["done"] = True
     engine._save()
-    return Turn("That's all five, course done. In short: plan for basket 1, keep a buffer for basket 2, and basket 3 "
-                "is your call. And pay yourself first on payday. Write *learn* any time to go again.",
+    return Turn("That's all five, course done. In short: plan for bills & basics, keep a buffer for occasional costs, "
+                "and fun & extras is your call. And pay yourself first on payday. Write *learn* any time to go again.",
                 [("quiz:start", "Play basket game"), ("quiz:money", "Open S-mobiili")],
                 lead=[f"{COUNT} of {COUNT} done!"], done=True)
 

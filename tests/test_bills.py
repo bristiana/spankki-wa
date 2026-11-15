@@ -119,7 +119,7 @@ def test_extract_sends_the_image_and_a_strict_schema(e):
     assert {k: bill[k] for k in ("biller", "amount_eur", "due_date", "iban", "reference", "category", "basket")} == {
         "biller": "Voltti Energia Oy (demo)", "amount_eur": 57.08, "due_date": "2026-10-20",
         "iban": "FI5979900020451187", "reference": "20261005837", "category": "Utilities",
-        "basket": "Mandatory & regular"}
+        "basket": "Bills & basics"}
     assert bills.last(e, "u1")["invoice_number"] == "2026-104518"
 
 
