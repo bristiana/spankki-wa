@@ -28,16 +28,14 @@ CUT_PCT = 20
 ANSWER = {k: b["label"] for k, b in BASKETS.items()}  # the button titles: Bills & basics, Occasional costs, Fun & extras
 ANSWER_FI = {"regular": "Laskut ja perusmenot", "irregular": "Satunnaiset menot", "everyday": "Valinnaiset menot"}
 # Payments anyone can place in a basket at a glance, by (category, merchant code or None), in the order a first game
-# picks them: (English, Finnish). Left out on purpose: travel, furniture, electronics and taxis, which people file
-# under different baskets, and "other shops", which says nothing.
+# picks them: (English, Finnish), every name used once. Left out on purpose: travel, furniture, electronics, taxis and
+# petrol, which people file under different baskets, and "other shops", which says nothing.
 SORTABLE = {
     "regular": {("Housing", None): ("Rent", "Vuokra"),
                 ("Groceries", "5411"): ("Supermarket", "Ruokakauppa"),
                 ("Transportation", "4111"): ("Bus or metro ticket", "Bussi- tai metrolippu"),
                 ("Utilities", None): ("Electricity and water bill", "Sähkö- ja vesilasku"),
-                ("Groceries", "5499"): ("Food shop", "Ruokakauppa"),
-                ("Transportation", "5541"): ("Petrol for the car", "Bensaa autoon"),
-                ("Transportation", "5542"): ("Petrol for the car", "Bensaa autoon")},
+                ("Groceries", "5499"): ("Food shop", "Lähikauppa")},
     "irregular": {("Health", "8021"): ("Dentist", "Hammaslääkäri"),
                   ("Health", "8011"): ("Doctor's visit", "Lääkärikäynti"),
                   ("Health", "5912"): ("Pharmacy", "Apteekki")},
@@ -66,7 +64,7 @@ WHY = {
 WHY_FI = {
     "regular": "{kind}: välttämätön, ja se toistuu aikataulussa, joten sen voi suunnitella. Sinulta meni tähän {amt} {period}.",
     "irregular": "{kind}: välttämätön, mutta et tiedä milloin, joten pieni puskuri auttaa. Sinulta meni tähän {amt} {period}.",
-    "everyday": "{kind}: oma valintasi, pienet summat kasvavat. Sinulta meni tähän {amt} {period}.",
+    "everyday": "{kind}: oma valintasi, pienet summat kertyvät. Sinulta meni tähän {amt} {period}.",
 }
 PERIOD_FI = {"last month": "viime kuussa", "over the last 3 months": "viimeisen 3 kuukauden aikana"}
 
@@ -247,13 +245,13 @@ def _summary_fi(engine: Engine, r: dict, b: dict) -> Turn:
     head = ("Hienoa, tunnet korisi." if right == n else "Suurin osa oikein." if right * 2 > n
             else "Nyt tiedät, mihin katsoa.")
     lines = [f"*{right}/{n}*. {head}", "", f"Todellinen jakosi {month}:"]
-    lines += [f"• {ANSWER_FI[x['basket']]}: {_eur(x['total_eur'], True)} ({x['share_pct']} %)" for x in b["baskets"]]
+    lines += [f"• {ANSWER_FI[x['basket']]}: {_eur(x['total_eur'], True)} ({x['share_pct']}\u00a0%)" for x in b["baskets"]]
     cuts = [engine.simulate_cut(c, CUT_PCT) for c in BASKETS["everyday"]["categories"]]
     per_month = round(sum(c["current_per_month_eur"] for c in cuts), 2)
     per_year = round(sum(c["saving_per_year_eur"] for c in cuts), 2)
     if per_year:
         lines += ["", f"Valinnaiset menot olivat keskimäärin {_eur(per_month, True)} kuukaudessa viimeisen 3 kuukauden "
-                      f"aikana. −{CUT_PCT} % niistä vapauttaisi noin *{_eur(per_year, True)} vuodessa*."]
+                      f"aikana. {CUT_PCT}\u00a0% vähemmän vapauttaisi noin *{_eur(per_year, True)} vuodessa*."]
     return Turn("\n".join(lines), [("ask:everyday", "Mihin ne menevät?"), ("quiz:again", "Pelaa uudelleen"),
                                    ("quiz:money", "Avaa S-mobiili")], done=True)
 

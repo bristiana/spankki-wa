@@ -15,6 +15,18 @@ from .engine import CATEGORY_FI, eur
 BASKET_FI = {"regular": "Laskut ja perusmenot", "irregular": "Satunnaiset menot", "everyday": "Valinnaiset menot"}
 MONTH_FI = ("tammikuu", "helmikuu", "maaliskuu", "huhtikuu", "toukokuu", "kesäkuu", "heinäkuu", "elokuu", "syyskuu",
             "lokakuu", "marraskuu", "joulukuu")
+MCC_FI = {  # the engine's merchant kinds (MCC_LABELS) in Finnish, for the explorer-style rows
+    "Public transport": "Joukkoliikenne", "Taxis and ride-hailing": "Taksit", "Travel agencies": "Matkatoimistot",
+    "Home supply stores": "Rautakaupat", "Supermarkets": "Ruokakaupat", "Butchers": "Lihakaupat",
+    "Dairy shops": "Maitokaupat", "Food shops": "Lähikaupat", "Fuel stations": "Huoltoasemat",
+    "Fuel (self-service pumps)": "Polttoaine (automaatti)", "Furniture stores": "Huonekalukaupat",
+    "Electronics stores": "Elektroniikkakaupat", "Restaurants": "Ravintolat", "Bars and pubs": "Baarit ja pubit",
+    "Fast food and cafés": "Pikaruoka ja kahvilat", "Pharmacies": "Apteekit", "Sports shops": "Urheilukaupat",
+    "Book shops": "Kirjakaupat", "Toy and game shops": "Lelu- ja pelikaupat", "Other shops": "Muut kaupat",
+    "Hotels": "Hotellit", "Parking": "Pysäköinti", "Cinema": "Elokuvat", "Theatre and event tickets": "Teatteri ja tapahtumat",
+    "Tourist attractions": "Nähtävyydet", "Amusement parks": "Huvipuistot", "Recreation": "Vapaa-aika",
+    "Doctors": "Lääkärit", "Dentists": "Hammaslääkärit", "Health services": "Terveyspalvelut",
+    "No merchant code": "Ei kauppiaskoodia"}
 CATEGORY_EN = {"Housing": "Rent", "Utilities": "Utility bills", "Groceries": "Groceries", "Transportation": "Transport",
                "Health": "Health", "Home & Tech": "Home & tech", "Travel": "Travel", "Restaurants": "Eating out",
                "Entertainment": "Entertainment", "Lifestyle": "Shopping"}
@@ -86,6 +98,8 @@ def safe_to_spend(out: dict) -> dict | None:
         steps.append(("minus", "Kept as savings", "Jää säästöön", out["reserve_eur"]))
     steps.append(("end", "Safe to spend", "Turvallisesti käytettävissä", out["safe_to_spend_until_payday_eur"]))
     steps = [s for s in steps if s[0] != "minus" or s[3]]  # a zero step says nothing
+    # Spoken-for money above the balance: safe to spend is 0 and the gap is drawn as its own line under the bars.
+    short = max(0.0, -(out.get("left_after_bills_eur") or 0.0)) if not out["safe_to_spend_until_payday_eur"] else 0.0
     pay = (out.get("next_payday") or {}).get("date")
     if pay:
         d = date.fromisoformat(pay)
@@ -97,7 +111,7 @@ def safe_to_spend(out: dict) -> dict | None:
             "title": "What's safe to spend", "title_fi": "Mitä voit käyttää turvallisesti",
             "subtitle": sub, "subtitle_fi": sub_fi,
             "kinds": [s[0] for s in steps], "labels": [s[1] for s in steps], "labels_fi": [s[2] for s in steps],
-            "values": [s[3] for s in steps]}
+            "values": [s[3] for s in steps], "short_by": eur(short) if short else None}
 
 
 def _rows(title, title_fi, sub, sub_fi, labels, labels_fi, values, **more) -> dict:
@@ -118,8 +132,8 @@ def spending(out: dict) -> dict | None:
     name_en, name_fi = _cat(out.get("category") or "")
     if len(kinds) > 1:
         ks = sorted(kinds, key=lambda k: -kinds[k])
-        return _rows(f"{name_en} by kind of place", f"{name_fi}: paikan tyypin mukaan", en, fi, ks, ks,
-                     [kinds[k] for k in ks])
+        return _rows(f"{name_en} by kind of place", f"{name_fi}: paikan tyypin mukaan", en, fi, ks,
+                     [MCC_FI.get(k, k) for k in ks], [kinds[k] for k in ks])
     prev = out.get("previous_period") or {}
     if prev.get("total_eur") is None or not (out.get("total_eur") or prev.get("total_eur")):
         return None
@@ -135,15 +149,15 @@ def simulate_cut(out: dict) -> dict | None:
         return None
     en, fi = _cat(out.get("category") or "")
     pct = out.get("cut_pct")
-    return _rows(f"{en}: now and after −{pct:g}%", f"{fi}: nyt ja −{pct:g} % jälkeen",
+    return _rows(f"{en}: now and {pct:g}% less", f"{fi}: nyt ja {pct:g}\u00a0% vähemmän",
                  f"A month · frees {_m(out['saving_per_year_eur'])} a year",
                  f"Kuukaudessa · vapauttaa {_m(out['saving_per_year_eur'], True)} vuodessa",
-                 ["Now", f"After −{pct:g}%"], ["Nyt", f"−{pct:g} % jälkeen"],
+                 ["Now", f"{pct:g}% less"], ["Nyt", f"{pct:g}\u00a0% vähemmän"],
                  [out["current_per_month_eur"], out["new_per_month_eur"]])
 
 
 def upcoming_bills(out: list) -> dict | None:
-    """get_upcoming_bills: the dated bills, biggest first (the 'several small bills' average is not a dated bill)."""
+    """get_upcoming_bills: the dated bills, soonest first (the 'several small bills' average is not a dated bill)."""
     bills = [b for b in out or [] if b.get("due_date") and b.get("amount_eur")]
     if not bills:
         return None

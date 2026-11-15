@@ -278,3 +278,8 @@ def test_the_game_plays_in_finnish(e):
         r = e.state["quiz"]["u"]
         t = quiz.turn(e, "u", "", f"quiz:0:{r['round']}:{r['picks'][r['round']]['basket']}", lang="fi")
     assert t.text.startswith("*5/5*. Hienoa") and "Todellinen jakosi" in t.text
+
+
+def test_no_two_game_items_share_a_name():
+    names = [n for b in quiz.SORTABLE.values() for pair in b.values() for n in pair]
+    assert len(names) == len(set(names))

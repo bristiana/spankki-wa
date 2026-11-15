@@ -147,25 +147,29 @@
   // Balance -> what is already spoken for until payday -> safe to spend: each step a floating bar on one scale.
   function waterfall(svg, spec, W) {
     const v = spec.values, kinds = spec.kinds, d = spec.decimals ?? 0, labels = pick(spec, "labels"), row = 42;
-    const H = v.length * row + 2, run = [];
+    const H = v.length * row + 2 + (spec.short_by ? 22 : 0), run = [];
     let r = 0;
-    v.forEach((val, i) => { const k = kinds[i]; const a = k === "minus" ? r - val : 0, b = k === "minus" ? r : val;
-                            r = k === "minus" ? r - val : val; run.push([a, b]); });
+    v.forEach((val, i) => {  // [from, to] of each bar; a balance below zero runs left of zero
+      const k = kinds[i], a = k === "minus" ? r - val : Math.min(0, val), b = k === "minus" ? r : Math.max(0, val);
+      r = k === "minus" ? r - val : val; run.push([a, b]);
+    });
     const lo = Math.min(0, ...run.map(x => x[0])), hi = Math.max(...run.map(x => x[1])) || 1;
     const X = val => (val - lo) / (hi - lo) * W;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     v.forEach((val, i) => {
       const y0 = i * row, k = kinds[i], [a, b] = run[i], end = k === "end";
-      svg.appendChild(el("text", {x: 0, y: y0 + 13, class: end ? "kc-label kc-strong" : "kc-label"}, labels[i]));
-      svg.appendChild(el("text", {x: W, y: y0 + 13, "text-anchor": "end", class: end ? "kc-val kc-strong kc-good" : "kc-val kc-halo"},
+      svg.appendChild(el("text", {x: 0, y: y0 + 13, class: end ? "kc-label kc-strong kc-halo" : "kc-label kc-halo"}, labels[i]));
+      svg.appendChild(el("text", {x: W, y: y0 + 13, "text-anchor": "end", class: end ? "kc-val kc-strong kc-good kc-halo" : "kc-val kc-halo"},
                          (k === "minus" ? "\u2212" : "") + num(val, spec.unit, d)));
       svg.appendChild(el("rect", {x: X(a), y: y0 + 20, width: Math.max(3, X(b) - X(a)), height: 13, rx: 3,
                                   class: k === "start" ? "kc-bar" : end ? "kc-end" : "kc-minus"}));
-      if (i < v.length - 1) {  // where the next step starts
-        const at = k === "minus" ? X(a) : X(b);
-        svg.appendChild(el("line", {x1: at, x2: at, y1: y0 + 33, y2: y0 + row + 20, class: "kc-link"}));
+      if (i < v.length - 1) {  // where the next step starts: drawn first, so the labels sit on top of it
+        const at = k === "minus" ? X(a) : (val < 0 ? X(a) : X(b));
+        svg.insertBefore(el("line", {x1: at, x2: at, y1: y0 + 33, y2: y0 + row + 20, class: "kc-link"}), svg.firstChild);
       }
     });
+    if (spec.short_by) svg.appendChild(el("text", {x: 0, y: v.length * row + 16, class: "kc-val kc-strong kc-warn"},
+      (FI() ? "Puuttuu ennen palkkapäivää: " : "Short before payday: ") + num(spec.short_by, spec.unit, d)));
   }
 
   window.oivaChart = function (host, spec) {

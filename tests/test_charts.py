@@ -61,3 +61,18 @@ def test_other_answers_get_a_bar_chart_from_their_own_figures(e, name, args):
 
 def test_no_chart_for_a_tool_without_one(e):
     assert chart_of(e, "get_goals")[1] == [] and charts.for_tool("get_baskets", {"baskets": []}) is None
+
+
+def test_waterfall_shows_the_gap_when_money_runs_short():
+    out = {"balance_eur": 100.0, "bills_total_eur": 150.0, "utilities_estimate_eur": 10.0,
+           "groceries_and_transport_estimate_eur": 40.0, "surprise_buffer_eur": 5.0, "reserve_eur": 0.0,
+           "safe_to_spend_until_payday_eur": 0.0, "left_after_bills_eur": -105.0,
+           "next_payday": {"date": "2026-10-15"}}
+    c = charts.safe_to_spend(out)
+    assert c["values"][-1] == 0.0 and c["short_by"] == 105.0 and "Kept as savings" not in c["labels"]
+    assert charts.safe_to_spend({**out, "safe_to_spend_until_payday_eur": 20.0, "left_after_bills_eur": 20.0})["short_by"] is None
+
+
+def test_every_merchant_kind_has_a_finnish_name():
+    from app.engine import MCC_LABELS
+    assert set(MCC_LABELS.values()) <= set(charts.MCC_FI)
