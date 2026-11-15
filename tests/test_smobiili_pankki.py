@@ -2,7 +2,7 @@
 open the same review and Face ID as Oiva's buttons, and back always returns to where the customer came from."""
 from html import escape
 import re
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -260,11 +260,23 @@ def test_transactions_by_day_with_a_detail_and_a_full_list(client):
     if x["receipt"]:
         assert f"/s-mobiili/kuitit/{x['id']}" in detail
     assert client.get("/s-mobiili/tapahtumat/999999").status_code == 404
+    def shown(page):  # the rows a filter shows; the rest are drawn hidden, so the list can widen again in place
+        return re.findall(r'<a class="txr" id="tx-\d+" href="[^"]*" data-sheet="[^"]*" data-basket="(\w+)"', page)
     full = get(client, "/s-mobiili/tapahtumat")
     fun = get(client, "/s-mobiili/tapahtumat?kori=everyday")
-    assert full.count('class="txr"') > fun.count('class="txr"') > 0
-    assert 'data-basket="regular"' not in fun and 'data-basket="everyday"' in fun
+    assert len(shown(full)) > len(shown(fun)) > 0 and set(shown(fun)) == {"everyday"}
+    assert fun.count('class="txr"') == full.count('class="txr"')  # "All" can bring the others back
     none = get(client, "/s-mobiili/tapahtumat?q=zzzz")
-    assert 'class="txr"' not in none and 'id="tx-empty"' in none
+    assert not shown(none) and re.search(r'id="tx-empty"(?! hidden)', none) and re.search(r'id="all-tx" hidden', none)
     grocery = get(client, "/s-mobiili/tapahtumat?q=ruokakauppa", "fi")  # Finnish words find Finnish names
-    assert grocery.count('class="txr"') > 0 and 'data-basket="everyday"' not in grocery
+    assert shown(grocery) and "everyday" not in shown(grocery)
+
+
+def test_day_totals_count_spending_only(client):
+    e = client.engine
+    days = txview.by_day(txview.rows(e, "en", None, since=e.today - timedelta(days=365)), e.today, "en")
+    for d in days:
+        out = [x["amount_eur"] for x in d["rows"] if not x["income"]]
+        assert d["n_out"] == len(out) and abs(d["total_eur"] - round(sum(out), 2)) < 0.005 and d["total_eur"] <= 0
+    paid = next(d for d in days if any(x["income"] for x in d["rows"]) and d["n_out"] > 1)
+    assert paid["total_eur"] < 0  # a payday's header shows what went out, not salary minus spending

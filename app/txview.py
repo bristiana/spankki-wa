@@ -15,11 +15,11 @@ MCC_NAME = {
     "4111": ("Public transport", "Joukkoliikenne"), "4121": ("Taxi", "Taksi"),
     "4722": ("Travel agency", "Matkatoimisto"), "5200": ("Home supply store", "Rautakauppa"),
     "5411": ("Grocery store", "Ruokakauppa"), "5422": ("Butcher", "Lihakauppa"),
-    "5451": ("Dairy shop", "Maitokauppa"), "5499": ("Food shop", "Ruokakauppa"),
+    "5451": ("Dairy shop", "Maitokauppa"), "5499": ("Food shop", "Lähikauppa"),
     "5541": ("Fuel station", "Huoltoasema"), "5542": ("Fuel station", "Huoltoasema"),
     "5712": ("Furniture store", "Huonekaluliike"), "5732": ("Electronics store", "Elektroniikkaliike"),
     "5812": ("Restaurant", "Ravintola"), "5813": ("Bar or pub", "Baari"),
-    "5814": ("Café or fast food", "Kahvila tai pikaruoka"), "5912": ("Pharmacy", "Apteekki"),
+    "5814": ("Café or fast food", "Kahvila"), "5912": ("Pharmacy", "Apteekki"),
     "5941": ("Sports shop", "Urheiluliike"), "5942": ("Bookshop", "Kirjakauppa"),
     "5945": ("Toy shop", "Lelukauppa"), "5999": ("Shop", "Kauppa"), "7011": ("Hotel", "Hotelli"),
     "7523": ("Parking", "Pysäköinti"), "7832": ("Cinema", "Elokuvateatteri"),
@@ -160,14 +160,23 @@ def rows(e: Engine, lang: str, n: int | None = 40, since: date | None = None, no
     return out
 
 
-def by_day(items: list[dict], today: date, lang: str) -> list[dict]:
-    """Rows -> [{label, iso, total_eur (spent that day, negative), rows}], newest day first."""
+def by_day(items: list[dict], today: date, lang: str, keep: set | None = None) -> list[dict]:
+    """Rows -> [{label, iso, total_eur, n_out, hidden, rows}], newest day first. total_eur is what was spent that day
+    (money out only, negative) over the rows shown; n_out counts them (the header shows a total from two up).
+    keep: the row ids a filter shows; the others are drawn hidden, so the list can widen again without a reload."""
     days: list[dict] = []
     for x in items:
         if not days or days[-1]["iso"] != x["iso"]:
-            days.append({"iso": x["iso"], "label": day_label(x["date"], today, lang), "rows": [], "total_eur": 0.0})
-        days[-1]["rows"].append(x)
-        days[-1]["total_eur"] = eur(days[-1]["total_eur"] + x["amount_eur"])
+            days.append({"iso": x["iso"], "label": day_label(x["date"], today, lang), "rows": [], "total_eur": 0.0,
+                         "n_out": 0, "hidden": True})
+        d = days[-1]
+        x = {**x, "hidden": keep is not None and x["id"] not in keep}
+        d["rows"].append(x)
+        if not x["hidden"]:
+            d["hidden"] = False
+            if not x["income"]:
+                d["n_out"] += 1
+                d["total_eur"] = eur(d["total_eur"] + x["amount_eur"])
     return days
 
 

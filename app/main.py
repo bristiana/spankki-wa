@@ -1801,7 +1801,7 @@ def smobiili_transactions(request: Request, q: str = "", kori: str = ""):
     back = "/s-mobiili/tilit/s-tili" if request.query_params.get("from") == "tili" else "/s-mobiili/"
     return sm_sub(request, sm_persona(request), "p-tapahtumat", tr(lang, "Tapahtumat", "Transactions"),
                   pk_keep(request, back), tab="pankki" if "tilit" in back else "koti",
-                  tx_days=txview.by_day(shown, e.today, lang), q=q, kori=kori, tx_count=len(shown),
+                  tx_days=txview.by_day(items, e.today, lang, keep={x["id"] for x in shown}), q=q, kori=kori, tx_count=len(shown),
                   tx_out=eur(sum(x["amount_eur"] for x in shown if not x["income"])),
                   tx_in=eur(sum(x["amount_eur"] for x in shown if x["income"])),
                   basket_text={k: v["en" if lang == "en" else "fi"][0] for k, v in txview.BASKET_TEXT.items()},

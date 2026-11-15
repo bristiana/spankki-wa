@@ -29,16 +29,18 @@
 {%- endmacro %}
 
 {%- macro sub_line(x) -%}
-{{ t(x.time|replace(":", "."), x.time) ~ " · " if x.time }}{{ x.basket_label or (t("Tulo", "Money in") if x.income else x.category) }}
+{%- set what = x.basket_label or (t("Tulo", "Money in") if x.income else x.category) -%}
+{%- if what == x.name %}{% set what = "" %}{% endif -%}
+{{ t(x.time|replace(":", "."), x.time) if x.time }}{{ " · " if x.time and what }}{{ what }}
 {%- endmacro %}
 
 {#- days: txview.by_day(); src: where the sheet's receipt link comes back to ("koti", "tili", "all") -#}
 {%- macro tx_days(days, src="koti", totals=True) -%}
-{% for d in days %}<div class="txg" data-day="{{ d.iso }}">
-  <div class="txd"><span>{{ d.label }}</span>{% if totals and d.rows|length > 1 %}<span class="dt" aria-label="{{ t('Päivän summa', 'Day total') }}">{{ amount({"amount_eur": d.total_eur, "income": d.total_eur > 0}, "dsum") }}</span>{% endif %}</div>
-  {% for x in d.rows %}<a class="txr" id="tx-{{ x.id }}" href="/s-mobiili/tapahtumat/{{ x.id }}{{ keep }}" data-sheet="txs-{{ x.id }}" data-basket="{{ x.basket or 'none' }}" data-in="{{ 1 if x.income else 0 }}" data-amt="{{ x.amount_eur|abs }}" data-q="{{ tx_hay(x) }}"{% if x.receipt %} data-receipt="1"{% endif %}>
+{% for d in days %}<div class="txg" data-day="{{ d.iso }}"{% if d.hidden %} hidden{% endif %}>
+  <div class="txd"><span>{{ d.label }}</span>{% if totals %}<span class="dt"{% if d.n_out < 2 %} hidden{% endif %}><span class="sr">{{ t("Päivän menot", "Spent that day") }} </span>{{ amount({"amount_eur": d.total_eur, "income": False}, "dsum") }}</span>{% endif %}</div>
+  {% for x in d.rows %}<a class="txr" id="tx-{{ x.id }}"{% if x.hidden %} hidden{% endif %} href="/s-mobiili/tapahtumat/{{ x.id }}{{ keep }}" data-sheet="txs-{{ x.id }}" data-basket="{{ x.basket or 'none' }}" data-in="{{ 1 if x.income else 0 }}" data-amt="{{ x.amount_eur|abs }}" data-q="{{ tx_hay(x) }}"{% if x.receipt %} data-receipt="1"{% endif %}>
     <span class="txi b-{{ x.tone }}">{{ cat_icon(x.icon) }}</span>
-    <span class="tn"><b>{{ x.name }}{% if x.num %} <i>{{ x.num }}</i>{% endif %}</b><small>{{ sub_line(x) }}</small></span>
+    <span class="tn"><b>{{ x.name }}{% if x.num %}&nbsp;<i>{{ x.num }}</i>{% endif %}</b><small>{{ sub_line(x) }}</small></span>
     {{ amount(x) }}</a>
   <template id="txs-{{ x.id }}">{{ tx_detail(x, src) }}</template>{% endfor %}
 </div>{% endfor %}
@@ -62,7 +64,7 @@
 {% if x.receipt or not web %}<div class="txs-acts">
   {% if x.receipt %}<a class="txs-act" id="txs-receipt" href="/s-mobiili/kuitit/{{ x.id }}{{ keep ~ '&' if keep else '?' }}from={{ src }}"><svg class="i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4.5l2 1.5 2-1.5 2 1.5 2-1.5 2 1.5 2-1.5 2 1.5 2-1.5v23l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5z"/><path d="M12 12h8M12 16h8M12 20h5"/></svg><span>{{ t("Näytä kassakuitti", "Show the receipt") }}<small>{{ t("Kaikki ostokset ja hinnat", "Every item and its price") }}</small></span><svg class="i chev" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12.5 8.5L20 16l-7.5 7.5"/></svg></a>{% endif %}
   {% if not web %}{% set day = x.date.day ~ "." ~ x.date.month ~ "." %}{% set amt = (x.amount_eur|abs)|fimoney %}
-  {% set q_fi = "Kerro tästä " ~ ("tulosta" if x.income else "maksusta") ~ ": " ~ x.name ~ (" " ~ x.num if x.num else "") ~ " " ~ amt ~ " " ~ day %}
+  {% set q_fi = "Kerro tästä " ~ ("tulosta" if x.income else "maksusta") ~ ": " ~ x.name ~ (" " ~ x.num if x.num else "") ~ ", " ~ amt ~ ", " ~ day %}
   {% set q_en = "Tell me about this " ~ ("income" if x.income else "payment") ~ ": " ~ x.name ~ (" " ~ x.num if x.num else "") ~ ", " ~ amt ~ " on " ~ day %}
   <a class="txo ask-o" id="txs-ask" href="{{ ask(q_fi, q_en) }}"><img src="{{ static('oiva/mascot/head.png') }}" alt="" width="28" height="28"><span class="q"><small>{{ t("Kysy Oivalta", "Ask Oiva") }}</small>{{ t("Kysy tästä maksusta", "Ask about this payment") if not x.income else t("Kysy tästä tulosta", "Ask about this income") }}</span><svg class="i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12.5 8.5L20 16l-7.5 7.5"/></svg></a>{% endif %}
 </div>{% endif %}
@@ -76,6 +78,7 @@
   .txd{display:flex;justify-content:space-between;align-items:baseline;padding:14px 0 2px;font-size:13px;font-weight:600;color:var(--muted)}
   .txd .dsum{font-weight:500;color:var(--faint);font-variant-numeric:tabular-nums}
   .txd .dsum .sg{margin-right:0}
+  .txr[hidden],.txg[hidden],.dt[hidden]{display:none}
   .txr{display:flex;align-items:center;gap:12px;padding:9px 0;min-height:60px;color:#222;-webkit-tap-highlight-color:transparent;border-radius:8px}
   .txr:active{background:var(--soft)}
   .txi{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:50%;background:var(--soft);color:var(--brand)}
@@ -85,11 +88,11 @@
   .txi.b-b3{background:var(--b3,#9fd8a9);color:#004d2a}
   .txi.b-in{background:var(--mint);color:var(--brand)}
   .tn{flex:1;min-width:0;line-height:1.25}
-  .tn b{display:block;font-weight:500;font-size:16px;overflow-wrap:anywhere}
+  .tn b{display:block;font-weight:500;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tn i,.txs-name i{font-style:normal;font-weight:400;color:var(--faint);font-size:.88em}
   .tn small{display:block;font-size:13px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
   .tam{flex:none;text-align:right;font-weight:600;font-size:16px;white-space:nowrap;font-variant-numeric:tabular-nums;color:#222}
-  .tam .sg,.txs-amt .sg{color:var(--faint);font-weight:500;margin-right:1px}
+  .tam .sg,.txs-amt .sg{font-weight:500;margin-right:1px}
   .txs:focus{outline:0}
   .tam.in,.tam.in .sg,.txs-amt.in,.txs-amt.in .sg{color:var(--brand)}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

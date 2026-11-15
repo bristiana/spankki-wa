@@ -64,7 +64,7 @@
     const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     let n = 0, out = 0, inn = 0;
     for (const g of all.querySelectorAll(".txg")) {
-      let any = false;
+      let any = false, dn = 0, dsum = 0;
       for (const r of g.querySelectorAll(".txr")) {
         const ok = words.every(w => r.dataset.q.includes(w)) &&
           (!kori || (kori === "in" ? r.dataset.in === "1" : r.dataset.basket === kori));
@@ -72,10 +72,12 @@
         if (ok) {
           any = true; n++;
           const a = parseFloat(r.dataset.amt);
-          if (r.dataset.in === "1") inn += a; else out += a;
+          if (r.dataset.in === "1") inn += a; else { out += a; dn++; dsum += a; }
         }
       }
       g.hidden = !any;
+      const dt = g.querySelector(".dt");  // the day's spending over the rows shown, from two up (as the server draws it)
+      if (dt) { dt.hidden = dn < 2; const v = dt.querySelector(".dsum"); if (v && dn > 1) v.lastChild.textContent = fmt(dsum); }
     }
     all.hidden = !n; if (empty) empty.hidden = !!n;
     if (sum) {
@@ -94,6 +96,9 @@
     const hid = form.querySelector('input[name="kori"]');
     if (kori) { if (hid) hid.value = kori; else form.insertAdjacentHTML("beforeend", `<input type="hidden" name="kori" value="${kori}">`); }
     else if (hid) hid.remove();
-    apply();
+    apply(); toChip(c);
   }));
+  const nav = form.querySelector(".txc");
+  function toChip(c) { if (nav && c) nav.scrollLeft = Math.max(0, c.offsetLeft - nav.offsetLeft - 16); }  // keep the chip that's on in view
+  toChip(chips.find(c => c.getAttribute("aria-current")));
 })();

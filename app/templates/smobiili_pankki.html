@@ -108,8 +108,8 @@
     </form>
     <p class="txsum" id="tx-sum" aria-live="polite"><span><b>{{ tx_count }} {{ t("tapahtumaa", "transactions") if tx_count != 1 else t("tapahtuma", "transaction") }}</b>{{ t("viimeiset 12 kk", "last 12 months") }}</span>
       <span><b id="tx-out"{% if not tx_out %} hidden{% endif %}>{{ t("Menot", "Out") }} {{ (tx_out|abs)|fimoney }}</b><b id="tx-in"{% if not tx_in %} hidden{% endif %}>{{ t("Tulot", "In") }} {{ tx_in|fimoney }}</b></span></p>
-    {% if tx_days %}<section class="card txl" id="all-tx">{{ tx.tx_days(tx_days, "all") }}</section>{% endif %}
-    <p class="tx-empty" id="tx-empty"{% if tx_days %} hidden{% endif %}>{{ t("Ei osumia. Kokeile toista sanaa tai valitse Kaikki.", "Nothing matches. Try another word or pick All.") }}</p>
+    {% if tx_days %}<section class="card txl" id="all-tx"{% if not tx_count %} hidden{% endif %}>{{ tx.tx_days(tx_days, "all") }}</section>{% endif %}
+    <p class="tx-empty" id="tx-empty"{% if tx_count %} hidden{% endif %}>{{ t("Ei osumia. Kokeile toista sanaa tai valitse Kaikki.", "Nothing matches. Try another word or pick All.") }}</p>
     {{ ask_oiva("Mihin olen käyttänyt eniten viime aikoina?", "What have I spent the most on lately?", "ask-all", cls="card") }}
   </div>
 
