@@ -79,9 +79,9 @@
   .how-src b{color:var(--ink);font-weight:600}
   .how-check{margin:8px 0 0;color:var(--brand);font-weight:600}.how-check.warn{color:var(--warn)}
 </style>
-<link rel="stylesheet" href="/static/oiva/helper.css">
-<script src="/static/kchart.js"></script>
-<script src="/static/trace.js"></script>
+<link rel="stylesheet" href="{{ static('oiva/helper.css') }}">
+<script src="{{ static('kchart.js') }}"></script>
+<script src="{{ static('trace.js') }}"></script>
 {% endblock %}
 {% block body %}
 {%- macro icon(name) -%}
@@ -125,8 +125,8 @@
   <div class="panel"><div class="top"><span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>S-Pankki</span><button id="close" aria-label="{{ t('Sulje ja palaa chattiin', 'Close and go back to the chat') }}">×</button></div><iframe id="frame" title="Confirm"></iframe></div>
 </div>
 </div>
-<script src="/static/oiva/mascot/oiva.js"></script>
-<script src="/static/oiva/helper.js"></script>
+<script src="{{ static('oiva/mascot/oiva.js') }}"></script>
+<script src="{{ static('oiva/helper.js') }}"></script>
 <script>
 const H = window.oivaHelper || {thinking() {}, reply() {}, listening() {}};  // the big Oiva on the stage (helper.js)
 const UI = {{ {"thinking": t("Oiva miettii", "Oiva is thinking"), "conn": t("Yhteysongelma, yritä uudelleen.", "Connection problem, try again.")}|tojson }};

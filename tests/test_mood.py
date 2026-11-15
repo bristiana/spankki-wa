@@ -91,3 +91,13 @@ def test_nothing_to_save_is_a_caution_not_a_happy_saving_pose():
     assert mood.for_reply(["get_safe_to_save"], (), _Saver(0.0)) == "caution"
     assert mood.for_reply(["get_safe_to_save"], (), _Saver(120.0)) == "saving"
     assert mood.for_reply(["get_safe_to_save"]) == "saving"
+
+
+def test_the_helper_mascot_url_changes_with_the_file(client):
+    """The chat links the Helper's oiva.js with a content hash, so a browser never keeps an older squirrel."""
+    import hashlib
+    import re
+    sha = hashlib.sha1(open("app/static/oiva/mascot/oiva.js", "rb").read()).hexdigest()[:10]
+    html = client.get("/chat").text
+    assert f"/static/oiva/mascot/oiva.js?v={sha}" in html
+    assert re.search(r'/static/oiva/helper\.js\?v=[0-9a-f]{10}"', html)

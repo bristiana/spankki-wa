@@ -256,6 +256,25 @@ templates.env.filters["money"] = money_nb
 templates.env.filters["fimoney"] = fi_money
 templates.env.globals.update(t=_t, ui_lang=ui_lang, lang_url=lang_url, persona_label=persona_label, basket_fi=BASKET_FI,
                              basket_fi_by_label={BASKETS[k]["label"]: v["label"] for k, v in BASKET_FI.items()})
+_STATIC_DIR = Path(__file__).parent / "static"
+_static_v: dict[str, tuple[float, str]] = {}
+
+
+def static_url(path: str) -> str:
+    """/static/<path>?v=<content hash>: a changed file gets a new URL, so no browser keeps showing the old one."""
+    f = _STATIC_DIR / path
+    try:
+        mtime = f.stat().st_mtime
+    except OSError:
+        return f"/static/{path}"
+    hit = _static_v.get(path)
+    if not hit or hit[0] != mtime:
+        hit = (mtime, hashlib.sha1(f.read_bytes()).hexdigest()[:10])
+        _static_v[path] = hit
+    return f"/static/{path}?v={hit[1]}"
+
+
+templates.env.globals["static"] = static_url
 DEMO_COOKIE = "oiva_demo"
 templates.env.globals["wa_login"] = lambda request: (enable_banking.mask(wa_phone(request))
                                                      or ("Demo" if request.cookies.get(DEMO_COOKIE) else ""))
