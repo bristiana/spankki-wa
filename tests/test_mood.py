@@ -71,9 +71,10 @@ def test_the_ai_failing_is_error(client, monkeypatch):
     assert j["mood"] == "error"
 
 
-@pytest.mark.parametrize("lang,helper", [("fi", "Apuri"), ("en", "Helper")])
-def test_chat_page_has_both_modes_with_chat_first(client, lang, helper):
+@pytest.mark.parametrize("lang,helper,coin", [("fi", "Apuri", "Kolikko"), ("en", "Helper", "Coin")])
+def test_chat_page_has_three_modes_with_chat_first(client, lang, helper, coin):
     html = client.get(f"/chat?lang={lang}").text
     assert 'data-mode="chat" aria-pressed="true"' in html and f"{helper}</button>" in html
+    assert 'data-mode="coin"' in html and f"{coin}</button>" in html
     assert 'id="stage" hidden' in html and "/static/oiva/mascot/oiva.js" in html
     assert client.get("/static/oiva/mascot/oiva.js").status_code == 200

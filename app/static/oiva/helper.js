@@ -33,6 +33,50 @@
   let oiva = null, mood = "idle", idleTimer = 0, last = "", lastParts = [];
   const on = () => phone.classList.contains("helper");
 
+  // ---- the coin squirrel (the chat's own sprite, oiva.css) as the Helper's Oiva: the same calls as oiva.js ----
+  // It has 9 moods and 16 look directions, no compare pose: each reply state takes its closest mood, and compare
+  // looks across at the bubble, where the two bars do the comparing.
+  const COIN = {
+    idle: "idle", listening: "idle", thinking: "think", working: "busy", teaching: "talk", checking: "busy",
+    needs_approval: "wave", success: "talk", error: "worried", learned: "happy", saving: "happy", spent: "talk",
+    safe_to_spend: "happy", caution: "worried", what_if: "think", compare: "look",
+  };
+  function coinOiva(box) {
+    const el = document.createElement("span");
+    el.className = "oiva idle"; el.setAttribute("aria-hidden", "true");
+    box.textContent = ""; box.appendChild(el);
+    let state = "idle", gaze = null;
+    // 16 look directions, 22.5 deg each clockwise from up: row 9 + floor(N / 8), column N % 8 (oiva.css)
+    function look(x, y) {
+      const r = el.getBoundingClientRect();
+      const deg = (Math.atan2(x - (r.left + r.width / 2), -(y - (r.top + r.height * 0.4))) * 180 / Math.PI + 360) % 360;
+      const n = Math.round(deg / 22.5) % 16;
+      el.className = "oiva look";
+      el.style.setProperty("--row", 9 + Math.floor(n / 8)); el.style.setProperty("--col", n % 8);
+    }
+    function draw() {
+      if (gaze) return look(gaze.x, gaze.y);
+      el.style.removeProperty("--row"); el.style.removeProperty("--col");
+      if (state === "compare") {  // across at the bubble and its bars
+        const b = say && say.getBoundingClientRect();
+        if (b && b.width) return look(b.left + b.width * 0.3, b.top + b.height / 2);
+      }
+      el.className = "oiva " + (COIN[state] === "look" ? "idle" : (COIN[state] || "idle"));
+    }
+    const poke = () => {  // a tap: a little hop, then back to the pose
+      if (gaze) return;
+      el.className = "oiva happy";
+      setTimeout(draw, 700);
+    };
+    box.addEventListener("click", poke);
+    return {
+      setState(n) { state = n; draw(); },
+      setFps() {},
+      lookAt(x, y) { gaze = x == null ? null : { x, y }; draw(); },
+      destroy() { box.removeEventListener("click", poke); box.textContent = ""; },
+    };
+  }
+
   function plain(s) { return String(s || "").replace(/[*_]/g, "").replace(/\s+/g, " ").trim(); }
   // amounts never break across lines in the bubble: "3 345.06 €" keeps its spaces non-breaking
   function nb(s) { return s.replace(/\bS-(?=[A-Za-zÄÖäö])/g, "S\u2011").replace(/(\d) (?=\d{3}(?!\d))/g, "$1\u00a0").replace(/(\d) €/g, "$1\u00a0€"); }
@@ -156,16 +200,21 @@
   }
 
   // ---- modes ----
+  let made = "";  // which Oiva is on the stage: "helper" (oiva.js) or "coin" (the sprite)
   function setMode(m, remember) {
-    const helper = m === "helper";
+    const helper = m === "helper" || m === "coin";
     phone.classList.toggle("helper", helper);
+    phone.classList.toggle("coin", m === "coin");
     document.querySelectorAll(".modes [data-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
     if (remember) store.set("oiva-mode", m);
     if (stage) stage.hidden = !helper;
-    if (helper && !oiva && window.Oiva && pal) {
-      oiva = window.Oiva.create(pal, { palette: "red", state: mood, hoverReact: true, fps: mood === "idle" ? 20 : 30 });  // a tap pokes him (oiva.js)
+    if (oiva && made !== m) { oiva.destroy(); oiva = null; }
+    if (helper && !oiva && pal) {
+      if (m === "coin") oiva = coinOiva(pal);
+      else if (window.Oiva) oiva = window.Oiva.create(pal, { palette: "red", state: mood, hoverReact: true, fps: mood === "idle" ? 20 : 30 });  // a tap pokes him (oiva.js)
+      made = oiva ? m : "";
+      if (oiva) oiva.setState(mood);
     }
-    if (!helper && oiva) { oiva.destroy(); oiva = null; }
     if (!helper && canSpeak) speechSynthesis.cancel();
     const log = document.getElementById("log");
     if (log) log.scrollTop = log.scrollHeight;
@@ -173,11 +222,12 @@
   document.querySelectorAll(".modes [data-mode]").forEach(b => b.onclick = () => {
     setMode(b.dataset.mode, true);
     const u = new URL(location.href);
-    if (b.dataset.mode === "helper") u.searchParams.set("mode", "helper"); else u.searchParams.delete("mode");
+    if (b.dataset.mode !== "chat") u.searchParams.set("mode", b.dataset.mode); else u.searchParams.delete("mode");
     history.replaceState(null, "", u.pathname + u.search);
   });
   const asked = new URLSearchParams(location.search).get("mode");
-  const startMode = asked === "helper" || asked === "chat" ? asked : (store.get("oiva-mode") === "helper" ? "helper" : "chat");
+  const MODES = ["chat", "helper", "coin"], kept = store.get("oiva-mode");
+  const startMode = MODES.includes(asked) ? asked : (MODES.includes(kept) ? kept : "chat");
 
   // ---- keyboard: a smaller stage when the visual viewport is short ----
   if (window.visualViewport) {
@@ -210,7 +260,7 @@
       show("thinking", "", true);
     },
     reply(name, parts, trace) {
-      const m = (window.Oiva && window.Oiva.STATES.includes(name)) ? name : "success";
+      const m = (name in COIN) ? name : "success";
       last = first(parts, m); lastParts = parts || [];
       pose(m);
       show(m, last || T("Tässä.", "Here you go."), false, pairFor(m, trace, parts));
@@ -223,6 +273,14 @@
   const hello = document.getElementById("hello");
   if (hello) {  // the greeting: its first two sentences ("Hi Antti! I'm Oiva, your S-Pankki money coach.")
     last = plain(hello.textContent); lastParts = [hello.textContent]; show("", last);
+  }
+  const icon = document.querySelector('.modes [data-mode="helper"] .vk');
+  if (icon && window.Oiva) {  // one still frame of oiva.js's head crop, no animation running in the switch
+    const o = window.Oiva.create(icon, { palette: "red", framing: "head", trackPointer: false, hoverReact: false, reducedMotion: true });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const svg = icon.querySelector("svg"), still = svg && svg.cloneNode(true);
+      o.destroy(); if (still) icon.appendChild(still);
+    }));
   }
   setMode(startMode, false);
   pose("idle");

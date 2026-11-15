@@ -7,7 +7,9 @@
 .modes .seg button{border:0;background:transparent;color:var(--muted);font:600 13.5px var(--font);min-height:30px;position:relative;
   padding:0 14px;border-radius:99px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background-color .15s,color .15s}
 .modes .seg button[aria-pressed="true"]{background:var(--brand);color:#fff}
-.modes .seg svg,.modes .seg img{width:16px;height:16px;flex:none}
+.modes .seg svg,.modes .seg img,.modes .seg .vk{width:16px;height:16px;flex:none}
+.modes .seg .vk{display:inline-block;border-radius:50%;overflow:hidden}.modes .seg .vk svg{width:100%;height:100%;display:block}
+.modes .seg button{padding:0 11px}
 .modes .seg button::after,.modes .voice::after{content:"";position:absolute;inset:-7px 0}  /* 44 px to tap */
 .modes button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 /* sound: an icon button, so the switch row stays one quiet line */
@@ -72,3 +74,7 @@
 .helper.kb .bars{margin:2px 0;gap:2px 8px}.helper.kb .say.has-bars p{display:none}
 
 @media (prefers-reduced-motion:reduce){.say.pop{animation:none}.bars i b{transition:none}.say .dots b{animation:none;opacity:.6}}
+
+/* "Coin": the same Helper with the chat's coin squirrel (oiva.css sprite, 12:13), standing in the same box */
+.coin #pal{display:flex;align-items:flex-end;justify-content:center}
+.coin #pal .oiva{--s:calc(var(--pal) * 12 / 13)}
