@@ -62,7 +62,7 @@
         <path d="M${m(66.5)} 31 L${m(63)} 21.5 M${m(67.5)} 31 L${m(72.5)} 22" fill="none" stroke="${C.tuft}" stroke-width="2.8" stroke-linecap="round"/>`;
     };
     return `
-<svg viewBox="-10 -20 220 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Oiva Orava, the vault-keeper squirrel">
+<svg viewBox="-10 -20 220 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Oiva Orava">
   <defs>
     <linearGradient id="${id('fur')}" x1="0" y1="0" x2=".3" y2="1">
       <stop offset="0" stop-color="${C.b0}"/><stop offset=".55" stop-color="${C.b1}"/><stop offset="1" stop-color="${C.b2}"/>

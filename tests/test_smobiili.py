@@ -113,15 +113,38 @@ def test_your_money_screen(client):
         assert f'id="{card}"' in r.text
     assert "/static/oiva/money.js" in r.text and "/static/oiva/money.css" in r.text
     src = r.text.split('data-src="')[1].split('"')[0]
-    static = Path(main.__file__).parent / "static"
+    assert src == "/s-mobiili/money-data/"
     for name in ("spend", "budget", "compare", "recurring"):
-        assert (static / src.removeprefix("/static/") / f"{name}.json").is_file()
         assert client.get(f"{src}{name}.json").status_code == 200
+    assert client.get(f"{src}nope.json").status_code == 404
+
+
+def test_your_money_and_oiva_share_one_set_of_numbers(client):
+    """Each Your money headline is the figure the engine gives Oiva for that card's own question."""
+    e = main.engine_for(main.MONEY_PERSONA)
+    sp = client.get("/s-mobiili/money-data/spend.json").json()
+    bu = client.get("/s-mobiili/money-data/budget.json").json()
+    rec = client.get("/s-mobiili/money-data/recurring.json").json()
+    d0, d1, whole = e.money_month()
+    assert whole and sp["month"] == "2026-09" and sp["as_of"] == e.today.isoformat()  # 6 Oct: September, whole
+    oiva = e.spending(None, "last_month", exclude_bills=True)
+    assert sp["total_eur"] == oiva["total_eur"] and sp["prev_total_eur"] == oiva["previous_period"]["total_eur"]
+    assert bu["left_in_budgets_eur"] == e.budgets()["left_in_budgets_eur"]
+    assert round(sum(i["left_eur"] for i in bu["items"] if i["limit_eur"]), 2) == bu["left_in_budgets_eur"]
+    rest = rec["left_after_bills_and_investing_per_month_eur"]
+    assert rest == e.commitments()["left_after_bills_and_investing_per_month_eur"]
+    rest_c = {c["category"]: c["avg_3m_eur"] for c in sp["categories"]}["Restaurants"]
+    assert rest_c == e.simulate_cut("Restaurants", 20)["current_per_month_eur"]  # the what-if's monthly figure
+    # last month is the same however the month is asked for (FI and EN answers used different windows)
+    by_dates = e.spending(None, start=d0.isoformat(), end=d1.isoformat())
+    assert by_dates["previous_period"] == e.spending(None, "last_month")["previous_period"]
 
 
 @pytest.mark.parametrize("lang, oiva, cats, say", [
-    ("en", "Tell me about my spending this month", "Where did my money go in September?", "Ask me about this"),
-    ("fi", "Kerro kulutuksestani tässä kuussa", "Mihin rahani menivät syyskuussa?", "Kysy minulta tästä")])
+    ("en", "Tell me about my spending in September, not counting rent and bills", "Where did my money go in September, not counting rent and bills?",
+     "Ask Oiva about your money"),
+    ("fi", "Kerro kulutuksestani syyskuussa, kun vuokraa ja laskuja ei lasketa", "Mihin rahani menivät syyskuussa, kun vuokraa ja laskuja ei lasketa?",
+     "Kysy Oivalta rahoistasi")])
 def test_your_money_asks_oiva(client, lang, oiva, cats, say):
     """Oiva floats on Your money; tapping her or a chart card asks her about it in the chat, in the screen's language."""
     import re
@@ -187,3 +210,44 @@ def test_chat_tab_bar_keeps_the_customer(client):
     nav = page[page.index('<nav class="tabs"'):]
     nav = nav[:nav.index("</nav>")]
     assert nav.count(f"persona={pid}") == 5
+
+
+def test_finnish_pay_page_and_koti_have_no_english_or_iso_dates(client):
+    q = question(cards(client)["next_bill"]["actions"][0]["deep_link"])
+    j = client.post("/api/chat", json={"session": "m", "text": q}).json()
+    pid = j["buttons"][0]["url"].split("ready=pay:")[1].split("&")[0]
+    fi = "lang=fi"
+    pay = client.get(f"/s-mobiili/pay/{pid}?{fi}").text
+    koti = client.get(f"/s-mobiili/?{fi}&ready=pay:{pid}").text
+    for page in (pay, koti):
+        for en in ("Landlord", "Pay 1", "Skip guide", "Got it", "Demo Fund", "Grocery store", "Restaurant #"):
+            assert en not in page.replace("Pay a bill", ""), en
+        assert not re.search(r"\b\d{4}-\d{2}-\d{2}\b(?![^<]*>)", re.sub(r"<script.*?</script>", "", page, flags=re.S))
+        assert not re.search(r"\d\.\d{2}(&nbsp;|\s| )?€", page)
+    assert "Vuokranantaja" in pay and "Vuokra" in koti
+
+
+def test_demo_reset_link_needs_a_tap(client, monkeypatch):
+    """GET only shows the button (a link preview can't wipe the demo); the button resets and opens S-mobiili."""
+    called = []
+    monkeypatch.setattr(main, "demo_reset", lambda: called.append("reset"))
+    monkeypatch.setattr(main, "warm_up", lambda *a: called.append("warm"))
+    page = client.get("/demo/reset?lang=fi").text
+    assert "Palauta demo" in page and 'action="/demo/reset/go"' in page and not called
+    r = client.post("/demo/reset/go", data={"lang": "fi"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == f"/s-mobiili/?persona={main.DEFAULT_PERSONA}&lang=fi"
+    assert called == ["reset", "warm"]
+
+
+@pytest.mark.parametrize("lang", ["fi", "en"])
+def test_koti_shows_oivas_safe_to_spend_card_first(client, lang):
+    """Oiva on Koti's first screen: a card right under the bonus hero with the engine's safe to spend, whose row asks
+    her in the Helper."""
+    page = client.get(f"/s-mobiili/?lang={lang}").text
+    s = main.engine.safe_to_spend()
+    card = page[page.index('id="oiva-card"'):]
+    card = card[:card.index("</section>")]
+    assert main.fi_money(s["safe_to_spend_until_payday_eur"]) in card and main.fi_money(s["safe_per_day_eur"]) in card
+    assert "mascot/head-v3.png" in card and 'id="ask-spend"' in card and 'href="/chat?q=' in card
+    assert ("Turvallisesti käytettävissä" if lang == "fi" else "Safe to spend") in card
+    assert page.index('class="hero"') < page.index('id="oiva-card"') < page.index("Vahvistettavat maksut" if lang == "fi" else "Payments to confirm")

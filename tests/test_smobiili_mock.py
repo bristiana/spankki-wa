@@ -59,7 +59,7 @@ def test_home_shows_accounts_and_recent_from_the_engine(client):
     assert LABEL not in page and "Savings" in page and "Funds" in page and "Not opened yet" in page
     assert main.fi_money(main.engine.balance()) in page  # S-mobiili writes money the Finnish way
     assert main.engine.recent(8)[0]["what"] in page
-    assert [s["target"] for s in steps(page)] == ["acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
+    assert [s["target"] for s in steps(page)] == ["oiva-card", "acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
     for s in steps(page):
         assert f'id="{s["target"]}"' in page
     assert client.get("/s-mobiili", follow_redirects=False).headers["location"] == "/s-mobiili/"
@@ -273,7 +273,7 @@ def test_ready_card_shows_the_payment_and_links_to_the_flow(client):
     assert "Pay a bill" in client.get(href).text  # the card opens the existing prefilled flow
     s = steps(page)
     assert s[0] == {"target": "ready", "say": "I've got it ready, tap to check and confirm", "mood": "happy"}
-    assert [x["target"] for x in s[1:]] == ["acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
+    assert [x["target"] for x in s[1:]] == ["oiva-card", "acct-current", "baskets", "acct-pocket", "acct-funds", "recent", "ask"]
     assert main.fi_money(main.engine.balance()) in page and 'id="baskets"' in page  # still the bank's home
 
 

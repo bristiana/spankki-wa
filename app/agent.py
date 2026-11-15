@@ -239,7 +239,7 @@ FIX_NUMBERS = ("Check your numbers: {numbers} did not come from a tool result. U
 FIX = "Rewrite your reply. {problems} Keep the [react] line and the --- bubbles; reply with the message only."
 
 
-_EURO = re.compile(r"€\s?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?!\d)|(?<![\d.,])(\d{1,3}(?:,\d{3})+)(\.\d+)?\s?€")
+_EURO = re.compile(r"(?<![\d.,]\s)(?<![\d.,])€\s?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?!\d)|(?<![\d.,])(\d{1,3}(?:,\d{3})+)(\.\d+)?\s?€")
 
 
 def euro_style(text: str) -> str:
@@ -266,6 +266,26 @@ def date_style(text: str, today) -> str:
             return m.group(0)
         return f"{d.strftime('%a')} {d.day} {d.strftime('%b')}" + ("" if d.year == today.year else f" {d.year}")
     return _ISO_DATE.sub(fix, text)
+
+
+_FI_WORDS = re.compile(r"\b(ja|oli|sinun|sinulla|sinulle|kuussa|että|mutta|joten|euroa|käytit|meni|menivät|ovat|"
+                       r"jäi|jää|kun|tämä|kuin|eli|noin|vielä|myös)\b", re.I)
+_FI_POINT = re.compile(r"(?<![\d.])(\d+)\.(\d+)(?=(?:[–-]\d+(?:\.\d+)?)?[\s\u00a0]?(?:€|%|euro))")
+_FI_DATE = re.compile(r"\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)( 20\d\d)?\b")
+_MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def is_finnish(text: str) -> bool:
+    """A reply in Finnish: a few of its everyday words (the model answers in the language it was asked in)."""
+    return len(_FI_WORDS.findall(text or "")) >= 3
+
+
+def fi_style(text: str) -> str:
+    """A Finnish reply writes money the Finnish way, as every Finnish screen does: "235.68 €" -> "235,68 €", "1.5 %" ->
+    "1,5 %", and an English short date ("Thu 15 Oct") -> "15.10." (a time like 14.30 or a date 31.10.2026 stays)."""
+    def day(m):
+        return f"{int(m.group(2))}.{_MON.index(m.group(3)) + 1}." + (m.group(4).strip() if m.group(4) else "")
+    return _FI_DATE.sub(day, _FI_POINT.sub(r"\1,\2", text))
 
 
 def _text(response) -> str:
@@ -506,6 +526,8 @@ class Coach:
         reaction = reactions.pace(emoji or reactions.quick_reaction(text), past, bool(text_out), self.roll())
         past.append(reaction)
         del past[:-reactions.PAST]
+        if is_finnish(shown):  # the history keeps one style; the person reads Finnish numbers
+            shown = fi_style(shown)
         return Reply(text=shown, buttons=buttons, tools_used=used, trace=trace, reaction=reaction)
 
     def _loop(self, msgs: list, system: list, buttons: list, used: list, trace: list, looked_up: list):

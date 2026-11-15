@@ -1,4 +1,4 @@
-/* "How I worked this out": a reply's trace from /api/chat as a collapsed <details> panel.
+/* "How I worked it out" (FI "Näin laskin"): a reply's trace from /api/chat as a collapsed <details> panel.
    trace = [{tool, args, step, figures: [{label, value}], sources: [...]}, ..., {check, checked, matched, rewritten}]
    Everything from the trace is escaped: tool arguments can echo what the customer typed. */
 (function (root) {
@@ -16,7 +16,12 @@
   function traceHtml(trace) {
     const steps = (trace || []).filter(t => t && t.tool), check = (trace || []).find(t => t && t.check);
     if (!steps.length) return "";
-    let h = '<details class="how"><summary>How I worked this out</summary>' +
+    // the summary carries the number guard's verdict, so it shows under every answer without opening it
+    const fi = typeof document !== "undefined" && document.documentElement.lang === "fi";
+    const badge = check && check.checked ? '<span class="how-ok' + (check.matched < check.checked ? " warn" : "") + '">' +
+      (check.matched < check.checked ? "! " : "✓ ") + check.matched + "/" + check.checked +
+      (fi ? " lukua tarkistettu" : " figures checked") + "</span>" : "";
+    let h = '<details class="how"><summary>' + (fi ? "Näin laskin" : "How I worked it out") + badge + '</summary>' +
             '<div class="how-body"><ol class="how-steps">';
     for (const s of steps) {
       h += "<li><p>" + nb(esc(s.step)) + "</p>";
@@ -27,8 +32,8 @@
     }
     h += "</ol>";
     const sources = [...new Set(steps.flatMap(s => s.sources || []))];
-    if (sources.length) h += '<p class="how-src"><b>Sources:</b> ' + sources.map(source).join(" · ") + "</p>";
-    if (check) h += '<p class="how-check' + (check.matched < check.checked ? " warn" : "") + '">' + esc(check.check) + "</p>";
+    if (sources.length) h += '<p class="how-src"><b>' + (fi ? "Lähteet:" : "Sources:") + '</b> ' + sources.map(source).join(" · ") + "</p>";
+    if (check) h += '<p class="how-check' + (check.matched < check.checked ? " warn" : "") + '">' + esc(fi ? check.matched + "/" + check.checked + " lukua täsmäsi laskelmiin" + (check.rewritten ? " (ensimmäinen luonnos korjattiin)" : "") : check.check) + "</p>";
     return h + "</div></details>";
   }
 

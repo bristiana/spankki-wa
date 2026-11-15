@@ -82,6 +82,10 @@ form#f #send.ready{box-shadow:0 0 0 3px var(--soft),0 0 0 5px var(--brand)}
 #mic-note.rec{color:#c62828;font-weight:600}
 #mic-note.rec::before{content:"";width:9px;height:9px;border-radius:50%;background:#c62828;animation:blink 1.2s infinite both}
 #mic-note.err{color:#8a5a00;background:#fff6e0}
+#mic-note.send{color:var(--brand);font-weight:600;position:relative;cursor:pointer;padding-bottom:11px}
+#mic-note.send .cd{display:block;position:absolute;left:16px;right:16px;bottom:3px;height:3px;border-radius:99px;background:var(--brand);
+  transform-origin:left center;animation:send-bar linear forwards}
+@keyframes send-bar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 #mic-note .lv{flex:1;max-width:90px;height:4px;border-radius:99px;background:var(--line);overflow:hidden}
 #mic-note .lv i{display:block;height:100%;width:0;background:#c62828;transition:width .1s}
 
