@@ -269,7 +269,8 @@ def date_style(text: str, today) -> str:
 
 
 _FI_WORDS = re.compile(r"\b(ja|oli|sinun|sinulla|sinulle|kuussa|että|mutta|joten|euroa|käytit|meni|menivät|ovat|"
-                       r"jäi|jää|kun|tämä|kuin|eli|noin|vielä|myös|kuukaudessa|olet|sinä|se|on|yleensä|tähän|mennessä|syyskuussa|lokakuussa)\b", re.I)
+                       r"jäi|jää|kun|tämä|kuin|eli|noin|vielä|myös|kuukaudessa|olet|sinä|se|on|yleensä|tähän|mennessä|syyskuussa|lokakuussa|"
+                       r"aina|jo|yhteensä|kuussa|paljonko|mihin|voin|minulla|minun|kuinka|jäljellä|sijoitat|sijoitan|olen|ovat|ei|vai)\b", re.I)
 _FI_POINT = re.compile(r"(?<![\d.])(\d+)\.(\d+)(?=(?:[–-]\d+(?:\.\d+)?)?[\s\u00a0]?(?:€|%|euro))")
 _FI_DATE = re.compile(r"\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)( 20\d\d)?\b")
 _MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -277,7 +278,7 @@ _MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "N
 
 def is_finnish(text: str) -> bool:
     """A reply in Finnish: a few of its everyday words (the model answers in the language it was asked in)."""
-    return len(_FI_WORDS.findall(text or "")) >= 3
+    return len({w.lower() for w in _FI_WORDS.findall(text or "")}) >= 3  # distinct: English "on" thrice is not Finnish
 
 
 def fi_style(text: str) -> str:
@@ -526,7 +527,7 @@ class Coach:
         reaction = reactions.pace(emoji or reactions.quick_reaction(text), past, bool(text_out), self.roll())
         past.append(reaction)
         del past[:-reactions.PAST]
-        if is_finnish(shown):  # the history keeps one style; the person reads Finnish numbers
+        if is_finnish(shown) or is_finnish(f"{text} {shown}"):  # asked or answered in Finnish: Finnish numbers and steps
             shown = fi_style(shown)
             if trace:  # and the "Näin laskin" panel is Finnish too: the steps are built again from the same tool results
                 steps = [explain(n, a, o, fi=True) for n, a, o in raw]
