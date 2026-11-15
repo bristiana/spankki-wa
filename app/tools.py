@@ -69,10 +69,30 @@ TOOLS = [
                 "period": PERIOD_PROP,
                 "start": DATE_PROP,
                 "end": DATE_PROP,
+                "exclude_bills": {"type": "boolean",
+                                  "description": "With category null: leave rent and utility bills out, as S-mobiili's "
+                                                 "Your money charts do. Use when they ask about spending 'not counting "
+                                                 "rent and bills' / 'ilman vuokraa ja laskuja'."},
             },
             "required": ["category", "period"],
             "additionalProperties": False,
         },
+    },
+    {
+        "name": "get_where_you_sit",
+        "description": "The comparison on S-mobiili's Your money: this person vs people their age in their area (income, "
+                       "rent share, savings rate, restaurants, shopping, buffer), 12-month averages, with where they sit "
+                       "(percentile). Use for 'how do I compare with people like me / my age in my area' and 'how does "
+                       "my income compare'. Lead with the figure asked about.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "get_budgets",
+        "description": "The month's budgets shown on S-mobiili's Your money: per everyday category (rent and bills left "
+                       "out) the budget, what was spent and what is left, the total left in the budgets and how many "
+                       "stayed within, plus each category's average of the last 3 full months. Use for 'how much is "
+                       "left in my budgets', 'how did I do against my budgets'. It is not what is safe to spend today.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {
         "name": "get_baskets",
@@ -220,7 +240,9 @@ TOOLS = [
                        "for utilities, a bill well above the usual range. Also says whether there are any "
                        "subscriptions (subscriptions_found; in this data there are none). Use for subscriptions, "
                        "regular payments, fixed costs and 'what goes out every month'. There are no subscriptions "
-                       "in this data: never name or invent one. Give each payment's monthly cost; when one went up, "
+                       "in this data: never name or invent one. For 'what is left of my salary after bills and investing' lead "
+                       "with left_after_bills_and_investing_per_month_eur; for what was paid in a month, "
+                       "paid_in_month_shown. Give each payment's monthly cost; when one went up, "
                        "say the old and the new number. 'Stop, cancel or deactivate (all) my subscriptions': say "
                        "plainly you see none, name the real regular payments (if_asked_to_cancel_subscriptions has the "
                        "words) and offer to pause the monthly investing; create_pause_investing_link only when they "
@@ -421,7 +443,12 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
     """Run one tool. Returns JSON text; appends a URL button when a money move was prepared."""
     if name == "get_spending":
         out = engine.spending(args.get("category"), args.get("period") or "last_month", args.get("start"), args.get("end"),
-                              args.get("merchant_type"))
+                              args.get("merchant_type"), bool(args.get("exclude_bills")))
+    elif name == "get_where_you_sit":
+        from .money import where_you_sit
+        out = where_you_sit(engine)
+    elif name == "get_budgets":
+        out = engine.budgets()
     elif name == "get_baskets":
         out = engine.baskets(args.get("period") or "last_3_months")
     elif name == "get_upcoming_bills":

@@ -31,9 +31,12 @@
   const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const FI_MONTH = ["tammikuu", "helmikuu", "maaliskuu", "huhtikuu", "toukokuu", "kesäkuu", "heinäkuu", "elokuu", "syyskuu", "lokakuu", "marraskuu", "joulukuu"];
   const asOf = ymd(spend.as_of), mon = ymd(spend.month + "-01");
-  const DAYS = new Date(Date.UTC(mon.y, mon.m, 0)).getUTCDate(), TODAY = asOf.d;
+  // WHOLE: the month barely started, so the charts show the last full month, whole, as Oiva's answers do
+  const WHOLE = !!spend.whole_month, DAYS = new Date(Date.UTC(mon.y, mon.m, 0)).getUTCDate(), TODAY = spend.day || asOf.d;
   const LEFT_DAYS = DAYS - TODAY + 1;  // the screens count today as a day still to spend (oiva/data.js divides by 26)
   const M = MON[mon.m - 1], MONTH_NAME = MONTH[mon.m - 1], FI_M = FI_MONTH[mon.m - 1];
+  const NOW_FI = FI_MONTH[asOf.m - 1], NOW_EN = MONTH[asOf.m - 1];
+  const WHOLE_NOTE = T(`${NOW_FI[0].toUpperCase() + NOW_FI.slice(1)} alkoi juuri, joten tässä on koko ${FI_M}.`, `${NOW_EN} has only just started, so this is all of ${MONTH_NAME}.`);
   const dm = d => FI ? `${d}.${mon.m}.` : `${d} ${M}`;  // a day of this month: 6.9. / 6 Sep
   const dayOf = s => { const t = ymd(s); return t.y === mon.y && t.m === mon.m ? t.d : null; };  // a date's day, if it is in this month
 
@@ -49,7 +52,7 @@
     Travel: '<path d="M3 13l18-7-5 14-3-6z"/>'
   };
   const COL = {Groceries: "c0", Restaurants: "c1", Lifestyle: "c2", Transportation: "c3", Entertainment: "c4", "Home & Tech": "c5", Health: "c6", Travel: "c7"};
-  const CAT_FI = {Groceries: "Ruoka", Restaurants: "Ravintolat", Lifestyle: "Ostokset", Transportation: "Liikkuminen",
+  const CAT_FI = {Groceries: "Ruoka", Restaurants: "Ravintolat", Lifestyle: "Shoppailu", Transportation: "Liikkuminen",
     Entertainment: "Viihde", "Home & Tech": "Koti ja tekniikka", Health: "Terveys", Travel: "Matkailu"};
   const lab = c => FI ? CAT_FI[c.category] || c.label : c.label;  // a category's name, in the screen's language
   const css = v => getComputedStyle(HOST).getPropertyValue("--" + v).trim();
@@ -76,16 +79,19 @@
     const ahead = spend.pace.spent_by_today_eur - spend.pace.expected_by_today_eur;
     const proj = spent / TODAY * DAYS;
     const projCol = proj > B ? css("warn") : css("brand");
-    const chip = spend.pace.status === "over" ? warnChip(T(`${eur(ahead)} yli tasaisen tahdin`, `${eur(ahead)} over an even pace`))
+    const chip = WHOLE ? (spent > B ? warnChip(T(`${eur(spent - B)} yli budjetin`, `${eur(spent - B)} over budget`))
+        : `<span class="chip ok">${T(`${eur(B - spent)} alle budjetin`, `${eur(B - spent)} under budget`)}</span>`)
+      : spend.pace.status === "over" ? warnChip(T(`${eur(ahead)} yli tasaisen tahdin`, `${eur(ahead)} over an even pace`))
       : `<span class="chip ok">${T(`${eur(-ahead)} alle tasaisen tahdin`, `${eur(-ahead)} under an even pace`)}</span>`;
-    host.innerHTML = `<p class="k">${T(`Kulutus ${FI_M}ssa`, `Spending in ${MONTH_NAME}`)}</p><p class="hero">${hero(spent)}</p>
-      ${chip}
+    host.innerHTML = `<p class="k">${T(`Kulutus ${FI_M}ssa ilman vuokraa ja laskuja`, `Spending in ${MONTH_NAME}, without rent and bills`)}</p><p class="hero">${hero(spent)}</p>
+      ${chip}${WHOLE ? `<p class="sub">${WHOLE_NOTE}</p>` : ""}
       <div class="chart-gap"></div>`;
     const W = 318, H = 176, L = 2, R = 46, T0 = 22, Bm = 22, pw = W - L - R, ph = H - T0 - Bm;
     const top = Math.ceil(Math.max(proj, B) * 1.08 / 500) * 500, step = top > 2500 ? 1000 : 500;  // axis room above the higher of budget and projection
     const x = d => L + d / DAYS * pw, y = v => T0 + ph - v / top * ph;  // d = day, 0 = start of the month
-    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": T(
-      `Käytetty ${eur(spent)} ${dm(TODAY)} mennessä; tällä tahdilla ${eur(proj, 0)} kuun loppuun mennessä, budjetti ${eur(B, 0)}`,
+    const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": WHOLE
+      ? T(`Käytetty ${eur(spent)} koko ${FI_M}na, budjetti ${eur(B, 0)}`, `Spent ${eur(spent)} in all of ${MONTH_NAME}, budget ${eur(B, 0)}`)
+      : T(`Käytetty ${eur(spent)} ${dm(TODAY)} mennessä; tällä tahdilla ${eur(proj, 0)} kuun loppuun mennessä, budjetti ${eur(B, 0)}`,
       `Spent ${eur(spent)} by ${TODAY} ${MONTH_NAME}; at this rate ${eur(proj, 0)} by the end of the month, budget ${eur(B, 0)}`)});
     const defs = el("defs", {}); defs.innerHTML = `<linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${css("bright")}" stop-opacity=".28"/><stop offset="1" stop-color="${css("bright")}" stop-opacity="0"/></linearGradient>`;
     svg.appendChild(defs);
@@ -97,8 +103,8 @@
     svg.appendChild(el("line", {x1: L, x2: L + pw, y1: y(B), y2: y(B), stroke: css("strong"), "stroke-width": 1.2, "stroke-dasharray": "3 3"}));
     const budLab = svg.appendChild(el("text", {x: L, y: y(B) - 5, style: "font-size:12.5px;fill:" + css("strong") + ";font-weight:600"}, T("Budjetti ", "Budget ") + eur(B, 0)));
     // projection at this rate: dotted
-    svg.appendChild(el("line", {x1: x(TODAY), y1: y(spent), x2: x(DAYS), y2: y(proj), stroke: projCol, "stroke-width": 2, "stroke-dasharray": "1 4", "stroke-linecap": "round"}));
-    const projLab = svg.appendChild(el("text", {x: x(DAYS) - 6, y: y(proj) - 7, "text-anchor": "end", style: "font-size:12.5px;fill:" + projCol + ";font-weight:600"}, T("Tällä tahdilla ", "At this rate ") + eur(proj, 0)));
+    if (!WHOLE) svg.appendChild(el("line", {x1: x(TODAY), y1: y(spent), x2: x(DAYS), y2: y(proj), stroke: projCol, "stroke-width": 2, "stroke-dasharray": "1 4", "stroke-linecap": "round"}));
+    const projLab = svg.appendChild(el("text", {x: x(DAYS) - 6, y: y(proj) - 7, "text-anchor": "end", style: "font-size:12.5px;fill:" + projCol + ";font-weight:600"}, WHOLE ? "" : T("Tällä tahdilla ", "At this rate ") + eur(proj, 0)));
     // this month, solid with a soft fill
     const pts = [[0, 0]].concat(daily.map(d => [d.day, d.cumulative_eur]));
     const path = pts.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1)).join("");
@@ -106,8 +112,8 @@
     svg.appendChild(el("path", {d: path, fill: "none", stroke: css("brand"), "stroke-width": 2.5, "stroke-linejoin": "round", "stroke-linecap": "round"}));
     svg.appendChild(el("circle", {cx: x(TODAY), cy: y(spent), r: 9, fill: css("bright"), opacity: .18}));
     svg.appendChild(el("circle", {cx: x(TODAY), cy: y(spent), r: 4.5, fill: css("brand"), stroke: css("card"), "stroke-width": 2}));
-    const ticks = [[0, dm(1)], [TODAY, T("Tänään", "Today")], [DAYS, dm(DAYS)]];
-    if (Math.abs(15 - TODAY) > 3) ticks.splice(2, 0, [15, "15"]);
+    const ticks = WHOLE ? [[0, dm(1)], [DAYS, dm(DAYS)]] : [[0, dm(1)], [TODAY, T("Tänään", "Today")], [DAYS, dm(DAYS)]];
+    if (WHOLE || Math.abs(15 - TODAY) > 3) ticks.splice(WHOLE ? 1 : 2, 0, [15, dm(15)]);
     ticks.forEach(([d, t]) =>
       svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": d === 0 ? "start" : d === DAYS ? "end" : "middle", style: d === TODAY ? "fill:" + css("strong") + ";font-weight:600" : ""}, t)));
     // scrub: drag to read a day
@@ -148,35 +154,40 @@
       <div class="seg" role="img" aria-label="${T("Kulutuksen jakautuminen luokittain", "Share of spending by category")}">${used.map(c =>
         `<i style="flex:${c.spent_eur};background:${css(COL[c.category])}" title="${lab(c)} ${eur(c.spent_eur)}"></i>`).join("")}</div>
       <div>${used.map(c => `<div class="row">${icon(c.category)}<div class="mid"><div class="nm">${lab(c)}</div>
-        <div class="sm">${pct(c.spent_eur / total)} · ${T("viime kuussa", "last month")} ${eur(c.prev_eur, 0)}</div></div>
+        <div class="sm">${pct(c.spent_eur / total)} · ${T("3 kk:n keskiarvo", "3-month average")} ${eur(c.avg_3m_eur, 0)}${T("/kk", " a month")}</div></div>
         <div class="amt">${eur(c.spent_eur)}</div></div>`).join("")}</div>
 `;
   })();
 
   /* 3 · budgets and pace */
   (function () {
-    const host = document.getElementById("budget"), items = budget.items, paceShare = TODAY / DAYS;
+    const host = document.getElementById("budget"), items = budget.items, paceShare = WHOLE ? 1 : TODAY / DAYS;
     const set = items.filter(i => i.limit_eur != null);
     const left = sum(set, i => i.left_eur);
     // status is the data's own (over / on_track = not over); pace is computed: spent share vs share of the month gone
     const fast = i => i.limit_eur > 0 && i.spent_eur / i.limit_eur > paceShare;
     // one short line per bar: the data's "over" first, then the computed pace
-    const word = i => i.status === "over" ? ["over", T("Budjetti ylitetty", "Over budget")] : i.spent_eur === 0 ? ["ok", T("Ei vielä kulutusta", "Nothing spent yet")]
+    const word = i => i.status === "over" ? ["over", T("Budjetti ylitetty", "Over budget")] : i.spent_eur === 0 ? ["ok", WHOLE ? T("Ei kulutusta", "Nothing spent") : T("Ei vielä kulutusta", "Nothing spent yet")]
+      : WHOLE ? ["ok", T("Budjetin sisällä", "Within budget")]
       : fast(i) ? ["fast", T("Tasaista nopeammin", "Faster than even pace")] : ["ok", T("Tasaisen tahdin sisällä", "Within even pace")];
     const nWithin = set.filter(i => i.status !== "over").length;
     const nFast = set.filter(i => i.status !== "over" && fast(i)).length;
-    host.innerHTML = `<p class="k">${T("Budjeteissa jäljellä", "Left in your budgets")}</p><p class="hero">${hero(left)}</p>
-      <p class="sub">${T(`<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> päivässä loppukuun ajan`, `<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> a day for the rest of the month`)}</p>
+    const head = WHOLE ? (left >= 0 ? T(`${FI_M[0].toUpperCase() + FI_M.slice(1)}n budjeteista jäi käyttämättä`, `Left unspent in ${MONTH_NAME}'s budgets`)
+        : T(`${FI_M[0].toUpperCase() + FI_M.slice(1)}n budjetit ylittyivät yhteensä`, `${MONTH_NAME}'s budgets, over by`)) : T("Budjeteissa jäljellä", "Left in your budgets");
+    const subLine = WHOLE ? T("Koko kuukausi ilman vuokraa ja laskuja. Ei sama kuin tämän päivän turvallinen käyttövara.", "The whole month, without rent and bills. Not the same as what's safe to spend today.")
+      : T(`<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> päivässä loppukuun ajan`, `<b>${eur(Math.max(left, 0) / LEFT_DAYS)}</b> a day for the rest of the month`);
+    host.innerHTML = `<p class="k">${head}</p><p class="hero"${left < 0 ? ' style="color:var(--warn)"' : ""}>${hero(WHOLE ? Math.abs(left) : left)}</p>
+      <p class="sub">${subLine}</p>
       <div class="chips"><span class="chip ok">${T(`${nWithin}/${set.length} budjetin sisällä`, `${nWithin} of ${set.length} within budget`)}</span>
       ${nFast ? warnChip(T(`${nFast}/${set.length} tasaista tahtia nopeammin`, `${nFast} of ${set.length} faster than an even pace`)) : ""}</div>
       <div style="margin-top:12px">${set.map(i => { const over = i.status === "over", f = Math.min(i.spent_eur / i.limit_eur, 1);
         const fill = over || fast(i) ? css("warn") : css("bright");
         return `<div class="row">${icon(i.category)}<div class="mid">
-          <div style="display:flex;justify-content:space-between;gap:8px"><span class="nm">${lab(i)}</span><span class="nm" style="font-weight:700;color:var(--brand);white-space:nowrap">${eur(i.left_eur)} <span style="font-weight:400;color:var(--muted);font-size:12.5px">${T("jäljellä", "left")}</span></span></div>
-          <div class="track"><i style="width:${(f * 100).toFixed(1)}%;background:${fill}"></i><b style="left:${(paceShare * 100).toFixed(1)}%"></b></div>
+          <div style="display:flex;justify-content:space-between;gap:8px"><span class="nm">${lab(i)}</span><span class="nm" style="font-weight:700;color:${i.left_eur < 0 ? "var(--warn)" : "var(--brand)"};white-space:nowrap">${eur(Math.abs(i.left_eur))} <span style="font-weight:400;color:var(--muted);font-size:12.5px">${i.left_eur < 0 ? T("yli", "over") : WHOLE ? T("jäi", "unspent") : T("jäljellä", "left")}</span></span></div>
+          <div class="track"><i style="width:${(f * 100).toFixed(1)}%;background:${fill}"></i>${WHOLE ? "" : `<b style="left:${(paceShare * 100).toFixed(1)}%"></b>`}</div>
           <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)"><span class="st ${word(i)[0]}">${word(i)[1]}</span><span style="white-space:nowrap">${eur(i.spent_eur)} ${T("/", "of")} ${eur(i.limit_eur, 0)}</span></div>
         </div></div>`; }).join("")}</div>
-      <div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>${T("Tasainen tahti tähän päivään", "Even pace by today")}</span></div>
+      ${WHOLE ? "" : `<div class="key"><span><i style="background:var(--strong);width:2px;height:12px;border-radius:1px"></i>${T("Tasainen tahti tähän päivään", "Even pace by today")}</span></div>`}
 `;
   })();
 
@@ -229,7 +240,7 @@
     svg.appendChild(el("text", {x: bx + bw / 2, y: yb - 38, "text-anchor": "middle", style: "font-size:12.5px;font-weight:700;fill:" + css("brand-ink")}, bubble));
     [[f.p25, eur(f.p25, 0)], [f.p75, eur(f.p75, 0)]].forEach(([v, t]) =>
       svg.appendChild(el("text", {x: px(v), y: yb + 24, "text-anchor": "middle"}, t)));
-    host.innerHTML = `<p class="h3">${T("Tulot", f.label)}</p>`;
+    host.innerHTML = `<p class="h3">${T("Tulot", f.label)}</p><p class="k" style="margin-top:2px">${T("12 kuukauden keskiarvo kuussa", "12-month average, a month")}</p>`;
     host.appendChild(svg);
     host.insertAdjacentHTML("beforeend", `<p class="sub">${T(`Tulosi ovat suuremmat kuin noin <b>${Math.round(f.percentile / 10)}:llä kymmenestä</b> kaltaisestasi`, `Higher than about <b>${Math.round(f.percentile / 10)} in 10</b> people like you`)}</p>`);
   })();
@@ -238,13 +249,14 @@
   (function () {
     const host = document.getElementById("income");
     const rent = by("rent"), u = by("utilities");
-    const inc = by("salary").per_month_eur, bills = rec.bills_per_month_eur, inv = by("investing").per_month_eur, rest = inc - bills - inv;
+    const inc = by("salary").per_month_eur, bills = rec.bills_per_month_eur, inv = by("investing").per_month_eur;
+    const rest = rec.left_after_bills_and_investing_per_month_eur ?? inc - bills - inv;  // the engine's own figure, as Oiva gives it
     // the bills are each one's average month (recurring.json's method), so they differ from this month's payments in card 7
-    const billSub = T(`vuokra ${eur(rent.per_month_eur)} + asumislaskut ${eur(u.per_month_eur)}`, `rent ${eur(rent.per_month_eur)} + utility bills ${eur(u.per_month_eur)}`);
+    const billSub = T(`vuokra keskimäärin ${eur(rent.per_month_eur)} + asumislaskut ${eur(u.per_month_eur)}`, `rent on average ${eur(rent.per_month_eur)} + utility bills ${eur(u.per_month_eur)}`);
     const parts = [[T("Laskut", "Bills"), bills, css("c6"), billSub],
       [T("Sijoittaminen", "Investing"), inv, css("c3")], [T("Jää kaikkeen muuhun", "Left for everything else"), rest, css("brand")]];
     host.innerHTML = `<p class="h3">${AFTER}</p><p class="k" style="margin-top:2px">${T("Tavallinen kuukausi", "A typical month")}</p><p class="hero">${hero(rest)}</p>
-      <p class="sub">${T(`palkastasi <b>${eur(inc)}</b>`, `of your <b>${eur(inc)}</b> salary`)}</p>
+      <p class="sub">${T(`keskimääräisestä palkastasi <b>${eur(inc)}</b> (3 viimeistä)`, `of your average <b>${eur(inc)}</b> salary (last 3)`)}</p>
       <div class="seg" style="height:18px" role="img" aria-label="${T("Palkan jakautuminen", "Salary split")}">${parts.map(p => `<i style="flex:${p[1]};background:${p[2]}"></i>`).join("")}</div>
       ${parts.map(p => `<div class="row" style="padding:7px 0"><span style="width:12px;height:12px;border-radius:3px;background:${p[2]};flex:none"></span>
         <div class="mid"><div class="nm">${p[0]}</div>${p[3] ? `<div class="sm">${p[3]}</div>` : ""}</div><div class="amt">${eur(p[1])}<small>${pct(p[1] / inc)}</small></div></div>`).join("")}
@@ -256,11 +268,15 @@
     const host = document.getElementById("cal"), u = by("utilities"), rentPaid = spend.bills.find(b => /rent/i.test(b.name) && dayOf(b.date));
     const paidHere = re => spend.bills.filter(b => re.test(b.name) && dayOf(b.date)).map(b => dayOf(b.date));
     const due = p => (p.next_expected && dayOf(p.next_expected)) || paidHere(new RegExp(p.name, "i"))[0] || p.usual_day;
+    // what was actually paid in the month shown (as Oiva reads it from the transactions), else the usual amount
+    const paid = id => ((spend.paid || {})[id] || []).find(x => dayOf(x.date)), paidDay = id => paid(id) && dayOf(paid(id).date);
     const lanes = [
-      {name: T("Vuokra", "Rent"), sub: rentPaid ? eur(rentPaid.amount_eur) : eur(by("rent").per_month_eur) + T(" kuukaudessa", " a month"), day: due(by("rent"))},  // the amount paid this month, per spend.json bills
-      {name: T("Asumislaskut", "Utility bills"), sub: "~" + Math.round(u.bills_per_month) + T(" laskua, ", " bills, ") + eur(u.per_month_eur, 0), from: u.day_range.first, to: u.day_range.last, paidDays: paidHere(/utility/i)},
-      {name: T("Palkka", by("salary").name), sub: "+" + eur(by("salary").per_month_eur), day: due(by("salary")), incoming: true},
-      {name: T("Sijoittaminen", "Investing"), sub: eur(by("investing").per_month_eur), day: due(by("investing"))}];
+      {name: T("Vuokra", "Rent"), sub: rentPaid ? T("maksettu ", "paid ") + eur(rentPaid.amount_eur) : eur(by("rent").per_month_eur) + T(" kuukaudessa", " a month"), day: due(by("rent"))},  // the amount paid this month, per spend.json bills
+      {name: T("Asumislaskut", "Utility bills"), sub: (spend.paid || {}).utilities && spend.paid.utilities.some(x => dayOf(x.date))
+        ? (n => n + T(" laskua, ", n === 1 ? " bill, " : " bills, ") + eur(sum(spend.paid.utilities.filter(x => dayOf(x.date)), x => x.amount_eur)))(spend.paid.utilities.filter(x => dayOf(x.date)).length)
+        : "~" + Math.round(u.bills_per_month) + T(" laskua, ", " bills, ") + eur(u.per_month_eur, 0), from: u.day_range.first, to: u.day_range.last, paidDays: paidHere(/utility/i)},
+      {name: T("Palkka", by("salary").name), sub: "+" + eur(paid("salary") ? paid("salary").amount_eur : by("salary").per_month_eur), day: paidDay("salary") || due(by("salary")), incoming: true},
+      {name: T("Sijoittaminen", "Investing"), sub: paid("investing") ? T("maksettu ", "paid ") + eur(paid("investing").amount_eur) : eur(by("investing").per_month_eur), day: paidDay("investing") || due(by("investing"))}];
     const W = 318, labW = 104, lane = 42, T0 = 30, H = T0 + lanes.length * lane + 18, x0 = labW + 6, x1 = W - 8;
     const x = d => x0 + (d - 1) / (DAYS - 1) * (x1 - x0);
     const svg = el("svg", {class: "ch", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": T(`${PAYMENTS} päivittäin`, `${MONTH_NAME}'s regular payments by day`)});
@@ -286,10 +302,12 @@
       }
     });
     // today: over the lane lines and bands, with a card-coloured halo; under the dots, so it never cuts into one
-    svg.appendChild(el("line", {x1: x(TODAY), x2: x(TODAY), y1: T0 - 8, y2: H - 18, stroke: css("card"), "stroke-width": 4}));
-    svg.appendChild(el("line", {x1: x(TODAY), x2: x(TODAY), y1: T0 - 8, y2: H - 18, stroke: css("strong"), "stroke-width": 1, "stroke-dasharray": "3 3"}));
+    if (!WHOLE) {
+      svg.appendChild(el("line", {x1: x(TODAY), x2: x(TODAY), y1: T0 - 8, y2: H - 18, stroke: css("card"), "stroke-width": 4}));
+      svg.appendChild(el("line", {x1: x(TODAY), x2: x(TODAY), y1: T0 - 8, y2: H - 18, stroke: css("strong"), "stroke-width": 1, "stroke-dasharray": "3 3"}));
+    }
     svg.appendChild(marks);
-    svg.appendChild(el("text", {x: x(TODAY), y: T0 - 12, "text-anchor": "middle", style: "font-size:11.5px;font-weight:600;fill:" + css("strong")}, T("Tänään", "Today")));
+    if (!WHOLE) svg.appendChild(el("text", {x: x(TODAY), y: T0 - 12, "text-anchor": "middle", style: "font-size:11.5px;font-weight:600;fill:" + css("strong")}, T("Tänään", "Today")));
     for (let d = 1; d <= DAYS; d += 7) svg.appendChild(el("text", {x: x(d), y: H - 4, "text-anchor": "middle"}, String(d)));
     host.innerHTML = `<p class="h3">${PAYMENTS}</p>`;
     host.appendChild(svg);

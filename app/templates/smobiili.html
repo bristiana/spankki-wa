@@ -408,13 +408,13 @@
         {% else %}<small>{% if en %}{{ "Open, no goal yet" if a.pocket_open else "Not opened yet" }}{% else %}{{ "Avattu, ei vielä tavoitetta" if a.pocket_open else "Ei vielä avattu" }}{% endif %}</small>{% endfor %}</span>
         <span class="amt">{{ a.pocket|fimoney if a.pocket_open else "–" }}</span></div>
       <div class="li" id="acct-funds">{{ icon("case") }}<span class="txt">{{ t("Sijoitukset", "Funds") }}<small>{{ t("Rahastoihin maksettu", "Paid into funds") }}</small>
-        {% for pl in a.plans %}<small>{% if en %}Monthly plan: {{ pl.amount|fimoney }} into {{ pl.name }}{% else %}Kuukausisäästö: {{ pl.amount|fimoney }} rahastoon {{ pl.name }}{% endif %}</small>{% endfor %}</span>
+        {% for pl in a.plans %}<small>{% if en %}Monthly plan: {{ pl.amount|fimoney }} into {{ pl.name }}{% else %}Kuukausisäästö: {{ pl.amount|fimoney }} rahastoon {{ pl.name|fifund }}{% endif %}</small>{% endfor %}</span>
         <span class="amt">{{ a.funds|fimoney }}</span></div>
       {{ ask_oiva("Paljonko voisin säästää kuussa?", "How much could I save a month?", "ask-save") }}
     </section>
     <h2 class="sec">{{ t("Tapahtumat", "Transactions") }}</h2>
     <section class="card tx" id="recent">
-      {% for x in recent %}<div class="row"><span>{{ x.what }}<small>{{ x.date }}{% if x.basket %} · {{ x.basket if en else basket_fi_by_label.get(x.basket, x.basket) }}{% endif %}</small></span>
+      {% for x in recent %}<div class="row"><span>{{ x.what if en else x.what|fimerch }}<small>{{ x.date if en else x.date|fiiso }}{% if x.basket %} · {{ x.basket if en else basket_fi_by_label.get(x.basket, x.basket) }}{% endif %}</small></span>
         <b class="{{ 'pos' if x.amount_eur > 0 else '' }}">{{ x.amount_eur|fimoney }}</b></div>
       {% else %}<p class="muted">{{ t("Ei vielä tapahtumia.", "No transactions yet.") }}</p>{% endfor %}
       {{ ask_oiva("Mihin olen käyttänyt eniten viime aikoina?", "What have I spent the most on lately?", "ask-recent") }}
@@ -439,10 +439,10 @@
       <span class="s">{{ t("Sijoitustesi arvo", "Value of your investments") }}</span><span class="v">{{ a.funds|fimoney }}</span></span>{{ icon("chevron", "i chev") }}</a>
     </div>
   {% elif screen == "tab" and tab == "raha" %}
-    <div class="pad money" id="money" data-src="/static/mockups/charts/data/">
+    <div class="pad money" id="money" data-src="/s-mobiili/money-data/">
       {# "Ask Oiva" docked at the top like on Pankki (no floating pill over the figures); each card below is a link:
-         tapping it asks Oiva about that card (money.js fills it in) #}
-      {{ ask_oiva("Miten kulutukseni sujuu tässä kuussa?", "How's my spending this month?", "ask-money", cls="card") }}
+         tapping it asks Oiva about that card (money.js fills it in). The questions are money_asks(): the cards' own. #}
+      {{ ask_oiva(money_q.oiva[0], money_q.oiva[1], "ask-money", cls="card") }}
       {% for id in ("trend", "cats", "budget", "sit", "fig", "income", "cal") %}<a class="card{{ ' rel' if id == 'trend' }}" id="{{ id }}" href="{{ asks[id] }}"></a>
       {% endfor %}
       <a class="ask-oiva" id="ask-oiva" href="{{ asks.oiva }}"><span class="say">{{ t("Kysy Oivalta rahoistasi", "Ask Oiva about your money") }}</span>
@@ -544,7 +544,7 @@
       {% else %}
       <div class="rev-head">
         <p class="heading">{{ f.heading }}</p>
-        <div class="amount" id="amount">{{ p.amount|fimoney }}{{ t(" / kk", " / month") if "/ month" in f.amount }}</div>
+        <div class="amount" id="amount">{{ p.amount|fimoney }}{{ t(" / kk", " / month") if "/ month" in f.amount or "/ kk" in f.amount }}</div>
 
       </div>
       <div class="pad">
