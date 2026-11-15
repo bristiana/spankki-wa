@@ -96,13 +96,13 @@ def emergency_saving(amount=100):
     return main.engine.create_saving(g["id"], amount)
 
 
-SAVE_STEPS = ["sv-goal", "sv-where", "sv-amount", "faceid"]
+SAVE_STEPS = ["sv-goal", "sv-where", "sv-amount", "sv-review"]
 
 
 def test_save_shows_the_four_savings_steps_prefilled(client):
     p = emergency_saving()
     page = client.get(f"/s-mobiili/save/{p['pending_id']}").text
-    for i, sec in enumerate(SAVE_STEPS[:3] + ["sv-review"], 1):
+    for i, sec in enumerate(SAVE_STEPS, 1):
         assert f'id="{sec}"' in page and f"<i>{i}</i>" in page
     sec = lambda a, b: page[page.index(f'id="{a}"'):page.index(f'id="{b}"')]  # noqa: E731
     goal = sec("sv-goal", "sv-where")
@@ -111,7 +111,7 @@ def test_save_shows_the_four_savings_steps_prefilled(client):
     assert re.search(r'aria-checked="true"><span class="dot"></span><span><b>Savings account', where)
     assert re.search(r'aria-checked="false" aria-disabled="true"><span class="dot"></span><span><b>Funds', where)
     amount = sec("sv-amount", "sv-review")
-    assert main.nb(main.fi_money(100)) in amount and "Current account" in amount and "One-off" in amount
+    assert main.money_nb(100) in amount and "Current account" in amount and "One-off" in amount
     for row in ("row-goal", "row-so-far", "row-after", "row-debit", "row-to"):
         assert f'id="{row}"' in page
     assert "Confirm with Face ID" in page

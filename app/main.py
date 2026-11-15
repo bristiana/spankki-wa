@@ -1248,7 +1248,7 @@ def sm_flow(route: str, e: Engine, p: dict, lang: str = "en") -> dict:
             when = T(fi_day(dl), f"{d.day} {d:%B %Y}")
         to = T("Säästötili", "Savings account")
         return {"title": T("Siirto säästöön", "Move to savings"), "heading": g["name"], "amount": money(p["amount"]),
-                "goal": {"name": g["name"], "target": m(g["target"]), "date": when},
+                "goal": {"name": g["name"], "target": m(g["target"]), "date": when}, "now": m(p["amount"]),
                 "rows": [("goal", "Goal", g["name"]),
                          ("so-far", "Saved so far", f"{m(g['saved'])} {T('/', 'of')} {m(g['target'])}"),
                          ("after", "After this", f"{m(after)} ({pct}%)"),
@@ -1260,7 +1260,7 @@ def sm_flow(route: str, e: Engine, p: dict, lang: str = "en") -> dict:
                                          "The money goes to a savings account, separate from your spending."), "talk"),
                           ("sv-amount", T(f"Vain {amt} nyt, ei mitään automaattista.",
                                           f"Just {amt} now, nothing automatic."), "talk"),
-                          ("faceid", T("Tarkista ja vahvista Face ID:llä.", "Check it and confirm with Face ID."),
+                          ("sv-review", T("Tarkista ja vahvista Face ID:llä.", "Check it and confirm with Face ID."),
                            "happy")]}
     if route == "invest":
         f = FUNDS_BY_ID[p["fund_id"]]
@@ -1487,7 +1487,7 @@ def smobiili_flow(request: Request, route: str, pid: str):
     e, p = _pending_or_404(pid, SM_ROUTES[route])
     f = sm_flow(route, e, p, ui_lang(request))
     steps = f.pop("steps")
-    if steps[-1][0] != "faceid":
+    if route != "save":  # the save flow's last line, on its review, already says Face ID
         steps.append(("faceid", "Tap here and use Face ID", "talk"))
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
         request, sm_persona(request), screen="flow", route=route, pid=pid, p=p, f=f, steps=guide_steps(steps),
