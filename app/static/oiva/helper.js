@@ -137,7 +137,7 @@
     say.dataset.mood = name;
     say.classList.remove("rest");
     tag.textContent = label || TAGS[name] || "";
-    line.textContent = bubble(text);
+    line.textContent = bubble(label ? String(text).replace(/^\s*[*_]*\d+\/\d+[*_]*\s+/, "") : text);  // "Question 1/5" is the label
     say.classList.toggle("thinking", !!thinking);
     say.classList.remove("pop"); void say.offsetWidth; say.classList.add("pop");
   }

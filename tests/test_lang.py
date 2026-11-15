@@ -108,10 +108,10 @@ def test_the_switch_is_on_every_smobiili_screen_and_keeps_the_query(client):
 
 def test_chat_chrome_follows_the_language(client):
     fi = client.get("/chat").text
-    assert "Kysy rahoistasi" in fi and ">Lähetä<" in fi and "Viestit · rahavalmentajasi" in fi
+    assert "Kysy Oivalta…" in fi and ">Lähetä<" in fi and "Viestit · rahavalmentajasi" in fi
     en = client.get("/chat?lang=en").text
     assert "Ask Oiva…" in en and ">Send<" in en and "Messages · money coach" in en
-    assert "Kysy rahoistasi" not in en and client.cookies.get("lang") == "en"
+    assert "Kysy Oivalta…" not in en and client.cookies.get("lang") == "en"
 
 
 def test_face_id_receipt_in_finnish(client):

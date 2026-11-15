@@ -110,12 +110,12 @@
   <div class="say" aria-hidden="true"><span class="tag" id="say-tag"></span><div class="bars" id="say-bars"></div><span class="dots"><b></b><b></b><b></b></span><p id="say-text"></p></div>
 </section>
 <div id="log" aria-live="polite" aria-label="{{ t('Keskustelu Oivan kanssa', 'Conversation with Oiva') }}">
-  <div class="msg bot" id="hello">{% if ui_lang(request) == 'en' %}Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me about your money, like what's left until payday.{% else %}Hei {{ name }}! Olen <b>Oiva</b>, S-Pankin rahavalmentajasi. Kysy rahoistasi, vaikka paljonko on jäljellä palkkapäivään.{% endif %}</div>
+  <div class="msg bot" id="hello">{% if ui_lang(request) == 'en' %}Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me about your money, like what's left until payday.{% else %}Hei {{ name }}! Olen <b>Oiva</b>, rahavalmentajasi. Kysy vaikka, paljonko on jäljellä palkkapäivään.{% endif %}</div>
 </div>
 <p id="mic-note" role="status" aria-live="polite" hidden></p>
 <form id="f" autocomplete="off">
   <label id="attach" title="{{ t('Lähetä kuva laskusta', 'Send a photo of a bill') }}" aria-label="{{ t('Lähetä kuva laskusta', 'Send a photo of a bill') }}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><input id="photo" type="file" accept="image/*" hidden></label>
-  <input id="q" placeholder="{{ t('Kysy rahoistasi…', 'Ask Oiva…') }}" aria-label="{{ t('Viesti', 'Message') }}" enterkeyhint="send">
+  <input id="q" placeholder="{{ t('Kysy Oivalta…', 'Ask Oiva…') }}" aria-label="{{ t('Viesti', 'Message') }}" enterkeyhint="send">
   <button type="button" id="mic" hidden data-server="{{ 1 if listen_server else 0 }}" aria-pressed="false" aria-label="{{ t('Puhu viesti', 'Speak your message') }}" title="{{ t('Puhu viesti', 'Speak your message') }}"><svg class="m" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg><svg class="s" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3" fill="currentColor"/></svg><span class="busy" aria-hidden="true"></span></button>
   <button id="send">{{ t("Lähetä", "Send") }}</button>
 </form>

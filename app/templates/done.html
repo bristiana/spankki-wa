@@ -6,9 +6,9 @@
     <div class="ok" aria-hidden="true">{% if failed %}!{% else %}<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>{% endif %}</div>
     <h1>{{ title }}</h1>
     {% for l in lines %}<p class="muted">{{ l|nb }}</p>{% endfor %}
-    {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}">Back to WhatsApp</a>
-    {% else %}<a class="btn" href="/chat" data-back>Back to the chat</a>{% endif %}
-    {% if not request.query_params.get('web') %}<a class="btn ghost" href="/s-mobiili/" style="margin-top:8px">Open S-mobiili</a>{% endif %}
+    {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}">{{ "Takaisin WhatsAppiin" if fi_done else "Back to WhatsApp" }}</a>
+    {% else %}<a class="btn" href="/chat" data-back>{{ "Takaisin keskusteluun" if fi_done else "Back to the chat" }}</a>{% endif %}
+    {% if not request.query_params.get('web') %}<a class="btn ghost" href="/s-mobiili/" style="margin-top:8px">{{ "Avaa S-mobiili" if fi_done else "Open S-mobiili" }}</a>{% endif %}
   </div>
 </main>
 <script>if (window.parent !== window) window.parent.postMessage("done", "*");</script>

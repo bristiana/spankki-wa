@@ -699,3 +699,18 @@ def test_stop_in_english_names_where_things_went(chat):
     bye = chat.texts()[-1]
     assert bye.startswith("Done. Oiva is switched off") and "Cloudflare" in bye and "ElevenLabs" in bye
     assert "Anthropic" in bye and "/privacy?lang=en" in bye
+
+
+def test_a_finn_writing_stop_keeps_finnish(chat):
+    connected(chat).say("Hei").say("STOP")
+    assert chat.texts()[-1].startswith("Valmis. Oiva on nyt pois päältä")
+    chat.say("ok")
+    assert chat.interactive("cta_url")[-1]["action"]["parameters"]["display_text"] == "Yhdistä S-Pankki"
+
+
+def test_a_switched_off_voice_note_is_not_transcribed(chat, monkeypatch):
+    heard = []
+    monkeypatch.setattr(voice, "to_text", lambda media_id: heard.append(media_id) or "Hello there friend")
+    connected(chat).say("STOP")
+    chat.media("audio")
+    assert heard == [] and chat.interactive("cta_url")[-1]["action"]["parameters"]["display_text"] == "Connect S-Pankki"
