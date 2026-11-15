@@ -252,7 +252,10 @@
       const m = POSES.includes(name) ? name : "success";
       last = first(parts, m); lastParts = parts || [];
       pose(m);
-      show(m, last || T("Tässä.", "Here you go."), false, pairFor(m, trace, parts));
+      const pair = pairFor(m, trace, parts);
+      // with bars, a sentence about another figure (last month vs the bars' three months) would contradict them
+      const says = x => plain(last).replace(/[\s\u00a0]/g, "").replace(/,/g, ".").includes(x.toFixed(2));
+      show(m, pair && !says(pair.a) && !says(pair.b) ? "" : (last || T("Tässä.", "Here you go.")), false, pair);
       glance(say, 2500);
       speak(parts);
       restLater(12000);

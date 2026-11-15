@@ -310,7 +310,7 @@
   <header class="top koti">
     <span class="ic" aria-label="{{ t('Lukitse sovellus', 'Lock the app') }}" role="img">{{ icon("lock") }}</span>
     <span class="dots" aria-hidden="true"><i></i><i></i></span>
-    <span class="end">{{ lang_switch() }}<a class="chat" id="ask" href="{{ ask() }}" aria-label="{{ t('Viestit, kysy Oivalta', 'Messages, ask Oiva') }}">{{ icon("chat") }}</a></span>
+    <span class="end">{{ lang_switch() }}{% if not web %}<a class="chat" id="ask" href="{{ ask() }}" aria-label="{{ t('Viestit, kysy Oivalta', 'Messages, ask Oiva') }}">{{ icon("chat") }}</a>{% endif %}</span>
   </header>
   {% elif screen == "tab" and tab == "etukortti" %}
   {% elif screen == "extra" %}
@@ -319,7 +319,7 @@
   <header class="top{{ ' sub' if screen == 'flow' or tab in ('kortti', 'raha') }}">
     {% if screen == "flow" or tab in ("kortti", "raha") %}<a href="{{ home_url if screen == 'flow' else tab_urls.pankki }}" aria-label="{{ t('Takaisin', 'Back') }}">{{ icon("back") }}</a>{% endif %}
     <h1>{% if screen == "flow" %}{{ en_title[route] if en else fi_title[route] }}<small>{{ f.title }}</small>{% else %}{{ top_title[tab] }}{% if tab == "kortti" %}<small>S-Etukortti Visa Credit Debit Online</small>{% elif tab == "raha" %}<small>{{ t("Oivan kaaviot", "Oiva's charts") }}</small>{% endif %}{% endif %}</h1>
-    <span class="end">{{ lang_switch() }}<a class="chat" id="ask" href="{{ ask() }}" aria-label="{{ t('Viestit, kysy Oivalta', 'Messages, ask Oiva') }}">{{ icon("chat") }}</a></span>
+    <span class="end">{{ lang_switch() }}{% if not web %}<a class="chat" id="ask" href="{{ ask() }}" aria-label="{{ t('Viestit, kysy Oivalta', 'Messages, ask Oiva') }}">{{ icon("chat") }}</a>{% endif %}</span>
   </header>
   {% endif %}
   <main class="screen" id="screen">
@@ -357,7 +357,7 @@
       <a class="hide-link" href="{{ tab_urls.kortti }}">{{ t("Näytä kortin tiedot", "Show card details") }}</a>
       {{ ask_oiva("Paljonko voin käyttää palkkapäivään asti?", "How much can I spend until payday?", "ask-spend") }}
     </section>
-    <a class="card bk" id="baskets" href="{{ ask('Mihin rahani menevät?', 'Where does my money go?') }}">
+    <{{ 'div' if web else 'a' }} class="card bk" id="baskets"{% if not web %} href="{{ ask('Mihin rahani menevät?', 'Where does my money go?') }}"{% endif %}>
       <span class="t">{{ t("Mihin rahasi menevät", "Where your money goes") }}</span><span class="en">{{ t("3 koria", "3 baskets") }}</span>
       <span class="bk-bar" aria-hidden="true">{% for k in baskets.baskets %}<i class="k{{ loop.index }}" style="flex:{{ k.share_pct }}"></i>{% endfor %}</span>
       {% for k in baskets.baskets %}<span class="bk-row" id="basket-{{ k.basket }}"><i class="k{{ loop.index }}"></i>
@@ -365,7 +365,7 @@
         <span class="n">{{ k.per_month_eur|fimoney }}<small>{{ t("kuussa", "a month") }} · {{ k.share_pct }}%</small></span></span>
       {% endfor %}
       {{ ask_oiva("Mihin rahani menevät?", "Where does my money go?", tag="span") }}
-    </a>
+    </{{ 'div' if web else 'a' }}>
     <h2 class="sec">{{ t("Säästöt ja sijoitukset", "Savings and investments") }}</h2>
     <section class="card list">
       <div class="li" id="acct-pocket">{{ icon("trophy") }}<span class="txt">{{ t("Säästöt", "Savings") }}

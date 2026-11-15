@@ -49,11 +49,11 @@ def test_smobiili_home_shows_the_baskets_card_with_engine_numbers(client):
 
 
 def test_baskets_card_opens_the_chat_with_the_question(client):
-    page = client.get("/s-mobiili/?lang=en&web=1&persona=" + main.DEFAULT_PERSONA).text
+    page = client.get("/s-mobiili/?lang=en&persona=" + main.DEFAULT_PERSONA).text
     href = unescape(re.search(r'id="baskets" href="([^"]+)"', page).group(1))
     u = urlsplit(href)
-    assert u.path == "/chat" and parse_qs(u.query) == {"q": ["Where does my money go?"], "embed": ["1"],
-                                                       "as": [main.DEFAULT_PERSONA]}
+    assert u.path == "/chat" and parse_qs(u.query) == {"q": ["Where does my money go?"], "as": [main.DEFAULT_PERSONA]}
+    assert not re.search(r'id="baskets" href=', client.get("/s-mobiili/?web=1").text)  # no chat in the chat's sheet
     assert urlsplit(re.search(r'id="baskets" href="([^"]+)"', client.get("/s-mobiili/?lang=en").text).group(1)).query \
         == "q=Where+does+my+money+go%3F"
     fi = re.search(r'id="baskets" href="([^"]+)"', client.get("/s-mobiili/?lang=fi").text).group(1)

@@ -178,6 +178,7 @@ def test_no_ask_oiva_rows_inside_the_chats_confirm_sheet(client):
         page = client.get("/s-mobiili/" + (tab + "&" if tab else "?") + "web=1").text
         assert 'class="ask-o' not in page or 'class="ask-o"><img' in page  # only the baskets card's inner span
         assert not re.search(r'<a class="ask-o', page)
+        assert 'href="/chat' not in page  # no chat inside the chat
 
 
 def test_chat_tab_bar_keeps_the_customer(client):

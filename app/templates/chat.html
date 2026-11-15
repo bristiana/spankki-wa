@@ -129,7 +129,7 @@
 <script src="/static/oiva/helper.js"></script>
 <script>
 const H = window.oivaHelper || {thinking() {}, reply() {}, listening() {}};  // the big Oiva on the stage (helper.js)
-const UI = {{ {"thinking": t("Oiva miettii", "Oiva is thinking"), "more": t("Lisää ideoita", "More ideas"), "fewer": t("Vähemmän", "Fewer"), "conn": t("Yhteysongelma, yritä uudelleen.", "Connection problem, try again.")}|tojson }};
+const UI = {{ {"thinking": t("Oiva miettii", "Oiva is thinking"), "conn": t("Yhteysongelma, yritä uudelleen.", "Connection problem, try again.")}|tojson }};
 const MIRROR = {{ mirror|tojson }};  // the app's chat: the owner's WhatsApp conversation, live (app/mirror.py)
 const log = document.getElementById("log"), q = document.getElementById("q");
 const sheet = document.getElementById("sheet"), frame = document.getElementById("frame");
