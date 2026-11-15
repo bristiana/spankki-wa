@@ -19,12 +19,12 @@ from urllib.parse import urlencode
 from dotenv import load_dotenv
 from jinja2 import pass_context
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bills, broker, enable_banking, guardrails, learn, mirror, mood, onboarding, quiz, receipts, rules, voice
+from . import bills, broker, enable_banking, guardrails, learn, mirror, mood, onboarding, quiz, receipts, rules, tts, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import BASKETS, DEMO_BANK, HIDE_DEMO_BANK, FUNDS_BY_ID, RESERVE_NOTE_EUR, Engine
@@ -1954,6 +1954,26 @@ async def chat_api(request: Request):
             for i, part in enumerate(parts):
                 mirror.add("oiva", part, links if i == len(parts) - 1 else None, source="app")
     return out
+
+
+@app.post("/api/voice")
+async def voice_api(request: Request):
+    """Oiva's reply read aloud (Helper mode with the sound on): {"text", "lang": "fi"|"en"} -> audio/mpeg from
+    ElevenLabs (app/tts.py). 204 when no ELEVENLABS_API_KEY is set, an error status when it fails: either way the
+    page reads it with the browser's own voice instead. The key never leaves the server."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict) or not isinstance(body.get("text"), str):
+        return JSONResponse({"error": "text"}, status_code=400)
+    if not tts.configured():
+        return Response(status_code=204)
+    try:
+        audio = await tts.speak(body["text"], "en" if body.get("lang") == "en" else "fi")
+    except tts.TTSError as e:
+        return JSONResponse({"error": str(e)}, status_code=e.status)
+    return Response(audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=86400"})
 
 
 @app.get("/api/mirror")
