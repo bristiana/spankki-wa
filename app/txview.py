@@ -51,6 +51,8 @@ BASKET_TEXT = {  # (label, one line on what the basket means) per language; the 
     "everyday": {"en": (BASKETS["everyday"]["label"], "Small choices that add up. The easiest place to save."),
                  "fi": ("Valinnaiset menot", "Pienet valinnat, jotka kertyvät. Tästä on helpointa säästää.")},
 }
+# A row's sub-line is narrow at 360 px: the Finnish basket in one word there (the sheet keeps the full name).
+BASKET_SHORT_FI = {"regular": "Perusmenot", "irregular": "Satunnaiset", "everyday": "Valinnaiset"}
 # Category -> icon drawn in smobiili_tx.html; a merchant code can be more exact (a café, a pharmacy, fuel).
 CATEGORY_ICON = {"Groceries": "cart", "Restaurants": "food", "Transportation": "bus", "Health": "health",
                  "Housing": "house", "Utilities": "bolt", "Entertainment": "ticket", "Lifestyle": "bag",
@@ -152,6 +154,7 @@ def rows(e: Engine, lang: str, n: int | None = 40, since: date | None = None, no
             "tone": {"regular": "b1", "irregular": "b2", "everyday": "b3"}.get(k, "in" if amt > 0 else "none"),
             "basket": k, "basket_label": BASKET_TEXT[k][lg][0] if k else None,
             "basket_line": BASKET_TEXT[k][lg][1] if k else None,
+            "basket_short": (BASKET_TEXT[k]["en"][0] if lg == "en" else BASKET_SHORT_FI[k]) if k else None,
             "icon": MCC_ICON.get(code) or CATEGORY_ICON.get(cat) or ("in" if amt > 0 else "out"),
             "receipt": cat == "Groceries" and amt < 0 and _code(r["merchant_id"]) is not None,
             "card": r["transaction_type"] == "purchase",
