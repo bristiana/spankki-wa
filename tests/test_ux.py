@@ -120,3 +120,19 @@ def test_chat_page_has_typing_state_and_keeps_amounts_together(client):
     page = client.get("/chat").text
     assert "Oiva miettii" in page and 'role", "status"' in page
     assert "function nb(" in page and "visualViewport" in page and "function reveal(" in page
+
+
+@pytest.mark.parametrize("lang, words", [
+    ("en", ["Privacy", "ElevenLabs", "Cloudflare Workers AI", "Anthropic", "Meta", "voice note"]),
+    ("fi", ["Tietosuoja", "ElevenLabs", "Cloudflare Workers AI", "Anthropic", "Meta", "ääniviesti"]),
+])
+def test_privacy_names_every_service_in_both_languages(client, lang, words):
+    page = client.get(f"/privacy?lang={lang}").text
+    assert f'<html lang="{lang}">' in page
+    for w in words:
+        assert w in page, w
+
+
+def test_connect_page_follows_the_language(client):
+    assert "Yhdistä S-Pankki" in client.get("/connect?u=1&lang=fi").text
+    assert "Connect S-Pankki" in client.get("/connect?u=1&lang=en").text

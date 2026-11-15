@@ -55,7 +55,7 @@ def test_unconnected_user_gets_connect_button(client):
     main.engine.state.setdefault("switched_off", {})["40700000000"] = "2026-10-06"  # new numbers go into the demo
     assert post_signed(client, wa_payload()).status_code == 200
     cta = [b for b in client.sent if b.get("type") == "interactive"]
-    assert cta and cta[0]["interactive"]["action"]["parameters"]["url"].endswith("/connect?u=40700000000")
+    assert cta and cta[0]["interactive"]["action"]["parameters"]["url"].endswith("/connect?u=40700000000&lang=en")
 
 
 def test_reminder_then_pay_flow(client):
@@ -75,7 +75,7 @@ def test_reminder_then_pay_flow(client):
 
 
 def test_connect_page_and_chat_page(client):
-    assert "Connect S-Pankki" in client.get("/connect?u=1").text
+    assert "Yhdistä S-Pankki" in client.get("/connect?u=1").text  # Finnish unless the link or a cookie says English
     assert "rahavalmentajasi" in client.get("/chat").text and "money coach" in client.get("/chat?lang=en").text
 
 

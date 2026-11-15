@@ -51,7 +51,7 @@
     there this page is inside the chat's own confirm sheet, and a chat in the chat would be a dead end. -#}
 {%- macro ask_oiva(fi, en_q, id="", tag="a", cls="") -%}
 {%- if not web -%}
-<{{ tag }} class="ask-o {{ cls }}"{% if id %} id="{{ id }}"{% endif %}{% if tag == "a" %} href="{{ ask(fi, en_q) }}" aria-label="{{ t('Kysy Oivalta', 'Ask Oiva') }}: {{ t(fi, en_q) }}"{% endif %}><img src="{{ static('oiva/mascot/head.png') }}" alt="" width="28" height="28"><span class="q"><small>{{ t("Kysy Oivalta", "Ask Oiva") }}</small>{{ t(fi, en_q) }}</span>{{ icon("chevron") }}</{{ tag }}>
+<{{ tag }} class="ask-o {{ cls }}"{% if id %} id="{{ id }}"{% endif %}{% if tag == "a" %} href="{{ ask(fi, en_q) }}" aria-label="{{ t('Kysy Oivalta', 'Ask Oiva') }}: {{ t(fi, en_q) }}"{% endif %}><img src="{{ static('oiva/mascot/head-v3-face.png') }}" alt="" width="28" height="28"><span class="q"><small>{{ t("Kysy Oivalta", "Ask Oiva") }}</small>{{ t(fi, en_q) }}</span>{{ icon("chevron") }}</{{ tag }}>
 {%- endif -%}
 {%- endmacro %}
 {%- macro lang_switch(cls="") -%}
