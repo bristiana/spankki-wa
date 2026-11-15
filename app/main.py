@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bills, broker, enable_banking, guardrails, learn, mirror, onboarding, quiz, receipts, rules, voice
+from . import bills, broker, enable_banking, guardrails, learn, mirror, mood, onboarding, quiz, receipts, rules, voice
 from . import whatsapp as wa
 from .agent import Coach
 from .engine import BASKETS, DEMO_BANK, HIDE_DEMO_BANK, FUNDS_BY_ID, RESERVE_NOTE_EUR, Engine
@@ -500,7 +500,16 @@ SECRET_CONTEXT = ("Their message had a {what} in it; it was removed before it re
 
 def flow_turn(e: Engine, user: str, text: str, bid: str = "") -> onboarding.Turn | None:
     """The no-AI flows, in order: the Learn course, the basket game, the interview. None = the coach answers."""
-    return learn.turn(e, user, text, bid) or quiz.turn(e, user, text, bid) or onboarding.turn(e, user, text, bid)
+    return flow_turn_named(e, user, text, bid)[1]
+
+
+def flow_turn_named(e: Engine, user: str, text: str, bid: str = "") -> tuple[str, onboarding.Turn | None]:
+    """flow_turn, and which flow answered ("learn", "quiz", "interview"; "" = none): the helper squirrel's pose."""
+    for name, flow in (("learn", learn), ("quiz", quiz), ("interview", onboarding)):
+        t = flow.turn(e, user, text, bid)
+        if t:
+            return name, t
+    return "", None
 
 
 def remember(persona: str | None, user: str, said: str, t: onboarding.Turn):
@@ -1916,11 +1925,23 @@ def web_words(out):
     return out
 
 
+def with_mood(out):
+    """Every web chat reply names the helper squirrel's pose (app/mood.py); a reply without one is a plain answer."""
+    if isinstance(out, JSONResponse):
+        j = json.loads(out.body)
+        if isinstance(j, dict) and "mood" not in j:
+            return JSONResponse({**j, "mood": "error" if j.get("error") else "success"}, status_code=out.status_code)
+        return out
+    if isinstance(out, dict) and "mood" not in out:
+        return {**out, "mood": "success"}
+    return out
+
+
 @app.post("/api/chat")
 async def chat_api(request: Request):
     """One turn of the web chat; its words carry no emoji and it has no reaction (web_words). With "mirror": true
     (the app's chat) it is the owner's conversation: the same history as their WhatsApp, kept in the mirror log."""
-    out = web_words(await chat_turn(request))
+    out = with_mood(web_words(await chat_turn(request)))
     body = await request.json()
     if isinstance(body, dict) and body.get("mirror") and mirror_viewer(request):
         said = str(body.get("shown") or body.get("text") or "").strip()
@@ -1975,15 +1996,15 @@ async def chat_turn(request: Request):
         t, rent = reminder_text(name, e)
         if not rent:
             return {"text": "No rent or housing payment is due in the next 45 days.", "buttons": []}
-        return {"text": t, "buttons": [], "quick": quick([(f"pay:{rent['bill_id']}", "Pay rent now"),
+        return {"text": t, "buttons": [], "mood": "caution", "quick": quick([(f"pay:{rent['bill_id']}", "Pay rent now"),
                                                           (f"later:{rent['bill_id']}", "Remind me later"),
                                                           ("ask:tight", "How do I stretch it?")])}
     if text.startswith("__alert__:"):
         m = alert_message(text.split(":", 1)[1], name, e)
-        return {"text": m[0], "buttons": [], "quick": quick(m[1])} if m else {"text": "Nothing to flag right now.", "buttons": []}
-    def interview(t: onboarding.Turn, buttons=()):
+        return {"text": m[0], "buttons": [], "mood": "caution", "quick": quick(m[1])} if m else {"text": "Nothing to flag right now.", "buttons": []}
+    def interview(t: onboarding.Turn, buttons=(), flow: str = "interview"):
         return {"text": "\n\n".join(t.lead + [t.text]), "bubbles": [*t.lead, t.text], "buttons": list(buttons),
-                "quick": quick(t.buttons)}
+                "quick": quick(t.buttons), "mood": mood.for_flow(flow, t)}
 
     def said(reply_text: str, reaction: str | None = None, **more):
         """A plain answer from the app, in bubbles ("---" splits them), with the reaction for their message."""
@@ -2003,10 +2024,11 @@ async def chat_turn(request: Request):
         try:
             direct = button_reply(sid, bid, web=True, e=e)
         except ValueError as err:
-            return {"text": f"I can't do that: {err}", "buttons": []}
+            return {"text": f"I can't do that: {err}", "buttons": [], "mood": "error"}
         if direct:
             url = direct.get("url")
-            return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else []}
+            return {"text": direct["text"], "buttons": [{"label": url[0], "url": url[1].replace(public_url(), "")}] if url else [],
+                    "mood": "needs_approval" if url else "success"}
         text = ask_text(e, sid, bid) or bid
     else:
         if guardrails.FRESH.match(text):
@@ -2022,10 +2044,10 @@ async def chat_turn(request: Request):
     asked = bool(bid) and ask_text(e, sid, bid) is not None
     if not asked:
         typed = "" if bid else text
-        t = flow_turn(e, sid, typed, bid)
+        flow, t = flow_turn_named(e, sid, typed, bid)
         if t:
             remember(persona, sid, typed or f"[tapped {bid}]", t)
-            return interview(t)
+            return interview(t, flow=flow)
     c = coach(persona)
     if not bid and hasattr(c, "last_said"):
         note_chat_later(e, sid, text, c.last_said(sid))
@@ -2047,7 +2069,7 @@ async def web_bill(persona: str, sid: str, e: Engine, name: str, image, caption:
         bill = await anyio.to_thread.run_sync(lambda: bills.read(e, sid, getattr(coach(persona), "client", None),
                                                                  data, None))
     except bills.BillError as err:
-        return {"text": str(err), "buttons": []}
+        return {"text": str(err), "buttons": [], "mood": "error"}
     except Exception:
         log.exception("bill photo failed")
         return JSONResponse({"text": "Sorry, I couldn't read that photo just now. Could you try again in a moment?",
@@ -2066,7 +2088,7 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=(), asked: str = ""
     except Exception:
         log.exception("coach failed")
         return JSONResponse({"text": "Sorry, I can't think right now (the AI service is not reachable). "
-                                     "Bill reminders and payments still work.", "buttons": []})
+                                     "Bill reminders and payments still work.", "buttons": [], "mood": "error"})
     out, charts = [], []
     for b in reply.buttons:
         if "chart" in b:  # drawn inside the bubble
@@ -2084,7 +2106,8 @@ async def web_answer(e: Engine, sid: str, run, quick, secret=(), asked: str = ""
     return JSONResponse({"text": "\n\n".join(parts + notes), "bubbles": parts + notes,
                          "reaction": "🔒" if secret else getattr(reply, "reaction", None),
                          "tools": reply.tools_used, "trace": reply.trace,
-                         "buttons": out, "charts": charts, "quick": []})
+                         "buttons": out, "charts": charts, "quick": [],
+                         "mood": mood.for_reply(reply.tools_used, out, e, reply.trace)})
 
 
 @app.get("/api/inbox")

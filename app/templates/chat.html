@@ -98,6 +98,7 @@
   .how-check{margin:8px 0 0;color:var(--brand);font-weight:600}.how-check.warn{color:var(--warn)}
 </style>
 <link rel="stylesheet" href="/static/oiva/oiva.css">
+<link rel="stylesheet" href="/static/oiva/helper.css">
 <script src="/static/kchart.js"></script>
 <script src="/static/trace.js"></script>
 {% endblock %}
@@ -119,6 +120,18 @@
   <div class="who-is"><span class="oiva idle" id="oiva" role="img" aria-label="Oiva"></span><h1>Oiva<small>{{ t("Viestit · rahavalmentajasi", "Messages · money coach") }}</small></h1></div>
   <span class="end"><span class="lang" role="group" aria-label="{{ t('Kieli', 'Language') }}">{% for code in ("fi", "en") %}<a href="{{ lang_url(request, code) }}" hreflang="{{ code }}" lang="{{ code }}"{% if ui_lang(request) == code %} aria-current="true"{% endif %}>{{ code|upper }}</a>{% endfor %}</span></span>
 </header>
+<!-- Two ways to talk to Oiva (docs/plans/squirrel-helper.md): the chat as it was, or the big Oiva helper -->
+<div class="modes">
+  <span class="seg" role="group" aria-label="{{ t('Näkymä', 'View') }}">
+    <button type="button" data-mode="chat" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-4 3.5V16H4z"/></svg>Chat</button>
+    <button type="button" data-mode="helper" aria-pressed="false"><img src="/static/oiva/oiva.png" alt="" width="16" height="16">{{ t("Apuri", "Helper") }}</button>
+  </span>
+  <button type="button" class="voice" id="voice" aria-pressed="false" title="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}" aria-label="{{ t('Oiva puhuu ääneen', 'Oiva speaks aloud') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h4l5-4v13l-5-4H4z"/><path class="w" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg><span>{{ t("Mykistetty", "Muted") }}</span></button>
+</div>
+<section id="stage" hidden aria-label="{{ t('Oiva-apuri', 'Oiva helper') }}">
+  <div id="pal" role="img" aria-label="Oiva"></div>
+  <div class="say" aria-live="polite"><span class="tag" id="say-tag"></span><p id="say-text"></p></div>
+</section>
 <div id="log" aria-live="polite" aria-label="{{ t('Keskustelu Oivan kanssa', 'Conversation with Oiva') }}">
   <div class="msg bot" id="hello">{% if ui_lang(request) == 'en' %}Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me anything about your money.{% else %}Hei {{ name }}! Olen <b>Oiva</b>, S-Pankin rahavalmentajasi. Kysy minulta mitä vain rahoistasi.{% endif %}</div>
 </div>
@@ -139,7 +152,10 @@
   <div class="panel"><div class="top"><span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>S-Pankki</span><button id="close" aria-label="{{ t('Sulje ja palaa chattiin', 'Close and go back to the chat') }}">×</button></div><iframe id="frame" title="Confirm"></iframe></div>
 </div>
 </div>
+<script src="/static/oiva/mascot/oiva.js"></script>
+<script src="/static/oiva/helper.js"></script>
 <script>
+const H = window.oivaHelper || {thinking() {}, reply() {}, listening() {}};  // the Helper mode's big Oiva
 const UI = {{ {"thinking": t("Oiva miettii", "Oiva is thinking"), "more": t("Lisää ideoita", "More ideas"), "fewer": t("Vähemmän", "Fewer"), "conn": t("Yhteysongelma, yritä uudelleen.", "Connection problem, try again.")}|tojson }};
 const MIRROR = {{ mirror|tojson }};  // the app's chat: the owner's WhatsApp conversation, live (app/mirror.py)
 const log = document.getElementById("log"), q = document.getElementById("q");
@@ -224,6 +240,7 @@ async function pollMirror() {
       seen = Math.max(seen, m.id);
       if (loaded && m.source === "app") continue;
       last = drawMirrored(m);
+      if (loaded && m.role !== "me") H.reply("success", [m.text || ""]);
       if (loaded) act(m.role === "me" ? "wave" : "talk", m.role === "me" ? 1800 : 2600);
     }
     if (last) reveal(last);
@@ -238,7 +255,7 @@ async function send(text, shown, image) {
   if (!text && !image) return;
   const mine = image ? add("me", '<img alt="Your photo" src="' + image + '">' + esc(text || ""))
                      : shown !== null ? add("me", esc(shown || text)) : null;
-  act("think");
+  act("think"); H.thinking();
   const t = add("typing", UI.thinking + ' <i aria-hidden="true"><b></b><b></b><b></b></i>'); t.className = "typing";
   t.setAttribute("role", "status");
   try {
@@ -251,6 +268,7 @@ async function send(text, shown, image) {
     act(r.ok ? "talk" : "worried", 2600);
     // One bubble per part, a beat apart, like a person typing; buttons and charts ride on the last one.
     const parts = (j.bubbles && j.bubbles.length) ? j.bubbles : (j.text ? [j.text] : []);
+    H.reply(r.ok ? j.mood : "error", parts);
     const extras = (j.charts || []).length || (j.buttons || []).length || (j.quick || []).length;
     if (!parts.length && !extras) { if (mine) reveal(mine); return; }  // nothing to say (on WhatsApp this is a reaction only)
     let d = null;
@@ -286,7 +304,7 @@ async function send(text, shown, image) {
     const how = window.oivaTrace(j.trace);  // collapsed under the bubble: what Oiva looked up and checked
     if (how) d.insertAdjacentHTML("afterend", how);
     reveal(d);
-  } catch (e) { t.remove(); act("worried", 2600); add("bot", UI.conn); }
+  } catch (e) { t.remove(); act("worried", 2600); H.reply("error", [UI.conn]); add("bot", UI.conn); }
 }
 
 document.getElementById("f").onsubmit = e => { e.preventDefault(); const v = q.value.trim(); q.value = ""; send(v); };

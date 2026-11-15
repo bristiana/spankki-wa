@@ -1,0 +1,70 @@
+/* The chat's two modes (docs/plans/squirrel-helper.md): "Chat" is the chat as it was; "Helper" adds a big Oiva
+   (design/mascot oiva.js) that takes the pose of each reply and says it in a speech bubble. */
+.modes{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+.modes .seg{display:inline-flex;padding:3px;border-radius:99px;background:#eef3ef}
+.modes .seg button{border:0;background:transparent;color:var(--muted);font:600 13.5px var(--font);min-height:32px;
+  padding:0 14px;border-radius:99px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.modes .seg button[aria-pressed="true"]{background:var(--brand);color:#fff}
+.modes .seg svg{width:16px;height:16px}
+.modes .voice{margin-left:auto;display:none;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:36px;
+  padding:0 10px;border:1px solid var(--line);border-radius:99px;background:transparent;color:var(--muted);
+  font:600 12.5px var(--font);cursor:pointer}
+.modes .voice svg{width:18px;height:18px}
+.modes .voice[aria-pressed="true"]{color:var(--brand);border-color:var(--brand)}
+.helper .modes .voice.can{display:inline-flex}
+.modes .voice .w{display:none}.modes .voice[aria-pressed="true"] .w{display:inline}.modes .voice[aria-pressed="true"] .x{display:none}
+
+/* the stage: Oiva on the left, what he says on the right */
+#stage{display:none}
+.helper #stage{display:grid;grid-template-columns:var(--pal) 1fr;align-items:center;gap:6px;flex:none;
+  --pal:clamp(112px,19dvh,164px);padding:8px 14px 6px 6px;
+  background:radial-gradient(circle at calc(var(--pal) / 2 + 6px) 55%,#fff6e8 0,#fff6e8 calc(var(--pal) * .38),transparent calc(var(--pal) * .62)),var(--bg);
+  border-bottom:1px solid var(--line)}
+#pal{width:var(--pal);height:var(--pal);cursor:pointer;-webkit-tap-highlight-color:transparent}
+#pal svg{width:100%;height:100%;display:block}
+.say{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:9px 12px 10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);min-height:56px;max-height:calc(var(--pal) - 4px);overflow:hidden}
+.say::before{content:"";position:absolute;left:-8px;top:50%;width:14px;height:14px;margin-top:-7px;background:var(--card);
+  border-left:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(45deg)}
+.say .tag{display:inline-flex;align-items:center;gap:6px;font:700 11.5px/1.2 var(--font);letter-spacing:.2px;
+  color:var(--brand);text-transform:uppercase;margin-bottom:3px}
+.say .tag:empty{display:none}
+.say .tag::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.say[data-mood="compare"] .tag{color:#3f74b9}
+.say[data-mood="caution"] .tag,.say[data-mood="error"] .tag{color:#b5651d}
+.say p{margin:0;font-size:14.5px;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:5;overflow:hidden}
+.say.thinking p{color:var(--muted)}
+.say.pop{animation:say-pop .25s ease-out}
+@keyframes say-pop{from{transform:scale(.96);opacity:.4}to{transform:none;opacity:1}}
+
+/* the conversation keeps most of the screen; the big Oiva is the speaker, so no little avatars in the log */
+.helper .who-is .oiva{display:none}
+.helper .bot{margin-left:0}
+.helper .bot::before{display:none}
+.helper .typing,.helper .how{padding-left:2px;margin-left:0}
+.helper #log{padding-top:10px}
+
+/* keyboard open (short visual viewport): a smaller stage, the log keeps its room */
+.helper.kb #stage{--pal:96px;padding-top:4px;padding-bottom:4px}
+.helper.kb .say p{-webkit-line-clamp:3}
+
+@media (prefers-reduced-motion:reduce){.say.pop{animation:none}}
+
+/* dark: only in Helper mode, so Chat mode stays exactly as it was */
+@media (prefers-color-scheme:dark){
+  .phone.helper{--bg:#0f1513;--card:#18201d;--ink:#e8efeb;--muted:#9aa8a1;--faint:#7d8a84;--line:#2a3430;--brand:#2fae6f;
+    --brand-ink:#06140d;--soft:#1d2b24;color-scheme:dark;color:var(--ink)}
+  .phone.helper .sm-top,.phone.helper .modes,.phone.helper .tabs,.phone.helper .status{background:var(--card)}
+  .phone.helper .sm-top h1,.phone.helper .status{color:var(--ink)}
+  .phone.helper .sm-top a{color:var(--ink)}
+  .phone.helper .lang,.phone.helper .modes .seg{background:#24302b}
+  .phone.helper .modes .seg button[aria-pressed="true"],.phone.helper .sm-top .lang a[aria-current]{color:#06140d}
+  .phone.helper .tabs a,.phone.helper .tabs .i{color:var(--muted)}
+  .phone.helper .tabs .plus .i{color:#06140d}
+  .phone.helper #stage{background:radial-gradient(circle at calc(var(--pal) / 2 + 6px) 55%,#22302a 0,#22302a calc(var(--pal) * .38),transparent calc(var(--pal) * .62)),var(--bg)}
+  .phone.helper .say{box-shadow:none}
+  .phone.helper .say[data-mood="compare"] .tag{color:#8db4ea}
+  .phone.helper .say[data-mood="caution"] .tag,.phone.helper .say[data-mood="error"] .tag{color:#f3c66b}
+  .phone.helper .chips button,.phone.helper .bot .btn.ghost{color:var(--ink)}
+}
