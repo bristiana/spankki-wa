@@ -109,7 +109,7 @@
         <span class="amt" style="font-size:16px">{{ x.per_month_eur|fimoney }}<small>{{ t("kuussa", "a month") }}</small></span>{% if x.id == "investing" %}{{ icon("chevron", "i chev") }}</a>{% else %}</div>{% endif %}
       {% endfor %}
     </section>
-    {{ ask_oiva("Mitä laskuja minulla on tulossa?", "What bills do I have coming up?", "ask-payments", cls="card") }}
+    {{ ask_oiva("Mitä laskuja on tulossa?", "Which bills are coming up?", "ask-payments", cls="card") }}
   </div>
 
 {% elif extra == "p-uusi" %}
@@ -141,7 +141,7 @@
       {% endfor %}
     </section>
     <p class="note">{{ t("Konseptissa e-laskun tilaus näytetään, mutta sitä ei lähetetä laskuttajalle.", "In this concept, ordering an e-invoice is shown but not sent to the biller.") }}</p>
-    {{ ask_oiva("Mitä laskuja minulla on tulossa?", "What bills do I have coming up?", "ask-einvoices", cls="card") }}
+    {{ ask_oiva("Mitä laskuja on tulossa?", "Which bills are coming up?", "ask-einvoices", cls="card") }}
   </div>
 
 {% elif extra == "p-saastot" %}

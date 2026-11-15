@@ -169,7 +169,7 @@
     // one short line per bar: the data's "over" first, then the computed pace
     const word = i => i.status === "over" ? ["over", T("Budjetti ylitetty", "Over budget")] : i.spent_eur === 0 ? ["ok", WHOLE ? T("Ei kulutusta", "Nothing spent") : T("Ei vielä kulutusta", "Nothing spent yet")]
       : WHOLE ? ["ok", T("Budjetin sisällä", "Within budget")]
-      : fast(i) ? ["fast", T("Tasaista tahtia nopeammin", "Faster than even pace")] : ["ok", T("Tasaisen tahdin sisällä", "Within even pace")];
+      : fast(i) ? ["fast", T("Tasaista nopeammin", "Faster than even pace")] : ["ok", T("Tasaisen tahdin sisällä", "Within even pace")];
     const nWithin = set.filter(i => i.status !== "over").length;
     const nFast = set.filter(i => i.status !== "over" && fast(i)).length;
     const head = WHOLE ? (left >= 0 ? T(`${FI_M[0].toUpperCase() + FI_M.slice(1)}n budjeteista jäi käyttämättä`, `Left unspent in ${MONTH_NAME}'s budgets`)

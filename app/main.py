@@ -391,8 +391,20 @@ def send_reply(to: str, reply, message_id: str | None = None):
 STOP_WORDS = {"stop", "unsubscribe", "delete my data", "switch off", "lopeta"}
 
 
-def switch_off(to: str):
-    """Consent withdrawn: forget the connection, the chat history and the name."""
+SWITCHED_OFF = {  # what STOP did, said the way the privacy page (PRIVACY) and the consent note (connect.html) say it
+    "en": "Done. Oiva is switched off for this number and our chat history is deleted. While Oiva was on, your "
+          "messages and the numbers needed to answer them went to Anthropic (the AI) and through Meta (WhatsApp). "
+          "Other banks you linked stay linked until you remove them on the Add a bank page. "
+          "Message me any time to connect again.",
+    "fi": "Valmis. Oiva on nyt pois päältä tässä numerossa, ja keskusteluhistoriamme on poistettu. Kun Oiva oli "
+          "päällä, viestisi ja vastauksiin tarvittavat luvut menivät Anthropicille (tekoäly) ja Metan kautta "
+          "(WhatsApp). Muut yhdistämäsi pankit pysyvät yhdistettyinä, kunnes poistat ne Add a bank -sivulla. "
+          "Kirjoita milloin tahansa, niin voit yhdistää uudelleen.",
+}
+
+
+def switch_off(to: str, lang: str = "en"):
+    """Consent withdrawn: forget the connection, the chat history and the name. The reply in `lang` (fi|en)."""
     engine.state.setdefault("connected", {}).pop(to, None)
     engine.state.setdefault("switched_off", {})[to] = engine.today.isoformat()
     engine._save()
@@ -401,8 +413,9 @@ def switch_off(to: str):
     quiz.forget(engine, to)
     learn.forget(engine, to)
     names.pop(to, None)
-    wa.send_text(to, "Done. Oiva is switched off for this number and our chat history is deleted. "
-                     "Your bank data never left S-Pankki. Write *Hi* any time to start again.")
+    if mirror.is_owner(to):  # the app's copy of the owner's WhatsApp chat goes too, as the reply says
+        mirror.reset()
+    wa.send_text(to, SWITCHED_OFF["fi" if lang == "fi" else "en"])
 
 
 OPEN_APP = "Open in S-mobiili"  # the button on a prepared money move (a WhatsApp cta_url label: max 20 chars)
@@ -671,7 +684,7 @@ def handle_message(m: dict):
         # mid-game or mid-course, a bare "stop" pauses it
         stop = word in ("stop", "lopeta") and (quiz.active(engine, to) or learn.active(engine, to))
         if word in STOP_WORDS and not stop:
-            switch_off(to)
+            switch_off(to, "fi" if word == "lopeta" else "en")  # the Finnish word gets the Finnish reply
             return
         bid = m.get("button_id") or ""
         secret = [] if bid else guardrails.secrets(m["text"])
