@@ -1429,8 +1429,8 @@ def money_asks(e: Engine) -> dict:
             "sit": ("Miten vertaudun ikäisiini omalla alueellani?", "How do I compare with people my age in my area?"),
             "fig": ("Miten tuloni vertautuvat ikäisiini omalla alueellani?",
                     "How does my income compare with people my age in my area?"),
-            "income": ("Paljonko palkastani jää tavallisena kuukautena laskujen ja sijoittamisen jälkeen?",
-                       "In a typical month, how much of my salary is left after bills and investing?"),
+            "income": ("Paljonko palkastani jää kuukaudessa, kun säännölliset maksut (vuokra, laskut ja sijoitus) on maksettu?",
+                       "How much of my salary is left each month after my regular payments (rent, bills and investing)?"),
             "cal": (f"Mitkä olivat {fi}n säännölliset maksuni?", f"What were my regular payments in {en}?")}
 
 

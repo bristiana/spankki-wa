@@ -268,7 +268,7 @@ def date_style(text: str, today) -> str:
     return _ISO_DATE.sub(fix, text)
 
 
-_FI_WORDS = re.compile(r"\b(ja|on|oli|sinun|sinulla|sinulle|kuussa|että|mutta|joten|euroa|käytit|meni|menivät|ovat|"
+_FI_WORDS = re.compile(r"\b(ja|oli|sinun|sinulla|sinulle|kuussa|että|mutta|joten|euroa|käytit|meni|menivät|ovat|"
                        r"jäi|jää|kun|tämä|kuin|eli|noin|vielä|myös)\b", re.I)
 _FI_POINT = re.compile(r"(?<![\d.])(\d+)\.(\d+)(?=(?:[–-]\d+(?:\.\d+)?)?[\s\u00a0]?(?:€|%|euro))")
 _FI_DATE = re.compile(r"\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)( 20\d\d)?\b")
