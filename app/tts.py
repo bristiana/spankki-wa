@@ -23,18 +23,19 @@ log = logging.getLogger("tts")
 
 API = "https://api.elevenlabs.io/v1/text-to-speech"
 # One voice per page language (the FI | EN toggle), each overridable: ELEVENLABS_VOICE_ID_EN / _FI, or
-# ELEVENLABS_VOICE_ID for both. EN: "Miffy Mouse - Squeaky, Upbeat Cartoon", a library character voice: small, high
-# and playful, the squirrel's own voice. FI: "Sini - Energetic and spirited", a native Finnish library voice, bright and
+# ELEVENLABS_VOICE_ID for both. EN: "Ziggy - Cute little Australian character", a library character voice: young,
+# friendly and a little quirky, but a normal speaking pitch (the squeaky "Miffy Mouse", M5t0724ORuAGCh3p3DUR, sounded
+# too much like a cartoon mouse). FI: "Sini - Energetic and spirited", a native Finnish library voice, bright and
 # playful. The library has no cute native Finnish character voice, and Miffy reading Finnish got the amounts wrong in
 # tests (183 € came back as 194), while Sini said every number right. ELEVENLABS_VOICE_ID_FI=W9YsrfUjc4DOYR4fhg8M
 # brings back "Jarmo", the calm narrator. When the account can't use a voice, the English one speaks, then the
 # premade "Chris" (in every account).
-DEFAULT_VOICES = {"en": "M5t0724ORuAGCh3p3DUR", "fi": "8X97zFR9k9pK2xyFI7Nr"}
+DEFAULT_VOICES = {"en": "fjgAVa6FpNYGo4UpjqML", "fi": "8X97zFR9k9pK2xyFI7Nr"}
 FALLBACK_VOICE = "iP95p4xoKVk53GoZ742B"  # "Chris", premade; spoken with its own settings
 # How the squirrel is spoken (ElevenLabs voice_settings), each overridable: ELEVENLABS_STABILITY, _SIMILARITY, _STYLE
-# (0-1), _SPEED (0.7-1.2), _SPEAKER_BOOST (1/0). A bit less stable and more styled = livelier, cartoon-like
-# intonation; a little faster = a busy squirrel; stability stays above 0.3 so amounts and percents stay clear.
-DEFAULT_SETTINGS = {"stability": 0.35, "similarity_boost": 0.8, "style": 0.45, "use_speaker_boost": True, "speed": 1.1}
+# (0-1), _SPEAKER_BOOST (1/0), _SPEED (0.7-1.2). Slightly livelier than neutral and a touch faster: friendly, not a
+# cartoon; stability near the middle keeps amounts and percents clear.
+DEFAULT_SETTINGS = {"stability": 0.45, "similarity_boost": 0.75, "style": 0.3, "use_speaker_boost": True, "speed": 1.05}
 _SETTING_ENV = {"stability": ("ELEVENLABS_STABILITY", 0.0, 1.0), "similarity_boost": ("ELEVENLABS_SIMILARITY", 0.0, 1.0),
                 "style": ("ELEVENLABS_STYLE", 0.0, 1.0), "speed": ("ELEVENLABS_SPEED", 0.7, 1.2)}
 DEFAULT_VOICE = DEFAULT_VOICES["en"]

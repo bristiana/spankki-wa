@@ -262,7 +262,7 @@ def test_v3_model_gets_a_stability_it_takes(client, eleven, monkeypatch):
 
 
 def test_default_voices_are_the_squirrel_and_sini():
-    assert tts.DEFAULT_VOICES == {"en": "M5t0724ORuAGCh3p3DUR", "fi": "8X97zFR9k9pK2xyFI7Nr"}
+    assert tts.DEFAULT_VOICES == {"en": "fjgAVa6FpNYGo4UpjqML", "fi": "8X97zFR9k9pK2xyFI7Nr"}
     assert tts.FALLBACK_VOICE not in tts.DEFAULT_VOICES.values()
 
 
@@ -270,8 +270,8 @@ def test_squirrel_settings_are_sent(client, eleven, monkeypatch):
     monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
     say(client, "Hei.")
     body = __import__("json").loads(eleven["calls"][0].content)
-    assert body["voice_settings"] == {"stability": 0.35, "similarity_boost": 0.8, "style": 0.45,
-                                      "use_speaker_boost": True, "speed": 1.1}
+    assert body["voice_settings"] == {"stability": 0.45, "similarity_boost": 0.75, "style": 0.3,
+                                      "use_speaker_boost": True, "speed": 1.05}
 
 
 def test_voice_settings_from_env_kept_in_range(client, eleven, monkeypatch):
@@ -283,7 +283,7 @@ def test_voice_settings_from_env_kept_in_range(client, eleven, monkeypatch):
     monkeypatch.setenv("ELEVENLABS_SPEAKER_BOOST", "0")
     say(client, "Hei.")
     body = __import__("json").loads(eleven["calls"][0].content)
-    assert body["voice_settings"] == {"stability": 0.6, "similarity_boost": 0.8, "style": 1.0,
+    assert body["voice_settings"] == {"stability": 0.6, "similarity_boost": 0.75, "style": 1.0,
                                       "use_speaker_boost": False, "speed": 0.7}
 
 
