@@ -54,7 +54,10 @@
   const q = document.getElementById("tx-q"), sum = document.getElementById("tx-sum"), empty = document.getElementById("tx-empty");
   const chips = [...form.querySelectorAll(".txc a")];
   let kori = (chips.find(c => c.getAttribute("aria-current")) || {}).dataset?.kori || "";
-  const fmt = n => n.toLocaleString("fi-FI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\s/g, " ") + " €";
+  // Sums are written as the server's money filter writes this page's amounts: same decimal mark, space thousands.
+  const shown = (document.querySelector("#all-tx .tam") || {}).textContent || "";
+  const dec = (shown.match(/([.,])\d\d\s*€/) || [0, ","])[1];
+  const fmt = n => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0").replace(".", dec) + "\u00a0€";
   const all = document.getElementById("all-tx");
   function apply() {
     if (!all) return;
@@ -68,7 +71,7 @@
         r.hidden = !ok;
         if (ok) {
           any = true; n++;
-          const a = parseFloat(r.querySelector(".tam").textContent.replace(/[^\d,]/g, "").replace(",", "."));
+          const a = parseFloat(r.dataset.amt);
           if (r.dataset.in === "1") inn += a; else out += a;
         }
       }

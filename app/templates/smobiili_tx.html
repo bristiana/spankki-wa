@@ -36,7 +36,7 @@
 {%- macro tx_days(days, src="koti", totals=True) -%}
 {% for d in days %}<div class="txg" data-day="{{ d.iso }}">
   <div class="txd"><span>{{ d.label }}</span>{% if totals and d.rows|length > 1 %}<span class="dt" aria-label="{{ t('Päivän summa', 'Day total') }}">{{ amount({"amount_eur": d.total_eur, "income": d.total_eur > 0}, "dsum") }}</span>{% endif %}</div>
-  {% for x in d.rows %}<a class="txr" id="tx-{{ x.id }}" href="/s-mobiili/tapahtumat/{{ x.id }}{{ keep }}" data-sheet="txs-{{ x.id }}" data-basket="{{ x.basket or 'none' }}" data-in="{{ 1 if x.income else 0 }}" data-q="{{ tx_hay(x) }}"{% if x.receipt %} data-receipt="1"{% endif %}>
+  {% for x in d.rows %}<a class="txr" id="tx-{{ x.id }}" href="/s-mobiili/tapahtumat/{{ x.id }}{{ keep }}" data-sheet="txs-{{ x.id }}" data-basket="{{ x.basket or 'none' }}" data-in="{{ 1 if x.income else 0 }}" data-amt="{{ x.amount_eur|abs }}" data-q="{{ tx_hay(x) }}"{% if x.receipt %} data-receipt="1"{% endif %}>
     <span class="txi b-{{ x.tone }}">{{ cat_icon(x.icon) }}</span>
     <span class="tn"><b>{{ x.name }}{% if x.num %} <i>{{ x.num }}</i>{% endif %}</b><small>{{ sub_line(x) }}</small></span>
     {{ amount(x) }}</a>

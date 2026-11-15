@@ -1,5 +1,6 @@
 """S-mobiili's Pankki tab, one level down: every tile opens its own screen with the customer's real data, money moves
 open the same review and Face ID as Oiva's buttons, and back always returns to where the customer came from."""
+from html import escape
 import re
 from datetime import date
 
@@ -251,11 +252,11 @@ def test_transactions_by_day_with_a_detail_and_a_full_list(client):
     x = txview.rows(e, "en", 1)[0]
     home = get(client, "/s-mobiili/")
     assert 'id="see-all"' in home and f'data-sheet="txs-{x["id"]}"' in home and f'id="txs-{x["id"]}"' in home
-    assert txview.day_label(x["date"], e.today, "en") in home and x["basket_label"] in home
+    assert txview.day_label(x["date"], e.today, "en") in home and escape(x["basket_label"]) in home
     fi_home = get(client, "/s-mobiili/", "fi")
-    assert txview.day_label(x["date"], e.today, "fi") in fi_home and x["basket_label"] not in fi_home
+    assert txview.day_label(x["date"], e.today, "fi") in fi_home and escape(x["basket_label"]) not in fi_home
     detail = get(client, f"/s-mobiili/tapahtumat/{x['id']}")  # the sheet's body as a page, without JavaScript
-    assert x["name"] in detail and fi(abs(x["amount_eur"])) in detail and x["basket_line"] in detail
+    assert escape(x["name"]) in detail and fi(abs(x["amount_eur"])) in detail and escape(x["basket_line"]) in detail
     if x["receipt"]:
         assert f"/s-mobiili/kuitit/{x['id']}" in detail
     assert client.get("/s-mobiili/tapahtumat/999999").status_code == 404
