@@ -148,43 +148,44 @@
     return vs.find(x => norm(x) === LANG.toLowerCase()) || vs.find(x => norm(x).startsWith(LANG.slice(0, 2).toLowerCase()));
   }
   // ---- his mouth while the voice plays (oiva.js v3 talking layer) ----
-  // He talks only while sound actually comes out: the clip's own play/playing events start it, ended/pause/error
-  // and a new question or mute stop it, and between two pieces his mouth rests shut. The mouth opening follows the
-  // clip's loudness (a Web Audio analyser, a few hundred bytes read per frame); without one he babbles while the
-  // clip plays. The browser voice has no sound to measure: he babbles from its first word to its last.
-  let actx = null, meter = null, buf = null;
-  function audioUnlock() {  // inside a tap: make (or wake) the analyser's context, so routing the clip through it stays audible
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!player || !AC) return;
+  // He talks only while sound actually comes out: the clip's own 'playing' event opens his mouth; ended, waiting,
+  // pause, error, a new question or mute close it. The opening follows the clip's loudness: each clip is measured
+  // once when it arrives (decoded offline into one loudness value per 20 ms, never routed through Web Audio, so the
+  // voice plays exactly as before, also on an iPhone on silent), and read at the clip's current time. While a clip
+  // is still being measured he babbles. The browser voice has no sound to measure: he babbles while it speaks.
+  const STEP = 0.02, envs = new Map();  // blob URL -> loudness 0..1 per 20 ms
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  let decoder = null;
+  async function measure(url, blob) {
     try {
-      if (!actx) actx = new AC();
-      if (actx.state !== "running") actx.resume().catch(() => {});
-    } catch (e) { actx = null; }
+      if (!OAC) return;
+      decoder = decoder || new OAC(1, 1, 22050);
+      const raw = await blob.arrayBuffer();
+      const buf = await new Promise((ok, no) => { const r = decoder.decodeAudioData(raw, ok, no); if (r && r.then) r.then(ok, no); });
+      const d = buf.getChannelData(0), n = Math.max(1, Math.round(buf.sampleRate * STEP));
+      const env = new Float32Array(Math.ceil(d.length / n));
+      let peak = 0;
+      for (let i = 0; i < env.length; i++) {
+        let sum = 0; const end = Math.min(d.length, (i + 1) * n);
+        for (let j = i * n; j < end; j++) sum += d[j] * d[j];
+        env[i] = Math.sqrt(sum / Math.max(1, end - i * n)); if (env[i] > peak) peak = env[i];
+      }
+      if (peak > 0) for (let i = 0; i < env.length; i++) { const v = env[i] / peak; env[i] = v < 0.12 ? 0 : Math.min(1, (v - 0.12) * 1.6); }
+      if ([...clips.values()].includes(url)) envs.set(url, env);  // still cached (not evicted meanwhile)
+    } catch (e) {}  // not measurable: he babbles while it plays
   }
-  function wire() {  // once, and only with a running context: a suspended one would silence the clip
-    if (meter || !actx || actx.state !== "running") return;
-    try {
-      const src = actx.createMediaElementSource(player), a = actx.createAnalyser();
-      a.fftSize = 512; a.smoothingTimeConstant = 0.3;
-      src.connect(a); a.connect(actx.destination);
-      meter = a; buf = new Uint8Array(a.fftSize);
-    } catch (e) { meter = null; }
-  }
-  function level() {  // 0..1 mouth opening from the clip right now; null = no meter (oiva.js babbles)
+  function level() {  // 0..1 mouth opening from the clip right now; null = not measured yet (oiva.js babbles)
     if (!player || player.paused || player.ended) return 0;
-    if (!meter || !actx || actx.state !== "running") return null;
-    meter.getByteTimeDomainData(buf);
-    let sum = 0;
-    for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
-    const rms = Math.sqrt(sum / buf.length);
-    return rms < 0.015 ? 0 : Math.min(1, (rms - 0.015) * 7);
+    const env = envs.get(player.src);
+    return env ? env[Math.floor(player.currentTime / STEP)] || 0 : null;
   }
+  function synthLevel() { return speechSynthesis.speaking && !speechSynthesis.paused ? null : 0; }  // shut if it stalls
   let mouthOn = false;
   function mouth(on, how) {
     if (on === mouthOn && !how) return;
     mouthOn = on;
     if (!oiva) return;
-    if (on) oiva.talk(null, { level: how === "synth" ? null : level });
+    if (on) oiva.talk(null, { level: how === "synth" ? synthLevel : level });
     else oiva.stopTalking();
   }
   function doneTalking() {  // the reply was read to the end: he stops and holds the reply's pose a while
@@ -192,7 +193,8 @@
     if (mood !== "idle" && mood !== "thinking") restLater(8000);
   }
   if (player) {
-    player.addEventListener("playing", () => { if (talking && player.src !== SILENT) { wire(); mouth(true); } });
+    player.addEventListener("playing", () => { if (talking && !player.paused && player.src !== SILENT) mouth(true); });
+    player.addEventListener("waiting", () => mouth(false));  // buffering: quiet until 'playing' again
   }
 
   function speaking() { return talking || (canSynth && speechSynthesis.speaking) || !!(player && !player.paused && !player.ended); }
@@ -236,7 +238,7 @@
       u.rate = 1.02;
       u.onstart = () => { if (my === seq) mouth(true, "synth"); };
       if (n === chunks.length - 1) u.onend = () => { if (my === seq) doneTalking(); };
-      u.onerror = () => { if (my === seq) mouth(false); };
+      u.onerror = () => { if (my === seq) (n === chunks.length - 1 ? doneTalking() : mouth(false)); };  // the last one: done all the same
       speechSynthesis.speak(u);
     });
   }
@@ -245,9 +247,10 @@
     const r = await fetch("/api/voice", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, lang: fi ? "fi" : "en" }), signal });
     if (!r.ok || r.status === 204) return r.status;
-    const url = URL.createObjectURL(await r.blob());
-    if (clips.size >= 40) { const [k, u] = clips.entries().next().value; if (player.src !== u) URL.revokeObjectURL(u); clips.delete(k); }
+    const blob = await r.blob(), url = URL.createObjectURL(blob);
+    if (clips.size >= 40) { const [k, u] = clips.entries().next().value; if (player.src !== u) URL.revokeObjectURL(u); clips.delete(k); envs.delete(u); }
     clips.set(text, url);
+    measure(url, blob);
     return url;
   }
   function playClip(url) {  // resolves when it ends (true) or is stopped (false); rejects if playback is refused
@@ -257,11 +260,10 @@
       const end = () => { over = true; player.onended = player.onerror = player.onpause = null; stopClip = null; };
       const stop = () => { if (mine()) { end(); ok(false); } };
       stopClip = stop;
-      player.onended = () => { if (mine()) { end(); ok(true); } };  // the mouth rests until the next piece plays
+      player.onended = () => { mouth(false); if (mine()) { end(); ok(true); } };  // quiet until the next piece plays
       player.onerror = () => { mouth(false); if (mine()) { end(); ok(true); } };  // a broken clip: go on with the next one
       player.onpause = () => { if (!player.ended) stop(); };  // paused from outside (lock screen, a call): he stops
       player.src = url;
-      if (meter && actx.state !== "running") actx.resume().catch(() => {});  // routed through the analyser: keep it awake
       player.play().catch(e => { if (mine()) { end(); no(e); } });  // a late refusal of an old clip touches nothing
     });
   }
@@ -296,7 +298,6 @@
     }
   }
   function unlock() {  // iOS lets an <audio> play later only if it started inside a tap: a silent clip does that
-    if (voiceOn) audioUnlock();
     if (!voiceOn || !player || !player.paused || speaking()) return;
     player.src = SILENT; player.play().catch(() => {});
   }

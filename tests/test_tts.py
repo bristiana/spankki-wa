@@ -339,5 +339,7 @@ def test_helper_talks_only_while_the_voice_plays():
     assert 'addEventListener("playing"' in js and "oiva.talk(null" in js and "oiva.stopTalking()" in js
     assert "seq++; talking = false; mouth(false);" in js  # a new question or mute shuts his mouth at once
     assert "u.onstart" in js and "u.onend" in js  # the browser voice too
+    assert "createMediaElementSource" not in js  # the voice never goes through Web Audio (an iPhone on silent would mute it)
+    assert "decodeAudioData" in js and "player.currentTime / STEP" in js  # the mouth follows the clip's measured loudness
     mascot = open("app/static/oiva/mascot/oiva.js").read()
     assert "talk(text, o = {})" in mascot and "talkLevel = o.level" in mascot and "setFps(v)" in mascot
