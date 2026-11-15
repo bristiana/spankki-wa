@@ -120,7 +120,9 @@ def _helper(lang, bubble=(), pairs=()):
         pytest.skip("needs node to run the Helper's script")
     js = _HELPER_STUB % (json.dumps(lang), json.dumps(os.path.abspath("app/static/oiva/helper.js")),
                          json.dumps({"bubble": list(bubble), "pairs": list(pairs)}))
-    return json.loads(subprocess.run(["node", "-e", js], capture_output=True, text=True, encoding="utf-8", check=True).stdout)
+    run = subprocess.run(["node", "-e", js], capture_output=True, text=True, encoding="utf-8")
+    assert run.returncode == 0, run.stderr
+    return json.loads(run.stdout)
 
 
 def test_the_finnish_bubble_writes_money_with_a_decimal_comma():
@@ -128,6 +130,8 @@ def test_the_finnish_bubble_writes_money_with_a_decimal_comma():
     fi = _helper("fi", said)["bubble"]
     assert fi[0] == "Syyskuussa meni *776,48 €*, kun elokuussa 447,80 €."
     assert fi[1] == "Tililläsi on 3 345,06 € ja 12,5 % ennen 31.10.2026 klo 14.30."  # dates and times keep their points
+    edge = _helper("fi", ["-12.30 €", "€ 12.50", "12.50 euroa", "3,345.06 €", "1.5–2.5 %", "versio 2.1", "12.50€"])["bubble"]
+    assert edge == ["-12,30\u00a0€", "€ 12,50", "12,50 euroa", "3\u00a0345,06\u00a0€", "1,5–2,5 %", "versio 2.1", "12,50€"]
     en = _helper("en", said)["bubble"]
     assert en[0] == "Syyskuussa meni *776.48 €*, kun elokuussa 447.80 €." and "3 345.06 €" in en[1]
 

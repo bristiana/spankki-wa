@@ -41,8 +41,13 @@
   function nb(s) { return s.replace(/\bS-(?=[A-Za-zÄÖäö])/g, "S\u2011").replace(/(\d) (?=\d{3}(?!\d))/g, "$1\u00a0").replace(/(\d) €/g, "$1\u00a0€"); }
   // Finnish writes money with a decimal comma ("235,68 €", "3 345,06 €"), as the rest of the app does; the reply's
   // own text says "235.68 €", so the bubble turns the point of an amount or a percentage into a comma on FI. Only a
-  // point between digits right before € or % changes: a date (31.10.2026) or a time (14.30) stays as it is.
-  function fiNum(s) { return s.replace(/(\d)\.(\d+)(?=[\s\u00a0]?(?:€|%))/g, "$1,$2"); }
+  // number next to €, %, "euroa" (or the end of a range before one) changes: a date (31.10.2026) or a time (14.30) stays.
+  const UNIT = "[\\s\\u00a0]?(?:€|%|euro)";
+  const COMMA_K = new RegExp("(\\d),(?=\\d{3}(?:,\\d{3})*\\.\\d+" + UNIT + ")", "g");          // 3,345.06 € -> 3 345.06 €
+  const POINT = new RegExp("(\\d)\\.(\\d+)(?=(?:[–-]\\d+(?:\\.\\d+)?)?" + UNIT + ")", "g");  // 12.50 €, 1.5–2.5 %, 12.50 euroa
+  function fiNum(s) {
+    return s.replace(COMMA_K, "$1 ").replace(POINT, "$1,$2").replace(/(€[\s\u00a0]?-?\d+)\.(\d+)/g, "$1,$2");  // and € 12.50
+  }
   const bubble = s => nb(fi ? fiNum(String(s || "")) : String(s || ""));
   // The bubble: one sentence, not a copy of the log. For a comparison, the sentence that holds it (a spender
   // profile opens with the type and compares in its second part).
