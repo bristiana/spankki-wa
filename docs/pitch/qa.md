@@ -58,7 +58,7 @@ In our 31-chat evaluation (51 AI replies, local server) an AI reply averaged 4.0
 **15. What's actually new here vs. a chatbot on an FAQ?**
 Three things:
 - It answers on *your* transactions, with every figure checked by code and the check shown to you.
-- It writes first at the right moment: rent tomorrow, then what's really safe to spend (`app/rules.py`).
+- It writes first at the right moment: rent coming up, then what's really safe to spend until payday (`app/rules.py`).
 - It's a squirrel with 16 poses chosen from what the answer did (the tools it used, a payment ready, a lesson), not from keywords (`app/mood.py`), and it talks (ElevenLabs, `app/tts.py`).
 
 S-mobiili today has a virtual assistant, but no spending-by-category view and no mascot.
