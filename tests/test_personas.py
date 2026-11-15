@@ -152,10 +152,11 @@ def test_coach_runs_on_the_session_persona(client):
     theirs = client.post("/api/chat", json=ask).json()
     assert mine["text"] == f"{main.engine_for(pid).safe_to_spend()['safe_to_spend_until_payday_eur']:.2f} €"
     assert theirs["text"] == f"{main.engine.safe_to_spend()['safe_to_spend_until_payday_eur']:.2f} €"
-    assert f"first name is {main.name_for(pid)}." in fake.systems[0] and f"first name is {main.DEMO_NAME}." in fake.systems[-1]
+    assert f"first name is {main.name_for(pid)}." in fake.systems[0][1]["text"]
+    assert f"first name is {main.DEMO_NAME}." in fake.systems[-1][1]["text"]
     assert main.coach(pid).engine is main.engine_for(pid) and main.coach(pid).client is fake
     # one history per persona for the same web session
-    assert len(main.coach(pid).histories["web:s3"]) == len(main._coach.histories["web:s3"]) == 4
+    assert len(main.coach(pid).histories["web:s3"]) == len(main._coach.histories["web:s3"]) == 2
 
 
 def test_whatsapp_stays_on_the_default_persona(client):

@@ -230,5 +230,6 @@ def test_tool_explained(e):
 
 
 def test_prompt_rule():
-    from app.agent import SYSTEM
-    assert "get_people_like_me" in SYSTEM and "never to shame" in SYSTEM and "at least 30" in SYSTEM
+    from app.tools import TOOLS
+    how = next(t["description"] for t in TOOLS if t["name"] == "get_people_like_me")
+    assert "never to shame" in how and "at least 30" in how

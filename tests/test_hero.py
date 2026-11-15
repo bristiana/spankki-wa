@@ -66,7 +66,9 @@ def test_save_more_is_a_tool_with_a_trace_step(hero):
     out = json.loads(run_tool(hero, "get_save_more_ideas", {}, []))
     step = explain("get_save_more_ideas", {}, out)
     assert step["step"] == "Looked for where you could save more" and len(step["figures"]) == 3
-    assert "get_save_more_ideas" in SYSTEM and "What kind of spender am I?" in SYSTEM
+    how = {t["name"]: t["description"] for t in TOOLS}  # how to say each result lives with its tool
+    assert "number_to_say" in how["get_save_more_ideas"] and "what kind of spender am I?" in how["get_spender_profile"]
+    assert "get_save_more_ideas" not in SYSTEM
 
 
 class Script:

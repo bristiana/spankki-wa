@@ -495,7 +495,7 @@ def fresh_start(e: Engine, user: str, persona: str | None = None) -> str:
 
 
 SECRET_CONTEXT = ("Their message had a {what} in it; it was removed before it reached you and the app has already "
-                  "asked them to delete it. Don't mention it again; answer only the rest.")
+                  "asked them to delete it. Don't mention it again; answer only the rest, in one bubble.")
 
 
 def flow_turn(e: Engine, user: str, text: str, bid: str = "") -> onboarding.Turn | None:

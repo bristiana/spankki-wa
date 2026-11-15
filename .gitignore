@@ -10,3 +10,4 @@ node_modules/
 .claude/
 data/state/
 data/eb/
+data/*-chats.json
