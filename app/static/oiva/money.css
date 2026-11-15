@@ -44,9 +44,10 @@
   border-radius:6px;white-space:nowrap;transform:translate(-50%,-100%);display:none;z-index:2}
 .money .rel{position:relative}
 .money .notes{background:var(--warn-bg);border-radius:8px;padding:10px 14px;font-size:13px}
-/* Oiva floats bottom-right above the tab bar (sticky in the scrolling screen). At the end of the screen she sits in
-   her own space under the last card, so she never covers a chart there. Tapping her or a card asks her in the chat. */
-.money .ask-oiva{position:sticky;bottom:10px;z-index:1;display:flex;align-items:flex-end;justify-content:flex-end;gap:2px;
+/* Oiva waits at the end of the screen, in her own space under the last card. She does not float: a floating pill
+   covered figures as the cards scrolled under it, so "Ask Oiva" is docked as the first card instead. Tapping her, the
+   docked row or a card asks her in the chat. */
+.money .ask-oiva{position:relative;display:flex;align-items:flex-end;justify-content:flex-end;gap:2px;
   width:fit-content;margin:-4px -12px 0 auto}
 .money .ask-oiva .say{margin-bottom:34px;padding:6px 10px;border-radius:12px 12px 2px 12px;background:var(--card);color:var(--brand);
   font-size:12.5px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,60,25,.16)}

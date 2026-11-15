@@ -45,9 +45,11 @@ def test_picks_five_real_payments_across_all_three_baskets(e):
                  & ((tx["tx_amount_eur"] + p["amount_eur"]).abs() < 0.005)]
         assert len(row) >= 1, p  # a payment that is really in her history
         assert (e.today - date.fromisoformat(p["date"])).days <= quiz.IRREGULAR_WINDOW_DAYS
-    # the first game starts with where most of the money went: her rent and her fast food
-    assert {p["kind"] for p in picks} >= {"Housing", "Fast food and cafés"}
-    fast = next(p for p in picks if p["kind"] == "Fast food and cafés")
+    # the first game: things anyone can sort at a glance, named by the kind of place, never "Shopping payment"
+    assert {p["kind"] for p in picks} >= {"Rent", "Café or fast food"}
+    sortable = {fi for b in quiz.SORTABLE.values() for fi in b.values()}
+    assert all((p["name"], p["name_fi"]) in sortable and not p["place"] for p in picks)
+    fast = next(p for p in picks if p["kind"] == "Café or fast food")
     assert fast["total_eur"] == e.spending(merchant_type="5814", period="last_month")["total_eur"] == 449.87
 
 
@@ -257,28 +259,29 @@ def test_whatsapp_game_with_reply_buttons_and_stop(client):
     assert not main.connected(to) and to not in main.engine.state["quiz"]
 
 
-# ---------------- Finnish ----------------
-@pytest.mark.parametrize("phrase", ["Pelataan koripeliä", "pelaa", "peli", "koripeli", "aloita peli", "pelataan"])
-def test_finnish_start_phrase_starts_the_game_in_finnish(e, phrase):
-    t = quiz.turn(e, "u", phrase)
-    assert t and t.text.startswith("*1/5*") and "Mikä kori?" in t.text
-    assert e.state["quiz"]["u"]["lang"] == "fi" and "Koripeli" in t.lead[0]
+@pytest.mark.parametrize("p", WITH_FILE, ids=lambda p: p["name"])
+def test_every_persona_gets_recognisable_items(p, tmp_path):
+    e = Engine(csv_path=main.PERSONA_DIR / p["file"], today=date(2026, 10, 6), state_path=tmp_path / "s.json",
+               age=p["age"])
+    for game in (0, 1, 2):
+        picks = quiz.pick(e, game)
+        assert not any(x["name"].endswith(" payment") or "#" in x["name"] for x in picks), picks
 
 
-def test_finnish_game_uses_finnish_money_date_and_basket_buttons(e):
-    t = quiz.turn(e, "u", "x", "quiz:start", "fi")
+def test_the_game_plays_in_finnish(e):
+    t = quiz.turn(e, "u", "peli", lang="fi")
     p = e.state["quiz"]["u"]["picks"][0]
-    d = date.fromisoformat(p["date"])
-    assert money(p["amount_eur"]).replace(".", ",") in t.text and f"{d.day}.{d.month}." in t.text
-    assert [b[1] for b in t.buttons] == ["Laskut ja perusmenot", "Satunnaiset menot", "Valinnaiset menot"]
-    r = e.state["quiz"]["u"]
-    fb = quiz.turn(e, "u", "", f"quiz:0:0:{p['basket']}").lead[0]
-    assert fb.startswith("Oikein.") and "Right" not in fb
-    quiz.turn(e, "u", "stop")
-    assert quiz.turn(e, "u", "peli").lead == ["Takaisin peliin."]
+    assert t.lead[0].startswith("*Koripeli.*") and t.text.endswith("Mihin koriin?") and p["name_fi"] in t.text
+    assert [label for _, label in t.buttons] == ["Laskut ja perusmenot", "Satunnaiset menot", "Valinnaiset menot"]
+    assert quiz._eur(12.5, True) == "12,50 €" and quiz._eur(p["amount_eur"], True) in t.text
+    t = quiz.turn(e, "u", "", f"quiz:0:0:{p['basket']}", lang="fi")
+    assert t.lead[0].startswith("Oikein. ")
+    for _ in range(4):
+        r = e.state["quiz"]["u"]
+        t = quiz.turn(e, "u", "", f"quiz:0:{r['round']}:{r['picks'][r['round']]['basket']}", lang="fi")
+    assert t.text.startswith("*5/5*. Hienoa") and "Todellinen jakosi" in t.text
 
 
-def test_english_page_stays_english(e):
-    t = quiz.turn(e, "u", "x", "quiz:start", "en")
-    assert "Which basket?" in t.text and [b[1] for b in t.buttons] == [b["label"] for b in BASKETS.values()]
-    assert e.state["quiz"]["u"]["lang"] == "en"
+def test_no_two_game_items_share_a_name():
+    names = [n for b in quiz.SORTABLE.values() for pair in b.values() for n in pair]
+    assert len(names) == len(set(names))

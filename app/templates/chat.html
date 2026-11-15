@@ -229,7 +229,7 @@ async function send(text, shown, image) {
   t.setAttribute("role", "status");
   try {
     const r = await fetch("/api/chat", {method: "POST", headers: {"content-type": "application/json"},
-                                         body: JSON.stringify({session: sid, text, image, lang: document.documentElement.lang, as: {{ persona.id|tojson }}, mirror: MIRROR,
+                                         body: JSON.stringify({session: sid, text, image, as: {{ persona.id|tojson }}, mirror: MIRROR, lang: document.documentElement.lang,
                                                                 shown: shown === null ? "" : (shown || text || "")})});
     const j = r.ok ? await r.json() : {text: r.status === 413 ? "That photo is too big for me. Could you try a smaller one?"
                                              : "Sorry, that didn't work on my side. Try again, or pick one of the ideas below."};
@@ -248,7 +248,8 @@ async function send(text, shown, image) {
       d.classList.add("has-chart");
       const box = document.createElement("div"), plot = document.createElement("div");
       box.className = "chart"; plot.className = "plot";
-      box.innerHTML = "<b>" + esc(c.title) + "</b><small>" + esc(c.subtitle) + "</small>";
+      const fi = document.documentElement.lang === "fi";  // a chart carries both languages
+      box.innerHTML = "<b>" + esc(fi && c.title_fi || c.title) + "</b><small>" + esc(fi && c.subtitle_fi || c.subtitle) + "</small>";
       box.appendChild(plot); d.appendChild(box);
       window.oivaChart(plot, c);
     }

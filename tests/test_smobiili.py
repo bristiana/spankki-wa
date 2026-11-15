@@ -142,9 +142,9 @@ def test_your_money_and_oiva_share_one_set_of_numbers(client):
 
 @pytest.mark.parametrize("lang, oiva, cats, say", [
     ("en", "Tell me about my spending in September, not counting rent and bills", "Where did my money go in September, not counting rent and bills?",
-     "Ask me about this"),
+     "Ask Oiva about your money"),
     ("fi", "Kerro kulutuksestani syyskuussa, kun vuokraa ja laskuja ei lasketa", "Mihin rahani menivät syyskuussa, kun vuokraa ja laskuja ei lasketa?",
-     "Kysy minulta tästä")])
+     "Kysy Oivalta rahoistasi")])
 def test_your_money_asks_oiva(client, lang, oiva, cats, say):
     """Oiva floats on Your money; tapping her or a chart card asks her about it in the chat, in the screen's language."""
     import re
@@ -237,3 +237,17 @@ def test_demo_reset_link_needs_a_tap(client, monkeypatch):
     r = client.post("/demo/reset/go", data={"lang": "fi"}, follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == f"/s-mobiili/?persona={main.DEFAULT_PERSONA}&lang=fi"
     assert called == ["reset", "warm"]
+
+
+@pytest.mark.parametrize("lang", ["fi", "en"])
+def test_koti_shows_oivas_safe_to_spend_card_first(client, lang):
+    """Oiva on Koti's first screen: a card right under the bonus hero with the engine's safe to spend, whose row asks
+    her in the Helper."""
+    page = client.get(f"/s-mobiili/?lang={lang}").text
+    s = main.engine.safe_to_spend()
+    card = page[page.index('id="oiva-card"'):]
+    card = card[:card.index("</section>")]
+    assert main.fi_money(s["safe_to_spend_until_payday_eur"]) in card and main.fi_money(s["safe_per_day_eur"]) in card
+    assert "mascot/head-v3.png" in card and 'id="ask-spend"' in card and 'href="/chat?q=' in card
+    assert ("Turvallisesti käytettävissä" if lang == "fi" else "Safe to spend") in card
+    assert page.index('class="hero"') < page.index('id="oiva-card"') < page.index("Vahvistettavat maksut" if lang == "fi" else "Payments to confirm")

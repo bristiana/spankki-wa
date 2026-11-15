@@ -178,6 +178,16 @@
   .bk-row .n{text-align:right;white-space:nowrap;font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums}
   .bk-row .n small{font-weight:400}
   .bk-hint{display:inline-block;margin-top:4px;padding:1px 8px;border-radius:99px;background:var(--mint);color:var(--brand);font-size:11.5px;font-weight:600}
+  /* Oiva's card on Koti, right under the bonus hero: her face, today's safe to spend, "Ask Oiva" */
+  .oiva-card{padding:14px 16px 0}
+  .oc-top{display:flex;align-items:center;gap:12px;padding-bottom:12px}
+  .oc-top img{width:52px;height:52px;flex:none;border-radius:50%;background:var(--soft)}
+  .oc-txt{flex:1;min-width:0}
+  .oc-k{display:block;font-size:12.5px;color:var(--muted);line-height:1.3}.oc-k b{color:var(--brand);font-weight:700}
+  .oc-n{display:block;color:var(--brand);font-size:26px;font-weight:700;letter-spacing:-.3px;line-height:1.15;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .oc-txt small{display:block;font-size:12.5px;color:var(--muted);line-height:1.3}
+  .oc-txt .nw{white-space:nowrap}
+  .oiva-card .ask-o img{display:none}  /* her face is already at the top of the card */
   /* "Ask Oiva": the same row on every screen, a footer inside a card or a card of its own */
   .ask-o{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 0;border-top:1px solid var(--line);color:var(--brand)}
   .ask-o img{width:28px;height:28px;flex:none;border-radius:50%;background:var(--soft)}
@@ -200,6 +210,10 @@
   .tile .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .tile .cols .v{white-space:nowrap}
   .tile .chev{width:30px;height:30px;color:var(--faint)}
+  /* the Pankki tab packs its tiles a little tighter, so the Cards tile and its amount sit above the raised + (Maksu)
+     in the first view of a phone, not under it */
+  .pk .card{margin-bottom:12px}
+  .pk .tile{padding-top:15px;padding-bottom:15px;min-height:96px}
   /* ---- Minä ---- */
   .me-head{background:var(--bar);text-align:center;padding:10px 20px 22px}
   .avatar{width:84px;height:84px;border-radius:50%;background:var(--mint);color:var(--brand);display:grid;place-items:center;margin:0 auto 14px;font-size:44px;font-weight:700}
@@ -361,6 +375,14 @@
       <span class="go">{{ t("Tarkista ja vahvista", "Check and confirm") }}{{ icon("chevron") }}</span>
     </a>
     {% elif ready %}<p class="ready-done" id="ready-done">{{ icon("check") }}{{ t("Valmis, tämä on jo tehty", "Already done") }}</p>{% endif %}
+    {# Oiva on the first screen: today's safe to spend from the engine, and the Helper one tap away #}
+    <section class="card oiva-card" id="oiva-card" aria-label="Oiva">
+      <div class="oc-top"><img src="{{ static('oiva/mascot/head-v3.png') }}" alt="" width="52" height="52">
+        <span class="oc-txt"><span class="oc-k"><b>Oiva</b> · {{ t("Turvallisesti käytettävissä", "Safe to spend") }}</span>
+          <b class="oc-n" id="oiva-safe">{{ safe.amount|fimoney }}</b>
+          <small>{% if safe.payday %}{{ t("palkkapäivään " ~ safe.payday ~ " asti", "until payday " ~ safe.payday) }}{% else %}{{ t("seuraavat " ~ safe.days ~ " päivää", "next " ~ safe.days ~ " days") }}{% endif %} <span class="nw">· {{ t("noin", "about") }} {{ safe.per_day|fimoney }} {{ t("päivässä", "a day") }}</span></small></span></div>
+      {{ ask_oiva("Paljonko voin vielä käyttää?", "How much can I spend until payday?", "ask-spend") }}
+    </section>
     <a class="card row-card" href="{{ tab_urls.pankki }}">{{ icon("check") }}<span class="txt"><b>{{ t("Vahvistettavat maksut", "Payments to confirm") }}</b>
       <small>{% if bill %}{{ t("Seuraava eräpäivä", "Next due date") }} {{ bill.due }}{% else %}{{ t("Ei vahvistettavia maksuja", "No payments to confirm") }}{% endif %}</small></span>
       {% if bills_due %}<span class="badge" aria-label="{{ bills_due|length }} {{ t('vahvistettavaa maksua', 'payments to confirm') }}">{{ bills_due|length }}</span>{% endif %}</a>
@@ -369,7 +391,6 @@
       <div class="li" id="acct-current">{{ icon("bars") }}<span class="txt">{{ t("Käyttötili", "Current account") }}</span><span class="amt">{{ a.current|fimoney }}</span></div>
       <div class="li">{{ icon("scard-fill") }}<span class="txt">S-Etukortti Visa Credit/Debit<small>Credit **** 4821</small></span><span class="amt">2&nbsp;000,00&nbsp;€<small>{{ t("Luottoa käytettävissä", "Credit available") }}</small></span></div>
       <a class="hide-link" href="{{ tab_urls.kortti }}">{{ t("Näytä kortin tiedot", "Show card details") }}</a>
-      {{ ask_oiva("Paljonko voin käyttää palkkapäivään asti?", "How much can I spend until payday?", "ask-spend") }}
     </section>
     <{{ 'div' if web else 'a' }} class="card bk" id="baskets"{% if not web %} href="{{ ask('Mihin rahani menevät?', 'Where does my money go?') }}"{% endif %}>
       <span class="t">{{ t("Mihin rahasi menevät", "Where your money goes") }}</span><span class="en">{{ t("Kuukausikeskiarvo · viimeiset " ~ baskets.months ~ " kuukautta", "Average month · last " ~ baskets.months ~ " months") }}</span>
@@ -400,7 +421,7 @@
     </section>
     </div>
   {% elif screen == "tab" and tab == "pankki" %}
-    <div class="pad">
+    <div class="pad pk">
     {{ ask_oiva("Mitä laskuja minulla on tulossa?", "What bills do I have coming up?", "ask-bills", cls="card") }}
     {% if money %}<a class="card tile" id="your-money" href="{{ tab_urls.raha }}">{{ icon("chart") }}<span class="txt"><span class="t">{{ t("Rahasi", "Your money") }}</span>
       <span class="s">{{ t("Kulutus, budjetit, laskut ja kaltaisesi, Oivan kanssa", "Spending, budgets, bills and people like you, with Oiva") }}</span></span>{{ icon("chevron", "i chev") }}</a>{% endif %}
@@ -419,10 +440,12 @@
     </div>
   {% elif screen == "tab" and tab == "raha" %}
     <div class="pad money" id="money" data-src="/s-mobiili/money-data/">
-      {# each card is a link: tapping it asks Oiva about that card (money.js fills it in) #}
+      {# "Ask Oiva" docked at the top like on Pankki (no floating pill over the figures); each card below is a link:
+         tapping it asks Oiva about that card (money.js fills it in). The questions are money_asks(): the cards' own. #}
+      {{ ask_oiva(money_q.oiva[0], money_q.oiva[1], "ask-money", cls="card") }}
       {% for id in ("trend", "cats", "budget", "sit", "fig", "income", "cal") %}<a class="card{{ ' rel' if id == 'trend' }}" id="{{ id }}" href="{{ asks[id] }}"></a>
       {% endfor %}
-      <a class="ask-oiva" id="ask-oiva" href="{{ asks.oiva }}"><span class="say">{{ t("Kysy minulta tästä", "Ask me about this") }}</span>
+      <a class="ask-oiva" id="ask-oiva" href="{{ asks.oiva }}"><span class="say">{{ t("Kysy Oivalta rahoistasi", "Ask Oiva about your money") }}</span>
         <span class="oiva wave once" role="img" aria-label="Oiva" onanimationend="this.className = 'oiva idle'"></span></a>
     </div>
     <script>document.getElementById("trend").addEventListener("click", e => e.target.closest("svg") && e.preventDefault());  // the chart scrubs, the rest asks</script>

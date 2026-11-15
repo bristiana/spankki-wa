@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from .engine import (BASKETS, EXPLORE_GROUP_BY, EXPLORE_MERCHANT_TYPES, EXPLORE_METRICS, EXPLORE_WHAT, FUNDS, PERIODS,
                      SPEND_CATEGORIES, Engine)
-from . import bills, enable_banking
+from . import bills, charts, enable_banking
 from .lessons import lesson_for
 from .whatsapp import short
 
@@ -525,6 +525,9 @@ def run_tool(engine: Engine, name: str, args: dict, buttons: list) -> str:
         out = bills.run_tool(engine, buttons, lambda pid: confirm_url("pay", pid))
     else:
         raise ValueError(f"unknown tool {name}")
+    chart = charts.for_tool(name, out)  # drawn in the web chat's bubble from these very figures
+    if chart and not any(b.get("chart") == chart for b in buttons):
+        buttons.append({"chart": chart})
     lesson = lesson_for(name, out)
     if lesson:
         out["lesson"] = lesson
