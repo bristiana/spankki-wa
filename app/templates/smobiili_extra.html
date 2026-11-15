@@ -72,13 +72,13 @@
   </div>
 {% elif extra == "kuitit" %}
   <div class="pad">
+    {{ ask_oiva("Onko ruokakulutukseni tavallista alueellani?", "Is my grocery spending normal for my area?", "ask-receipts", cls="card") }}
     <h2 class="sec">{{ t("Ruokaostokset", "Grocery receipts") }}</h2>
     <section class="card list x-list" id="receipts">
       {% for k in receipts %}<a class="li tap" href="/s-mobiili/kuitit/{{ k.id }}{{ keep }}">{{ store_logo() }}<span class="txt">{{ k.store }}<small>{{ k.date.day }}.{{ k.date.month }}.{{ k.date.year }}</small></span>
         <span class="amt">{{ k.total_eur|fimoney }}</span>{{ icon("chevron", "i chev") }}</a>
       {% else %}<p class="muted">{{ t("Ei vielä kuitteja.", "No grocery purchases yet.") }}</p>{% endfor %}
     </section>
-    {{ ask_oiva("Onko ruokakulutukseni tavallista alueellani?", "Is my grocery spending normal for my area?", "ask-receipts", cls="card") }}
   </div>
 {% elif extra == "kuitti" %}
   <div class="pad">

@@ -49,17 +49,6 @@
   /* "Oiva is thinking": the stage's bubble shows the dots; screen readers hear this */
   .typing{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
   @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
-  .chips{display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px;width:100%;scrollbar-width:none;
-    -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
-  /* "More ideas": every idea at once, wrapped and scrollable, instead of more chips hidden off to the right */
-  .chips.all{flex-wrap:wrap;overflow-x:hidden;overflow-y:auto;max-height:40dvh;-webkit-mask-image:none;mask-image:none;padding-top:4px}
-  .chips.all button{flex:0 1 auto;max-width:100%;white-space:normal;text-align:left}
-  .chips:not(.all) .more{display:none}
-  /* the four main questions: a 2x2 grid, about half the height of four stacked rows on a phone */
-  .chips.top{display:grid;grid-template-columns:1fr 1fr;gap:6px;overflow:visible;-webkit-mask-image:none;mask-image:none;padding-bottom:6px}
-  .chips.top button{font-weight:600;border-color:var(--brand);white-space:normal;line-height:1.2;border-radius:14px;
-    padding:6px 10px;font-size:13px;text-align:center}  .chips button[data-more]{color:var(--brand);font-weight:600}
-  .chips button{flex:none;min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 14px;font:14px var(--font);cursor:pointer;white-space:nowrap}
   form#f{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
   form#f input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:12px 16px;font:16px var(--font);background:var(--bg);color:var(--ink)}
   form#f button{border:0;border-radius:99px;background:var(--brand);color:var(--brand-ink);font:600 15px var(--font);padding:0 18px;min-height:44px;cursor:pointer}
@@ -120,18 +109,17 @@
 <div id="log" aria-live="polite" aria-label="{{ t('Keskustelu Oivan kanssa', 'Conversation with Oiva') }}">
   <div class="msg bot" id="hello">{% if ui_lang(request) == 'en' %}Hi {{ name }}! I'm <b>Oiva</b>, your S-Pankki money coach. Ask me about your money, like what's left until payday.{% else %}Hei {{ name }}! Olen <b>Oiva</b>, S-Pankin rahavalmentajasi. Kysy rahoistasi, vaikka paljonko on jäljellä palkkapäivään.{% endif %}</div>
 </div>
-<!-- The three questions S-Pankki's mentors say matter most: always in view, above the scrolling ideas -->
 <form id="f" autocomplete="off">
   <label id="attach" title="{{ t('Lähetä kuva laskusta', 'Send a photo of a bill') }}" aria-label="{{ t('Lähetä kuva laskusta', 'Send a photo of a bill') }}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><input id="photo" type="file" accept="image/*" hidden></label>
   <input id="q" placeholder="{{ t('Kysy rahoistasi…', 'Ask about your money…') }}" aria-label="{{ t('Viesti', 'Message') }}" enterkeyhint="send">
   <button id="send">{{ t("Lähetä", "Send") }}</button>
 </form>
 <nav class="tabs" aria-label="S-mobiili">
-  <a href="/s-mobiili/">{{ icon("home") }}{{ t("Koti", "Home") }}</a>
-  <a href="/s-mobiili/?tab=etukortti">{{ icon("s") }}S-Etukortti</a>
-  <a href="/s-mobiili/?tab=pankki"><span class="plus">{{ icon("plus") }}</span>{{ t("Maksu", "Pay") }}</a>
-  <a href="/s-mobiili/?tab=pankki">{{ icon("wallet") }}{{ t("Pankki", "Bank") }}</a>
-  <a href="/s-mobiili/?tab=mina">{{ icon("me") }}{{ t("Minä", "Me") }}</a>
+  <a href="{{ back_url }}">{{ icon("home") }}{{ t("Koti", "Home") }}</a>
+  <a href="{{ tab_urls.etukortti }}">{{ icon("s") }}S-Etukortti</a>
+  <a href="{{ tab_urls.pankki }}"><span class="plus">{{ icon("plus") }}</span>{{ t("Maksu", "Pay") }}</a>
+  <a href="{{ tab_urls.pankki }}">{{ icon("wallet") }}{{ t("Pankki", "Bank") }}</a>
+  <a href="{{ tab_urls.mina }}">{{ icon("me") }}{{ t("Minä", "Me") }}</a>
 </nav>
 <div id="sheet" role="dialog" aria-modal="true" aria-label="{{ t('Vahvista S-Pankissa', 'Confirm in S-Pankki') }}">
   <div class="panel"><div class="top"><span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>S-Pankki</span><button id="close" aria-label="{{ t('Sulje ja palaa chattiin', 'Close and go back to the chat') }}">×</button></div><iframe id="frame" title="Confirm"></iframe></div>
@@ -297,17 +285,6 @@ photo.onchange = async () => {
     send(v, null, c.toDataURL("image/jpeg", 0.85));
   } catch (e) { add("bot", "I couldn't open that photo. Could you try another one?"); }
 };
-const chips = document.getElementById("chips");  // the suggestion chips are gone; kept null-safe
-document.querySelectorAll("#top button, #chips button").forEach(b => b.onclick = () => {
-  if (b.hasAttribute("data-more")) {  // 9 ideas at first; the rest one tap away
-    const all = chips.classList.toggle("all");
-    b.textContent = all ? UI.fewer + " ‹" : UI.more + " ›"; b.setAttribute("aria-expanded", all);
-    return;
-  }
-  if (chips && chips.classList.contains("all")) chips.querySelector("[data-more]").click();  // fold the ideas away again
-  b.dataset.q ? send(b.dataset.q, null) : send(b.textContent);
-});
-
 // Deep link /chat?q=...: ask once, then drop q from the address so a reload doesn't ask again.
 const deepQ = {{ q|tojson }};
 if (deepQ) {

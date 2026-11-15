@@ -6,7 +6,7 @@ screen has an "Ask Oiva" row that opens it with a question (§9).
 
 ## What we want
 
-A second way to talk to Oiva in the S-mobiili mock: a big squirrel that acts out what the conversation is about,
+Oiva's chat in the S-mobiili mock: a big squirrel that acts out what the conversation is about,
 says its answer in a speech bubble (and, if you turn the sound on, out loud), with most of the screen still left for
 the conversation. Its most important change: when you compare yourself with other people, it switches to its
 *compare* pose. It is the chat: opening Oiva from S-mobiili always gives the Helper.
@@ -82,7 +82,7 @@ mentioned nobody else).
 ```
 ┌ header: back · 🔈 sound · Oiva · FI|EN ─┐
 │ ┌────────┐  ┌─ speech bubble ───────┐  │
-│ │ squirrel│ ◄ tag: Compared with …   │  │  squirrel: clamp(120px, 20dvh, 168px)
+│ │ squirrel│ ◄ tag: Compared with …   │  │  squirrel: clamp(104px, 16dvh, 132px)
 │ │ ~150 px │  one sentence of reply   │  │
 │ └────────┘  └───────────────────────┘  │
 │ conversation log (same bubbles, charts,│  everything left: about half the screen at 360×760
@@ -138,13 +138,14 @@ mentioned nobody else).
 - `tests/test_mood.py`: the mapping (peer tools → compare; spending → spent; afford fits/doesn't; approval buttons;
   error; small talk) and that `/api/chat` returns `mood` for fixed flows; the chat page is the Helper only in FI and EN.
 - Screenshots at 360 px through real conversations with Claude: a peer-comparison question, a plain spending question,
-  an affordability question, light and dark, the switch, and chat mode still working.
+  an affordability question, the embedded chat, and each S-mobiili screen's Ask Oiva row tapped.
 
 ## 9. Ask Oiva on S-mobiili
 
 One row look everywhere (Oiva's face, "Ask Oiva" over the question, a chevron), inside a section's card or as a card of
 its own, at most one per section. Each opens the Helper asking its question in the page's language (`ask()` in
-`sm_ctx`, keeping `?web=` and `?persona=`):
+`sm_ctx`, keeping `?persona=`). The row's face is the Helper's own (`mascot/head.png`, a still of oiva.js). Under
+`?web=1` (S-mobiili inside the chat's confirm sheet) no rows are drawn: a chat inside the chat would be a dead end.
 
 | Screen | Where | Asks (EN) |
 |---|---|---|
@@ -156,6 +157,6 @@ its own, at most one per section. Each opens the Helper asking its question in t
 | Pankki → Your money | each chart and the floating Oiva (already there) | per chart |
 | Kortti | under Transactions | Where did my money go this month? |
 | S-Etukortti | under the offers | How much do I spend on groceries a month? |
-| S-Etukortti → Receipts | under the list | Is my grocery spending normal for my area? |
+| S-Etukortti → Receipts | above the list | Is my grocery spending normal for my area? |
 | Minä | top | What kind of spender am I? |
 

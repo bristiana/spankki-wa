@@ -46,10 +46,13 @@
 {%- set en = ui_lang(request) == "en" %}
 {%- set top_title = {"etukortti": "S-Etukortti", "pankki": "S-Pankki", "mina": t("Minä", "Me"), "kortti": t("Kortti", "Card"), "raha": t("Rahasi", "Your money")} %}
 {%- set en_title = {"pay": "Payment", "save": "Savings", "invest": "Investments", "stop": "Investments"} %}
-{#- "Ask Oiva": a row that opens the Helper chat asking that question (ask() keeps ?web= and ?persona=). Inside a link
-    card it is a span (no link in a link); standalone it is a card of its own. -#}
+{#- "Ask Oiva": a row that opens the Helper chat asking that question in the page's language (ask() keeps ?persona=).
+    Inside a link card it is a span (no link in a link); standalone it is a card of its own. Not drawn under ?web=1:
+    there this page is inside the chat's own confirm sheet, and a chat in the chat would be a dead end. -#}
 {%- macro ask_oiva(fi, en_q, id="", tag="a", cls="") -%}
-<{{ tag }} class="ask-o {{ cls }}"{% if id %} id="{{ id }}"{% endif %}{% if tag == "a" %} href="{{ ask(fi, en_q) }}" aria-label="{{ t('Kysy Oivalta', 'Ask Oiva') }}: {{ t(fi, en_q) }}"{% endif %}><img src="/static/oiva/oiva.png" alt="" width="28" height="28"><span class="q"><small>{{ t("Kysy Oivalta", "Ask Oiva") }}</small>{{ t(fi, en_q) }}</span>{{ icon("chevron") }}</{{ tag }}>
+{%- if not web -%}
+<{{ tag }} class="ask-o {{ cls }}"{% if id %} id="{{ id }}"{% endif %}{% if tag == "a" %} href="{{ ask(fi, en_q) }}" aria-label="{{ t('Kysy Oivalta', 'Ask Oiva') }}: {{ t(fi, en_q) }}"{% endif %}><img src="/static/oiva/mascot/head.png" alt="" width="28" height="28"><span class="q"><small>{{ t("Kysy Oivalta", "Ask Oiva") }}</small>{{ t(fi, en_q) }}</span>{{ icon("chevron") }}</{{ tag }}>
+{%- endif -%}
 {%- endmacro %}
 {%- macro lang_switch(cls="") -%}
 <span class="lang {{ cls }}" role="group" aria-label="{{ t('Kieli', 'Language') }}">{% for code in ("fi", "en") %}<a href="{{ lang_url(request, code) }}" hreflang="{{ code }}" lang="{{ code }}"{% if ui_lang(request) == code %} aria-current="true"{% endif %}>{{ code|upper }}</a>{% endfor %}</span>
@@ -177,7 +180,6 @@
   .ask-o>.i{width:20px;height:20px;flex:none}
   .card.ask-o{border-top:0;padding:8px 16px}
   .plain .ask-o{padding:8px 20px}
-  .oiva-row img{width:34px;height:34px;flex:none}
   .tx{padding:2px 16px}
   .tx .row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:15px;color:#222}
   .tx .row:first-child{border-top:0}.tx small{display:block;color:var(--muted);font-size:12.5px}
@@ -375,8 +377,6 @@
         <span class="amt">{{ a.funds|fimoney }}</span></div>
       {{ ask_oiva("Paljonko voisin säästää kuussa?", "How much could I save a month?", "ask-save") }}
     </section>
-    <a class="card row-card oiva-row" id="ask-card" href="{{ ask() }}"><img src="/static/oiva/oiva.png" alt=""><span class="txt"><b>{{ t("Kysy Oivalta", "Ask Oiva") }}</b>
-      <small>{{ t("Rahavalmentajasi, täällä ja WhatsAppissa", "Your money coach, here and in WhatsApp") }}</small></span>{{ icon("chevron", "i chev") }}</a>
     <h2 class="sec">{{ t("Tapahtumat", "Transactions") }}</h2>
     <section class="card tx" id="recent">
       {% for x in recent %}<div class="row"><span>{{ x.what }}<small>{{ x.date }}{% if x.basket %} · {{ x.basket if en else basket_fi_by_label.get(x.basket, x.basket) }}{% endif %}</small></span>

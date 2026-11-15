@@ -27,7 +27,7 @@ def test_comparing_with_other_people_is_compare(tools):
     assert mood.for_reply(tools) == "compare"
 
 
-@pytest.mark.parametrize("tools,want", [(["get_spending"], "spent"), (["get_baskets"], "spent"),
+@pytest.mark.parametrize("tools,want", [(["get_spending"], "spent"), (["get_baskets"], "spent"), (["get_upcoming_bills"], "checking"),
                                         (["get_safe_to_spend"], "safe_to_spend"), (["simulate_cut"], "what_if"),
                                         (["get_save_more_ideas"], "saving"), (["get_home_readiness"], "saving"), (["get_money_guide"], "teaching"),
                                         (["explore_my_data"], "working"), ([], "success")])
@@ -80,3 +80,14 @@ def test_chat_page_is_the_helper_only(client, lang):
     js = open("app/static/oiva/helper.js").read()
     assert "coin" not in js.lower() and "setMode" not in js and "oiva-mode" not in js
     assert client.get("/static/oiva/mascot/oiva.js").status_code == 200
+
+
+class _Saver:
+    def __init__(self, monthly): self.monthly = monthly
+    def safe_to_save(self): return {"monthly": {"sustainable_saving_per_month_eur": self.monthly}}
+
+
+def test_nothing_to_save_is_a_caution_not_a_happy_saving_pose():
+    assert mood.for_reply(["get_safe_to_save"], (), _Saver(0.0)) == "caution"
+    assert mood.for_reply(["get_safe_to_save"], (), _Saver(120.0)) == "saving"
+    assert mood.for_reply(["get_safe_to_save"]) == "saving"

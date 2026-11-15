@@ -20,7 +20,8 @@ TOOL_MOOD = [  # first match wins, after peers, approvals and can_i_afford
     ({"get_safe_to_spend"}, "safe_to_spend"),
     ({"get_safe_to_save", "get_save_more_ideas", "create_goal", "get_goals", "get_home_readiness"}, "saving"),
     ({"get_money_guide"}, "teaching"),
-    ({"get_spending", "get_baskets", "get_regular_payments", "get_upcoming_bills"}, "spent"),
+    ({"get_regular_payments", "get_upcoming_bills"}, "checking"),  # what is coming up: a look, not money gone
+    ({"get_spending", "get_baskets"}, "spent"),
     ({"explore_my_data", "get_full_picture", "get_portfolio", "list_funds"}, "working"),
 ]
 
@@ -37,6 +38,14 @@ def afford_fits(engine, trace) -> bool | None:
     return None
 
 
+def nothing_to_save(engine) -> bool:
+    """True when income doesn't cover usual costs, so there is no steady monthly amount to save."""
+    try:
+        return not engine.safe_to_save()["monthly"]["sustainable_saving_per_month_eur"]
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def for_reply(tools, buttons=(), engine=None, trace=None) -> str:
     """The pose for an answer from the coach: `tools` it called, `buttons` (PIN / Face ID links) it made."""
     used = set(tools or ())
@@ -47,6 +56,8 @@ def for_reply(tools, buttons=(), engine=None, trace=None) -> str:
     if "can_i_afford" in used:
         fits = afford_fits(engine, trace) if engine is not None else None
         return "caution" if fits is False else "safe_to_spend"
+    if "get_safe_to_save" in used and engine is not None and nothing_to_save(engine):
+        return "caution"  # "nothing steady right now" is not a happy saving moment
     for names, mood in TOOL_MOOD:
         if used & names:
             return mood

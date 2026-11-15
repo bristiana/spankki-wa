@@ -44,7 +44,9 @@
   const PEER = /\b(people|customers|typical|average|most|others|their|year[- ]olds|asiakk\w*|tyypilli\w*|keskim\w*|muut\w*|muill\w*|kaltais\w*|ikäis\w*|\w*vuotiai\w*)\b|\d+\s*[–-]\s*\d+[- ]?(year|vuot)/i;
   function sentences(s) { return plain(s).split(/(?<=[.!?…])\s+(?=["'(A-ZÄÖÅ0-9])/); }
   function first(parts, m) {
-    const all = (parts || []).flatMap(sentences).filter(Boolean);
+    // a list (one line per basket, say) reads badly as one sentence: the bubble takes the prose around it
+    const prose = (parts || []).filter(p => !/\n/.test(String(p || "").trim()));
+    const all = (prose.length ? prose : parts || []).flatMap(sentences).filter(Boolean);
     // a comparison: the sentence with both a peer word and an amount, else any peer sentence
     const peer = m === "compare" && (all.find(x => PEER.test(x) && /\d[\d\s.,]*\s?€/.test(x)) || all.find(x => PEER.test(x)));
     let s = peer || all[0] || "";
