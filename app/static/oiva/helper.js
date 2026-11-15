@@ -37,7 +37,7 @@
   const POSES = ["idle", "listening", "thinking", "working", "teaching", "checking", "needs_approval", "success", "error",
     "learned", "saving", "spent", "safe_to_spend", "caution", "what_if", "compare"];
 
-  function plain(s) { return String(s || "").replace(/[*_]/g, "").replace(/\s+/g, " ").trim(); }
+  function plain(s) { return String(s || "").replace(/[*_]/g, "").replace(/[ \t\r\n]+/g, " ").trim(); }
   // amounts never break across lines in the bubble: "3 345.06 €" keeps its spaces non-breaking
   function nb(s) { return s.replace(/\bS-(?=[A-Za-zÄÖäö])/g, "S\u2011").replace(/(\d) (?=\d{3}(?!\d))/g, "$1\u00a0").replace(/(\d) €/g, "$1\u00a0€"); }
   // Finnish writes money with a decimal comma ("235,68 €", "3 345,06 €"), as the rest of the app does; the reply's
