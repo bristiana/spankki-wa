@@ -159,13 +159,13 @@ def name_for(persona: str | None) -> str:
     return PERSONAS[valid_persona(persona)]["name"]
 
 
-# Family names for the app's own profile (Minä); the dataset has none. Chat and WhatsApp keep first names.
-SURNAMES = {HERO: "Virtanen"}  # the hero, Antti
+# The name on the app's own profile (Minä): the demo's owner, whom WhatsApp calls Cristiana.
+FULL_NAMES = {HERO: "Cristiana Constantin"}
 
 
 def full_name(persona: str | None) -> str:
     p = valid_persona(persona)
-    return " ".join(x for x in (PERSONAS[p]["name"], SURNAMES.get(p, "")) if x)
+    return FULL_NAMES.get(p, PERSONAS[p]["name"])
 
 
 @app.middleware("http")
