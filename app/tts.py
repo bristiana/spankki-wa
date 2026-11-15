@@ -23,19 +23,21 @@ log = logging.getLogger("tts")
 
 API = "https://api.elevenlabs.io/v1/text-to-speech"
 # One voice per page language (the FI | EN toggle), each overridable: ELEVENLABS_VOICE_ID_EN / _FI, or
-# ELEVENLABS_VOICE_ID for both. EN: "Ziggy - Cute little Australian character", a library character voice: young,
-# friendly and a little quirky, but a normal speaking pitch (the squeaky "Miffy Mouse", M5t0724ORuAGCh3p3DUR, sounded
-# too much like a cartoon mouse). FI: "Sini - Energetic and spirited", a native Finnish library voice, bright and
-# playful. The library has no cute native Finnish character voice, and Miffy reading Finnish got the amounts wrong in
-# tests (183 € came back as 194), while Sini said every number right. ELEVENLABS_VOICE_ID_FI=W9YsrfUjc4DOYR4fhg8M
-# brings back "Jarmo", the calm narrator. When the account can't use a voice, the English one speaks, then the
-# premade "Chris" (in every account).
-DEFAULT_VOICES = {"en": "fjgAVa6FpNYGo4UpjqML", "fi": "8X97zFR9k9pK2xyFI7Nr"}
+# ELEVENLABS_VOICE_ID for both. EN: "Jessica - Playful, Bright, Warm", a premade voice (in every account): a young
+# American woman, cheerful and conversational with a normal accent and pitch. Rejected before her: George (a narrator),
+# Chris (male), "Miffy Mouse" (squeaky), "Ziggy" (fjgAVa6FpNYGo4UpjqML, Australian). "Frankie - Friendly Instructor"
+# (7li2FesTkwg1glJviKzT, library, a little higher) is the next pick. FI: "Sini - Energetic and spirited", a native
+# Finnish library voice, bright and playful, who said every amount right in tests (the cartoon voices did not).
+# ELEVENLABS_VOICE_ID_FI=W9YsrfUjc4DOYR4fhg8M brings back "Jarmo", the calm narrator. When the account can't use a
+# voice, the English one speaks, then the premade "Chris" (in every account).
+DEFAULT_VOICES = {"en": "cgSgspJ2msm6clMCkdW9", "fi": "8X97zFR9k9pK2xyFI7Nr"}
 FALLBACK_VOICE = "iP95p4xoKVk53GoZ742B"  # "Chris", premade; spoken with its own settings
-# How the squirrel is spoken (ElevenLabs voice_settings), each overridable: ELEVENLABS_STABILITY, _SIMILARITY, _STYLE
-# (0-1), _SPEAKER_BOOST (1/0), _SPEED (0.7-1.2). Slightly livelier than neutral and a touch faster: friendly, not a
-# cartoon; stability near the middle keeps amounts and percents clear.
+# How Oiva is spoken (ElevenLabs voice_settings), each overridable for both languages: ELEVENLABS_STABILITY,
+# _SIMILARITY, _STYLE (0-1), _SPEAKER_BOOST (1/0), _SPEED (0.7-1.2). FI: slightly livelier than neutral and a touch
+# faster; stability near the middle keeps amounts and percents clear. EN: a little more style and a little less
+# stability, so Jessica sounds happy and excited to teach; every amount still came back right in speech-to-text.
 DEFAULT_SETTINGS = {"stability": 0.45, "similarity_boost": 0.75, "style": 0.3, "use_speaker_boost": True, "speed": 1.05}
+LANG_SETTINGS = {"en": {"stability": 0.4, "style": 0.45}}
 _SETTING_ENV = {"stability": ("ELEVENLABS_STABILITY", 0.0, 1.0), "similarity_boost": ("ELEVENLABS_SIMILARITY", 0.0, 1.0),
                 "style": ("ELEVENLABS_STYLE", 0.0, 1.0), "speed": ("ELEVENLABS_SPEED", 0.7, 1.2)}
 DEFAULT_VOICE = DEFAULT_VOICES["en"]
@@ -195,7 +197,7 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
     for _ in range(2):  # not in this account (remembered for an hour): the next voice down
         if time.monotonic() - _missing.get(voice, -MISSING_FOR) < MISSING_FOR and voice != FALLBACK_VOICE:
             voice = _fallback(voice)
-    settings = _settings_for(voice, chosen, model)
+    settings = _settings_for(voice, chosen, model, lang)
     ck = hashlib.sha256(f"{voice}|{model}|{lang}|{settings}|{t}".encode()).hexdigest()
     with _lock:
         if ck in _cache:
@@ -230,7 +232,7 @@ async def speak(text: str, lang: str = "fi", client: httpx.AsyncClient | None = 
             log.warning("voice %s is not in this ElevenLabs account; using %s", voice, fallback)
             _missing[voice] = time.monotonic()
             voice = fallback
-            settings = _settings_for(voice, chosen, model)
+            settings = _settings_for(voice, chosen, model, lang)
             body.pop("voice_settings", None)
             if settings:
                 body["voice_settings"] = settings
@@ -272,21 +274,21 @@ def _fallback(voice: str) -> str:
     return en if en != voice and not gone and re.fullmatch(r"[A-Za-z0-9]{10,40}", en) else FALLBACK_VOICE
 
 
-def _settings_for(voice: str, chosen: str, model: str) -> dict | None:
-    """The squirrel's settings, unless Chris is speaking as the fallback (then his own). eleven_v3 takes only
+def _settings_for(voice: str, chosen: str, model: str, lang: str = "fi") -> dict | None:
+    """Oiva's settings for the language, unless Chris is speaking as the fallback (then his own). eleven_v3 takes only
     stability 0, 0.5 or 1: the nearest."""
     if voice == FALLBACK_VOICE and voice != chosen:
         return None
-    out = voice_settings()
+    out = voice_settings(lang)
     if model.startswith("eleven_v3"):
         out["stability"] = min((0.0, 0.5, 1.0), key=lambda x: abs(x - out["stability"]))
     return out
 
 
-def voice_settings() -> dict:
-    """DEFAULT_SETTINGS with any ELEVENLABS_STABILITY / _SIMILARITY / _STYLE / _SPEED / _SPEAKER_BOOST, kept in range;
+def voice_settings(lang: str = "fi") -> dict:
+    """DEFAULT_SETTINGS, with the language's own (LANG_SETTINGS), then any ELEVENLABS_STABILITY / _SIMILARITY / _STYLE / _SPEED / _SPEAKER_BOOST, kept in range;
     a value that isn't a number keeps the default."""
-    out = dict(DEFAULT_SETTINGS)
+    out = dict(DEFAULT_SETTINGS) | LANG_SETTINGS.get(lang, {})
     for k, (env, lo, hi) in _SETTING_ENV.items():
         try:
             out[k] = min(hi, max(lo, float(os.environ[env])))
