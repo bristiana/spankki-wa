@@ -1481,7 +1481,10 @@ def smobiili_home(request: Request):
     b = e.baskets("last_3_months")
     ready = sm_ready(request, e)
     first = [("ready", "I've got it ready, tap to check and confirm", "happy")] if ready and not ready["done"] else []
-    steps = [("acct-current", f"Your current account: {short_money(a['current'])}", "talk"),
+    en = ui_lang(request) == "en"
+    steps = [("oiva-card", "I'm Oiva. This is what you can safely spend until payday" if en else
+              "Olen Oiva. Tämän verran voit käyttää turvallisesti palkkapäivään asti", "wave"),
+             ("acct-current", f"Your current account: {short_money(a['current'])}", "talk"),
              ("baskets", "Everything you spend falls in 3 baskets. Tap it and I'll show you where it goes", "talk"),
              ("acct-pocket", "Your savings account" if a["pocket_open"] else "Your savings account, once you open one",
               "talk"),
@@ -1491,8 +1494,12 @@ def smobiili_home(request: Request):
     steps = first + steps
     bills_due = e.upcoming_bills(30)
     bill = next(iter(bills_due), None)
+    s = e.safe_to_spend()
+    safe = {"amount": s["safe_to_spend_until_payday_eur"], "per_day": s["safe_per_day_eur"], "days": s["horizon_days"],
+            "payday": fi_date(s["next_payday"]["date"]) if s["next_payday"]["date"] else None}
     return templates.TemplateResponse(request, "smobiili.html", sm_ctx(
         request, persona, screen="home", a=a, recent=e.recent(8), steps=guide_steps(steps), baskets=b, ready=ready,
+        safe=safe,
         bonus=demo_bonus(persona, e.today), bills_due=bills_due,
         bill={**bill, "due": fi_date(bill["due_date"])} if bill else None))
 

@@ -187,3 +187,17 @@ def test_chat_tab_bar_keeps_the_customer(client):
     nav = page[page.index('<nav class="tabs"'):]
     nav = nav[:nav.index("</nav>")]
     assert nav.count(f"persona={pid}") == 5
+
+
+@pytest.mark.parametrize("lang", ["fi", "en"])
+def test_koti_shows_oivas_safe_to_spend_card_first(client, lang):
+    """Oiva on Koti's first screen: a card right under the bonus hero with the engine's safe to spend, whose row asks
+    her in the Helper."""
+    page = client.get(f"/s-mobiili/?lang={lang}").text
+    s = main.engine.safe_to_spend()
+    card = page[page.index('id="oiva-card"'):]
+    card = card[:card.index("</section>")]
+    assert main.fi_money(s["safe_to_spend_until_payday_eur"]) in card and main.fi_money(s["safe_per_day_eur"]) in card
+    assert "mascot/head-v3.png" in card and 'id="ask-spend"' in card and 'href="/chat?q=' in card
+    assert ("Voit käyttää turvallisesti" if lang == "fi" else "Safe to spend") in card
+    assert page.index('class="hero"') < page.index('id="oiva-card"') < page.index("Vahvistettavat maksut" if lang == "fi" else "Payments to confirm")
